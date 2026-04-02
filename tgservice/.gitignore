@@ -1,0 +1,8 @@
+node_modules/
+db/*.db
+db/*.db-journal
+.config
+.config.env
+*.log
+*.pid
+.DS_Store

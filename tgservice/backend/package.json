@@ -1,0 +1,31 @@
+{
+  "name": "tgservice-backend",
+  "version": "1.0.0",
+  "description": "天宫国际线上服务后端",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "init-db": "node init-db.js"
+  },
+  "dependencies": {
+    "@alicloud/pop-core": "^1.8.0",
+    "ali-oss": "^6.23.0",
+    "axios": "^1.6.0",
+    "bcryptjs": "^2.4.3",
+    "canvas": "^3.2.1",
+    "cors": "^2.8.5",
+    "crypto-js": "^4.2.0",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.5",
+    "iconv-lite": "^0.7.2",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "qrcode": "^1.5.4",
+    "sqlite3": "^5.1.6",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}

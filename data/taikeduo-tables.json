@@ -1,0 +1,264 @@
+{
+  "timestamp": "2026-03-13T06:00:04.590Z",
+  "shop": "中山天宫国际台球城",
+  "stats": {
+    "totalRevenue": 1108.03,
+    "unsettled": 7976.53,
+    "activeTables": 6,
+    "totalTables": 40
+  },
+  "tables": {
+    "大厅区": [
+      {
+        "name": "普台1",
+        "status": "计费中"
+      },
+      {
+        "name": "普台2",
+        "status": "计费中"
+      },
+      {
+        "name": "普台3",
+        "status": "计费中"
+      },
+      {
+        "name": "普台5",
+        "status": "空闲"
+      },
+      {
+        "name": "普台6",
+        "status": "计费中"
+      },
+      {
+        "name": "普台7",
+        "status": "计费中"
+      },
+      {
+        "name": "普台8",
+        "status": "空闲"
+      },
+      {
+        "name": "普台9",
+        "status": "空闲"
+      },
+      {
+        "name": "普台10",
+        "status": "空闲"
+      },
+      {
+        "name": "普台11",
+        "status": "空闲"
+      },
+      {
+        "name": "普台12",
+        "status": "空闲"
+      },
+      {
+        "name": "普台13",
+        "status": "空闲"
+      },
+      {
+        "name": "普台15",
+        "status": "空闲"
+      },
+      {
+        "name": "普台16",
+        "status": "空闲"
+      },
+      {
+        "name": "普台17",
+        "status": "空闲"
+      },
+      {
+        "name": "普台18",
+        "status": "空闲"
+      },
+      {
+        "name": "普台19",
+        "status": "空闲"
+      },
+      {
+        "name": "普台20",
+        "status": "空闲"
+      },
+      {
+        "name": "普台21",
+        "status": "空闲"
+      },
+      {
+        "name": "普台22",
+        "status": "空闲"
+      },
+      {
+        "name": "普台23",
+        "status": "空闲"
+      },
+      {
+        "name": "普台25",
+        "status": "空闲"
+      },
+      {
+        "name": "普台26",
+        "status": "空闲"
+      },
+      {
+        "name": "普台27",
+        "status": "空闲"
+      },
+      {
+        "name": "普台28",
+        "status": "空闲"
+      }
+    ],
+    "TV区": [
+      {
+        "name": "TV台",
+        "status": "空闲"
+      }
+    ],
+    "包厢区": [
+      {
+        "name": "VIP1",
+        "status": "空闲"
+      },
+      {
+        "name": "VIP2",
+        "status": "空闲"
+      },
+      {
+        "name": "VIP3",
+        "status": "空闲"
+      },
+      {
+        "name": "VIP5",
+        "status": "空闲"
+      },
+      {
+        "name": "VIP6",
+        "status": "空闲"
+      },
+      {
+        "name": "VIP7",
+        "status": "空闲"
+      },
+      {
+        "name": "VIP8",
+        "status": "空闲"
+      },
+      {
+        "name": "BOSS1",
+        "status": "空闲"
+      },
+      {
+        "name": "BOSS2",
+        "status": "空闲"
+      },
+      {
+        "name": "BOSS3",
+        "status": "空闲"
+      }
+    ],
+    "棋牌区": [
+      {
+        "name": "雀1",
+        "status": "计费中"
+      },
+      {
+        "name": "雀2",
+        "status": "空闲"
+      }
+    ],
+    "虚拟区": [
+      {
+        "name": "乔氏虚拟",
+        "status": "已暂停"
+      },
+      {
+        "name": "乔氏虚拟",
+        "status": "已暂停"
+      },
+      {
+        "name": "乔氏虚拟",
+        "status": "已暂停"
+      },
+      {
+        "name": "乔氏虚拟",
+        "status": "已暂停"
+      },
+      {
+        "name": "乔氏虚拟",
+        "status": "已暂停"
+      },
+      {
+        "name": "虚拟7",
+        "status": "已暂停"
+      },
+      {
+        "name": "虚拟8",
+        "status": "已暂停"
+      },
+      {
+        "name": "虚拟9",
+        "status": "已暂停"
+      },
+      {
+        "name": "虚拟10",
+        "status": "已暂停"
+      },
+      {
+        "name": "虚拟11",
+        "status": "已暂停"
+      },
+      {
+        "name": "虚拟12",
+        "status": "已暂停"
+      },
+      {
+        "name": "虚拟13",
+        "status": "已暂停"
+      },
+      {
+        "name": "虚拟15",
+        "status": "已暂停"
+      },
+      {
+        "name": "虚拟16",
+        "status": "已暂停"
+      },
+      {
+        "name": "虚拟17",
+        "status": "已暂停"
+      },
+      {
+        "name": "虚拟18",
+        "status": "已暂停"
+      },
+      {
+        "name": "虚拟19",
+        "status": "已暂停"
+      },
+      {
+        "name": "虚拟20",
+        "status": "已暂停"
+      },
+      {
+        "name": "虚拟21",
+        "status": "已暂停"
+      },
+      {
+        "name": "虚拟22",
+        "status": "已暂停"
+      }
+    ],
+    "斯诺克区": [
+      {
+        "name": "斯诺克30",
+        "status": "空闲"
+      },
+      {
+        "name": "斯诺克31",
+        "status": "空闲"
+      }
+    ]
+  }
+}

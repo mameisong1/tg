@@ -1,0 +1,2445 @@
+{
+  "timestamp": "2026-03-13T06:01:37.904Z",
+  "shop": "中山天宫国际台球城",
+  "totalCount": 174,
+  "collectedCount": 174,
+  "pages": 9,
+  "products": [
+    {
+      "name": "if椰子水",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/1vviwWQoGbWfwDQg.jpg",
+      "price": "10.00",
+      "stock": {
+        "total": 117,
+        "available": 117,
+        "frozen": 0
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-03-12 19:37:00"
+    },
+    {
+      "name": "茶兀",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/7t2J9TdE56SIN9va.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 150,
+        "available": 150,
+        "frozen": 0
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-03-12 18:58:37"
+    },
+    {
+      "name": "苏打水",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/d43e16JC77AO3Pm0.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 223,
+        "available": 223,
+        "frozen": 0
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-03-12 18:56:44"
+    },
+    {
+      "name": "管理层事假",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/pic/GtYe33GDA60y6xWF.png",
+      "price": "535.00",
+      "stock": {
+        "total": 535,
+        "available": 535,
+        "frozen": 0
+      },
+      "category": "其他",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-03-08 03:51:09"
+    },
+    {
+      "name": "26号四瑶（女神）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603062000386407.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:58:02"
+    },
+    {
+      "name": "52号露露（初级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061955412546.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:55:29"
+    },
+    {
+      "name": "28号逍遥（女神）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061955528527.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:55:29"
+    },
+    {
+      "name": "40号羊羊（女神)",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061956042449.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:55:29"
+    },
+    {
+      "name": "35号多多(女神)",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061956151782.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:55:29"
+    },
+    {
+      "name": "8号小雨(中级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061956253735.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:55:29"
+    },
+    {
+      "name": "21号球球(高级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061956318019.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:55:29"
+    },
+    {
+      "name": "27号小白（中级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061946193843.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:46:23"
+    },
+    {
+      "name": "31号小涵（女神）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061941445468.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "18号莫莫（高级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061941521516.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "16号雪梨（中级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061942054156.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "39号饼饼（女神）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061942212058.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "4号小佳（中级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061942308473.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "29号青子（女神）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061942368916.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "33号晴天（初级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061942453239.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "69号六九（高级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061942527102.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "10号momo（女神级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061942596815.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "15号柳柳（中级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061943071895.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "36号芊芊（高级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061943145562.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "12号十七（女神）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061943206462.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "25号周周（中级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061943271259.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "50号禾子（初级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061943343019.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "5号芝芝（中级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061943588994.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "37号三七（高级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061940242765.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "7号小月（中级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061940527158.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "6号洋芋（中级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061941012370.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "20号恩恩（中级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061941157249.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "2号陆飞（高级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061941314818.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "1号歪歪（高级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061944088251.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "19号茜茜（初级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061944168596.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "22号小鱼（中级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061944267523.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "49号快乐（女神）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061944333209.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "3号六六（女神）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061944406975.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:56"
+    },
+    {
+      "name": "30号江江(高级)",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061944499632.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:55"
+    },
+    {
+      "name": "23号土豆(高级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061945002650.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:55"
+    },
+    {
+      "name": "42号晓墨（女神级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061945075225.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:55"
+    },
+    {
+      "name": "17号静香（中级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061945167204.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:55"
+    },
+    {
+      "name": "34号海玲（高级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061945241402.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:39:55"
+    },
+    {
+      "name": "11号 小怡（女神级）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061911545518.jpg",
+      "price": "9999.00",
+      "stock": {
+        "total": 9999,
+        "available": 9999,
+        "frozen": 0
+      },
+      "category": "美女教练",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-03-06 19:11:42"
+    },
+    {
+      "name": "草莓抹茶牛乳",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121720399629.jpg",
+      "price": "23.00",
+      "stock": {
+        "total": 943,
+        "available": 923,
+        "frozen": 20
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-03-02 17:26:30"
+    },
+    {
+      "name": "开瓶费100",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/pic/GtYe33GDA60y6xWF.png",
+      "price": "100.00",
+      "stock": {
+        "total": 998,
+        "available": 998,
+        "frozen": 0
+      },
+      "category": "酒水",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-02-25 01:23:06"
+    },
+    {
+      "name": "酒桌游戏牌",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121741356474.jpg",
+      "price": "5.00",
+      "stock": {
+        "total": 17,
+        "available": 17,
+        "frozen": 0
+      },
+      "category": "小吃",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-02-20 19:09:40"
+    },
+    {
+      "name": "开瓶费200",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/pic/GtYe33GDA60y6xWF.png",
+      "price": "200.00",
+      "stock": {
+        "total": 998,
+        "available": 998,
+        "frozen": 0
+      },
+      "category": "酒水",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-02-11 22:39:27"
+    },
+    {
+      "name": "冰水（可续杯）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/g2EAV0RhsRkOk55h.jpg",
+      "price": "3.00",
+      "stock": {
+        "total": 946,
+        "available": 938,
+        "frozen": 8
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-02-06 23:10:58"
+    },
+    {
+      "name": "98g开心果",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/9jW065Re7Jfb93L2.jpg",
+      "price": "25.00",
+      "stock": {
+        "total": 6,
+        "available": 6,
+        "frozen": 0
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-02-06 16:37:50"
+    },
+    {
+      "name": "九制橄榄",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/W73TPnbNkk20AGny.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 4,
+        "available": 3,
+        "frozen": 1
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-02-06 15:43:04"
+    },
+    {
+      "name": "酸甜话梅",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/m5Ja7yLdOLPaP45P.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 9,
+        "available": 8,
+        "frozen": 1
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-02-06 15:42:15"
+    },
+    {
+      "name": "无穷爱辣鸡米",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/eF5Pi9mU1u2kG7Cc.jpg",
+      "price": "2.00",
+      "stock": {
+        "total": 83,
+        "available": 65,
+        "frozen": 18
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-02-06 15:40:55"
+    },
+    {
+      "name": "无穷烤鸡翅根",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/RxKJ6QiyN5e0O1jT.jpg",
+      "price": "5.00",
+      "stock": {
+        "total": 58,
+        "available": 54,
+        "frozen": 4
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-02-06 15:38:29"
+    },
+    {
+      "name": "无穷鸡蛋",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/xg4y1fJlnNlE851e.jpg",
+      "price": "3.00",
+      "stock": {
+        "total": 64,
+        "available": 64,
+        "frozen": 0
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb216759",
+      "createTime": "2026-02-06 15:37:37"
+    },
+    {
+      "name": "鱼皮花生",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/Xbc71pJ6W3aik3oS.jpg",
+      "price": "10.00",
+      "stock": {
+        "total": 3,
+        "available": 0,
+        "frozen": 3
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-02-04 13:14:12"
+    },
+    {
+      "name": "名仕700ml",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121700401015.jpg",
+      "price": "988.00",
+      "stock": {
+        "total": 0,
+        "available": 0,
+        "frozen": 0
+      },
+      "category": "酒水",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-30 17:35:22"
+    },
+    {
+      "name": "一次性拖鞋",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/xs22vdqvrT6IIIcT.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 36,
+        "available": 36,
+        "frozen": 0
+      },
+      "category": "其他",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-29 02:46:05"
+    },
+    {
+      "name": "光明酸奶",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/9DfP7x0leHx725bf.jpg",
+      "price": "20.00",
+      "stock": {
+        "total": 4,
+        "available": 3,
+        "frozen": 1
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-24 18:37:23"
+    },
+    {
+      "name": "辣番茄鸡蛋牛肉面",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/JQj2gB1tR41BUW78.jpg",
+      "price": "10.00",
+      "stock": {
+        "total": 34,
+        "available": 34,
+        "frozen": 0
+      },
+      "category": "泡面",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-24 02:36:21"
+    },
+    {
+      "name": "淀粉肠",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/nAd09vMbhOs5Orjd.jpg",
+      "price": "5.00",
+      "stock": {
+        "total": 6,
+        "available": 3,
+        "frozen": 3
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-23 21:38:14"
+    },
+    {
+      "name": "烤肠",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/10xlP2C5ys01tjV4.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 11,
+        "available": 1,
+        "frozen": 10
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-23 18:24:02"
+    },
+    {
+      "name": "火腿肠",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/oQNWs388109XuPxk.jpg",
+      "price": "5.00",
+      "stock": {
+        "total": 13,
+        "available": 13,
+        "frozen": 0
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-18 23:47:40"
+    },
+    {
+      "name": "乖媳妇凤爪",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/s5BF413m0K4maJw3.jpg",
+      "price": "12.00",
+      "stock": {
+        "total": 25,
+        "available": 15,
+        "frozen": 10
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-18 23:46:01"
+    },
+    {
+      "name": "麻辣王子",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/131D742cPQ7ehVgV.jpg",
+      "price": "5.00",
+      "stock": {
+        "total": 59,
+        "available": 54,
+        "frozen": 5
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-18 23:44:47"
+    },
+    {
+      "name": "水溶C",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/h2sV0v1KPMirgu74.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 150,
+        "available": 150,
+        "frozen": 0
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-18 23:33:16"
+    },
+    {
+      "name": "单份水果",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121716353070.jpg",
+      "price": "28.00",
+      "stock": {
+        "total": 10,
+        "available": 10,
+        "frozen": 0
+      },
+      "category": "其他",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-18 20:44:17"
+    },
+    {
+      "name": "单丛（一杯）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121702314245.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 996,
+        "available": 996,
+        "frozen": 0
+      },
+      "category": "酒水",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-17 16:21:51"
+    },
+    {
+      "name": "普洱茶（一泡）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/bX3VXrwEP0690XDC.jpg",
+      "price": "38.00",
+      "stock": {
+        "total": 996,
+        "available": 996,
+        "frozen": 0
+      },
+      "category": "酒水",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-17 16:21:33"
+    },
+    {
+      "name": "小青柑（一泡）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/po5vflLqlO3CVn6K.jpg",
+      "price": "38.00",
+      "stock": {
+        "total": 99,
+        "available": 99,
+        "frozen": 0
+      },
+      "category": "酒水",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-17 16:18:26"
+    },
+    {
+      "name": "单丛（一泡）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121702422772.jpg",
+      "price": "38.00",
+      "stock": {
+        "total": 998,
+        "available": 998,
+        "frozen": 0
+      },
+      "category": "酒水",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-17 16:17:40"
+    },
+    {
+      "name": "普洱茶（一杯）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/eTW6iVXjm89sdHo4.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 991,
+        "available": 991,
+        "frozen": 0
+      },
+      "category": "酒水",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-17 16:16:36"
+    },
+    {
+      "name": "大白兔奶糖",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/73E6C0S3tsMchT2y.jpg",
+      "price": "10.00",
+      "stock": {
+        "total": 3,
+        "available": 2,
+        "frozen": 1
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-16 00:35:45"
+    },
+    {
+      "name": "至尊果盘",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/rbm5117aRYDfIw9W.jpg",
+      "price": "88.00",
+      "stock": {
+        "total": 0,
+        "available": 0,
+        "frozen": 0
+      },
+      "category": "其他",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-15 19:03:42"
+    },
+    {
+      "name": "芙蓉王 代购",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121709521983.jpg",
+      "price": "30.00",
+      "stock": {
+        "total": 10,
+        "available": 3,
+        "frozen": 7
+      },
+      "category": "其他",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-12 01:04:30"
+    },
+    {
+      "name": "虚拟商品（百威换黑啤）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/pic/GtYe33GDA60y6xWF.png",
+      "price": "100.00",
+      "stock": {
+        "total": 999,
+        "available": 999,
+        "frozen": 0
+      },
+      "category": "其他",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-10 22:54:51"
+    },
+    {
+      "name": "活动赠送小吃",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/pic/GtYe33GDA60y6xWF.png",
+      "price": "0.00",
+      "stock": {
+        "total": 988,
+        "available": 983,
+        "frozen": 5
+      },
+      "category": "其他",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-10 20:23:25"
+    },
+    {
+      "name": "健达巧克力",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/V0FaOAR7Fp9iih8N.jpg",
+      "price": "10.00",
+      "stock": {
+        "total": 20,
+        "available": 20,
+        "frozen": 0
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-09 16:38:40"
+    },
+    {
+      "name": "100和成天下",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/E0EvSA100c7C5drb.jpg",
+      "price": "110.00",
+      "stock": {
+        "total": 42,
+        "available": 42,
+        "frozen": 0
+      },
+      "category": "槟榔",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-08 20:55:16"
+    },
+    {
+      "name": "柠檬水",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121721256879.jpg",
+      "price": "10.00",
+      "stock": {
+        "total": 974,
+        "available": 974,
+        "frozen": 0
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-06 23:02:40"
+    },
+    {
+      "name": "鲜牛奶",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121722258983.jpg",
+      "price": "18.00",
+      "stock": {
+        "total": 998,
+        "available": 997,
+        "frozen": 1
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-06 23:02:40"
+    },
+    {
+      "name": "椰丸奶茶",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121724529970.jpg",
+      "price": "18.00",
+      "stock": {
+        "total": 988,
+        "available": 988,
+        "frozen": 0
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-06 23:02:40"
+    },
+    {
+      "name": "珍珠奶茶",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121726008021.jpg",
+      "price": "18.00",
+      "stock": {
+        "total": 971,
+        "available": 970,
+        "frozen": 1
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-06 23:02:40"
+    },
+    {
+      "name": "红枣桂圆茶",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121726414383.jpg",
+      "price": "25.00",
+      "stock": {
+        "total": 998,
+        "available": 998,
+        "frozen": 0
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-06 23:02:40"
+    },
+    {
+      "name": "茉香柠檬茶",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121727595274.jpg",
+      "price": "18.00",
+      "stock": {
+        "total": 967,
+        "available": 966,
+        "frozen": 1
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-06 23:02:40"
+    },
+    {
+      "name": "老盐黄皮冰茶",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121729049616.jpg",
+      "price": "24.00",
+      "stock": {
+        "total": 1000,
+        "available": 1000,
+        "frozen": 0
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-06 23:02:40"
+    },
+    {
+      "name": "橙橙冰茶/苏打",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121730185033.jpg",
+      "price": "22.00",
+      "stock": {
+        "total": 993,
+        "available": 993,
+        "frozen": 0
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-06 23:02:40"
+    },
+    {
+      "name": "西柚冰茶/苏打",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121731354745.jpg",
+      "price": "22.00",
+      "stock": {
+        "total": 985,
+        "available": 985,
+        "frozen": 0
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-06 23:02:40"
+    },
+    {
+      "name": "苹果冰茶/苏打",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121733268861.jpg",
+      "price": "22.00",
+      "stock": {
+        "total": 996,
+        "available": 996,
+        "frozen": 0
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-06 23:02:40"
+    },
+    {
+      "name": "鸭屎香柠檬茶",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121732258997.jpg",
+      "price": "18.00",
+      "stock": {
+        "total": 988,
+        "available": 988,
+        "frozen": 0
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-06 23:02:40"
+    },
+    {
+      "name": "招牌柠檬茶",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121733515099.jpg",
+      "price": "18.00",
+      "stock": {
+        "total": 933,
+        "available": 928,
+        "frozen": 5
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-06 23:02:40"
+    },
+    {
+      "name": "港式鸳鸯",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121736337098.jpg",
+      "price": "20.00",
+      "stock": {
+        "total": 994,
+        "available": 994,
+        "frozen": 0
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-06 23:02:40"
+    },
+    {
+      "name": "柠c美式",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121736401402.jpg",
+      "price": "18.00",
+      "stock": {
+        "total": 1000,
+        "available": 1000,
+        "frozen": 0
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-06 23:02:40"
+    },
+    {
+      "name": "橙c美式",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121736474707.jpg",
+      "price": "18.00",
+      "stock": {
+        "total": 993,
+        "available": 993,
+        "frozen": 0
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-06 23:02:40"
+    },
+    {
+      "name": "椰青美式",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121736547195.jpg",
+      "price": "20.00",
+      "stock": {
+        "total": 1000,
+        "available": 1000,
+        "frozen": 0
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-06 23:02:40"
+    },
+    {
+      "name": "红茶拿铁（热）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121738246028.jpg",
+      "price": "20.00",
+      "stock": {
+        "total": 1000,
+        "available": 1000,
+        "frozen": 0
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-06 23:02:40"
+    },
+    {
+      "name": "红茶拿铁",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121738318076.jpg",
+      "price": "20.00",
+      "stock": {
+        "total": 1000,
+        "available": 1000,
+        "frozen": 0
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-06 23:02:39"
+    },
+    {
+      "name": "生椰拿铁（热）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121738386604.jpg",
+      "price": "22.00",
+      "stock": {
+        "total": 996,
+        "available": 996,
+        "frozen": 0
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-06 23:02:39"
+    },
+    {
+      "name": "生椰拿铁",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121739282767.jpg",
+      "price": "22.00",
+      "stock": {
+        "total": 985,
+        "available": 983,
+        "frozen": 2
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-06 23:02:39"
+    },
+    {
+      "name": "美式（热）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121739351003.jpg",
+      "price": "18.00",
+      "stock": {
+        "total": 997,
+        "available": 997,
+        "frozen": 0
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-06 23:02:39"
+    },
+    {
+      "name": "美式",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121739414038.jpg",
+      "price": "18.00",
+      "stock": {
+        "total": 961,
+        "available": 961,
+        "frozen": 0
+      },
+      "category": "奶茶店",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2026-01-06 23:02:39"
+    },
+    {
+      "name": "纸巾",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/m8ifrYlcL81pmy4q.jpg",
+      "price": "5.00",
+      "stock": {
+        "total": 754,
+        "available": 747,
+        "frozen": 7
+      },
+      "category": "其他",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-04 21:04:22"
+    },
+    {
+      "name": "软中华 代购",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121710165381.jpg",
+      "price": "80.00",
+      "stock": {
+        "total": 1,
+        "available": 0,
+        "frozen": 1
+      },
+      "category": "其他",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-04 19:42:46"
+    },
+    {
+      "name": "商微 代购",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121710243188.jpg",
+      "price": "50.00",
+      "stock": {
+        "total": 0,
+        "available": 0,
+        "frozen": 0
+      },
+      "category": "其他",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-04 16:14:42"
+    },
+    {
+      "name": "蜂蜜水",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/PU6P5bJeF16gYL1G.jpg",
+      "price": "10.00",
+      "stock": {
+        "total": 219,
+        "available": 192,
+        "frozen": 27
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-04 01:44:48"
+    },
+    {
+      "name": "瓜子",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/ie2743k0f41ION5Y.jpg",
+      "price": "18.00",
+      "stock": {
+        "total": 25,
+        "available": 24,
+        "frozen": 1
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-04 01:28:50"
+    },
+    {
+      "name": "荷花 细支",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121710496693.jpg",
+      "price": "55.00",
+      "stock": {
+        "total": 0,
+        "available": 0,
+        "frozen": 0
+      },
+      "category": "其他",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-03 06:57:45"
+    },
+    {
+      "name": "陈皮贵烟 代购",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121710425816.jpg",
+      "price": "30.00",
+      "stock": {
+        "total": 10,
+        "available": 7,
+        "frozen": 3
+      },
+      "category": "其他",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-02 00:10:21"
+    },
+    {
+      "name": "粗荷花 代购",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603121710588323.jpg",
+      "price": "50.00",
+      "stock": {
+        "total": 57,
+        "available": 19,
+        "frozen": 38
+      },
+      "category": "其他",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-01 22:56:46"
+    },
+    {
+      "name": "百岁山",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/1WI3q3MvEifq3wBs.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 533,
+        "available": 525,
+        "frozen": 8
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-01 20:43:45"
+    },
+    {
+      "name": "六宫格果盘",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/iy3pA4U16MMf58iJ.jpg",
+      "price": "78.00",
+      "stock": {
+        "total": 25,
+        "available": 12,
+        "frozen": 13
+      },
+      "category": "其他",
+      "status": "上架",
+      "creator": "syb201158",
+      "createTime": "2026-01-01 19:10:15"
+    },
+    {
+      "name": "扑克牌",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/g84NolH1RQw0mhY0.jpg",
+      "price": "5.00",
+      "stock": {
+        "total": 449,
+        "available": 444,
+        "frozen": 5
+      },
+      "category": "其他",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:30"
+    },
+    {
+      "name": "手套",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/HS947tN4KvH39E1y.jpg",
+      "price": "5.00",
+      "stock": {
+        "total": 427,
+        "available": 418,
+        "frozen": 9
+      },
+      "category": "其他",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:30"
+    },
+    {
+      "name": "四洲虾条",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/68YwI4DNdlMjb9bQ.jpg",
+      "price": "10.00",
+      "stock": {
+        "total": 48,
+        "available": 45,
+        "frozen": 3
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:30"
+    },
+    {
+      "name": "开心果",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/1q00yLc5b0K7XQca.jpg",
+      "price": "25.00",
+      "stock": {
+        "total": 22,
+        "available": 22,
+        "frozen": 0
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:30"
+    },
+    {
+      "name": "杨梅",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/w9f0nCrvwXx4uD97.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 5,
+        "available": 4,
+        "frozen": 1
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:30"
+    },
+    {
+      "name": "盐焗腰果",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/kEb2M5Gq3N7Gfyn6.jpg",
+      "price": "25.00",
+      "stock": {
+        "total": 24,
+        "available": 24,
+        "frozen": 0
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:30"
+    },
+    {
+      "name": "墨鱼丝",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/56qtJ24MHV8p672b.jpg",
+      "price": "18.00",
+      "stock": {
+        "total": 7,
+        "available": 7,
+        "frozen": 0
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:30"
+    },
+    {
+      "name": "笋尖",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/5JAytFQAW1hDP431.jpg",
+      "price": "5.00",
+      "stock": {
+        "total": 1,
+        "available": 0,
+        "frozen": 1
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:29"
+    },
+    {
+      "name": "酱香鸡爪",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/CddqH535Q37b0DK2.jpg",
+      "price": "5.00",
+      "stock": {
+        "total": 87,
+        "available": 77,
+        "frozen": 10
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:29"
+    },
+    {
+      "name": "泡鸭掌",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/6SQnWc4BuhFpYOji.jpg",
+      "price": "5.00",
+      "stock": {
+        "total": 93,
+        "available": 83,
+        "frozen": 10
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:29"
+    },
+    {
+      "name": "四洲栗一烧",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/j04AntjSdaMJku0H.jpg",
+      "price": "10.00",
+      "stock": {
+        "total": 43,
+        "available": 42,
+        "frozen": 1
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:29"
+    },
+    {
+      "name": "乐事薯片",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/7O02d9j38wr67UhS.jpg",
+      "price": "10.00",
+      "stock": {
+        "total": 99,
+        "available": 92,
+        "frozen": 7
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:29"
+    },
+    {
+      "name": "海苔卷",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/WBmy62Xig9U3Cl2X.jpg",
+      "price": "3.00",
+      "stock": {
+        "total": 0,
+        "available": 0,
+        "frozen": 0
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:29"
+    },
+    {
+      "name": "香脆肠",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/37uiNAAFtH6428JN.jpg",
+      "price": "3.00",
+      "stock": {
+        "total": 24,
+        "available": 23,
+        "frozen": 1
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:29"
+    },
+    {
+      "name": "盐焗鸭掌",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/WNWUG8YpvwT65d17.jpg",
+      "price": "6.00",
+      "stock": {
+        "total": 10,
+        "available": 0,
+        "frozen": 10
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:29"
+    },
+    {
+      "name": "无穷鸡腿",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/sG831XYjyDUyL4B1.jpg",
+      "price": "20.00",
+      "stock": {
+        "total": 8,
+        "available": 6,
+        "frozen": 2
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:29"
+    },
+    {
+      "name": "烤黑鸭脖",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/53R8hLB4bOX8bg84.jpg",
+      "price": "3.00",
+      "stock": {
+        "total": 20,
+        "available": 19,
+        "frozen": 1
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:29"
+    },
+    {
+      "name": "无穷鸡翅",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/s0Y0W5Mltg231mOA.jpg",
+      "price": "20.00",
+      "stock": {
+        "total": 13,
+        "available": 13,
+        "frozen": 0
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:29"
+    },
+    {
+      "name": "禛香肥牛",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/Xmnhh8XR4URK14Rr.jpg",
+      "price": "5.00",
+      "stock": {
+        "total": 22,
+        "available": 20,
+        "frozen": 2
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:29"
+    },
+    {
+      "name": "小面筋",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/31LoC5WQIkK3Mc30.jpg",
+      "price": "3.00",
+      "stock": {
+        "total": 26,
+        "available": 24,
+        "frozen": 2
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:29"
+    },
+    {
+      "name": "魔芋爽",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/N69p5aXw7Cc1C34T.jpg",
+      "price": "3.00",
+      "stock": {
+        "total": 45,
+        "available": 39,
+        "frozen": 6
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:29"
+    },
+    {
+      "name": "海带",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/ObMFw3vc5O406i26.jpg",
+      "price": "3.00",
+      "stock": {
+        "total": 72,
+        "available": 72,
+        "frozen": 0
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:29"
+    },
+    {
+      "name": "劲仔小鱼",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/SYofdjxXOMt0h6vS.jpg",
+      "price": "3.00",
+      "stock": {
+        "total": 71,
+        "available": 71,
+        "frozen": 0
+      },
+      "category": "零食",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:29"
+    },
+    {
+      "name": "蓝妹啤酒",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/33ACoqsK2t4CT851.jpg",
+      "price": "18.00",
+      "stock": {
+        "total": 219,
+        "available": 207,
+        "frozen": 12
+      },
+      "category": "酒水",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:29"
+    },
+    {
+      "name": "三得利乌龙茶",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/vd31359O3nqOKypj.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 38,
+        "available": 37,
+        "frozen": 1
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:29"
+    },
+    {
+      "name": "外星人电解质水",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/I2HYatWKNKr3qhh8.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 172,
+        "available": 170,
+        "frozen": 2
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:29"
+    },
+    {
+      "name": "椰树椰汁",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/uG3Tw2e2sJyMQ064.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 85,
+        "available": 85,
+        "frozen": 0
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:29"
+    },
+    {
+      "name": "王老吉凉茶",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/v4cTEL23MGyQt4Yi.jpg",
+      "price": "6.00",
+      "stock": {
+        "total": 64,
+        "available": 62,
+        "frozen": 2
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:29"
+    },
+    {
+      "name": "宝矿力特（中）",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/082DNbXLU7HkxfVG.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 157,
+        "available": 147,
+        "frozen": 10
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "元气苏打水",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/E10Ux37HilxtVI4f.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 195,
+        "available": 190,
+        "frozen": 5
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "元气乳茶",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/XxN0uKOA0Gt5LrA4.jpg",
+      "price": "10.00",
+      "stock": {
+        "total": 0,
+        "available": 0,
+        "frozen": 0
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "金桔柠檬",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/09kY2e5h0X06f2n6.jpg",
+      "price": "6.00",
+      "stock": {
+        "total": 75,
+        "available": 74,
+        "frozen": 1
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "阿萨姆奶茶",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/Me0y3fFaw16GnjN9.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 93,
+        "available": 91,
+        "frozen": 2
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "青梅绿茶",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/b2WvmU0lqFkgoetK.jpg",
+      "price": "6.00",
+      "stock": {
+        "total": 8,
+        "available": 8,
+        "frozen": 0
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "绿茶",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/sg8K37K8Osd2aNdp.jpg",
+      "price": "6.00",
+      "stock": {
+        "total": 75,
+        "available": 74,
+        "frozen": 1
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "双萃柠檬茶",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/5rt51JWT6dnlh9xc.jpg",
+      "price": "6.00",
+      "stock": {
+        "total": 130,
+        "available": 130,
+        "frozen": 0
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "茉莉清茶",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/kcHOx00MHeVgayXK.jpg",
+      "price": "6.00",
+      "stock": {
+        "total": 134,
+        "available": 133,
+        "frozen": 1
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "酸梅汤",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/4k3j93CTX6E1P77y.jpg",
+      "price": "6.00",
+      "stock": {
+        "total": 12,
+        "available": 12,
+        "frozen": 0
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "每日C红葡萄汁",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/M70qXX8XTCWHLd1e.jpg",
+      "price": "6.00",
+      "stock": {
+        "total": 72,
+        "available": 71,
+        "frozen": 1
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "每日C鲜橙汁",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/948qAtMRjc5HkqJ1.jpg",
+      "price": "6.00",
+      "stock": {
+        "total": 79,
+        "available": 79,
+        "frozen": 0
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "冰红茶",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/I3jy5AGPcSu4k119.jpg",
+      "price": "6.00",
+      "stock": {
+        "total": 50,
+        "available": 48,
+        "frozen": 2
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "东方树叶",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/uJV9wJGpF0ANF880.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 350,
+        "available": 330,
+        "frozen": 20
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "红牛",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/iiHFCODD1Bt09483.jpg",
+      "price": "10.00",
+      "stock": {
+        "total": 154,
+        "available": 148,
+        "frozen": 6
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "红牛强化型",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/2j0H0nl3g8kXU7k2.jpg",
+      "price": "15.00",
+      "stock": {
+        "total": 15,
+        "available": 15,
+        "frozen": 0
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "屈臣氏沙示汽水",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/06JDtAqf35r0b30D.jpg",
+      "price": "6.00",
+      "stock": {
+        "total": 22,
+        "available": 22,
+        "frozen": 0
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "雀巢咖啡",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/jjAxo05s74fjr8Wa.jpg",
+      "price": "10.00",
+      "stock": {
+        "total": 109,
+        "available": 103,
+        "frozen": 6
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "雪碧",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/KSWxOfuprl2HMi7y.jpg",
+      "price": "6.00",
+      "stock": {
+        "total": 189,
+        "available": 187,
+        "frozen": 2
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "可乐",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/EowW1v0hTGVJBOjW.jpg",
+      "price": "6.00",
+      "stock": {
+        "total": 527,
+        "available": 508,
+        "frozen": 19
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "脉动",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/hRUDUd79QIb5Sb31.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 113,
+        "available": 103,
+        "frozen": 10
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "AD钙",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/Y74PWIqRJ8LbvR75.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 109,
+        "available": 107,
+        "frozen": 2
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "营养快线",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/5p0xJPK7KW1w3Q4L.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 153,
+        "available": 153,
+        "frozen": 0
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:28"
+    },
+    {
+      "name": "老坛酸菜牛肉面",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/4HMC4lH36abRGMJt.jpg",
+      "price": "10.00",
+      "stock": {
+        "total": 7,
+        "available": 6,
+        "frozen": 1
+      },
+      "category": "泡面",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:27"
+    },
+    {
+      "name": "红烧牛肉面",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/1qEBg0v9Qw302tLW.jpg",
+      "price": "10.00",
+      "stock": {
+        "total": 17,
+        "available": 16,
+        "frozen": 1
+      },
+      "category": "泡面",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:27"
+    },
+    {
+      "name": "香辣牛肉干拌面",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/t05Td8o68sk7UG6f.jpg",
+      "price": "10.00",
+      "stock": {
+        "total": 5,
+        "available": 2,
+        "frozen": 3
+      },
+      "category": "泡面",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:27"
+    },
+    {
+      "name": "老坛酸菜干拌面",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/DqAt7lu7A3pL49W0.jpg",
+      "price": "10.00",
+      "stock": {
+        "total": 14,
+        "available": 13,
+        "frozen": 1
+      },
+      "category": "泡面",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:27"
+    },
+    {
+      "name": "香辣牛肉面",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/lWLKItXsj592Uae6.jpg",
+      "price": "10.00",
+      "stock": {
+        "total": 10,
+        "available": 9,
+        "frozen": 1
+      },
+      "category": "泡面",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:27"
+    },
+    {
+      "name": "红烧牛肉干拌面",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/poESO9oMgSym0xQQ.jpg",
+      "price": "10.00",
+      "stock": {
+        "total": 22,
+        "available": 22,
+        "frozen": 0
+      },
+      "category": "泡面",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:27"
+    },
+    {
+      "name": "香菇炖鸡面",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/9LqwTSD49BsPSx7H.jpg",
+      "price": "10.00",
+      "stock": {
+        "total": 24,
+        "available": 23,
+        "frozen": 1
+      },
+      "category": "泡面",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:27"
+    },
+    {
+      "name": "健力士黑啤",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/ccqxKi7svgRu9cME.jpg",
+      "price": "18.00",
+      "stock": {
+        "total": 471,
+        "available": 399,
+        "frozen": 72
+      },
+      "category": "酒水",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:27"
+    },
+    {
+      "name": "旺仔牛奶",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/Nbcxu3s0QQL8WRd2.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 1,
+        "available": 1,
+        "frozen": 0
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:27"
+    },
+    {
+      "name": "杨协城马蹄爽",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/wQ9oFpsX031c5Mn7.jpg",
+      "price": "8.00",
+      "stock": {
+        "total": 104,
+        "available": 104,
+        "frozen": 0
+      },
+      "category": "饮料",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:27"
+    },
+    {
+      "name": "50枸杞槟榔",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/n7TMxFkt9oixBX5m.jpg",
+      "price": "58.00",
+      "stock": {
+        "total": 58,
+        "available": 58,
+        "frozen": 0
+      },
+      "category": "槟榔",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:27"
+    },
+    {
+      "name": "50和成天下",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/vTHiBx7w8RQgS89t.jpg",
+      "price": "58.00",
+      "stock": {
+        "total": 24,
+        "available": 20,
+        "frozen": 4
+      },
+      "category": "槟榔",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:27"
+    },
+    {
+      "name": "百威新锐啤酒",
+      "image": "https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/ljAK52JE6POV0Kwb.jpg",
+      "price": "16.00",
+      "stock": {
+        "total": 921,
+        "available": 483,
+        "frozen": 438
+      },
+      "category": "酒水",
+      "status": "上架",
+      "creator": "syb185876",
+      "createTime": "2025-12-31 15:23:27"
+    }
+  ]
+}

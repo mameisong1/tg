@@ -1,0 +1,156 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "天宫国际",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "backgroundColor": "#0a0a0f",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/products/products",
+      "style": {
+        "navigationBarTitleText": "商品点单",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/cart/cart",
+      "style": {
+        "navigationBarTitleText": "购物车",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/coaches/coaches",
+      "style": {
+        "navigationBarTitleText": "美女教练",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/coach-detail/coach-detail",
+      "style": {
+        "navigationBarTitleText": "教练介绍",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/vip-rooms/vip-rooms",
+      "style": {
+        "navigationBarTitleText": "V包预约",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/vip-detail/vip-detail",
+      "style": {
+        "navigationBarTitleText": "包房详情",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/member/member",
+      "style": {
+        "navigationBarTitleText": "会员中心",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/profile/profile",
+      "style": {
+        "navigationBarTitleText": "个人信息",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/coach-profile/coach-profile",
+      "style": {
+        "navigationBarTitleText": "教练个人中心",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/coach-login/coach-login",
+      "style": {
+        "navigationBarTitleText": "教练登录",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/agreement/agreement",
+      "style": {
+        "navigationBarTitleText": "协议",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "white",
+    "navigationBarTitleText": "天宫国际",
+    "navigationBarBackgroundColor": "#0a0a0f",
+    "backgroundColor": "#0a0a0f"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#d4af37",
+    "borderStyle": "black",
+    "backgroundColor": "#0a0a0f",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "iconPath": "static/tabbar/home.png",
+        "selectedIconPath": "static/tabbar/home-active.png",
+        "text": "首页"
+      },
+      {
+        "pagePath": "pages/products/products",
+        "iconPath": "static/tabbar/cart.png",
+        "selectedIconPath": "static/tabbar/cart-active.png",
+        "text": "商品"
+      },
+      {
+        "pagePath": "pages/coaches/coaches",
+        "iconPath": "static/tabbar/coach.png",
+        "selectedIconPath": "static/tabbar/coach-active.png",
+        "text": "教练"
+      },
+      {
+        "pagePath": "pages/vip-rooms/vip-rooms",
+        "iconPath": "static/tabbar/vip.png",
+        "selectedIconPath": "static/tabbar/vip-active.png",
+        "text": "V包"
+      },
+      {
+        "pagePath": "pages/member/member",
+        "iconPath": "static/tabbar/my.png",
+        "selectedIconPath": "static/tabbar/my-active.png",
+        "text": "我的"
+      }
+    ]
+  }
+}

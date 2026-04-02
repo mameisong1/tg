@@ -1,0 +1,1580 @@
+<template>
+  <view class="page">
+    <!-- #ifndef H5 -->
+    <!-- 小程序：固定标题 -->
+    <view class="fixed-area">
+      <view class="status-bar-bg" :style="{ height: statusBarHeight + 'px' }"></view>
+      <view class="fixed-header">
+        <text class="header-title">会员中心</text>
+      </view>
+    </view>
+    <view class="header-placeholder" :style="{ height: (statusBarHeight + 44) + 'px' }"></view>
+    <!-- #endif -->
+    
+    <!-- #ifdef H5 -->
+    <!-- H5：标题不固定 -->
+    <view class="h5-header">
+      <text class="header-title">会员中心</text>
+    </view>
+    <!-- #endif -->
+    
+    <!-- 未登录状态 -->
+    <view class="login-section" v-if="!memberInfo.memberNo">
+      <!-- #ifdef MP-WEIXIN -->
+      <!-- 小程序：原有样式 -->
+      <view class="login-card">
+        <image class="login-icon" src="/static/logo.png" mode="aspectFit"></image>
+        <text class="login-title">欢迎使用天宫国际</text>
+        <text class="login-desc">注册会员享更多优惠</text>
+        <button class="login-btn" open-type="getPhoneNumber" @getphonenumber="onGetPhoneNumber">
+          <text class="login-btn-text">微信手机号快速登录</text>
+        </button>
+        <view class="agreement-check">
+          <view class="checkbox" :class="{ checked: agreed }" @click="agreed = !agreed">
+            <text v-if="agreed">✓</text>
+          </view>
+          <text class="agreement-text" @click="agreed = !agreed">我已阅读并同意</text>
+          <text class="agreement-link" @click="goAgreement('user')">《用户协议》</text>
+          <text class="agreement-text">和</text>
+          <text class="agreement-link" @click="goAgreement('privacy')">《隐私政策》</text>
+        </view>
+      </view>
+      <!-- #endif -->
+      
+      <!-- #ifdef H5 -->
+      <!-- H5：紧凑登录框 -->
+      <view class="h5-login-card">
+        <view class="h5-login-title-row">
+          <image class="h5-title-logo" src="/static/logo.png" mode="aspectFit"></image>
+          <text class="h5-login-title">会员登录</text>
+        </view>
+        <view class="h5-form-item">
+          <input class="h5-form-input" type="number" v-model="smsPhone" placeholder="手机号" maxlength="11" />
+        </view>
+        <view class="h5-form-item">
+          <input class="h5-form-input" type="number" v-model="smsCode" placeholder="验证码" maxlength="6" />
+          <view class="h5-code-btn" :class="{ disabled: smsCooldown > 0 }" @click="sendSmsCode">
+            <text>{{ smsCooldown > 0 ? smsCooldown + 's' : '获取' }}</text>
+          </view>
+        </view>
+        <view class="h5-login-btn" @click="loginBySms">
+          <text>登录</text>
+        </view>
+        <view class="h5-agreement">
+          <view class="checkbox" :class="{ checked: agreed }" @click="agreed = !agreed">
+            <text v-if="agreed">✓</text>
+          </view>
+          <text class="agreement-text" @click="agreed = !agreed">同意</text>
+          <text class="agreement-link" @click="goAgreement('user')">《用户协议》</text>
+          <text class="agreement-link" @click="goAgreement('privacy')">《隐私政策》</text>
+        </view>
+      </view>
+      <!-- #endif -->
+    </view>
+    
+    <!-- 已登录状态 -->
+    <view class="member-section" v-if="memberInfo.memberNo">
+      <view class="member-card" @click="goProfile">
+        <view class="member-avatar">
+          <text class="avatar-text">{{ memberInfo.name ? memberInfo.name.charAt(0) : '会' }}</text>
+        </view>
+        <view class="member-info">
+          <text class="member-name">{{ memberInfo.name || '会员' + memberInfo.memberNo }}</text>
+          <text class="member-phone">{{ maskPhone(memberInfo.phone) }}</text>
+        </view>
+        <text class="member-arrow">›</text>
+      </view>
+      
+      <!-- 如果姓名或性别未填写，显示引导编辑 -->
+      <view class="info-card" v-if="!memberInfo.name || !memberInfo.gender">
+        <view class="info-item" v-if="!memberInfo.name" @click="editName">
+          <text class="info-label">姓名</text>
+          <view class="info-value-wrap">
+            <text class="info-value placeholder">未设置</text>
+            <text class="info-arrow">›</text>
+          </view>
+        </view>
+        <view class="info-item" v-if="!memberInfo.gender" @click="editGender">
+          <text class="info-label">性别</text>
+          <view class="info-value-wrap">
+            <text class="info-value placeholder">未设置</text>
+            <text class="info-arrow">›</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 教练专用版块 - 紧跟会员姓名版块 -->
+    <view class="coach-section" v-if="memberInfo.memberNo && coachInfo.coachNo">
+      <view class="section-header">
+        <text class="section-title">👤 教练专用</text>
+      </view>
+      
+      <view class="popularity-card">
+        <text class="popularity-label">我的人气值</text>
+        <text class="popularity-value">{{ myPopularity }}</text>
+        <view class="coach-profile-btn" @click="goCoachProfile">
+          <text class="coach-profile-text">教练个人中心 ›</text>
+        </view>
+      </view>
+      
+      <view class="ranking-section" v-if="topCoaches.length > 0">
+        <text class="ranking-title">🔥 人气榜 TOP6</text>
+        <!-- 第一行：第1名，最大卡片 -->
+        <view class="ranking-row first-row" v-if="topCoaches.length > 0">
+          <view class="ranking-card large card-gold" v-for="(coach, index) in topCoaches.slice(0, 1)" :key="coach.coach_no">
+            <view class="medal medal-gold">🥇</view>
+            <image class="ranking-avatar large" :src="getCoachPhoto(coach)" mode="aspectFill"></image>
+            <text class="ranking-name">{{ coach.employee_id }}号 {{ coach.stage_name }}</text>
+            <text class="ranking-pop">{{ coach.popularity || 0 }}</text>
+          </view>
+        </view>
+        <!-- 第二行：第2-3名 -->
+        <view class="ranking-row" v-if="topCoaches.length > 1">
+          <view class="ranking-card medium" :class="index === 0 ? 'card-silver' : 'card-bronze'" v-for="(coach, index) in topCoaches.slice(1, 3)" :key="coach.coach_no">
+            <view class="medal" :class="['medal-' + ['silver','bronze'][index]]">
+              {{ ['🥈','🥉'][index] }}
+            </view>
+            <image class="ranking-avatar medium" :src="getCoachPhoto(coach)" mode="aspectFill"></image>
+            <text class="ranking-name">{{ coach.employee_id }}号 {{ coach.stage_name }}</text>
+            <text class="ranking-pop">{{ coach.popularity || 0 }}</text>
+          </view>
+        </view>
+        <!-- 第三行：第4-6名 -->
+        <view class="ranking-row" v-if="topCoaches.length > 3">
+          <view class="ranking-card small" v-for="(coach, index) in topCoaches.slice(3, 6)" :key="coach.coach_no">
+            <view class="medal medal-normal">{{ index + 4 }}</view>
+            <image class="ranking-avatar small" :src="getCoachPhoto(coach)" mode="aspectFill"></image>
+            <text class="ranking-name">{{ coach.employee_id }}号 {{ coach.stage_name }}</text>
+            <text class="ranking-pop">{{ coach.popularity || 0 }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 台桌信息 -->
+    <view class="table-section">
+      <view class="section-header">
+        <text class="section-title">🎱 当前台桌</text>
+      </view>
+      <TableInfo ref="tableInfoRef" />
+    </view>
+    
+    <!-- 历史订单 -->
+    <view class="order-section">
+      <view class="section-header">
+        <text class="section-title">📋 待处理订单</text>
+        <text class="section-hint" v-if="pendingOrders.length > 0">{{ pendingOrders.length }} 条</text>
+      </view>
+      <view class="order-list" v-if="pendingOrders.length > 0">
+        <view class="order-card" v-for="order in pendingOrders" :key="order.id">
+          <view class="order-header">
+            <text class="order-no">{{ order.order_no }}</text>
+            <text class="order-time">{{ formatTime(order.created_at) }}</text>
+          </view>
+          <view class="order-items">
+            <view class="order-item" v-for="(item, idx) in order.items" :key="idx">
+              <text class="item-name">{{ item.name }}</text>
+              <text class="item-qty">x{{ item.quantity }}</text>
+              <text class="item-price">¥{{ item.price * item.quantity }}</text>
+            </view>
+          </view>
+          <view class="order-footer">
+            <text class="order-total">合计: ¥{{ order.total_price }}</text>
+            <text class="order-status">待处理</text>
+          </view>
+        </view>
+      </view>
+      <view class="empty-orders" v-else>
+        <text class="empty-text">暂无待处理订单</text>
+      </view>
+    </view>
+    
+    <!-- 设置区域 -->
+    <!-- 悬浮按钮位置设置 - 始终显示，无需登录 -->
+    <view class="settings-section">
+      <view class="section-header">
+        <text class="section-title">⚙️ 设置</text>
+      </view>
+      <view class="setting-item" @click="toggleFloatPosition">
+        <text class="setting-label">悬浮按钮位置</text>
+        <text class="setting-value">{{ floatPosition === 'left' ? '左边' : '右边' }}</text>
+        <text class="setting-arrow">›</text>
+      </view>
+    </view>
+    
+    <!-- 会员设置 - 登录后显示 -->
+    <view class="settings-section" v-if="memberInfo.memberNo">
+    </view>
+    
+    <!-- 底部协议信息 -->
+    <view class="footer-section">
+      <!-- #ifdef H5 -->
+      <!-- PWA添加到桌面 - 始终显示 -->
+      <view class="pwa-install-section" @click="handleInstallClick">
+        <text class="pwa-icon">📱</text>
+        <text class="pwa-text">添加到桌面</text>
+      </view>
+
+      <!-- H5全屏模式 -->
+      <view class="fullscreen-section" @click="toggleFullscreen">
+        <text class="fullscreen-icon">{{ isFullscreen ? '🔳' : '⛶' }}</text>
+        <text class="fullscreen-text">{{ isFullscreen ? '退出全屏' : '全屏模式' }}</text>
+      </view>
+      <!-- #endif -->
+      <view class="footer-links">
+        <text class="footer-link" @click="goAgreement('user')">用户协议</text>
+        <text class="footer-divider">|</text>
+        <text class="footer-link" @click="goAgreement('privacy')">隐私政策</text>
+      </view>
+      <text class="footer-company">中山市开火体育文化有限公司</text>
+      <!-- #ifdef H5 -->
+      <a href="https://beian.miit.gov.cn" target="_blank" class="footer-icp" style="text-decoration: none; color: rgba(255,255,255,0.5);">粤ICP备2026027219号</a>
+      <!-- #endif -->
+      <!-- #ifndef H5 -->
+      <text class="footer-icp">粤ICP备2026027219号</text>
+      <!-- #endif -->
+    </view>
+    
+    <!-- 编辑姓名弹窗 -->
+    <view class="edit-modal" v-if="showEditName" @click="showEditName = false">
+      <view class="edit-content" @click.stop>
+        <text class="edit-title">编辑姓名</text>
+        <input class="edit-input" v-model="editNameValue" placeholder="请输入姓名" maxlength="10" />
+        <view class="edit-actions">
+          <view class="edit-btn cancel" @click="showEditName = false">取消</view>
+          <view class="edit-btn confirm" @click="saveName">保存</view>
+        </view>
+      </view>
+    </view>
+    
+    <!-- 编辑性别弹窗 -->
+    <view class="edit-modal" v-if="showEditGender" @click="showEditGender = false">
+      <view class="edit-content" @click.stop>
+        <text class="edit-title">选择性别</text>
+        <view class="gender-options">
+          <view class="gender-option" :class="{ active: editGenderValue === '男' }" @click="editGenderValue = '男'">
+            <text>男</text>
+          </view>
+          <view class="gender-option" :class="{ active: editGenderValue === '女' }" @click="editGenderValue = '女'">
+            <text>女</text>
+          </view>
+        </view>
+        <view class="edit-actions">
+          <view class="edit-btn cancel" @click="showEditGender = false">取消</view>
+          <view class="edit-btn confirm" @click="saveGender">保存</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- #ifdef H5 -->
+    <!-- iPhone 添加到桌面操作指引弹窗 -->
+    <view class="edit-modal" v-if="showIOSGuide" @click="showIOSGuide = false">
+      <view class="ios-guide-content" @click.stop>
+        <text class="ios-guide-title">📱 添加到主屏幕</text>
+        <view class="ios-guide-steps">
+          <view class="ios-step">
+            <text class="ios-step-num">1</text>
+            <text class="ios-step-text">点击底部</text>
+            <text class="ios-step-icon">↗</text>
+            <text class="ios-step-text">分享按钮</text>
+          </view>
+          <view class="ios-step">
+            <text class="ios-step-num">2</text>
+            <text class="ios-step-text">向下滚动，找到</text>
+            <text class="ios-step-highlight">"添加到主屏幕"</text>
+          </view>
+          <view class="ios-step">
+            <text class="ios-step-num">3</text>
+            <text class="ios-step-text">点击后即可在桌面找到应用</text>
+          </view>
+        </view>
+        <view class="ios-guide-close" @click="showIOSGuide = false">
+          <text>我知道了</text>
+        </view>
+      </view>
+    </view>
+    <!-- 华为手机添加到桌面操作指引弹窗 -->
+    <view class="edit-modal" v-if="showHuaweiGuide" @click="showHuaweiGuide = false">
+      <view class="ios-guide-content" @click.stop>
+        <text class="ios-guide-title">📱 添加到桌面</text>
+        <view class="ios-guide-steps">
+          <view class="ios-step">
+            <text class="ios-step-num">1</text>
+            <text class="ios-step-text">点击浏览器右下角</text>
+            <text class="ios-step-icon">⋮</text>
+            <text class="ios-step-text">菜单按钮</text>
+          </view>
+          <view class="ios-step">
+            <text class="ios-step-num">2</text>
+            <text class="ios-step-text">找到并点击</text>
+            <text class="ios-step-highlight">"添加到桌面"</text>
+            <text class="ios-step-text">或</text>
+            <text class="ios-step-highlight">"发送到桌面"</text>
+          </view>
+          <view class="ios-step">
+            <text class="ios-step-num">3</text>
+            <text class="ios-step-text">确认后即可在桌面找到应用</text>
+          </view>
+        </view>
+        <view class="ios-guide-close" @click="showHuaweiGuide = false">
+          <text>我知道了</text>
+        </view>
+      </view>
+    </view>
+    <!-- 微信/QQ内置浏览器引导弹窗 -->
+    <view class="edit-modal" v-if="showWechatGuide" @click="showWechatGuide = false">
+      <view class="ios-guide-content" @click.stop>
+        <text class="ios-guide-title">📱 在浏览器中打开</text>
+        <view class="ios-guide-steps">
+          <view class="ios-step">
+            <text class="ios-step-num">1</text>
+            <text class="ios-step-text">点击右上角</text>
+            <text class="ios-step-icon">⋯</text>
+            <text class="ios-step-text">菜单按钮</text>
+          </view>
+          <view class="ios-step">
+            <text class="ios-step-num">2</text>
+            <text class="ios-step-text">选择</text>
+            <text class="ios-step-highlight">"在浏览器中打开"</text>
+          </view>
+          <view class="ios-step">
+            <text class="ios-step-num">3</text>
+            <text class="ios-step-text">打开后再点击"添加到桌面"</text>
+          </view>
+        </view>
+        <view class="ios-guide-close" @click="showWechatGuide = false">
+          <text>我知道了</text>
+        </view>
+      </view>
+    </view>
+    <!-- Android通用引导弹窗 -->
+    <view class="edit-modal" v-if="showAndroidGuide" @click="showAndroidGuide = false">
+      <view class="ios-guide-content" @click.stop>
+        <text class="ios-guide-title">📱 添加到桌面</text>
+        <view class="ios-guide-steps">
+          <view class="ios-step">
+            <text class="ios-step-num">1</text>
+            <text class="ios-step-text">点击浏览器菜单按钮</text>
+            <text class="ios-step-icon">⋮</text>
+          </view>
+          <view class="ios-step">
+            <text class="ios-step-num">2</text>
+            <text class="ios-step-text">找到</text>
+            <text class="ios-step-highlight">"添加到主屏幕"</text>
+            <text class="ios-step-text">或</text>
+            <text class="ios-step-highlight">"添加到桌面"</text>
+          </view>
+          <view class="ios-step">
+            <text class="ios-step-num">3</text>
+            <text class="ios-step-text">确认后即可在桌面找到应用</text>
+          </view>
+        </view>
+        <view class="ios-guide-close" @click="showAndroidGuide = false">
+          <text>我知道了</text>
+        </view>
+      </view>
+    </view>
+    <!-- #endif -->
+    
+    
+  </view>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import api from '@/utils/api.js'
+import TableInfo from '@/components/TableInfo.vue'
+
+const statusBarHeight = ref(0)
+const tableInfoRef = ref(null)
+const pendingOrders = ref([])
+const coachInfo = ref({})
+const myPopularity = ref(0)
+const topCoaches = ref([])
+
+// 从组件获取台桌名
+const tableName = computed(() => tableInfoRef.value?.tableName || '')
+
+// 会员相关
+const memberInfo = ref({})
+const agreed = ref(false)
+
+// H5短信登录相关
+const smsPhone = ref('')
+const smsCode = ref('')
+const smsCooldown = ref(0)
+let cooldownTimer = null
+
+// 编辑弹窗
+const showEditName = ref(false)
+const editNameValue = ref('')
+const showEditGender = ref(false)
+const editGenderValue = ref('')
+
+// H5全屏状态
+// #ifdef H5
+const isFullscreen = ref(false)
+const canInstallPwa = ref(false) // 是否可以安装PWA（Android才会触发）
+const isIOS = ref(false) // 是否是iOS设备
+const showIOSGuide = ref(false) // iPhone操作指引弹窗
+const showHuaweiGuide = ref(false) // 华为手机操作指引弹窗
+const showAndroidGuide = ref(false) // 普通Android操作指引弹窗
+const showWechatGuide = ref(false) // 微信/QQ内置浏览器引导弹窗
+// #endif
+
+// 悬浮按钮位置设置
+const floatPosition = ref('left')
+
+// 设备检测函数
+const detectDevice = () => {
+  const ua = navigator.userAgent
+  return {
+    isHuawei: /Huawei|HUAWEI|HONOR/i.test(ua),
+    isHarmonyOS: /HarmonyOS/i.test(ua),
+    isWeChat: /MicroMessenger/i.test(ua),
+    isQQ: /\sQQ\//i.test(ua),
+    isAndroid: /Android/i.test(ua),
+    isIOS: /iPhone|iPad|iPod/i.test(ua) || 
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1),
+    isPwaMode: window.matchMedia('(display-mode: standalone)').matches ||
+               navigator.standalone === true
+  }
+}
+// #endif
+
+// H5全屏切换
+const toggleFullscreen = () => {
+  // #ifdef H5
+  // 检测 iOS Safari 限制
+  if (isIOS.value) {
+    uni.showToast({ 
+      title: 'iOS Safari 不支持全屏功能', 
+      icon: 'none',
+      duration: 2000
+    })
+    return
+  }
+  
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().then(() => {
+      isFullscreen.value = true
+    }).catch(err => {
+      console.log('全屏失败:', err)
+      uni.showToast({ title: '全屏功能不可用', icon: 'none' })
+    })
+  } else {
+    document.exitFullscreen().then(() => {
+      isFullscreen.value = false
+    })
+  }
+  // #endif
+}
+
+// #ifdef H5
+// PWA安装相关
+let deferredPrompt = null
+
+// 统一处理安装点击
+const handleInstallClick = async () => {
+  const device = detectDevice()
+  
+  // 已是PWA模式
+  if (device.isPwaMode) {
+    uni.showToast({ title: '已是桌面应用', icon: 'none' })
+    return
+  }
+  
+  // 微信/QQ内置浏览器 - 不支持PWA，直接显示引导
+  if (device.isWeChat || device.isQQ) {
+    showWechatGuide.value = true
+    return
+  }
+  
+  // iOS设备 - 不支持beforeinstallprompt，显示iOS引导
+  if (device.isIOS) {
+    showIOSGuide.value = true
+    return
+  }
+  
+  // 其他设备（包括华为/鸿蒙/普通Android）- 先尝试原生安装提示
+  if (deferredPrompt) {
+    try {
+      await deferredPrompt.prompt()
+      const { outcome } = await deferredPrompt.userChoice
+      if (outcome === 'accepted') {
+        canInstallPwa.value = false
+      }
+      deferredPrompt = null
+    } catch (err) {
+      console.log('原生安装失败，显示引导:', err)
+      // 根据设备类型显示对应引导
+      if (device.isHuawei || device.isHarmonyOS) {
+        showHuaweiGuide.value = true
+      } else {
+        showAndroidGuide.value = true
+      }
+    }
+  } else {
+    // beforeinstallprompt 未触发，显示对应引导
+    if (device.isHuawei || device.isHarmonyOS) {
+      showHuaweiGuide.value = true
+    } else {
+      showAndroidGuide.value = true
+    }
+  }
+}
+
+const installPwa = async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt()
+    const { outcome } = await deferredPrompt.userChoice
+    if (outcome === 'accepted') {
+      canInstallPwa.value = false
+    }
+    deferredPrompt = null
+  }
+}
+
+// 手机号遮罩
+const maskPhone = (phone) => {
+  if (!phone || phone.length < 7) return phone
+  return phone.substring(0, 3) + '****' + phone.substring(7)
+}
+
+// H5发送短信验证码
+const sendSmsCode = async () => {
+  if (smsCooldown.value > 0) return
+  
+  if (!smsPhone.value || !/^1[3-9]\d{9}$/.test(smsPhone.value)) {
+    uni.showToast({ title: '请输入正确的手机号', icon: 'none' })
+    return
+  }
+  
+  if (!agreed.value) {
+    uni.showToast({ title: '请先同意协议', icon: 'none' })
+    return
+  }
+  
+  try {
+    uni.showLoading({ title: '发送中...' })
+    const data = await api.sendSmsCode(smsPhone.value)
+    uni.hideLoading()
+    
+    if (data.success) {
+      uni.showToast({ title: '验证码已发送', icon: 'success' })
+      // 保存手机号用于下次自动填充
+      uni.setStorageSync('lastPhone', smsPhone.value)
+      // 开始60秒倒计时
+      smsCooldown.value = 60
+      cooldownTimer = setInterval(() => {
+        smsCooldown.value--
+        if (smsCooldown.value <= 0) {
+          clearInterval(cooldownTimer)
+        }
+      }, 1000)
+    }
+  } catch (err) {
+    uni.hideLoading()
+    uni.showToast({ title: err.error || '发送失败', icon: 'none' })
+  }
+}
+
+// H5短信验证码登录
+const loginBySms = async () => {
+  if (!smsPhone.value || !/^1[3-9]\d{9}$/.test(smsPhone.value)) {
+    uni.showToast({ title: '请输入正确的手机号', icon: 'none' })
+    return
+  }
+  
+  if (!smsCode.value || smsCode.value.length !== 6) {
+    uni.showToast({ title: '请输入6位验证码', icon: 'none' })
+    return
+  }
+  
+  if (!agreed.value) {
+    uni.showToast({ title: '请先同意协议', icon: 'none' })
+    return
+  }
+  
+  try {
+    uni.showLoading({ title: '登录中...' })
+    const data = await api.loginBySms(smsPhone.value, smsCode.value)
+    uni.hideLoading()
+    
+    if (data.success) {
+      // 保存token和会员信息到localStorage（H5持久化）
+      uni.setStorageSync('memberToken', data.token)
+      uni.setStorageSync('lastPhone', smsPhone.value)
+      // 保存同意协议状态
+      uni.setStorageSync('agreed', true)
+      memberInfo.value = data.member
+      
+      // 如果同时是教练，自动登录教练
+      if (data.coachInfo) {
+        uni.setStorageSync('coachInfo', data.coachInfo)
+        coachInfo.value = data.coachInfo
+      }
+      
+      // 清空验证码
+      smsCode.value = ''
+      
+      uni.showToast({ title: '登录成功', icon: 'success' })
+    }
+  } catch (err) {
+    uni.hideLoading()
+    uni.showToast({ title: err.error || '登录失败', icon: 'none' })
+  }
+}
+
+// 微信手机号登录
+const onGetPhoneNumber = async (e) => {
+  if (!agreed.value) {
+    uni.showToast({ title: '请先同意用户协议和隐私政策', icon: 'none' })
+    return
+  }
+  
+  if (e.detail.errMsg !== 'getPhoneNumber:ok') {
+    uni.showToast({ title: '获取手机号失败', icon: 'none' })
+    return
+  }
+  
+  try {
+    uni.showLoading({ title: '登录中...' })
+    
+    // 获取code
+    const loginRes = await new Promise((resolve, reject) => {
+      uni.login({
+        success: resolve,
+        fail: reject
+      })
+    })
+    
+    // 调用后端登录接口
+    const data = await api.memberLogin({
+      code: loginRes.code,
+      encryptedData: e.detail.encryptedData,
+      iv: e.detail.iv
+    })
+    
+    uni.hideLoading()
+    
+    if (data.success) {
+      // 保存token和会员信息
+      uni.setStorageSync('memberToken', data.token)
+      memberInfo.value = data.member
+      
+      // 如果同时是教练，自动登录教练
+      if (data.coachInfo) {
+        const coachToken = Buffer.from(`${data.coachInfo.coachNo}:${Date.now()}`).toString('base64')
+        uni.setStorageSync('coachToken', coachToken)
+        uni.setStorageSync('coachInfo', data.coachInfo)
+        coachInfo.value = data.coachInfo
+      }
+      
+      uni.showToast({ title: '登录成功', icon: 'success' })
+    }
+  } catch (err) {
+    uni.hideLoading()
+    uni.showToast({ title: err.error || '登录失败', icon: 'none' })
+  }
+}
+
+// 自动登录检查
+const checkAutoLogin = async () => {
+  const token = uni.getStorageSync('memberToken')
+  if (token) {
+    // 已有token，获取会员信息
+    try {
+      const profile = await api.getMemberProfile()
+      memberInfo.value = profile
+      
+      // 如果同时是教练，设置教练信息
+      if (profile.coachInfo) {
+        uni.setStorageSync('coachInfo', profile.coachInfo)
+        coachInfo.value = profile.coachInfo
+      } else {
+        // 不是教练，清空教练信息
+        coachInfo.value = {}
+        uni.removeStorageSync('coachInfo')
+      }
+    } catch (err) {
+      // token失效，清空信息
+      memberInfo.value = {}
+      coachInfo.value = {}
+      uni.removeStorageSync('memberToken')
+      // 自动填充上次手机号
+      autoFillPhone()
+    }
+  } else {
+    // 无token，先清空会员和教练信息
+    memberInfo.value = {}
+    coachInfo.value = {}
+    // 自动填充上次手机号
+    autoFillPhone()
+  }
+}
+
+// H5自动填充上次手机号
+const autoFillPhone = () => {
+  // #ifdef H5
+  const lastPhone = uni.getStorageSync('lastPhone')
+  if (lastPhone) {
+    smsPhone.value = lastPhone
+  }
+  // 恢复同意协议状态
+  const agreedSaved = uni.getStorageSync('agreed')
+  if (agreedSaved) {
+    agreed.value = true
+  }
+  // #endif
+}
+
+// 尝试通过openid自动登录
+const tryAutoLogin = async () => {
+  try {
+    const loginRes = await new Promise((resolve, reject) => {
+      uni.login({
+        success: resolve,
+        fail: reject
+      })
+    })
+    
+    const data = await api.memberAutoLogin(loginRes.code)
+    if (data.success && data.registered) {
+      uni.setStorageSync('memberToken', data.token)
+      memberInfo.value = data.member
+      
+      // 如果同时是教练，自动登录教练
+      if (data.coachInfo) {
+        const coachToken = Buffer.from(`${data.coachInfo.coachNo}:${Date.now()}`).toString('base64')
+        uni.setStorageSync('coachToken', coachToken)
+        uni.setStorageSync('coachInfo', data.coachInfo)
+        coachInfo.value = data.coachInfo
+      }
+    } else {
+      // 未注册，确保信息为空
+      memberInfo.value = {}
+      coachInfo.value = {}
+    }
+    // 未注册则什么都不做，等用户自己点击登录
+  } catch (err) {
+    // 自动登录失败，确保清空信息
+    memberInfo.value = {}
+    coachInfo.value = {}
+  }
+}
+
+// 编辑姓名
+const editName = () => {
+  editNameValue.value = memberInfo.value.name || ''
+  showEditName.value = true
+}
+
+const saveName = async () => {
+  if (!editNameValue.value.trim()) {
+    uni.showToast({ title: '请输入姓名', icon: 'none' })
+    return
+  }
+  
+  try {
+    await api.updateMemberProfile({ name: editNameValue.value.trim(), gender: memberInfo.value.gender })
+    memberInfo.value.name = editNameValue.value.trim()
+    showEditName.value = false
+    uni.showToast({ title: '保存成功', icon: 'success' })
+  } catch (err) {
+    uni.showToast({ title: '保存失败', icon: 'none' })
+  }
+}
+
+// 编辑性别
+const editGender = () => {
+  editGenderValue.value = memberInfo.value.gender || '男'
+  showEditGender.value = true
+}
+
+const saveGender = async () => {
+  try {
+    await api.updateMemberProfile({ name: memberInfo.value.name, gender: editGenderValue.value })
+    memberInfo.value.gender = editGenderValue.value
+    showEditGender.value = false
+    uni.showToast({ title: '保存成功', icon: 'success' })
+  } catch (err) {
+    uni.showToast({ title: '保存失败', icon: 'none' })
+  }
+}
+
+// 跳转协议页面
+const goAgreement = (type) => {
+  uni.navigateTo({ url: `/pages/agreement/agreement?type=${type}` })
+}
+
+// 跳转个人信息页面
+const goProfile = () => {
+  uni.navigateTo({ url: '/pages/profile/profile' })
+}
+
+// 加载待处理订单
+const loadPendingOrders = async () => {
+  const name = tableInfoRef.value?.tableName
+  if (!name) {
+    pendingOrders.value = []
+    return
+  }
+  try {
+    const orders = await api.getPendingOrders(name)
+    pendingOrders.value = orders || []
+  } catch (err) {
+    console.error('获取订单失败', err)
+  }
+}
+
+// 格式化时间
+const formatTime = (timeStr) => {
+  if (!timeStr) return ''
+  const d = new Date(timeStr + ' UTC')
+  return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`
+}
+
+// 检查教练登录
+const checkCoachLogin = () => {
+  const info = uni.getStorageSync('coachInfo')
+  coachInfo.value = info || {}
+}
+
+// 加载人气值数据
+const loadPopularity = async () => {
+  if (!coachInfo.value.coachNo) return
+  
+  try {
+    const coach = await api.getCoach(coachInfo.value.coachNo)
+    myPopularity.value = coach.popularity || 0
+    
+    const top = await api.getPopularityTop6()
+    topCoaches.value = top || []
+  } catch (err) {
+    console.error('获取人气值失败', err)
+  }
+}
+
+const goCoachProfile = () => {
+  uni.navigateTo({ url: '/pages/coach-profile/coach-profile' })
+}
+
+const getCoachPhoto = (coach) => {
+  const photo = coach.photos && coach.photos[0]
+  if (!photo) return '/static/avatar-default.png'
+  if (photo.startsWith('http')) return photo
+  return 'http://47.238.80.12:8081' + photo
+}
+
+// 切换悬浮按钮位置
+const toggleFloatPosition = () => {
+  floatPosition.value = floatPosition.value === 'left' ? 'right' : 'left'
+  uni.setStorageSync('floatButtonPosition', floatPosition.value)
+  uni.showToast({ 
+    title: `悬浮按钮已移至${floatPosition.value === 'left' ? '左边' : '右边'}`, 
+    icon: 'none',
+    duration: 1000
+  })
+  // 1秒后自动刷新页面
+  setTimeout(() => {
+    location.reload()
+  }, 1000)
+}
+
+onMounted(() => {
+  const systemInfo = uni.getSystemInfoSync()
+  statusBarHeight.value = systemInfo.statusBarHeight || 20
+  loadPendingOrders()
+  checkCoachLogin()
+  checkAutoLogin()
+  
+  // 读取悬浮按钮位置设置
+  floatPosition.value = uni.getStorageSync('floatButtonPosition') || 'left'
+  
+  // #ifdef H5
+  // 检测 iOS 设备
+  isIOS.value = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  
+  // 监听全屏状态变化
+  document.addEventListener('fullscreenchange', () => {
+    isFullscreen.value = !!document.fullscreenElement
+  })
+  
+  // PWA 调试日志 - 页面加载时
+  const device = detectDevice()
+  console.log('=== PWA 调试信息 ===')
+  console.log('UserAgent:', navigator.userAgent)
+  console.log('设备检测:', JSON.stringify(device))
+  console.log('deferredPrompt:', deferredPrompt)
+  console.log('beforeinstallprompt 支持:', 'onbeforeinstallprompt' in window)
+  
+  // 监听PWA安装事件（仅Android/鸿蒙会触发）
+  window.addEventListener('beforeinstallprompt', (e) => {
+    console.log('=== beforeinstallprompt 事件触发 ===')
+    console.log('事件对象:', e)
+    e.preventDefault()
+    deferredPrompt = e
+    canInstallPwa.value = true
+    console.log('deferredPrompt 已设置:', !!deferredPrompt)
+  })
+  // #endif
+})
+
+onShow(() => {
+  tableInfoRef.value?.loadTableInfo()
+  loadPendingOrders()
+  checkCoachLogin()
+  loadPopularity()
+  checkAutoLogin()  // 每次显示时检查自动登录
+})
+</script>
+
+<style scoped>
+.page { min-height: 100vh; background: #0a0a0f; padding-bottom: 80px; }
+
+/* 固定头部 */
+/* #ifndef H5 */
+.fixed-area {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 999;
+  background: #0a0a0f;
+}
+.status-bar-bg { background: #0a0a0f; }
+.fixed-header {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0a0a0f;
+}
+.header-placeholder { background: #0a0a0f; }
+/* #endif */
+
+/* #ifdef H5 */
+.h5-header {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0a0a0f;
+}
+/* #endif */
+
+.header-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #d4af37;
+  letter-spacing: 4px;
+}
+
+/* 登录卡片 */
+.login-section { padding: 40px 20px; }
+.login-card {
+  background: rgba(20,20,30,0.6);
+  border-radius: 16px;
+  padding: 40px 24px;
+  text-align: center;
+  border: 1px solid rgba(218,165,32,0.15);
+}
+.login-icon { width: 60px; height: 60px; margin-bottom: 16px; }
+.login-title { font-size: 20px; font-weight: 600; display: block; margin-bottom: 8px; }
+.login-desc { font-size: 13px; color: rgba(255,255,255,0.5); display: block; margin-bottom: 24px; }
+.login-btn {
+  width: 100%;
+  height: 48px;
+  background: linear-gradient(135deg, #d4af37, #ffd700);
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+}
+.login-btn-text { font-size: 15px; font-weight: 600; color: #000; }
+.agreement-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 16px;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.checkbox {
+  width: 16px;
+  height: 16px;
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 6px;
+  font-size: 12px;
+  color: transparent;
+}
+.checkbox.checked {
+  background: #d4af37;
+  border-color: #d4af37;
+  color: #000;
+}
+.agreement-text { font-size: 12px; color: rgba(255,255,255,0.5); }
+.agreement-link { font-size: 12px; color: #d4af37; }
+
+/* 会员卡片 */
+.member-section { padding: 0 16px; }
+.member-card {
+  background: linear-gradient(135deg, rgba(212,175,55,0.2), rgba(255,215,0,0.1));
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid rgba(218,165,32,0.3);
+  margin-bottom: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.member-card:active {
+  transform: scale(0.98);
+  background: linear-gradient(135deg, rgba(212,175,55,0.3), rgba(255,215,0,0.15));
+}
+.member-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #d4af37, #ffd700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.avatar-text { font-size: 22px; font-weight: 600; color: #000; }
+.member-info { flex: 1; }
+.member-name { font-size: 18px; font-weight: 600; display: block; margin-bottom: 4px; }
+.member-phone { font-size: 13px; color: rgba(255,255,255,0.6); }
+.member-arrow { font-size: 20px; color: rgba(255,255,255,0.3); margin-left: auto; }
+
+.info-card {
+  background: rgba(20,20,30,0.6);
+  border-radius: 12px;
+  border: 1px solid rgba(218,165,32,0.1);
+  overflow: hidden;
+}
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.info-item:last-child { border-bottom: none; }
+.info-label { font-size: 14px; color: rgba(255,255,255,0.7); }
+.info-value-wrap { display: flex; align-items: center; gap: 8px; }
+.info-value { font-size: 14px; color: #fff; }
+.info-value.placeholder { color: rgba(255,255,255,0.4); }
+.info-arrow { font-size: 18px; color: rgba(255,255,255,0.3); }
+
+/* Section */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px 12px;
+}
+.section-title { font-size: 15px; font-weight: 500; }
+.section-hint { font-size: 12px; color: rgba(255,255,255,0.5); }
+
+/* 台桌信息 */
+.table-section { margin: 0 16px; }
+
+/* 订单区 */
+.order-section { margin-top: 24px; }
+.order-list {
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.order-card {
+  background: rgba(20,20,30,0.6);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid rgba(218,165,32,0.1);
+}
+.order-header { display: flex; justify-content: space-between; margin-bottom: 12px; }
+.order-no { font-size: 12px; color: rgba(255,255,255,0.5); }
+.order-time { font-size: 12px; color: rgba(255,255,255,0.4); }
+.order-items { border-top: 1px solid rgba(255,255,255,0.05); padding-top: 12px; }
+.order-item { display: flex; justify-content: space-between; padding: 4px 0; }
+.item-name { flex: 1; font-size: 14px; }
+.item-qty { width: 40px; text-align: center; font-size: 12px; color: rgba(255,255,255,0.5); }
+.item-price { width: 60px; text-align: right; font-size: 13px; }
+.order-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+.order-total { font-size: 15px; color: #d4af37; font-weight: 500; }
+.order-status {
+  font-size: 12px;
+  color: #f1c40f;
+  background: rgba(241,196,15,0.2);
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+.empty-orders {
+  margin: 0 16px;
+  padding: 40px;
+  text-align: center;
+  background: rgba(255,255,255,0.02);
+  border-radius: 12px;
+}
+.empty-text { font-size: 14px; color: rgba(255,255,255,0.3); }
+
+/* 助教专用板块 */
+.coach-section { margin-top: 24px; }
+.popularity-card {
+  margin: 0 16px 16px;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(212,175,55,0.15), rgba(255,215,0,0.1));
+  border-radius: 12px;
+  border: 1px solid rgba(218,165,32,0.2);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.popularity-label { font-size: 15px; color: rgba(255,255,255,0.8); }
+.popularity-value { font-size: 28px; color: #d4af37; font-weight: 600; flex: 1; }
+.coach-profile-btn { padding: 8px 16px; background: rgba(212,175,55,0.2); border-radius: 20px; }
+.coach-profile-text { font-size: 13px; color: #d4af37; }
+.ranking-section {
+  margin: 0 16px 16px;
+  padding: 16px;
+  background: rgba(20,20,30,0.6);
+  border-radius: 12px;
+  border: 1px solid rgba(218,165,32,0.1);
+}
+.ranking-title { font-size: 14px; color: #d4af37; margin-bottom: 16px; display: block; text-align: center; }
+.ranking-row { display: flex; justify-content: center; gap: 10px; margin-bottom: 12px; }
+.ranking-row:last-child { margin-bottom: 0; }
+.ranking-row.first-row { justify-content: center; }
+
+/* 大卡片 - 第1名 */
+.ranking-card.large {
+  width: 140px;
+  padding: 16px 12px;
+}
+.ranking-avatar.large { width: 72px; height: 72px; }
+.ranking-card.large .ranking-name { font-size: 14px; }
+.ranking-card.large .ranking-pop { font-size: 20px; }
+
+/* 中等卡片 - 第2-3名 */
+.ranking-card.medium {
+  width: 110px;
+  padding: 14px 10px;
+}
+.ranking-avatar.medium { width: 60px; height: 60px; }
+
+/* 小卡片 - 第4-6名 */
+.ranking-card.small {
+  width: 85px;
+  padding: 10px 6px;
+}
+.ranking-avatar.small { width: 48px; height: 48px; }
+.ranking-card.small .ranking-name { font-size: 11px; }
+.ranking-card.small .ranking-pop { font-size: 14px; }
+
+/* 金色卡片 - 第1名 */
+.ranking-card.card-gold {
+  background: linear-gradient(135deg, rgba(255,215,0,0.25), rgba(255,170,0,0.15));
+  border: 1px solid rgba(255,215,0,0.4);
+}
+.ranking-card.card-gold .ranking-name { color: #fff; }
+.ranking-card.card-gold .ranking-pop { color: #ffd700; }
+
+/* 银色卡片 - 第2名 */
+.ranking-card.card-silver {
+  background: linear-gradient(135deg, rgba(192,192,192,0.2), rgba(160,160,160,0.1));
+  border: 1px solid rgba(192,192,192,0.4);
+}
+.ranking-card.card-silver .ranking-name { color: #fff; }
+.ranking-card.card-silver .ranking-pop { color: #e0e0e0; }
+
+/* 铜色卡片 - 第3名 */
+.ranking-card.card-bronze {
+  background: linear-gradient(135deg, rgba(205,127,50,0.2), rgba(184,115,51,0.1));
+  border: 1px solid rgba(205,127,50,0.4);
+}
+.ranking-card.card-bronze .ranking-name { color: #fff; }
+.ranking-card.card-bronze .ranking-pop { color: #daa06d; }
+
+/* 基础卡片样式 */
+.ranking-card {
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  background: rgba(30,30,40,0.6);
+  border-radius: 12px;
+  border: 1px solid rgba(218,165,32,0.2);
+}
+.ranking-card .medal {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  z-index: 1;
+  font-weight: 600;
+}
+.ranking-card .medal-gold { background: linear-gradient(135deg, #ffd700, #ffaa00); color: #000; }
+.ranking-card .medal-silver { background: linear-gradient(135deg, #c0c0c0, #a0a0a0); color: #000; }
+.ranking-card .medal-bronze { background: linear-gradient(135deg, #cd7f32, #b87333); color: #fff; }
+.ranking-card .medal-normal { background: rgba(255,255,255,0.15); font-size: 14px; color: rgba(255,255,255,0.6); }
+.ranking-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(30,30,40,0.5);
+  margin-bottom: 8px;
+  margin-top: 4px;
+  border: 2px solid rgba(218,165,32,0.3);
+}
+.ranking-card .ranking-name { font-size: 12px; color: #fff; text-align: center; margin-bottom: 4px; word-break: break-all; line-height: 1.3; }
+.ranking-card .ranking-pop { font-size: 16px; color: #d4af37; font-weight: 600; }
+
+/* 底部协议 */
+.footer-section {
+  text-align: center;
+  padding: 24px 16px;
+  margin-top: 24px;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+/* 设置区域 */
+.settings-section { margin-top: 24px; }
+.setting-item {
+  margin: 0 16px;
+  padding: 16px;
+  background: rgba(20,20,30,0.6);
+  border-radius: 12px;
+  border: 1px solid rgba(218,165,32,0.1);
+  display: flex;
+  align-items: center;
+}
+.setting-label { font-size: 14px; color: rgba(255,255,255,0.8); flex: 1; }
+.setting-value { font-size: 14px; color: #d4af37; margin-right: 8px; }
+.setting-arrow { font-size: 18px; color: rgba(255,255,255,0.3); }
+.footer-links { display: flex; justify-content: center; align-items: center; gap: 8px; margin-bottom: 8px; }
+.footer-link { font-size: 14px; color: rgba(255,255,255,0.5); }
+.footer-divider { font-size: 14px; color: rgba(255,255,255,0.3); }
+.footer-company { font-size: 13px; color: rgba(255,255,255,0.3); display: block; margin-bottom: 4px; }
+.footer-icp { font-size: 12px; color: rgba(255,255,255,0.5); }
+.footer-icp a { color: rgba(255,255,255,0.5) !important; }
+
+/* H5 PWA安装按钮 */
+.pwa-install-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  background: linear-gradient(135deg, rgba(212,175,55,0.2), rgba(255,215,0,0.1));
+  border-radius: 12px;
+  border: 2px solid #d4af37;
+}
+.pwa-icon { font-size: 20px; }
+.pwa-text { font-size: 16px; color: #d4af37; font-weight: 600; }
+
+/* H5全屏模式按钮 */
+.fullscreen-section {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  margin-bottom: 16px;
+  background: rgba(212,175,55,0.1);
+  border-radius: 12px;
+  border: 1px solid rgba(212,175,55,0.2);
+}
+.fullscreen-icon { font-size: 18px; }
+.fullscreen-text { font-size: 14px; color: #d4af37; }
+
+/* 编辑弹窗 */
+.edit-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.edit-content {
+  width: 85%;
+  max-width: 320px;
+  background: #1a1a24;
+  border-radius: 16px;
+  padding: 24px;
+}
+.edit-title { font-size: 16px; font-weight: 600; display: block; text-align: center; margin-bottom: 20px; }
+.edit-input {
+  width: 100%;
+  height: 48px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 0 16px;
+  font-size: 15px;
+  color: #fff;
+  box-sizing: border-box;
+}
+.edit-actions { display: flex; gap: 12px; margin-top: 20px; }
+.edit-btn {
+  flex: 1;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+.edit-btn.cancel { background: rgba(255,255,255,0.1); color: #fff; }
+.edit-btn.confirm { background: linear-gradient(135deg, #d4af37, #ffd700); color: #000; font-weight: 600; }
+.gender-options { display: flex; gap: 12px; }
+.gender-option {
+  flex: 1;
+  height: 48px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  color: rgba(255,255,255,0.7);
+}
+.gender-option.active {
+  background: rgba(212,175,55,0.2);
+  border-color: #d4af37;
+  color: #d4af37;
+}
+
+/* H5短信登录表单样式 */
+.sms-login-form {
+  width: 100%;
+  padding: 0 30rpx;
+}
+.form-item {
+  margin-bottom: 24rpx;
+}
+.form-input {
+  width: 100%;
+  height: 90rpx;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(212,175,55,0.3);
+  border-radius: 8rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  color: #fff;
+  box-sizing: border-box;
+}
+.form-input::placeholder {
+  color: rgba(255,255,255,0.5);
+}
+.code-item {
+  display: flex;
+  gap: 20rpx;
+}
+.code-input {
+  flex: 1;
+}
+.send-code-btn {
+  width: 200rpx;
+  height: 90rpx;
+  background: linear-gradient(135deg, #d4af37 0%, #c9a227 100%);
+  border-radius: 8rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx;
+  color: #1a1a2e;
+  font-weight: 500;
+}
+.send-code-btn.disabled {
+  background: rgba(212,175,55,0.3);
+  color: rgba(255,255,255,0.5);
+}
+
+/* ===== H5紧凑登录卡片 ===== */
+/* #ifdef H5 */
+.h5-login-card {
+  background: rgba(20,20,30,0.6);
+  border-radius: 16px;
+  padding: 24px 20px 20px;
+  border: 1px solid rgba(218,165,32,0.15);
+}
+.h5-login-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.h5-title-logo {
+  width: 24px;
+  height: 24px;
+}
+.h5-login-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #d4af37;
+}
+.h5-form-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.h5-form-input {
+  flex: 1;
+  height: 40px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(212,175,55,0.25);
+  border-radius: 8px;
+  padding: 0 14px;
+  font-size: 14px;
+  color: #fff;
+}
+.h5-form-input::placeholder {
+  color: rgba(255,255,255,0.4);
+}
+.h5-code-btn {
+  width: 70px;
+  height: 40px;
+  background: linear-gradient(135deg, #d4af37, #c9a227);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: #000;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.h5-code-btn.disabled {
+  background: rgba(212,175,55,0.3);
+  color: rgba(255,255,255,0.5);
+}
+.h5-login-btn {
+  width: 100%;
+  height: 44px;
+  background: linear-gradient(135deg, #d4af37, #ffd700);
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: #000;
+  margin-top: 16px;
+}
+.h5-agreement {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 14px;
+  gap: 4px;
+}
+/* #endif */
+
+/* ===== iPhone 操作指引弹窗样式 ===== */
+/* #ifdef H5 */
+.ios-guide-content {
+  width: 90%;
+  max-width: 340px;
+  background: #1a1a24;
+  border-radius: 16px;
+  padding: 24px 20px;
+}
+.ios-guide-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #d4af37;
+  display: block;
+  text-align: center;
+  margin-bottom: 24px;
+}
+.ios-guide-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.ios-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.ios-step-num {
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(135deg, #d4af37, #ffd700);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #000;
+  flex-shrink: 0;
+}
+.ios-step-text {
+  font-size: 14px;
+  color: rgba(255,255,255,0.8);
+}
+.ios-step-icon {
+  font-size: 18px;
+  color: #007aff;
+  font-weight: 600;
+}
+.ios-step-highlight {
+  font-size: 14px;
+  color: #d4af37;
+  font-weight: 600;
+  background: rgba(212,175,55,0.15);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.ios-guide-close {
+  margin-top: 24px;
+  height: 44px;
+  background: linear-gradient(135deg, #d4af37, #ffd700);
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: #000;
+}
+/* #endif */
+</style>

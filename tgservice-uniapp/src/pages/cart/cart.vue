@@ -1,0 +1,263 @@
+<template>
+  <view class="page">
+    <!-- 台桌信息（使用统一组件） -->
+    <TableInfo ref="tableInfoRef" />
+    
+    <view class="cart-list" v-if="cartItems.length > 0">
+      <view class="cart-item" v-for="(item, index) in cartItems" :key="index">
+        <image class="item-img" :src="getProductImage(item)" mode="aspectFill"></image>
+        <view class="item-info">
+          <view class="item-name">{{ item.product_name }}</view>
+          <view class="item-price">¥{{ item.price }}</view>
+          <view class="item-actions">
+            <view class="qty-btn" @click="changeQty(item, -1)">-</view>
+            <text class="qty-num">{{ item.quantity }}</text>
+            <view class="qty-btn" @click="changeQty(item, 1)">+</view>
+            <text class="delete-btn" @click="deleteItem(item)">删除</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    
+    <view class="empty-state" v-else>
+      <text class="empty-icon">🛒</text>
+      <text class="empty-text">购物车是空的</text>
+      <view class="shop-btn" @click="goShop">去选购</view>
+    </view>
+    
+    <view class="bottom-bar" v-if="cartItems.length > 0">
+      <view class="total-info">
+        <text class="total-label">合计</text>
+        <text class="total-price">¥{{ totalPrice.toFixed(2) }}</text>
+      </view>
+      <view class="submit-btn" @click="submitOrder">下单</view>
+    </view>
+    
+    <!-- 美化弹框 -->
+    <BeautyModal 
+      v-model:visible="showResultModal" 
+      :title="resultTitle"
+      :content="resultContent"
+      confirmText="知道了"
+      @confirm="handleModalConfirm"
+    />
+    
+    <!-- #ifdef H5 -->
+    <!-- 悬浮返回按钮 -->
+    <view class="float-back-btn" :style="{ left: floatPosition === 'left' ? '20px' : 'auto', right: floatPosition === 'right' ? '20px' : 'auto' }" @click="goBack">
+      <text class="float-back-icon">‹</text>
+    </view>
+    <!-- #endif -->
+  </view>
+</template>
+
+<script setup>
+import { ref, onMounted, computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
+import api from '@/utils/api.js'
+import BeautyModal from '@/components/BeautyModal.vue'
+import TableInfo from '@/components/TableInfo.vue'
+
+const tableInfoRef = ref(null)
+const sessionId = ref('')
+const cartItems = ref([])
+const totalPrice = ref(0)
+
+// 直接从 localStorage 读取台桌信息
+const tableName = computed(() => uni.getStorageSync('tableName') || '')
+const tableStatus = computed(() => {
+  const name = tableName.value
+  if (!name) return 'empty'
+
+  const authStr = uni.getStorageSync('tableAuth')
+  if (!authStr) return 'empty'
+
+  try {
+    const auth = JSON.parse(authStr)
+    const configStr = uni.getStorageSync('frontConfig')
+    let expireMinutes = 5
+    if (configStr) {
+      try {
+        const config = JSON.parse(configStr)
+        expireMinutes = config.tableAuthExpireMinutes || 5
+      } catch {}
+    }
+    const isExpired = (Date.now() - auth.time) > expireMinutes * 60 * 1000
+    return isExpired ? 'expired' : 'valid'
+  } catch {
+    return 'empty'
+  }
+})
+
+// 弹框状态
+const showResultModal = ref(false)
+const resultTitle = ref('')
+const resultContent = ref('')
+const orderSuccess = ref(false)
+const floatPosition = ref('left')
+
+const getProductImage = (item) => {
+  const url = item.image_url
+  if (!url) return '/static/avatar-default.png'
+  if (url.startsWith('http')) return url
+  return 'http://47.238.80.12:8081' + url
+}
+
+// 直接读取保存的台桌名
+// 检查台桌授权
+const checkTableAuth = () => {
+  // #ifdef H5
+  const status = tableStatus.value
+  if (status === 'empty') {
+    resultTitle.value = '提示'
+    resultContent.value = '请用手机相机扫码进入'
+    showResultModal.value = true
+    return false
+  }
+  if (status === 'expired') {
+    resultTitle.value = '授权已过期'
+    resultContent.value = '扫码授权已超过30分钟，请用手机相机重新扫码'
+    showResultModal.value = true
+    return false
+  }
+  // #endif
+  return true
+}
+
+const loadCart = async () => {
+  if (!sessionId.value) return
+  try {
+    const data = await api.getCart(sessionId.value)
+    cartItems.value = data.items || []
+    totalPrice.value = data.totalPrice || 0
+  } catch (e) {}
+}
+
+const changeQty = async (item, delta) => {
+  const newQty = item.quantity + delta
+  try {
+    if (newQty <= 0) await api.deleteCartItem({ sessionId: sessionId.value, productName: item.product_name })
+    else await api.updateCart({ sessionId: sessionId.value, productName: item.product_name, quantity: newQty })
+    loadCart()
+  } catch (e) { uni.showToast({ title: '操作失败', icon: 'none' }) }
+}
+
+const deleteItem = async (item) => {
+  try { await api.deleteCartItem({ sessionId: sessionId.value, productName: item.product_name }); loadCart() }
+  catch (e) { uni.showToast({ title: '删除失败', icon: 'none' }) }
+}
+
+const submitOrder = async () => {
+  if (cartItems.value.length === 0) {
+    resultTitle.value = '提示'
+    resultContent.value = '购物车是空的'
+    showResultModal.value = true
+    return
+  }
+  
+  // 检查台桌授权
+  if (!checkTableAuth()) return
+  
+  // 检查台桌名是否存在
+  if (!tableName.value) {
+    resultTitle.value = '提示'
+    resultContent.value = '请扫台桌码进入后再下单'
+    showResultModal.value = true
+    return
+  }
+  
+  try {
+    uni.showLoading({ title: '提交中...' })
+    // 获取设备指纹
+    const deviceFingerprint = api.getDeviceFingerprint()
+    const data = await api.createOrder(sessionId.value, deviceFingerprint)
+    uni.hideLoading()
+    
+    resultTitle.value = '下单成功'
+    resultContent.value = data.message || '请等待服务员送餐'
+    orderSuccess.value = true
+    showResultModal.value = true
+  } catch (e) { 
+    uni.hideLoading()
+    resultTitle.value = '提示'
+    resultContent.value = e.error || '下单失败，请重试'
+    showResultModal.value = true
+  }
+}
+
+const handleModalConfirm = () => {
+  if (orderSuccess.value) {
+    cartItems.value = []
+    totalPrice.value = 0
+    orderSuccess.value = false
+  }
+}
+
+const goShop = () => uni.switchTab({ url: '/pages/products/products' })
+const goBack = () => {
+  const pages = getCurrentPages()
+  if (pages.length > 1) {
+    uni.navigateBack()
+  } else {
+    uni.switchTab({ url: '/pages/products/products' })
+  }
+}
+
+onMounted(() => { 
+  sessionId.value = uni.getStorageSync('sessionId') || ''
+  loadCart()
+  // 读取悬浮按钮位置设置
+  floatPosition.value = uni.getStorageSync('floatButtonPosition') || 'left'
+})
+
+// 每次显示页面时重新读取台桌信息
+onShow(() => {
+  tableInfoRef.value?.loadTableInfo()
+  loadCart()
+})
+</script>
+
+<style scoped>
+.page { min-height: 100vh; background: #0a0a0f; padding: 16px; padding-bottom: 100px; }
+.cart-list { display: flex; flex-direction: column; gap: 12px; }
+.cart-item { background: rgba(20,20,30,0.6); border-radius: 12px; padding: 16px; display: flex; gap: 12px; border: 1px solid rgba(218,165,32,0.1); }
+.item-img { width: 80px; height: 80px; border-radius: 8px; background: rgba(30,30,40,0.5); }
+.item-info { flex: 1; }
+.item-name { font-size: 15px; font-weight: 500; margin-bottom: 8px; }
+.item-price { font-size: 14px; color: #d4af37; margin-bottom: 12px; }
+.item-actions { display: flex; align-items: center; }
+.qty-btn { width: 28px; height: 28px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; }
+.qty-num { font-size: 16px; min-width: 30px; text-align: center; }
+.delete-btn { color: #e74c3c; font-size: 12px; margin-left: auto; }
+.empty-state { text-align: center; padding: 80px 20px; }
+.empty-icon { font-size: 48px; display: block; margin-bottom: 16px; }
+.empty-text { font-size: 14px; color: rgba(255,255,255,0.3); display: block; margin-bottom: 24px; }
+.shop-btn { display: inline-block; padding: 12px 32px; background: linear-gradient(135deg, #d4af37, #ffd700); border-radius: 25px; color: #000; font-weight: 600; }
+.bottom-bar { position: fixed; bottom: 0; left: 0; right: 0; height: 70px; background: linear-gradient(180deg, rgba(10,10,15,0.98), #0a0a0f); border-top: 1px solid rgba(218,165,32,0.1); display: flex; align-items: center; padding: 0 16px; }
+.total-info { flex: 1; }
+.total-label { font-size: 12px; color: rgba(255,255,255,0.5); }
+.total-price { font-size: 22px; color: #d4af37; font-weight: 600; margin-left: 8px; }
+.submit-btn { padding: 14px 40px; background: linear-gradient(135deg, #d4af37, #ffd700); border-radius: 25px; color: #000; font-weight: 600; }
+
+/* #ifdef H5 */
+/* 悬浮返回按钮 */
+.float-back-btn {
+  position: fixed;
+  bottom: 80px;
+  width: 44px;
+  height: 44px;
+  background: rgba(212, 175, 55, 0.9);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  z-index: 100;
+}
+.float-back-icon {
+  font-size: 20px;
+  color: #000;
+  font-weight: bold;
+}
+/* #endif */
+</style>
