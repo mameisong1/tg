@@ -8,6 +8,27 @@
 
 ---
 
+## 请求限制
+
+### 限流策略
+
+| 接口类型 | 限制 | 说明 |
+|---------|------|------|
+| API 接口 | 60 次/分钟/IP | 用户端接口 |
+| 后台管理 | 120 次/分钟/IP | 管理员操作 |
+| 白名单 | 无限制 | `/api/health`、`/api/front-config`、`/api/agreement/` |
+
+超出限制返回：`{ "error": "请求太频繁，请稍后再试" }` (HTTP 429)
+
+### 爬虫拦截
+
+以下 User-Agent 会被直接拦截（返回 403）：
+- SEO 爬虫：semrush、ahrefs、mj12bot、dotbot
+- 搜索引擎：baiduspider、yandexbot、sogou、360spider
+- 数据采集：bytespider、petalbot、spider、crawler、scraper
+
+---
+
 ## 目录
 
 1. [公共接口](#公共接口)
