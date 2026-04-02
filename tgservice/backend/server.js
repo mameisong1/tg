@@ -224,13 +224,56 @@ app.use((req, res, next) => {
   next();
 });
 
-// 限流
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15分钟
-  max: 1000, // 每个IP最多1000请求
-  validate: { trustProxy: false } // 禁用trust proxy验证
+// ========== 反爬虫：User-Agent 黑名单 ==========
+const BLOCKED_USER_AGENTS = [
+  'semrush', 'ahrefs', 'mj12bot', 'dotbot', 'petalbot',
+  'bytespider', 'yandexbot', 'baiduspider', 'sogou',
+  '360spider', 'spider', 'crawler', 'scraper'
+];
+
+app.use((req, res, next) => {
+  const ua = (req.headers['user-agent'] || '').toLowerCase();
+  const isBlocked = BLOCKED_USER_AGENTS.some(bot => ua.includes(bot));
+  
+  if (isBlocked) {
+    // 静默返回 403，不记录日志
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+  next();
 });
-app.use('/api/', limiter);
+
+// ========== 限流配置 ==========
+// 白名单路径（不限流）
+const RATE_LIMIT_SKIP_PATHS = [
+  '/api/health',
+  '/api/front-config',
+  '/api/agreement/'
+];
+
+// API 限流：1分钟最多 60 次请求
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  validate: { trustProxy: false },
+  skip: (req) => {
+    return RATE_LIMIT_SKIP_PATHS.some(p => req.path.startsWith(p));
+  },
+  handler: (req, res) => {
+    res.status(429).json({ error: '请求太频繁，请稍后再试' });
+  }
+});
+app.use('/api/', apiLimiter);
+
+// 后台管理限流：1分钟最多 120 次请求（宽松一点）
+const adminLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  validate: { trustProxy: false },
+  handler: (req, res) => {
+    res.status(429).json({ error: '请求太频繁，请稍后再试' });
+  }
+});
+app.use('/api/admin/', adminLimiter);
 
 // 数据库连接
 const sqlite3 = require('sqlite3').verbose();
