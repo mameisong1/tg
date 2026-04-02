@@ -815,15 +815,15 @@ const goProfile = () => {
   uni.navigateTo({ url: '/pages/profile/profile' })
 }
 
-// 加载待处理订单
+// 加载待处理订单（严格模式：只显示当前设备的订单）
 const loadPendingOrders = async () => {
-  const name = tableInfoRef.value?.tableName
-  if (!name) {
+  const deviceFingerprint = uni.getStorageSync('device_fp')
+  if (!deviceFingerprint) {
     pendingOrders.value = []
     return
   }
   try {
-    const orders = await api.getPendingOrders(name)
+    const orders = await api.getMyPendingOrders(deviceFingerprint)
     pendingOrders.value = orders || []
   } catch (err) {
     console.error('获取订单失败', err)

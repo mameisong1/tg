@@ -795,6 +795,33 @@ app.get('/api/orders/pending/:tableName', async (req, res) => {
   }
 });
 
+// 获取当前设备的待处理订单（严格模式）
+app.get('/api/orders/my-pending', async (req, res) => {
+  try {
+    const { deviceFingerprint } = req.query;
+    
+    if (!deviceFingerprint) {
+      return res.json([]);
+    }
+    
+    const orders = await dbAll(
+      `SELECT * FROM orders 
+       WHERE device_fingerprint = ? AND status = '待处理' 
+       AND datetime(created_at) >= datetime('now', '-5 hours')
+       ORDER BY created_at DESC`,
+      [deviceFingerprint]
+    );
+    
+    res.json(orders.map(o => ({
+      ...o,
+      items: o.items ? JSON.parse(o.items) : []
+    })));
+  } catch (err) {
+    logger.error(`获取我的待处理订单失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
 // 助教登录
 app.post('/api/coach/login', async (req, res) => {
   try {

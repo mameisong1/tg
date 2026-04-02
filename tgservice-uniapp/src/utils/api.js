@@ -110,6 +110,7 @@ export default {
     data: { sessionId, deviceFingerprint } 
   }),
   getPendingOrders: (tableName) => request({ url: `/orders/pending/${encodeURIComponent(tableName)}` }),
+  getMyPendingOrders: (deviceFingerprint) => request({ url: `/orders/my-pending?deviceFingerprint=${deviceFingerprint}` }),
   
   // 教练（需要coach认证）
   getCoaches: (level) => request({ url: '/coaches', data: { level } }),
