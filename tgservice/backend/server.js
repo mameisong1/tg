@@ -1659,6 +1659,109 @@ app.post('/api/admin/orders/:id/cancel', authMiddleware, async (req, res) => {
   }
 });
 
+// 取消订单中的单个商品
+app.post('/api/admin/orders/:id/cancel-item', authMiddleware, async (req, res) => {
+  try {
+    const { itemName, cancelQuantity } = req.body;
+    const orderId = req.params.id;
+    
+    // 参数验证
+    if (!itemName || !cancelQuantity || cancelQuantity < 1) {
+      return res.status(400).json({ error: '参数错误：商品名称和取消数量必填' });
+    }
+    
+    // 查询订单
+    const order = await dbGet('SELECT * FROM orders WHERE id = ?', [orderId]);
+    if (!order) {
+      return res.status(404).json({ error: '订单不存在' });
+    }
+    
+    if (order.status !== '待处理') {
+      return res.status(400).json({ error: '只能取消待处理订单中的商品' });
+    }
+    
+    // 解析订单商品
+    const items = JSON.parse(order.items || '[]');
+    
+    // 找到要取消的商品
+    const itemIndex = items.findIndex(i => i.name === itemName);
+    if (itemIndex === -1) {
+      return res.status(404).json({ error: '商品不存在于该订单中' });
+    }
+    
+    const item = items[itemIndex];
+    
+    // 验证取消数量
+    if (cancelQuantity > item.quantity) {
+      return res.status(400).json({ error: `取消数量超过商品数量（当前${item.quantity}）` });
+    }
+    
+    // 记录操作日志
+    const cancelDetail = cancelQuantity === item.quantity 
+      ? `全部取消` 
+      : `部分取消（${cancelQuantity}/${item.quantity}）`;
+    operationLog.info(`订单商品取消: 订单${orderId} 商品${itemName} ${cancelDetail} by ${req.user.username}`);
+    
+    // 更新商品
+    if (cancelQuantity === item.quantity) {
+      // 全部取消，删除该商品
+      items.splice(itemIndex, 1);
+    } else {
+      // 部分取消，减少数量
+      item.quantity -= cancelQuantity;
+      item.subtotal = item.price * item.quantity;
+    }
+    
+    // 重新计算总金额
+    const totalPrice = items.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+    
+    // 如果订单无商品，自动取消订单
+    if (items.length === 0) {
+      await dbRun(
+        "UPDATE orders SET status = '已取消', items = ?, total_price = 0, updated_at = datetime('now', 'localtime') WHERE id = ?",
+        [JSON.stringify([]), orderId]
+      );
+      operationLog.info(`订单自动取消: ${orderId}（所有商品已取消） by ${req.user.username}`);
+      
+      res.json({ 
+        success: true, 
+        orderEmpty: true,
+        message: '订单已无商品，自动取消'
+      });
+    } else {
+      // 更新订单
+      await dbRun(
+        "UPDATE orders SET items = ?, total_price = ?, updated_at = datetime('now', 'localtime') WHERE id = ?",
+        [JSON.stringify(items), totalPrice, orderId]
+      );
+      
+      // 返回更新后的订单信息（包含商品图片和类别）
+      const products = await dbAll('SELECT name, image_url, category FROM products');
+      const processedItems = items.map(i => {
+        const product = products.find(p => p.name === i.name);
+        return {
+          ...i,
+          image_url: product?.image_url || null,
+          category: product?.category || '其他'
+        };
+      });
+      
+      res.json({ 
+        success: true, 
+        orderEmpty: false,
+        order: {
+          id: parseInt(orderId),
+          items: processedItems,
+          total_price: totalPrice
+        }
+      });
+    }
+  } catch (err) {
+    logger.error(`取消订单商品失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
 // 后台用户管理
 app.get('/api/admin/users', authMiddleware, async (req, res) => {
   try {

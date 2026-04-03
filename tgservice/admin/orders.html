@@ -87,6 +87,23 @@
     .item-info { flex: 1; display: flex; justify-content: space-between; align-items: center; }
     .item-name { color: rgba(255,255,255,0.9); font-weight: 500; }
     .item-qty { color: #d4af37; font-weight: 600; }
+    .item-cancel-btn { 
+      background: rgba(255,255,255,0.1); 
+      color: rgba(255,255,255,0.5); 
+      padding: 4px 10px; 
+      border-radius: 4px; 
+      font-size: 12px; 
+      cursor: pointer; 
+      border: 1px solid rgba(255,255,255,0.1);
+      transition: all 0.2s;
+    }
+    .item-cancel-btn:hover { 
+      background: rgba(231,76,60,0.2); 
+      color: #e74c3c; 
+      border-color: rgba(231,76,60,0.3);
+    }
+    .item-cancelled { color: rgba(255,255,255,0.3); }
+    .item-cancelled .item-name { text-decoration: line-through; }
     
     /* 类别分组样式 */
     .category-group { margin-bottom: 8px; }
@@ -230,6 +247,19 @@
     </div>
   </div>
   
+  <!-- 取消商品弹窗 -->
+  <div class="modal" id="cancelItemModal">
+    <div class="modal-content" style="max-width: 400px;">
+      <div class="modal-title">取消商品确认</div>
+      <div id="cancelItemBody"></div>
+      <div class="modal-actions" style="flex-wrap:wrap;">
+        <button class="btn btn-danger" id="cancelAllBtn" style="flex:1;min-width:100px;">全部取消</button>
+        <button class="btn btn-primary" id="cancelPartBtn" style="flex:1;min-width:100px;">部分取消</button>
+        <button class="btn" style="flex:1;min-width:100px;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.6);" onclick="closeCancelItemModal()">关闭</button>
+      </div>
+    </div>
+  </div>
+  
   <div class="toast" id="toast"></div>
   
   <script>
@@ -339,6 +369,7 @@
                     <span class="item-name">${i.name}</span>
                     <span class="item-qty">x${i.quantity}</span>
                   </div>
+                  ${canOperate ? `<button class="item-cancel-btn" onclick="showCancelItemModal(${o.id}, '${i.name}', ${i.quantity}, ${i.price})">取消</button>` : ''}
                 </div>
               `).join('')}
             </div>
@@ -431,6 +462,108 @@
       }).catch(() => {
         showToast('复制失败');
       });
+    }
+    
+    // === 取消商品功能 ===
+    let cancelItemData = null; // 当前要取消的商品数据
+    
+    function showCancelItemModal(orderId, itemName, quantity, price) {
+      cancelItemData = { orderId, itemName, quantity, price };
+      
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return;
+      
+      const currentTotal = order.total_price || 0;
+      const itemTotal = price * quantity;
+      
+      const body = document.getElementById('cancelItemBody');
+      body.innerHTML = `
+        <div style="display:grid;gap:12px;margin-bottom:20px;">
+          <div style="display:flex;justify-content:space-between;padding:12px;background:rgba(255,255,255,0.05);border-radius:8px;">
+            <span style="color:rgba(255,255,255,0.6);">商品</span>
+            <span style="font-weight:600;">${itemName}</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:12px;background:rgba(255,255,255,0.05);border-radius:8px;">
+            <span style="color:rgba(255,255,255,0.6);">当前数量</span>
+            <span style="color:#d4af37;font-weight:600;">${quantity}</span>
+          </div>
+          <div style="padding:12px;background:rgba(255,255,255,0.05);border-radius:8px;">
+            <div style="color:rgba(255,255,255,0.6);margin-bottom:8px;">取消数量</div>
+            <input type="number" id="cancelQuantityInput" value="${quantity}" min="1" max="${quantity}" 
+              style="width:100%;padding:10px;background:rgba(255,255,255,0.1);border:1px solid rgba(212,175,55,0.3);border-radius:6px;color:#fff;font-size:16px;text-align:center;"
+              onchange="updateCancelPreview()">
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:12px;background:rgba(255,255,255,0.05);border-radius:8px;">
+            <span style="color:rgba(255,255,255,0.6);">取消后金额</span>
+            <span id="cancelPreviewTotal" style="font-weight:600;">¥${(currentTotal - itemTotal).toFixed(0)}（原 ¥${currentTotal}）</span>
+          </div>
+        </div>
+      `;
+      
+      // 设置按钮事件
+      document.getElementById('cancelAllBtn').onclick = () => cancelItem(orderId, itemName, quantity);
+      document.getElementById('cancelPartBtn').onclick = () => {
+        const inputQty = parseInt(document.getElementById('cancelQuantityInput').value) || 1;
+        if (inputQty < 1 || inputQty > quantity) {
+          showToast('数量无效');
+          return;
+        }
+        cancelItem(orderId, itemName, inputQty);
+      };
+      
+      document.getElementById('cancelItemModal').classList.add('show');
+    }
+    
+    function updateCancelPreview() {
+      if (!cancelItemData) return;
+      
+      const order = orders.find(o => o.id === cancelItemData.orderId);
+      if (!order) return;
+      
+      const inputQty = parseInt(document.getElementById('cancelQuantityInput').value) || 1;
+      const cancelAmount = cancelItemData.price * inputQty;
+      const newTotal = (order.total_price || 0) - cancelAmount;
+      
+      document.getElementById('cancelPreviewTotal').textContent = 
+        `¥${newTotal.toFixed(0)}（原 ¥${order.total_price || 0}）`;
+    }
+    
+    function closeCancelItemModal() {
+      document.getElementById('cancelItemModal').classList.remove('show');
+      cancelItemData = null;
+    }
+    
+    async function cancelItem(orderId, itemName, cancelQuantity) {
+      try {
+        const result = await api(`/api/admin/orders/${orderId}/cancel-item`, {
+          method: 'POST',
+          body: JSON.stringify({ itemName, cancelQuantity })
+        });
+        
+        if (!result.success) {
+          showToast(result.error || '取消失败');
+          return;
+        }
+        
+        closeCancelItemModal();
+        
+        if (result.orderEmpty) {
+          // 订单已无商品，自动取消
+          showToast('订单已无商品，自动取消');
+          await loadOrders();
+        } else {
+          // 更新单个订单卡片（无需重新加载全部）
+          const orderIndex = orders.findIndex(o => o.id === orderId);
+          if (orderIndex !== -1) {
+            orders[orderIndex].items = result.order.items;
+            orders[orderIndex].total_price = result.order.total_price;
+            renderOrders();
+          }
+          showToast(`已取消 ${itemName} ${cancelQuantity} 件`);
+        }
+      } catch (err) {
+        showToast('操作失败: ' + err.message);
+      }
     }
     
     async function updateStatus(id, status) {
