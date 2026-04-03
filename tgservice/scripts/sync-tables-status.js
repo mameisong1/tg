@@ -19,13 +19,13 @@ const { execSync, spawn } = require('child_process');
 const Database = require('better-sqlite3');
 
 // 配置
-const CDP_PORT = 9222;
+const CDP_PORT = 9998;
 const TARGET_URL = 'http://admin.taikeduo.com/#/storeOverview/tableOverview';
 const AREAS = ['大厅区', 'TV区', '包厢区', '棋牌区', '虚拟区', '斯诺克区'];
 const DB_PATH = '/TG/tgservice/db/tgservice.db';
 const LOG_PATH = '/TG/tgservice/scripts/sync-tables-status.log';
 const SYNC_STATUS_PATH = '/TG/tgservice/scripts/sync-status.json';
-const CHROME_START_CMD = 'bash /root/chrome';
+const CHROME_START_CMD = 'bash /root/chrome-sync';
 const CREDENTIALS_PATH = '/root/.openclaw/credentials.json';
 
 // 随机停顿函数（防止操作过快导致网络异常）
