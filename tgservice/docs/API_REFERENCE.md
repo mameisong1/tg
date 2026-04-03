@@ -704,6 +704,37 @@
 | `/api/admin/orders` | GET | 获取订单列表 |
 | `/api/admin/orders/:id/complete` | POST | 完成订单 |
 | `/api/admin/orders/:id/cancel` | POST | 取消订单 |
+| `/api/admin/orders/:id/cancel-item` | POST | 取消订单中的单个商品 |
+
+#### 取消订单中的单个商品
+
+- **路径**: `POST /api/admin/orders/:id/cancel-item`
+- **Headers**: `Authorization: Bearer <admin-token>`
+- **参数**: 
+  ```json
+  {
+    "itemName": "啤酒",
+    "cancelQuantity": 2
+  }
+  ```
+- **返回**: 
+  ```json
+  {
+    "success": true,
+    "orderEmpty": false,
+    "order": {
+      "id": 52,
+      "items": [...],
+      "total_price": 56.00
+    }
+  }
+  ```
+- **说明**: 取消订单中的指定商品，支持部分取消和全部取消
+- **特性**:
+  - 部分取消：减少商品数量，重新计算总价
+  - 全部取消：从订单中移除该商品
+  - 订单无商品时自动取消订单
+- **更新时间**: 2026-04-03
 
 ### 用户管理
 
