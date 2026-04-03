@@ -125,6 +125,14 @@
     .badge-done { background: rgba(46,204,113,0.2); color: #2ecc71; }
     .badge-cancel { background: rgba(231,76,60,0.2); color: #e74c3c; }
     
+    /* 通用弹窗 */
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
+    .modal.show { display: flex; }
+    .modal-content { background: rgba(30,30,40,0.98); border-radius: 16px; padding: 24px; width: 90%; max-width: 500px; border: 1px solid rgba(218,165,32,0.3); }
+    .modal-title { font-size: 18px; color: #d4af37; margin-bottom: 16px; }
+    .modal-actions { display: flex; gap: 12px; margin-top: 20px; }
+    .modal-actions .btn { flex: 1; padding: 12px; }
+    
     /* 新订单弹窗 */
     .new-order-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
     .new-order-modal.show { display: flex; }
