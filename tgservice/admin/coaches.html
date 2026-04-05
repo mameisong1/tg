@@ -301,6 +301,7 @@
     
     function showModal(no = null) {
       editingNo = no;
+      editingPhotos = []; // 重置照片数据，防止新增时继承上次的值
       document.getElementById('modalTitle').textContent = no ? '编辑助教' : '添加助教';
       document.getElementById('formCoachNo').value = no || '(自动生成)';
       document.getElementById('formEmployeeId').value = '';
