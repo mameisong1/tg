@@ -14,8 +14,8 @@ const { execSync, spawn } = require('child_process');
 
 // ==================== 配置 ====================
 const CONFIG = {
-  chromePort: 9222,
-  chromeStartCmd: 'bash /root/chrome',
+  chromePort: 9998,
+  chromeStartCmd: 'bash /root/chrome-sync',
   targetUrl: 'http://admin.taikeduo.com/#/productManagement/productList',
   dbPath: '/TG/tgservice/db/tgservice.db',
   logFile: '/TG/tgservice/scripts/sync-products.log',

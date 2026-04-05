@@ -3,11 +3,16 @@
 
 FROM node:22-bookworm-slim
 
-# 安装必要工具
+# 安装必要工具 + tzdata
 RUN apt-get update && apt-get install -y \
     sqlite3 \
     curl \
+    tzdata \
     && rm -rf /var/lib/apt/lists/*
+
+# 设置时区为北京时间
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
 # 安装 PM2 和 serve
 RUN npm install -g pm2 serve
