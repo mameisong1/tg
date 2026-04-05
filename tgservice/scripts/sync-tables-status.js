@@ -309,7 +309,7 @@ async function startChrome() {
   
   try {
     // 使用 spawn 在后台启动，确保 DISPLAY 环境变量
-    const child = spawn('bash', ['/root/chrome'], {
+    const child = spawn('bash', ['/root/chrome-sync'], {
       detached: true,
       stdio: 'ignore',
       env: { ...process.env, DISPLAY: ':1' }
