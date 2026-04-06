@@ -269,38 +269,37 @@ async function autoLogin(wsUrl) {
   const loginResult = await executeScript(wsUrl, clickLogin);
   log(loginResult);
   
-  // 等待登录完成（增加等待时间，不要轻易判定失败）
-  log('等待登录完成...');
-  await randomSleep(3000, 5000); // 等待登录响应（随机3-5秒）
+  // 等待登录完成（最长等待3分钟）
+  log('等待登录完成（最长等待3分钟）...');
+  const MAX_WAIT_MS = 3 * 60 * 1000; // 3分钟
+  const CHECK_INTERVAL_MS = 5000; // 每5秒检查一次
+  const startTime = Date.now();
+  let attempt = 0;
   
-  // 检查登录结果（多次检查，不轻易放弃）
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  while (Date.now() - startTime < MAX_WAIT_MS) {
+    attempt++;
+    await randomSleep(CHECK_INTERVAL_MS, CHECK_INTERVAL_MS + 2000); // 5-7秒间隔
+    
     const checkResult = await checkLoginPage(wsUrl);
+    const elapsed = Math.round((Date.now() - startTime) / 1000);
     
     if (!checkResult.isLoginPage) {
-      log('自动登录成功');
+      log(`自动登录成功（第 ${attempt} 次检查，耗时 ${elapsed} 秒）`);
       return true;
     }
     
-    log(`登录检查第 ${attempt} 次: 仍在登录页面 (${checkResult.url})`);
-    
-    if (attempt < 3) {
-      // 等待更长时间再检查
-      await randomSleep(3000, 5000);
+    // 检查是否有台桌元素（可能已登录但URL没变）
+    const tableCheck = await checkTableElements(wsUrl);
+    if (tableCheck.hasTableElements) {
+      log(`检测到台桌元素，登录成功（第 ${attempt} 次检查，耗时 ${elapsed} 秒）`);
+      return true;
     }
+    
+    log(`登录检查第 ${attempt} 次: 仍在登录页面，已等待 ${elapsed} 秒`);
   }
   
-  // 最后一次检查后，再等待一下，检查是否有台桌元素（可能已登录但URL没变）
-  log('最后检查页面状态...');
-  await randomSleep(2000, 3000);
-  
-  const tableCheck = await checkTableElements(wsUrl);
-  if (tableCheck.hasTableElements) {
-    log('检测到台桌元素，登录可能已成功');
-    return true;
-  }
-  
-  throw new Error('自动登录失败，多次检查后仍在登录页面且无台桌元素');
+  const totalElapsed = Math.round((Date.now() - startTime) / 1000);
+  throw new Error(`自动登录失败，等待 ${totalElapsed} 秒后仍在登录页面且无台桌元素`);
 }
 
 // 启动 Chrome
