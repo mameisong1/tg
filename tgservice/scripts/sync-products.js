@@ -204,35 +204,37 @@ async function autoLogin(page, logger) {
     logger.info('  已点击登录按钮');
   }
   
-  // 等待登录完成（多次检查，不轻易放弃）
-  logger.info('  等待登录完成...');
-  await randomSleep(3000, 5000);
+  // 等待登录完成（最长等待3分钟）
+  logger.info('  等待登录完成（最长等待3分钟）...');
+  const MAX_WAIT_MS = 3 * 60 * 1000; // 3分钟
+  const CHECK_INTERVAL_MS = 5000; // 每5秒检查一次
+  const startTime = Date.now();
+  let attempt = 0;
   
-  // 检查登录结果（最多检查3次）
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  while (Date.now() - startTime < MAX_WAIT_MS) {
+    attempt++;
+    await randomSleep(CHECK_INTERVAL_MS, CHECK_INTERVAL_MS + 2000); // 5-7秒间隔
+    
     const loginResult = await checkLoginPage(page);
+    const elapsed = Math.round((Date.now() - startTime) / 1000);
     
     if (!loginResult.isLoginPage) {
-      logger.info(`  自动登录成功（第 ${attempt} 次检查）`);
+      logger.info(`  自动登录成功（第 ${attempt} 次检查，耗时 ${elapsed} 秒）`);
       return true;
     }
     
-    logger.info(`  登录检查第 ${attempt} 次: 仍在登录页面 (${loginResult.url})`);
-    
-    if (attempt < 3) {
-      await randomSleep(3000, 5000); // 等待3-5秒再检查
+    // 检查是否有商品列表元素（可能已登录但URL没变）
+    const hasProductTable = await page.$('table tbody tr').then(el => !!el).catch(() => false);
+    if (hasProductTable) {
+      logger.info(`  检测到商品列表表格，登录成功（第 ${attempt} 次检查，耗时 ${elapsed} 秒）`);
+      return true;
     }
+    
+    logger.info(`  登录检查第 ${attempt} 次: 仍在登录页面，已等待 ${elapsed} 秒`);
   }
   
-  // 最后检查是否有商品列表元素（可能已登录但URL没变）
-  await randomSleep(2000, 3000);
-  const hasProductTable = await page.$('table tbody tr').then(el => !!el).catch(() => false);
-  if (hasProductTable) {
-    logger.info('  检测到商品列表表格，登录可能已成功');
-    return true;
-  }
-  
-  throw new Error('自动登录失败，多次检查后仍在登录页面且无商品列表');
+  const totalElapsed = Math.round((Date.now() - startTime) / 1000);
+  throw new Error(`自动登录失败，等待 ${totalElapsed} 秒后仍在登录页面且无商品列表`);
 }
 
 // ==================== 页面等待工具 ====================
