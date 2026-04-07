@@ -17,11 +17,10 @@ npm-debug.log*
 *.sqlite
 *.sqlite3
 
-# 环境配置（包含敏感信息）
-.env
-.env.*
-.config
-.config.*
+# 环境配置（根目录的敏感配置）
+/.env
+/.config
+/.config.*
 
 # 凭证文件
 credentials.json
@@ -62,3 +61,10 @@ coverage/
 # 备份文件
 *.bak
 *.backup
+
+# 生产数据目录（运行时挂载）
+run/
+
+# 运行时数据
+**/sync-status.json
+**/taikeduo-products.json

@@ -191,9 +191,12 @@ app.set('trust proxy', true)
 const allowedOrigins = [
   'https://tiangong.club',
   'https://www.tiangong.club',
+  'https://tg.tiangong.club',   // 开发环境
   'https://mp.weixin.qq.com',  // 微信小程序
   'http://localhost:8081',      // 本地开发
-  'http://localhost:8083'       // 本地 H5
+  'http://localhost:8083',      // 本地 H5
+  'http://localhost:8088',      // 开发环境后端
+  'http://localhost:8089'       // 开发环境 H5
 ];
 app.use(cors({
   origin: function(origin, callback) {
