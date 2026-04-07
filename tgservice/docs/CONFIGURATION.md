@@ -558,13 +558,30 @@ async function sendSms(phone, code) {
 
 ### 5.1 Node.js 环境变量
 
-| 变量 | 说明 | 默认值 |
-|------|------|--------|
-| `NODE_ENV` | 运行环境 | "development" |
-| `PORT` | 服务端口 | 8081 |
-| `CONFIG_PATH` | 配置文件路径 | "../.config" |
+| 变量 | 说明 | 生产环境 | 开发环境 |
+|------|------|----------|----------|
+| `NODE_ENV` | 运行环境 | production | development |
+| `TGSERVICE_ENV` | 服务环境（决定配置文件） | production | test |
+| `PORT` | 服务端口 | 8081 | 8088 |
 
-### 5.2 使用方式
+### 5.2 TGSERVICE_ENV 说明
+
+**重要**：后端通过 `TGSERVICE_ENV` 环境变量决定加载哪个配置文件：
+
+| `TGSERVICE_ENV` | 配置文件 | 用途 |
+|-----------------|----------|------|
+| `test` | `.config.env` | 开发环境 |
+| 其他值 | `.config` | 生产环境 |
+
+```javascript
+// server.js 中的判断逻辑
+const env = process.env.TGSERVICE_ENV || 'production';
+const configFileName = env === 'test' ? '.config.env' : '.config';
+```
+
+⚠️ **注意**：`NODE_ENV` 只影响前端构建，后端配置文件选择由 `TGSERVICE_ENV` 决定。
+
+### 5.3 使用方式
 
 ```bash
 # 命令行设置

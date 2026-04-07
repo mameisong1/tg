@@ -2,6 +2,8 @@
 
 本文档描述系统的部署架构、部署流程和运维命令。
 
+> **2026-04-07 更新**：生产环境使用 Docker 部署，开发环境使用宿主机 PM2，实现环境隔离。
+
 ---
 
 ## 1. 服务器信息
@@ -11,40 +13,165 @@
 | 项目 | 配置 |
 |------|------|
 | **操作系统** | Ubuntu / CentOS |
-| **域名** | www.tiangong.club / tiangong.club |
-| **旧管理域名** | tg.tiangong.club |
+| **域名** | www.tiangong.club (生产) / tg.tiangong.club (开发) |
 | **SSL** | Let's Encrypt / 阿里云证书 |
 
 ### 1.2 端口分配
 
-| 端口 | 服务 | 说明 |
-|------|------|------|
-| 80 | Nginx | HTTP（重定向到HTTPS） |
-| 443 | Nginx | HTTPS |
-| 8081 | Node.js 后端 | API 服务 |
-| 8082 | 短视频系统 | 短视频创作（cz.tiangong.club） |
-| 8083 | uni-app H5 前端 | 静态资源服务（开发热更新） |
+| 环境 | 端口 | 服务 | 说明 |
+|------|------|------|------|
+| 生产 | 80/443 | Nginx | HTTP/HTTPS |
+| 生产 | 8081 | Docker 后端 | API 服务 |
+| 生产 | 8083 | Docker H5 | H5 前端 |
+| 开发 | 8088 | PM2 后端 | API 服务 |
+| 开发 | 8089 | PM2 H5 | H5 前端 |
+| 其他 | 8082 | 短视频系统 | cz.tiangong.club |
 
 ### 1.3 进程列表
 
 ```bash
-# 查看运行中的服务
-pm2 list
+# 生产环境（Docker）
+docker ps | grep tgservice
 
-# 预期输出
-┌─────┬──────────────────┬─────────┬─────────┬───────────┐
-│ id  │ name             │ mode    │ status  │ cpu       │
-├─────┼──────────────────┼─────────┼─────────┼───────────┤
-│ 0   │ tgservice        │ fork    │ online  │ 0.1%      │
-│ 1   │ tgservice-uniapp │ fork    │ online  │ 0.1%      │
-└─────┴──────────────────┴─────────┴─────────┴───────────┘
+# 开发环境（PM2）
+pm2 list | grep tgservice
 ```
 
 ---
 
-## 2. 后端部署
+## 2. 生产环境部署（Docker）
 
-### 2.1 目录结构
+> ⚠️ **重要**：生产环境使用 Docker 部署，禁止使用 PM2 直接启动！
+
+### 2.1 Docker 容器信息
+
+| 项目 | 信息 |
+|------|------|
+| 容器名 | `tgservice` |
+| 镜像名 | `mameisong/tgservice` |
+| 后端端口 | 8081 → 80 |
+| H5 端口 | 8083 → 81 |
+
+### 2.2 生产环境启动命令
+
+```bash
+docker run -d \
+  --name tgservice \
+  -p 8081:80 \
+  -p 8083:81 \
+  -v /TG/run/db:/app/tgservice/db \
+  -v /TG/run/logs:/app/tgservice/logs \
+  -v /TG/run/images:/app/tgservice/images \
+  -v /TG/run/qrcode:/app/tgservice/qrcode \
+  -v /TG/run/data:/app/tgservice/data \
+  -v /root/.openclaw:/root/.openclaw \
+  -e NODE_ENV=production \
+  -e TZ=Asia/Shanghai \
+  --restart unless-stopped \
+  mameisong/tgservice:latest
+```
+
+### 2.3 生产数据目录
+
+生产环境数据存储在 `/TG/run/` 目录，通过 Docker 挂载实现数据隔离：
+
+```
+/TG/run/
+├── db/           # 生产数据库
+├── logs/         # 生产日志
+├── images/       # 生产图片
+├── qrcode/       # 生产二维码
+└── data/         # 商品数据
+```
+
+### 2.4 Docker 常用命令
+
+```bash
+# 查看容器状态
+docker ps | grep tgservice
+
+# 查看日志
+docker logs -f tgservice
+
+# 重启服务
+docker restart tgservice
+
+# 进入容器
+docker exec -it tgservice bash
+
+# 查看容器内 PM2
+docker exec tgservice pm2 list
+```
+
+### 2.5 构建和推送镜像
+
+```bash
+# 构建新镜像
+docker build -t mameisong/tgservice:latest /TG
+
+# 推送到 Docker Hub
+docker push mameisong/tgservice:latest
+```
+
+---
+
+## 3. 开发环境部署（PM2）
+
+> 开发环境在宿主机使用 PM2 运行，端口 8088/8089，域名 tg.tiangong.club
+
+### 3.1 开发环境 PM2 配置
+
+配置文件：`/TG/ecosystem.dev.config.js`
+
+```javascript
+module.exports = {
+  apps: [{
+    name: 'tgservice-dev',
+    script: 'server.js',
+    cwd: '/TG/tgservice/backend',
+    env: {
+      NODE_ENV: 'development',
+      TGSERVICE_ENV: 'test',  // 重要：加载 .config.env
+      PORT: 8088
+    },
+    // ...
+  }]
+};
+```
+
+### 3.2 开发环境常用命令
+
+```bash
+# 启动开发环境
+cd /TG && pm2 start ecosystem.dev.config.js
+
+# 重启开发环境
+pm2 restart tgservice-dev tgservice-uniapp-dev
+
+# 查看日志
+pm2 logs tgservice-dev
+
+# 保存 PM2 配置
+pm2 save
+```
+
+### 3.3 环境变量说明
+
+| 变量 | 生产环境 | 开发环境 |
+|------|----------|----------|
+| `TGSERVICE_ENV` | production | test |
+| 配置文件 | `.config` | `.config.env` |
+| API 地址 | https://tiangong.club/api | https://tg.tiangong.club/api |
+
+⚠️ **后端环境判断使用 `TGSERVICE_ENV` 而非 `NODE_ENV`**
+
+---
+
+## 4. 后端部署（旧版 PM2 方式）
+
+> 以下为旧版 PM2 部署方式，仅供参考。生产环境请使用 Docker 部署。
+
+### 4.1 目录结构
 
 ```
 /TG/tgservice/
