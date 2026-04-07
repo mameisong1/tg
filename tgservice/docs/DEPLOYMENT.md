@@ -64,6 +64,7 @@ docker run -d \
   -v /TG/run/images:/app/tgservice/images \
   -v /TG/run/qrcode:/app/tgservice/qrcode \
   -v /TG/run/data:/app/tgservice/data \
+  -v /TG/tgservice/scripts:/app/tgservice/scripts \
   -v /root/.openclaw:/root/.openclaw \
   -e NODE_ENV=production \
   -e TZ=Asia/Shanghai \
