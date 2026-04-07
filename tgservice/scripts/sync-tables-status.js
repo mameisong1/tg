@@ -72,84 +72,144 @@ async function isChromeRunning() {
 
 // 检测是否有台桌关键元素（登录成功的标志）
 async function checkTableElements(wsUrl) {
-  const script = `
-    (function() {
-      const text = document.body.innerText;
-      const html = document.body.innerHTML;
-      
-      // 检查台桌名称格式（普台1、普台2、TV1等）
-      const hasTableNames = /普台\\d+|TV\\d+|包厢\\d+/.test(text);
-      // 检查统计数据区域
-      const hasStats = text.includes('今日营业额') || text.includes('台桌开台数');
-      // 检查状态关键词
-      const hasStatus = text.includes('空闲') || text.includes('计费中');
-      
-      // 新增：检测 Vue 应用是否已渲染
-      const app = document.querySelector('#app');
-      const appHasContent = app && app.innerHTML.length > 100;
-      const bodyHasContent = text.length > 50;
-      
+  try {
+    const script = `
+      (function() {
+        const text = document.body.innerText;
+        const html = document.body.innerHTML;
+        
+        // 检查台桌名称格式（普台1、普台2、TV1等）
+        const hasTableNames = /普台\\d+|TV\\d+|包厢\\d+/.test(text);
+        // 检查统计数据区域
+        const hasStats = text.includes('今日营业额') || text.includes('台桌开台数');
+        // 检查状态关键词
+        const hasStatus = text.includes('空闲') || text.includes('计费中');
+        
+        // 新增：检测 Vue 应用是否已渲染
+        const app = document.querySelector('#app');
+        const appHasContent = app && app.innerHTML.length > 100;
+        const bodyHasContent = text.length > 50;
+        
+        return {
+          hasTableElements: hasTableNames || hasStats || hasStatus,
+          hasTableNames: hasTableNames,
+          hasStats: hasStats,
+          hasStatus: hasStatus,
+          // 新增字段
+          appHasContent: appHasContent,
+          bodyHasContent: bodyHasContent,
+          bodyTextLength: text.length,
+          appHTMLLength: app ? app.innerHTML.length : 0
+        };
+      })()
+    `;
+    const result = await executeScript(wsUrl, script);
+    if (!result) {
+      log('⚠️ checkTableElements 返回空结果');
       return {
-        hasTableElements: hasTableNames || hasStats || hasStatus,
-        hasTableNames: hasTableNames,
-        hasStats: hasStats,
-        hasStatus: hasStatus,
-        // 新增字段
-        appHasContent: appHasContent,
-        bodyHasContent: bodyHasContent,
-        bodyTextLength: text.length,
-        appHTMLLength: app ? app.innerHTML.length : 0
+        hasTableElements: false,
+        hasTableNames: false,
+        hasStats: false,
+        hasStatus: false,
+        appHasContent: false,
+        bodyHasContent: false,
+        bodyTextLength: 0,
+        appHTMLLength: 0
       };
-    })()
-  `;
-  return await executeScript(wsUrl, script);
+    }
+    return result;
+  } catch (err) {
+    log(`❌ checkTableElements 失败: ${err.message}`);
+    return {
+      hasTableElements: false,
+      hasTableNames: false,
+      hasStats: false,
+      hasStatus: false,
+      appHasContent: false,
+      bodyHasContent: false,
+      bodyTextLength: 0,
+      appHTMLLength: 0
+    };
+  }
 }
 
 // 检测是否有登录元素（需要登录的标志）
 async function checkLoginElements(wsUrl) {
-  const script = `
-    (function() {
-      const text = document.body.innerText;
-      const html = document.body.innerHTML;
-      const url = window.location.href;
-      
-      // 检查登录按钮
-      const hasLoginBtn = text.includes('密码登录') || 
-                          text.includes('登 录') ||
-                          (text.includes('登录') && !text.includes('今日营业额'));
-      
-      // 检查登录输入框
-      const hasPhoneInput = document.querySelector('input[placeholder*="手机号"]') !== null ||
-                            document.querySelector('input[type="text"]') !== null;
-      const hasPasswordInput = document.querySelector('input[type="password"]') !== null;
-      
-      // 检查URL是否包含login
-      const isLoginUrl = url.includes('login');
-      
-      // 检查是否有侧边栏（登录后会有）
-      const hasSidebar = document.querySelector('.sidebar, .el-menu, .nav-menu') !== null;
-      
-      // 新增：检测 Vue 应用是否已渲染
-      const app = document.querySelector('#app');
-      const appHasContent = app && app.innerHTML.length > 100;
-      const bodyHasContent = text.length > 50;
-      
+  try {
+    const script = `
+      (function() {
+        const text = document.body.innerText;
+        const html = document.body.innerHTML;
+        const url = window.location.href;
+        
+        // 检查登录按钮
+        const hasLoginBtn = text.includes('密码登录') || 
+                            text.includes('登 录') ||
+                            (text.includes('登录') && !text.includes('今日营业额'));
+        
+        // 检查登录输入框
+        const hasPhoneInput = document.querySelector('input[placeholder*="手机号"]') !== null ||
+                              document.querySelector('input[type="text"]') !== null;
+        const hasPasswordInput = document.querySelector('input[type="password"]') !== null;
+        
+        // 检查URL是否包含login
+        const isLoginUrl = url.includes('login');
+        
+        // 检查是否有侧边栏（登录后会有）
+        const hasSidebar = document.querySelector('.sidebar, .el-menu, .nav-menu') !== null;
+        
+        // 新增：检测 Vue 应用是否已渲染
+        const app = document.querySelector('#app');
+        const appHasContent = app && app.innerHTML.length > 100;
+        const bodyHasContent = text.length > 50;
+        
+        return {
+          hasLoginElements: (hasLoginBtn || isLoginUrl) && !hasSidebar,
+          hasLoginBtn: hasLoginBtn,
+          hasPhoneInput: hasPhoneInput,
+          hasPasswordInput: hasPasswordInput,
+          isLoginUrl: isLoginUrl,
+          hasSidebar: hasSidebar,
+          url: url,
+          // 新增字段
+          appHasContent: appHasContent,
+          bodyHasContent: bodyHasContent,
+          bodyTextLength: text.length
+        };
+      })()
+    `;
+    const result = await executeScript(wsUrl, script);
+    if (!result) {
+      log('⚠️ checkLoginElements 返回空结果');
       return {
-        hasLoginElements: (hasLoginBtn || isLoginUrl) && !hasSidebar,
-        hasLoginBtn: hasLoginBtn,
-        hasPhoneInput: hasPhoneInput,
-        hasPasswordInput: hasPasswordInput,
-        isLoginUrl: isLoginUrl,
-        hasSidebar: hasSidebar,
-        url: url,
-        // 新增字段
-        appHasContent: appHasContent,
-        bodyHasContent: bodyHasContent,
-        bodyTextLength: text.length
+        hasLoginElements: false,
+        hasLoginBtn: false,
+        hasPhoneInput: false,
+        hasPasswordInput: false,
+        isLoginUrl: false,
+        hasSidebar: false,
+        url: '',
+        appHasContent: false,
+        bodyHasContent: false,
+        bodyTextLength: 0
       };
-    })()
-  `;
-  return await executeScript(wsUrl, script);
+    }
+    return result;
+  } catch (err) {
+    log(`❌ checkLoginElements 失败: ${err.message}`);
+    return {
+      hasLoginElements: false,
+      hasLoginBtn: false,
+      hasPhoneInput: false,
+      hasPasswordInput: false,
+      isLoginUrl: false,
+      hasSidebar: false,
+      url: '',
+      appHasContent: false,
+      bodyHasContent: false,
+      bodyTextLength: 0
+    };
+  }
 }
 
 // 检测是否在登录页面（兼容旧代码）
