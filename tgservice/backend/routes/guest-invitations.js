@@ -345,7 +345,7 @@ router.post('/statistics', auth.required, async (req, res) => {
       : ['晚班空闲', '晚班上桌'];
     
     // 获取应约客助教列表（首次生成时取当前水牌状态）
-    const placeholders = shouldInviteStatus.map(() => '?').join(',');
+    const placeholders2 = shouldInviteStatus.map(() => '?').join(',');
     const shouldInviteCoaches = await transaction.all(`
       SELECT wb.coach_no, wb.stage_name, wb.status
       FROM water_boards wb
