@@ -37,6 +37,13 @@ const QRCode = require('qrcode');
 const applicationsRouter = require('./routes/applications');
 const guestInvitationsRouter = require('./routes/guest-invitations');
 
+// V2.0 路由模块
+const waterBoardsRouter = require('./routes/water-boards');
+const coachesV2Router = require('./routes/coaches');
+const serviceOrdersRouter = require('./routes/service-orders');
+const tableActionOrdersRouter = require('./routes/table-action-orders');
+const operationLogsRouter = require('./routes/operation-logs');
+
 // 设备指纹访问记录（内存存储，每日过期）
 // 结构: Map<fingerprint_coachNo, timestamp>
 const popularityCache = new Map();
@@ -285,6 +292,13 @@ app.use('/api/admin/', adminLimiter);
 // 注册路由模块
 app.use('/api/applications', applicationsRouter);
 app.use('/api/guest-invitations', guestInvitationsRouter);
+
+// V2.0 路由注册
+app.use('/api/water-boards', waterBoardsRouter);
+app.use('/api/coaches/v2', coachesV2Router);
+app.use('/api/service-orders', serviceOrdersRouter);
+app.use('/api/table-action-orders', tableActionOrdersRouter);
+app.use('/api/operation-logs', operationLogsRouter);
 
 // 数据库连接
 const sqlite3 = require('sqlite3').verbose();
