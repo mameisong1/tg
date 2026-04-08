@@ -8,13 +8,19 @@
 //   服务员 → 禁止后台访问
 
 (function() {
-  // URL-safe base64 解码（JWT使用URL-safe base64，需要转换为标准base64）
+  // URL-safe base64 解码 + UTF-8 解码（JWT payload 可能包含中文等非ASCII字符）
   function base64UrlDecode(str) {
     str = str.replace(/-/g, '+').replace(/_/g, '/');
     while (str.length % 4) {
       str += '=';
     }
-    return atob(str);
+    // atob 返回的是 Latin-1 编码的字符串，需要将 UTF-8 字节序列正确解码
+    const binary = atob(str);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return new TextDecoder('utf-8').decode(bytes);
   }
 
   // 等待DOM加载完成
