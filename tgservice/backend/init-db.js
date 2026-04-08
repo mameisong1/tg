@@ -61,11 +61,23 @@ function createTables() {
         CREATE TABLE IF NOT EXISTS admin_users (
           username TEXT PRIMARY KEY,
           password TEXT NOT NULL,
+          name TEXT DEFAULT '',
+          role TEXT DEFAULT '管理员',
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
       `, (err) => {
         if (err) error(`创建admin_users表失败: ${err.message}`);
         else log('表创建成功: admin_users');
+      });
+
+      // 迁移: 为已有表添加缺失字段
+      db.run(`ALTER TABLE admin_users ADD COLUMN name TEXT DEFAULT ''`, (err) => {
+        if (err && !err.message.includes('duplicate')) log(`admin_users.name: ${err.message}`);
+        else log('迁移: admin_users.name 已就绪');
+      });
+      db.run(`ALTER TABLE admin_users ADD COLUMN role TEXT DEFAULT '管理员'`, (err) => {
+        if (err && !err.message.includes('duplicate')) log(`admin_users.role: ${err.message}`);
+        else log('迁移: admin_users.role 已就绪');
       });
 
       // 2. 商品分类表
@@ -116,6 +128,9 @@ function createTables() {
           video TEXT,
           intro TEXT,
           is_popular INTEGER DEFAULT 0,
+          status TEXT DEFAULT '全职',
+          phone TEXT,
+          shift TEXT DEFAULT '早班',
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
@@ -265,11 +280,25 @@ async function importData() {
   const hashedPassword = await bcrypt.hash('mms633268', 10);
   await new Promise((resolve, reject) => {
     db.run(
-      'INSERT OR IGNORE INTO admin_users (username, password) VALUES (?, ?)',
-      ['tgadmin', hashedPassword],
+      'INSERT OR IGNORE INTO admin_users (username, password, name, role) VALUES (?, ?, ?, ?)',
+      ['tgadmin', hashedPassword, '系统管理员', '管理员'],
       (err) => {
         if (err) error(`导入后台用户失败: ${err.message}`);
         else log('后台用户导入成功: tgadmin');
+        resolve();
+      }
+    );
+  });
+
+  // 1.1 导入收银员账号
+  const cashierPassword = await bcrypt.hash('mms633268', 10);
+  await new Promise((resolve, reject) => {
+    db.run(
+      'INSERT OR IGNORE INTO admin_users (username, password, name, role) VALUES (?, ?, ?, ?)',
+      ['tgcashier', cashierPassword, '收银员', '收银'],
+      (err) => {
+        if (err) error(`导入收银员账号失败: ${err.message}`);
+        else log('后台用户导入成功: tgcashier');
         resolve();
       }
     );
