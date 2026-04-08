@@ -33,6 +33,10 @@ const winston = require('winston');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 
+// 路由模块
+const applicationsRouter = require('./routes/applications');
+const guestInvitationsRouter = require('./routes/guest-invitations');
+
 // 设备指纹访问记录（内存存储，每日过期）
 // 结构: Map<fingerprint_coachNo, timestamp>
 const popularityCache = new Map();
@@ -277,6 +281,10 @@ const adminLimiter = rateLimit({
   }
 });
 app.use('/api/admin/', adminLimiter);
+
+// 注册路由模块
+app.use('/api/applications', applicationsRouter);
+app.use('/api/guest-invitations', guestInvitationsRouter);
 
 // 数据库连接
 const sqlite3 = require('sqlite3').verbose();
