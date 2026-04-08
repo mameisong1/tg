@@ -8,6 +8,7 @@ const db = require('../db');
 /**
  * 验证用户是否已登录
  * 从请求头获取 Authorization，验证用户是否存在
+ * 支持 JWT token 格式
  */
 async function required(req, res, next) {
   try {
@@ -22,21 +23,31 @@ async function required(req, res, next) {
     
     const token = authHeader.substring(7); // 移除 'Bearer '
     
-    // 从 admin_users 表验证用户
-    // token 格式：username:timestamp:signature
-    const parts = token.split(':');
-    if (parts.length !== 3) {
+    // 加载配置获取 JWT secret
+    const fs = require('fs');
+    const path = require('path');
+    const env = process.env.TGSERVICE_ENV || 'production';
+    const configFileName = env === 'test' ? '.config.env' : '.config';
+    const configPath = path.join(__dirname, '../' + configFileName);
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    
+    // 验证 JWT token
+    const jwt = require('jsonwebtoken');
+    let decoded;
+    try {
+      decoded = jwt.verify(token, config.jwt.secret);
+    } catch (jwtError) {
       return res.status(401).json({
         success: false,
-        error: '无效的令牌格式'
+        error: '无效的令牌'
       });
     }
     
-    const [username, timestamp, signature] = parts;
+    const username = decoded.username;
     
     // 验证用户是否存在
     const user = await db.get(
-      'SELECT username, name, role FROM admin_users WHERE username = ?',
+      'SELECT username, role FROM admin_users WHERE username = ?',
       [username]
     );
     
@@ -47,36 +58,9 @@ async function required(req, res, next) {
       });
     }
     
-    // 简单验证：检查 token 是否在 24 小时内
-    const now = Date.now();
-    const tokenTime = parseInt(timestamp, 10);
-    const TOKEN_EXPIRE_MS = 24 * 60 * 60 * 1000; // 24 小时
-    
-    if (now - tokenTime > TOKEN_EXPIRE_MS) {
-      return res.status(401).json({
-        success: false,
-        error: '令牌已过期'
-      });
-    }
-    
-    // 验证签名（简单实现：username + timestamp 的 MD5）
-    const crypto = require('crypto');
-    const expectedSignature = crypto
-      .createHash('md5')
-      .update(username + timestamp + (process.env.TGSERVICE_SECRET_KEY || 'tgservice-secret-key'))
-      .digest('hex');
-    
-    if (signature !== expectedSignature) {
-      return res.status(401).json({
-        success: false,
-        error: '无效的令牌签名'
-      });
-    }
-    
     // 附加用户信息到请求对象
     req.user = {
       username: user.username,
-      name: user.name,
       role: user.role
     };
     
