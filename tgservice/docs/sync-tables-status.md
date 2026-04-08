@@ -4,10 +4,13 @@
 
 定时同步台客多后台的台桌状态到数据库。
 
+> **2026-04-08 更新**：脚本已迁移到 `/TG/run/scripts`，数据库和日志路径同步更新。
+
 ## 文件位置
 
-- 脚本：`/TG/tgservice/scripts/sync-tables-status.js`
-- 日志：`/TG/tgservice/scripts/sync-tables-status.log`
+- 脚本：`/TG/run/scripts/sync-tables-status.js`
+- 日志：`/TG/run/scripts/sync-tables-status.log`
+- 状态：`/TG/run/scripts/sync-status.json`
 
 ## 依赖
 
