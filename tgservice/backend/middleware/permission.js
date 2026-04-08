@@ -49,8 +49,8 @@ const PERMISSION_MATRIX = {
     operationLogs: false
   },
   '教练': {
-    menu: [],
-    cashierDashboard: true,
+    menu: ['water-boards'],
+    cashierDashboard: false,
     productManagement: false,
     vipRoomManagement: false,
     coachManagement: false,
@@ -77,9 +77,9 @@ const PERMISSION_MATRIX = {
     operationLogs: false
   },
   '收银': {
-    menu: ['cashier-dashboard'],
+    menu: ['cashier-dashboard', 'products'],
     cashierDashboard: true,
-    productManagement: false,
+    productManagement: true,
     vipRoomManagement: false,
     coachManagement: false,
     waterBoardManagement: false,
@@ -217,6 +217,71 @@ function getUserPermissions(role) {
   };
 }
 
+// 前端页面路径 → 后端权限字段映射
+const PAGE_PERMISSION_MAP = {
+  'cashier-dashboard': 'cashierDashboard',
+  'cashier-dashboard.html': 'cashierDashboard',
+  'products': 'productManagement',
+  'products.html': 'productManagement',
+  'vip-rooms': 'vipRoomManagement',
+  'vip-rooms.html': 'vipRoomManagement',
+  'coaches': 'coachManagement',
+  'coaches.html': 'coachManagement',
+  'water-boards': 'waterBoardManagement',
+  'water-boards.html': 'waterBoardManagement',
+  'invitation-review': 'invitationReview',
+  'invitation-review.html': 'invitationReview',
+  'lejuan': 'lejuanList',
+  'lejuan.html': 'lejuanList',
+  'invitation-stats': 'invitationStats',
+  'invitation-stats.html': 'invitationStats',
+  'operation-logs': 'operationLogs',
+  'operation-logs.html': 'operationLogs',
+  'orders': 'cashierDashboard',
+  'orders.html': 'cashierDashboard',
+  'index': 'cashierDashboard',
+  'index.html': 'cashierDashboard',
+  'members': 'coachManagement',
+  'members.html': 'coachManagement',
+  'categories': 'productManagement',
+  'categories.html': 'productManagement',
+  'users': 'coachManagement',
+  'users.html': 'coachManagement',
+  'settings': 'coachManagement',
+  'settings.html': 'coachManagement',
+  'tables': 'vipRoomManagement',
+  'tables.html': 'vipRoomManagement',
+  'home': 'cashierDashboard',
+  'home.html': 'cashierDashboard'
+};
+
+/**
+ * 检查用户是否有访问某个前端页面的权限
+ * @param {string} role - 用户角色
+ * @param {string} page - 页面文件名或路径
+ * @returns {boolean}
+ */
+function hasPagePermission(role, page) {
+  const perms = PERMISSION_MATRIX[role];
+  if (!perms) return false;
+  
+  // 管理员/店长/助教管理拥有全部权限
+  if (perms.menu && perms.menu.includes('all')) return true;
+  
+  // 服务员禁止访问后台
+  if (role === '服务员') return false;
+  
+  // 检查页面是否在菜单权限中
+  if (perms.menu && perms.menu.includes(page)) return true;
+  if (perms.menu && perms.menu.includes(page + '.html')) return true;
+  
+  // 通过映射检查后端权限
+  const permKey = PAGE_PERMISSION_MAP[page];
+  if (permKey && perms[permKey] === true) return true;
+  
+  return false;
+}
+
 /**
  * 权限校验中间件 - 后台
  * @param {string|string[]} requiredPermissions - 需要的权限列表
@@ -232,6 +297,11 @@ function requireBackendPermission(requiredPermissions) {
     const permissions = getUserPermissions(user.role);
     const backendPerms = permissions.backend;
     
+    // 服务员禁止访问后台
+    if (user.role === '服务员') {
+      return res.status(403).json({ error: '服务员禁止访问后台管理系统' });
+    }
+    
     // 管理员和店长拥有所有权限
     if (['管理员', '店长'].includes(user.role)) {
       return next();
@@ -246,7 +316,13 @@ function requireBackendPermission(requiredPermissions) {
     if (Array.isArray(requiredPermissions)) {
       const hasPermission = requiredPermissions.some(perm => {
         if (perm === 'all') return backendPerms.menu?.includes('all');
-        return backendPerms[perm] === true;
+        // 支持页面路径名（如 'cashier-dashboard'）
+        if (backendPerms.menu && backendPerms.menu.includes(perm)) return true;
+        if (backendPerms.menu && backendPerms.menu.includes(perm + '.html')) return true;
+        // 支持 readonly 权限（如水牌管理的教练）
+        const val = backendPerms[perm];
+        if (val === true || val === 'readonly') return true;
+        return false;
       });
       
       if (!hasPermission) {

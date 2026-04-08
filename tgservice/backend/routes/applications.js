@@ -8,7 +8,12 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { requireBackendPermission } = require('../middleware/permission');
 const operationLogService = require('../services/operation-log');
+
+// 权限中间件：所有申请事项需要助教管理或以上权限
+router.use(auth.required);
+router.use(requireBackendPermission(['all']));
 
 /**
  * POST /api/applications
@@ -39,7 +44,8 @@ router.post('/', auth.required, async (req, res) => {
       '早加班申请',
       '晚加班申请',
       '公休申请',
-      '乐捐报备'
+      '乐捐报备',
+      '约客记录'
     ];
     
     if (!validTypes.includes(application_type)) {

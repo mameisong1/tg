@@ -7,12 +7,13 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { requireBackendPermission } = require('../middleware/permission');
 
 /**
  * GET /api/operation-logs
  * 获取操作日志列表
  */
-router.get('/', auth.required, async (req, res) => {
+router.get('/', auth.required, requireBackendPermission(['operationLogs']), async (req, res) => {
   try {
     const {
       operator_phone,
@@ -79,7 +80,7 @@ router.get('/', auth.required, async (req, res) => {
  * GET /api/operation-logs/:id
  * 获取单个操作日志
  */
-router.get('/:id', auth.required, async (req, res) => {
+router.get('/:id', auth.required, requireBackendPermission(['operationLogs']), async (req, res) => {
   try {
     const { id } = req.params;
     

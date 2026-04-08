@@ -7,13 +7,14 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { requireBackendPermission } = require('../middleware/permission');
 const operationLogService = require('../services/operation-log');
 
 /**
  * POST /api/table-action-orders
  * 提交上桌单/下桌单/取消单
  */
-router.post('/', auth.required, async (req, res) => {
+router.post('/', auth.required, requireBackendPermission(['cashierDashboard']), async (req, res) => {
   const transaction = await db.beginTransaction();
   
   try {
@@ -164,7 +165,7 @@ router.post('/', auth.required, async (req, res) => {
  * GET /api/table-action-orders
  * 获取上下桌单列表
  */
-router.get('/', auth.required, async (req, res) => {
+router.get('/', auth.required, requireBackendPermission(['cashierDashboard']), async (req, res) => {
   try {
     const { status, order_type, coach_no, limit = 50 } = req.query;
     
@@ -208,7 +209,7 @@ router.get('/', auth.required, async (req, res) => {
  * GET /api/table-action-orders/:id
  * 获取单个上下桌单
  */
-router.get('/:id', auth.required, async (req, res) => {
+router.get('/:id', auth.required, requireBackendPermission(['cashierDashboard']), async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -241,7 +242,7 @@ router.get('/:id', auth.required, async (req, res) => {
  * PUT /api/table-action-orders/:id/status
  * 更新上下桌单状态
  */
-router.put('/:id/status', auth.required, async (req, res) => {
+router.put('/:id/status', auth.required, requireBackendPermission(['cashierDashboard']), async (req, res) => {
   const transaction = await db.beginTransaction();
   
   try {

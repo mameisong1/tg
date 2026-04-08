@@ -382,8 +382,8 @@ app.get('/api/home', async (req, res) => {
       hotProducts = await dbAll(`SELECT name, image_url, price FROM products WHERE status = '上架' LIMIT 6`);
     }
     
-    // 获取人气助教（按人气值排序取前6，过滤离职助教）
-    let popularCoaches = await dbAll(`SELECT coach_no, employee_id, stage_name, level, photos, popularity FROM coaches WHERE (status = '全职' OR status = '兼职' OR status IS NULL) ORDER BY popularity DESC LIMIT 6`);
+    // 获取人气助教（按人气值排序取前6，过滤离职助教和无效数据）
+    let popularCoaches = await dbAll(`SELECT coach_no, employee_id, stage_name, level, photos, popularity FROM coaches WHERE (status = '全职' OR status = '兼职' OR status IS NULL) AND employee_id IS NOT NULL AND employee_id != '' AND stage_name IS NOT NULL AND stage_name != '' ORDER BY popularity DESC LIMIT 6`);
     
     // 处理助教照片
     popularCoaches = popularCoaches.map(c => ({
@@ -733,7 +733,7 @@ app.post('/api/order', async (req, res) => {
 app.get('/api/coaches', async (req, res) => {
   try {
     const { level } = req.query;
-    let sql = "SELECT coach_no, employee_id, stage_name, level, photos, popularity FROM coaches WHERE (status = '全职' OR status = '兼职' OR status IS NULL)";
+    let sql = "SELECT coach_no, employee_id, stage_name, level, photos, popularity FROM coaches WHERE (status = '全职' OR status = '兼职' OR status IS NULL) AND employee_id IS NOT NULL AND employee_id != '' AND stage_name IS NOT NULL AND stage_name != ''";
     const params = [];
     
     if (level && level !== '全部') {
@@ -759,7 +759,7 @@ app.get('/api/coaches', async (req, res) => {
 // 获取人气值TOP6助教
 app.get('/api/coaches/popularity/top6', async (req, res) => {
   try {
-    let coaches = await dbAll(`SELECT coach_no, employee_id, stage_name, level, photos, popularity FROM coaches WHERE (status = '全职' OR status = '兼职' OR status IS NULL) ORDER BY popularity DESC LIMIT 6`);
+    let coaches = await dbAll(`SELECT coach_no, employee_id, stage_name, level, photos, popularity FROM coaches WHERE (status = '全职' OR status = '兼职' OR status IS NULL) AND employee_id IS NOT NULL AND employee_id != '' AND stage_name IS NOT NULL AND stage_name != '' ORDER BY popularity DESC LIMIT 6`);
     coaches = coaches.map(c => ({
       ...c,
       photos: c.photos ? JSON.parse(c.photos) : []
@@ -1564,8 +1564,12 @@ app.post('/api/admin/login', async (req, res) => {
       return res.status(401).json({ error: '用户名或密码错误' });
     }
     
-    // V2.0: 登录时检查权限
+    // 服务员禁止登录后台
     const role = user.role || '管理员';
+    if (role === '服务员') {
+      return res.status(403).json({ error: '服务员不允许登录后台管理系统，请使用前台系统' });
+    }
+    
     const token = jwt.sign({ username: user.username, role: role }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
     
     // 获取用户权限
@@ -1577,6 +1581,7 @@ app.post('/api/admin/login', async (req, res) => {
       success: true, 
       token, 
       role,
+      user: { username: user.username, name: user.name || '', role: role },
       permissions: permissions.backend
     });
   } catch (err) {
@@ -1604,11 +1609,126 @@ const authMiddleware = (req, res, next) => {
 // V2.0: 权限中间件
 const { requireBackendPermission, hasBackendPermission } = require('./middleware/permission');
 
-// 后台数据概览
-app.get('/api/admin/stats', authMiddleware, async (req, res) => {
+// V2.0: 免扫码权限检查
+app.get('/api/auth/check-scan-permission', authMiddleware, async (req, res) => {
   try {
-    // 人气值前5助教
-    const topCoaches = await dbAll(`SELECT coach_no, employee_id, stage_name, level, popularity FROM coaches ORDER BY popularity DESC LIMIT 6`);
+    const { coach_no } = req.query;
+    const user = req.user;
+    const userRole = user?.role || '';
+    const isAdmin = ['管理员', '超级管理员'].includes(userRole);
+    
+    // 后台用户角色（店长/助教管理/前厅管理/收银/教练/服务员）都可以免扫码下单
+    const backendRoles = ['管理员', '超级管理员', '店长', '助教管理', '前厅管理', '收银', '教练', '服务员'];
+    const isBackendUser = backendRoles.includes(userRole);
+    
+    // 如果没有提供 coach_no
+    if (!coach_no) {
+      // 后台用户：返回自己的权限信息（后台用户默认可以免扫码下单）
+      if (isBackendUser) {
+        return res.json({
+          success: true,
+          data: {
+            can_skip_scan: true,
+            coach_no: null,
+            stage_name: user.name || user.username,
+            default_table_no: null,
+            status: userRole,
+            is_admin: isAdmin
+          }
+        });
+      }
+      // 非后台用户，需要提供 coach_no
+      return res.status(400).json({
+        success: false,
+        error: '缺少 coach_no 参数'
+      });
+    }
+    
+    // 查询助教信息和水牌状态
+    const coach = await dbGet(
+      `SELECT c.coach_no, c.stage_name, c.shift, wb.status, wb.table_no
+       FROM coaches c
+       LEFT JOIN water_boards wb ON c.coach_no = wb.coach_no
+       WHERE c.coach_no = ?`,
+      [coach_no]
+    );
+    
+    if (!coach) {
+      return res.status(404).json({
+        success: false,
+        error: '助教不存在'
+      });
+    }
+    
+    // 判断是否可免扫码：当前状态为上桌（早班上桌/晚班上桌）时，允许免扫码下单
+    // 管理员查看任何助教时，返回该助教的状态
+    const canSkipScan = ['早班上桌', '晚班上桌'].includes(coach.status);
+    
+    res.json({
+      success: true,
+      data: {
+        can_skip_scan: canSkipScan,
+        coach_no: coach.coach_no,
+        stage_name: coach.stage_name,
+        default_table_no: coach.table_no || null,
+        status: coach.status,
+        is_admin: isAdmin
+      }
+    });
+  } catch (err) {
+    logger.error(`检查免扫码权限失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// V2.0: 权限检查
+app.get('/api/auth/check-permission', authMiddleware, async (req, res) => {
+  try {
+    const { permission } = req.query;
+    const user = req.user;
+    
+    if (!user || !user.role) {
+      return res.status(401).json({
+        success: false,
+        error: '未登录'
+      });
+    }
+    
+    const { getUserPermissions } = require('./middleware/permission');
+    const permissions = getUserPermissions(user.role || '管理员');
+    
+    // 如果指定了具体权限，检查是否有该权限
+    if (permission) {
+      const hasPermission = permissions.backend.includes(permission);
+      return res.json({
+        success: true,
+        data: {
+          has_permission: hasPermission,
+          permission,
+          role: user.role
+        }
+      });
+    }
+    
+    // 返回全部权限
+    res.json({
+      success: true,
+      data: {
+        role: user.role,
+        permissions: permissions.backend
+      }
+    });
+  } catch (err) {
+    logger.error(`检查权限失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 后台数据概览
+app.get('/api/admin/stats', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
+  try {
+    // 人气值前5助教（过滤无效数据）
+    const topCoaches = await dbAll(`SELECT coach_no, employee_id, stage_name, level, popularity FROM coaches WHERE employee_id IS NOT NULL AND employee_id != '' AND stage_name IS NOT NULL AND stage_name != '' ORDER BY popularity DESC LIMIT 6`);
     
     // 统计数据
     const productCount = await dbGet('SELECT COUNT(*) as count FROM products WHERE status = "上架"');
@@ -1631,7 +1751,7 @@ app.get('/api/admin/stats', authMiddleware, async (req, res) => {
 // =============== 后台订单管理 API ===============
 
 // 获取订单列表
-app.get('/api/admin/orders', authMiddleware, async (req, res) => {
+app.get('/api/admin/orders', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
   try {
     const { status } = req.query;
     let sql = 'SELECT * FROM orders';
@@ -1675,7 +1795,7 @@ app.get('/api/admin/orders', authMiddleware, async (req, res) => {
 });
 
 // 完成订单
-app.post('/api/admin/orders/:id/complete', authMiddleware, async (req, res) => {
+app.post('/api/admin/orders/:id/complete', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
   try {
     await dbRun("UPDATE orders SET status = '已完成', updated_at = datetime('now', 'localtime') WHERE id = ?", [req.params.id]);
     operationLog.info(`订单完成: ${req.params.id} by ${req.user.username}`);
@@ -1687,7 +1807,7 @@ app.post('/api/admin/orders/:id/complete', authMiddleware, async (req, res) => {
 });
 
 // 取消订单
-app.post('/api/admin/orders/:id/cancel', authMiddleware, async (req, res) => {
+app.post('/api/admin/orders/:id/cancel', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
   try {
     await dbRun("UPDATE orders SET status = '已取消', updated_at = datetime('now', 'localtime') WHERE id = ?", [req.params.id]);
     operationLog.info(`订单取消: ${req.params.id} by ${req.user.username}`);
@@ -1699,7 +1819,7 @@ app.post('/api/admin/orders/:id/cancel', authMiddleware, async (req, res) => {
 });
 
 // 取消订单中的单个商品
-app.post('/api/admin/orders/:id/cancel-item', authMiddleware, async (req, res) => {
+app.post('/api/admin/orders/:id/cancel-item', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
   try {
     const { itemName, cancelQuantity } = req.body;
     const orderId = req.params.id;
@@ -1801,10 +1921,63 @@ app.post('/api/admin/orders/:id/cancel-item', authMiddleware, async (req, res) =
   }
 });
 
-// 后台用户管理
-app.get('/api/admin/users', authMiddleware, async (req, res) => {
+// 收银看板 API — 统一返回服务单 + 上下桌单 + 商品订单
+app.get('/api/cashier-dashboard', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
   try {
-    const users = await dbAll('SELECT username, role, created_at FROM admin_users');
+    const limit = req.query.limit || 50;
+    
+    // 获取待处理服务单
+    const serviceOrders = await dbAll(
+      `SELECT * FROM service_orders WHERE status = '待处理' ORDER BY created_at DESC LIMIT ?`,
+      [parseInt(limit)]
+    );
+    
+    // 获取待处理上下桌单
+    const tableActionOrders = await dbAll(
+      `SELECT * FROM table_action_orders WHERE status = '待处理' ORDER BY created_at DESC LIMIT ?`,
+      [parseInt(limit)]
+    );
+    
+    // 获取待处理商品订单
+    const orders = await dbAll(
+      `SELECT * FROM orders WHERE status = '待处理' ORDER BY created_at DESC LIMIT ?`,
+      [parseInt(limit)]
+    );
+    
+    // 统计数量
+    const pendingServiceCount = await dbGet(
+      `SELECT COUNT(*) as count FROM service_orders WHERE status = '待处理'`
+    );
+    const pendingTableActionCount = await dbGet(
+      `SELECT COUNT(*) as count FROM table_action_orders WHERE status = '待处理'`
+    );
+    const pendingOrderCount = await dbGet(
+      `SELECT COUNT(*) as count FROM orders WHERE status = '待处理'`
+    );
+    
+    res.json({
+      success: true,
+      data: {
+        service_orders: serviceOrders,
+        table_action_orders: tableActionOrders,
+        orders: orders,
+        counts: {
+          pending_service: pendingServiceCount?.count || 0,
+          pending_table_action: pendingTableActionCount?.count || 0,
+          pending_orders: pendingOrderCount?.count || 0
+        }
+      }
+    });
+  } catch (err) {
+    logger.error(`收银看板查询失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 后台用户管理
+app.get('/api/admin/users', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
+  try {
+    const users = await dbAll('SELECT username, name, role, created_at FROM admin_users');
     res.json(users);
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
@@ -1812,7 +1985,7 @@ app.get('/api/admin/users', authMiddleware, async (req, res) => {
 });
 
 // V2.0: 获取用户权限
-app.get('/api/admin/users/:username/permissions', authMiddleware, async (req, res) => {
+app.get('/api/admin/users/:username/permissions', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
     const { username } = req.params;
     
@@ -1841,12 +2014,12 @@ app.get('/api/admin/users/:username/permissions', authMiddleware, async (req, re
   }
 });
 
-app.post('/api/admin/users', authMiddleware, async (req, res) => {
+app.post('/api/admin/users', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
-    const { username, password, role } = req.body;
+    const { username, password, name, role } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    await dbRun('INSERT INTO admin_users (username, password, role) VALUES (?, ?, ?)', [username, hashedPassword, role || '管理员']);
+    await dbRun('INSERT INTO admin_users (username, password, name, role) VALUES (?, ?, ?, ?)', [username, hashedPassword, name || '', role || '管理员']);
     operationLog.info(`创建后台用户: ${username} (${role || '管理员'})`);
     res.json({ success: true });
   } catch (err) {
@@ -1857,15 +2030,15 @@ app.post('/api/admin/users', authMiddleware, async (req, res) => {
   }
 });
 
-app.put('/api/admin/users/:username', authMiddleware, async (req, res) => {
+app.put('/api/admin/users/:username', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
-    const { password, role } = req.body;
+    const { password, name, role } = req.body;
     
     if (password) {
       const hashedPassword = await bcrypt.hash(password, 10);
-      await dbRun('UPDATE admin_users SET password = ?, role = ? WHERE username = ?', [hashedPassword, role || '管理员', req.params.username]);
+      await dbRun('UPDATE admin_users SET password = ?, name = ?, role = ? WHERE username = ?', [hashedPassword, name || '', role || '管理员', req.params.username]);
     } else {
-      await dbRun('UPDATE admin_users SET role = ? WHERE username = ?', [role || '管理员', req.params.username]);
+      await dbRun('UPDATE admin_users SET name = ?, role = ? WHERE username = ?', [name || '', role || '管理员', req.params.username]);
     }
     
     operationLog.info(`更新后台用户: ${req.params.username}`);
@@ -1875,7 +2048,7 @@ app.put('/api/admin/users/:username', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/admin/users/:username', authMiddleware, async (req, res) => {
+app.delete('/api/admin/users/:username', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
     if (req.params.username === 'tgadmin') {
       return res.status(400).json({ error: '不能删除默认管理员' });
@@ -1889,7 +2062,7 @@ app.delete('/api/admin/users/:username', authMiddleware, async (req, res) => {
 });
 
 // 商品分类管理
-app.get('/api/admin/categories', authMiddleware, async (req, res) => {
+app.get('/api/admin/categories', authMiddleware, requireBackendPermission(['productManagement']), async (req, res) => {
   try {
     const categories = await dbAll('SELECT * FROM product_categories ORDER BY sort_order ASC, name ASC');
     res.json(categories);
@@ -1898,7 +2071,7 @@ app.get('/api/admin/categories', authMiddleware, async (req, res) => {
   }
 });
 
-app.post('/api/admin/categories', authMiddleware, async (req, res) => {
+app.post('/api/admin/categories', authMiddleware, requireBackendPermission(['productManagement']), async (req, res) => {
   try {
     const { name, sortOrder } = req.body;
     const order = sortOrder || 0;
@@ -1913,7 +2086,7 @@ app.post('/api/admin/categories', authMiddleware, async (req, res) => {
   }
 });
 
-app.put('/api/admin/categories/:name', authMiddleware, async (req, res) => {
+app.put('/api/admin/categories/:name', authMiddleware, requireBackendPermission(['productManagement']), async (req, res) => {
   try {
     const { sortOrder } = req.body;
     await dbRun('UPDATE product_categories SET sort_order = ? WHERE name = ?', [sortOrder || 0, req.params.name]);
@@ -1924,7 +2097,7 @@ app.put('/api/admin/categories/:name', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/admin/categories/:name', authMiddleware, async (req, res) => {
+app.delete('/api/admin/categories/:name', authMiddleware, requireBackendPermission(['productManagement']), async (req, res) => {
   try {
     // 检查是否有商品使用此分类
     const count = await dbGet('SELECT COUNT(*) as count FROM products WHERE category = ?', [req.params.name]);
@@ -1940,7 +2113,7 @@ app.delete('/api/admin/categories/:name', authMiddleware, async (req, res) => {
 });
 
 // 商品同步状态
-app.get('/api/admin/sync-products-status', authMiddleware, async (req, res) => {
+app.get('/api/admin/sync-products-status', authMiddleware, requireBackendPermission(['productManagement']), async (req, res) => {
   try {
     const logPath = path.join(__dirname, '../scripts/sync-products.log');
     
@@ -2023,7 +2196,7 @@ app.get('/api/admin/sync-products-status', authMiddleware, async (req, res) => {
 });
 
 // 商品管理
-app.get('/api/admin/products', authMiddleware, async (req, res) => {
+app.get('/api/admin/products', authMiddleware, requireBackendPermission(['productManagement']), async (req, res) => {
   try {
     const products = await dbAll('SELECT * FROM products ORDER BY created_at DESC');
     res.json(products);
@@ -2032,7 +2205,7 @@ app.get('/api/admin/products', authMiddleware, async (req, res) => {
   }
 });
 
-app.post('/api/admin/products', authMiddleware, async (req, res) => {
+app.post('/api/admin/products', authMiddleware, requireBackendPermission(['productManagement']), async (req, res) => {
   try {
     const { name, category, imageUrl, price, stockTotal, stockAvailable, status } = req.body;
     
@@ -2051,7 +2224,7 @@ app.post('/api/admin/products', authMiddleware, async (req, res) => {
   }
 });
 
-app.put('/api/admin/products/:name', authMiddleware, async (req, res) => {
+app.put('/api/admin/products/:name', authMiddleware, requireBackendPermission(['productManagement']), async (req, res) => {
   try {
     const { category, imageUrl, price, stockTotal, stockAvailable, status } = req.body;
     
@@ -2066,7 +2239,7 @@ app.put('/api/admin/products/:name', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/admin/products/:name', authMiddleware, async (req, res) => {
+app.delete('/api/admin/products/:name', authMiddleware, requireBackendPermission(['productManagement']), async (req, res) => {
   try {
     await dbRun('DELETE FROM products WHERE name = ?', [req.params.name]);
     operationLog.info(`删除商品: ${req.params.name}`);
@@ -2077,9 +2250,9 @@ app.delete('/api/admin/products/:name', authMiddleware, async (req, res) => {
 });
 
 // 助教管理
-app.get('/api/admin/coaches', authMiddleware, async (req, res) => {
+app.get('/api/admin/coaches', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
-    let coaches = await dbAll('SELECT * FROM coaches ORDER BY CAST(employee_id AS INTEGER) ASC, coach_no');
+    let coaches = await dbAll('SELECT * FROM coaches WHERE employee_id IS NOT NULL AND employee_id != \'\' AND stage_name IS NOT NULL AND stage_name != \'\' ORDER BY CAST(employee_id AS INTEGER) ASC, coach_no');
     coaches = coaches.map(c => ({
       ...c,
       photos: c.photos ? JSON.parse(c.photos) : [],
@@ -2091,9 +2264,13 @@ app.get('/api/admin/coaches', authMiddleware, async (req, res) => {
   }
 });
 
-app.post('/api/admin/coaches', authMiddleware, async (req, res) => {
+app.post('/api/admin/coaches', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
-    const { employeeId, stageName, realName, phone, level, price, age, height, photos, video, intro, isPopular, status } = req.body;
+    const { employeeId, stageName, realName, phone, level, price, age, height, photos, video, intro, isPopular, status, shift } = req.body;
+    
+    // 验证班次枚举值
+    const validShifts = ['早班', '晚班'];
+    const finalShift = (shift && validShifts.includes(shift)) ? shift : '早班';
     
     // 检查工号和艺名组合是否已存在
     const existing = await dbGet(
@@ -2105,11 +2282,24 @@ app.post('/api/admin/coaches', authMiddleware, async (req, res) => {
     }
     
     const result = await dbRun(
-      `INSERT INTO coaches (employee_id, stage_name, real_name, phone, level, price, age, height, photos, video, intro, is_popular, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime("now", "localtime"), datetime("now", "localtime"))`,
-      [employeeId, stageName, realName, phone || null, level, price, age, height, JSON.stringify(photos || []), video, intro, isPopular ? 1 : 0, status || '全职']
+      `INSERT INTO coaches (employee_id, stage_name, real_name, phone, level, price, age, height, photos, video, intro, is_popular, status, shift, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime("now", "localtime"), datetime("now", "localtime"))`,
+      [employeeId, stageName, realName, phone || null, level, price, age, height, JSON.stringify(photos || []), video, intro, isPopular ? 1 : 0, status || '全职', finalShift]
     );
     const newCoachNo = result.lastID;
+    
+    // 同步创建 water_boards 记录（如果表存在）
+    try {
+      await dbRun(
+        `INSERT OR IGNORE INTO water_boards (coach_no, stage_name, status, created_at, updated_at)
+         VALUES (?, ?, '下班', datetime("now", "localtime"), datetime("now", "localtime"))`,
+        [newCoachNo, stageName]
+      );
+    } catch (e) {
+      // water_boards 表可能不存在，忽略
+      logger.warn(`water_boards 初始化失败: ${e.message}`);
+    }
+    
     operationLog.info(`创建助教: ${stageName} (${newCoachNo})`);
     res.json({ success: true, coachNo: newCoachNo });
   } catch (err) {
@@ -2121,9 +2311,13 @@ app.post('/api/admin/coaches', authMiddleware, async (req, res) => {
   }
 });
 
-app.put('/api/admin/coaches/:coachNo', authMiddleware, async (req, res) => {
+app.put('/api/admin/coaches/:coachNo', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
-    const { employeeId, stageName, realName, phone, level, price, age, height, photos, video, intro, isPopular, status } = req.body;
+    const { employeeId, stageName, realName, phone, level, price, age, height, photos, video, intro, isPopular, status, shift } = req.body;
+    
+    // 验证班次枚举值
+    const validShifts = ['早班', '晚班'];
+    const finalShift = (shift && validShifts.includes(shift)) ? shift : undefined;
     
     // 检查工号和艺名组合是否被其他助教使用
     const existing = await dbGet(
@@ -2135,7 +2329,7 @@ app.put('/api/admin/coaches/:coachNo', authMiddleware, async (req, res) => {
     }
     
     // 获取原有数据，用于保留前台可编辑字段
-    const currentCoach = await dbGet('SELECT photos, videos, intro, age, height FROM coaches WHERE coach_no = ?', [req.params.coachNo]);
+    const currentCoach = await dbGet('SELECT photos, videos, intro, age, height, shift FROM coaches WHERE coach_no = ?', [req.params.coachNo]);
     
     // 对于前台可编辑的字段，如果后台没有传值，保留原有数据
     let finalPhotos = photos;
@@ -2147,10 +2341,11 @@ app.put('/api/admin/coaches/:coachNo', authMiddleware, async (req, res) => {
     let finalIntro = intro !== undefined ? intro : (currentCoach?.intro || '');
     let finalAge = age !== undefined ? age : currentCoach?.age;
     let finalHeight = height !== undefined ? height : currentCoach?.height;
+    let resolvedShift = finalShift !== undefined ? finalShift : (currentCoach?.shift || '早班');
     
     await dbRun(
-      `UPDATE coaches SET employee_id = ?, stage_name = ?, real_name = ?, phone = ?, level = ?, price = ?, age = ?, height = ?, photos = ?, video = ?, intro = ?, videos = ?, is_popular = ?, status = ?, updated_at = datetime("now", "localtime") WHERE coach_no = ?`,
-      [employeeId, stageName, realName, phone || null, level, price, finalAge, finalHeight, JSON.stringify(finalPhotos || []), video, finalIntro, JSON.stringify(finalVideos || []), isPopular ? 1 : 0, status || '全职', req.params.coachNo]
+      `UPDATE coaches SET employee_id = ?, stage_name = ?, real_name = ?, phone = ?, level = ?, price = ?, age = ?, height = ?, photos = ?, video = ?, intro = ?, videos = ?, is_popular = ?, status = ?, shift = ?, updated_at = datetime("now", "localtime") WHERE coach_no = ?`,
+      [employeeId, stageName, realName, phone || null, level, price, finalAge, finalHeight, JSON.stringify(finalPhotos || []), video, finalIntro, JSON.stringify(finalVideos || []), isPopular ? 1 : 0, status || '全职', resolvedShift, req.params.coachNo]
     );
     operationLog.info(`更新助教: ${req.params.coachNo}`);
     res.json({ success: true });
@@ -2163,7 +2358,7 @@ app.put('/api/admin/coaches/:coachNo', authMiddleware, async (req, res) => {
   }
 });
 
-app.delete('/api/admin/coaches/:coachNo', authMiddleware, async (req, res) => {
+app.delete('/api/admin/coaches/:coachNo', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
     // 检查助教状态
     const coach = await dbGet('SELECT status FROM coaches WHERE coach_no = ?', [req.params.coachNo]);
@@ -2187,7 +2382,7 @@ app.delete('/api/admin/coaches/:coachNo', authMiddleware, async (req, res) => {
 // =============== 会员管理 API ===============
 
 // 获取会员列表
-app.get('/api/admin/members', authMiddleware, async (req, res) => {
+app.get('/api/admin/members', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
     const members = await dbAll('SELECT member_no, phone, openid, name, gender, remark, created_at FROM members ORDER BY created_at DESC');
     res.json(members);
@@ -2197,7 +2392,7 @@ app.get('/api/admin/members', authMiddleware, async (req, res) => {
 });
 
 // 新增会员
-app.post('/api/admin/members', authMiddleware, async (req, res) => {
+app.post('/api/admin/members', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
     const { phone, name, gender, remark } = req.body;
     
@@ -2224,7 +2419,7 @@ app.post('/api/admin/members', authMiddleware, async (req, res) => {
 });
 
 // 修改会员
-app.put('/api/admin/members/:memberNo', authMiddleware, async (req, res) => {
+app.put('/api/admin/members/:memberNo', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
     const { phone, name, gender, remark } = req.body;
     
@@ -2249,7 +2444,7 @@ app.put('/api/admin/members/:memberNo', authMiddleware, async (req, res) => {
 // =============== 短信配置管理 API ===============
 
 // 获取短信配置
-app.get('/api/admin/sms/config', authMiddleware, async (req, res) => {
+app.get('/api/admin/sms/config', authMiddleware, requireBackendPermission(['all']), async (req, res) => {
   try {
     // 获取当前服务商
     const configRow = await dbGet("SELECT value, updated_at FROM system_config WHERE key = 'sms_provider'");
@@ -2300,7 +2495,7 @@ app.get('/api/admin/sms/config', authMiddleware, async (req, res) => {
 });
 
 // 切换短信服务商
-app.put('/api/admin/sms/config', authMiddleware, async (req, res) => {
+app.put('/api/admin/sms/config', authMiddleware, requireBackendPermission(['all']), async (req, res) => {
   try {
     const { provider } = req.body;
     
@@ -2322,7 +2517,7 @@ app.put('/api/admin/sms/config', authMiddleware, async (req, res) => {
 });
 
 // 发送测试短信
-app.post('/api/admin/sms/test', authMiddleware, async (req, res) => {
+app.post('/api/admin/sms/test', authMiddleware, requireBackendPermission(['all']), async (req, res) => {
   try {
     const { phone, provider } = req.body;
     
@@ -2401,7 +2596,7 @@ const initSystemConfigTable = async () => {
 initSystemConfigTable();
 
 // 获取黑名单列表
-app.get('/api/admin/blacklist', authMiddleware, async (req, res) => {
+app.get('/api/admin/blacklist', authMiddleware, requireBackendPermission(['all']), async (req, res) => {
   try {
     const blacklist = await dbAll('SELECT * FROM device_blacklist ORDER BY created_at DESC');
     res.json(blacklist);
@@ -2412,7 +2607,7 @@ app.get('/api/admin/blacklist', authMiddleware, async (req, res) => {
 });
 
 // 添加黑名单
-app.post('/api/admin/blacklist', authMiddleware, async (req, res) => {
+app.post('/api/admin/blacklist', authMiddleware, requireBackendPermission(['all']), async (req, res) => {
   try {
     const { deviceFingerprint, reason } = req.body;
     
@@ -2440,7 +2635,7 @@ app.post('/api/admin/blacklist', authMiddleware, async (req, res) => {
 });
 
 // 删除黑名单
-app.delete('/api/admin/blacklist/:id', authMiddleware, async (req, res) => {
+app.delete('/api/admin/blacklist/:id', authMiddleware, requireBackendPermission(['all']), async (req, res) => {
   try {
     const item = await dbGet('SELECT device_fingerprint FROM device_blacklist WHERE id = ?', [req.params.id]);
     if (!item) {
@@ -2457,7 +2652,7 @@ app.delete('/api/admin/blacklist/:id', authMiddleware, async (req, res) => {
 });
 
 // 首页配置管理
-app.get('/api/admin/home-config', authMiddleware, async (req, res) => {
+app.get('/api/admin/home-config', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
   try {
     const config = await dbGet('SELECT * FROM home_config WHERE id = 1');
     res.json({
@@ -2471,7 +2666,7 @@ app.get('/api/admin/home-config', authMiddleware, async (req, res) => {
   }
 });
 
-app.put('/api/admin/home-config', authMiddleware, async (req, res) => {
+app.put('/api/admin/home-config', authMiddleware, requireBackendPermission(['all']), async (req, res) => {
   try {
     const { bannerImage, bannerTitle, bannerDesc, hotProducts, popularCoaches, hotVipRooms, notice } = req.body;
     
@@ -2564,7 +2759,7 @@ async function generateTableQRCode(namePinyin, tableName) {
 }
 
 // 检查并生成所有缺失的二维码
-app.get('/api/admin/tables/qrcode/check', authMiddleware, async (req, res) => {
+app.get('/api/admin/tables/qrcode/check', authMiddleware, requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
     const tables = await dbAll('SELECT id, name, name_pinyin FROM tables WHERE name_pinyin IS NOT NULL');
     const generated = [];
@@ -2590,7 +2785,7 @@ app.get('/api/admin/tables/qrcode/check', authMiddleware, async (req, res) => {
 });
 
 // 获取台桌列表
-app.get('/api/admin/tables', authMiddleware, async (req, res) => {
+app.get('/api/admin/tables', authMiddleware, requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
     const tables = await dbAll('SELECT * FROM tables ORDER BY area, name');
     res.json(tables);
@@ -2600,7 +2795,7 @@ app.get('/api/admin/tables', authMiddleware, async (req, res) => {
 });
 
 // 新增台桌
-app.post('/api/admin/tables', authMiddleware, async (req, res) => {
+app.post('/api/admin/tables', authMiddleware, requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
     const { area, name, status } = req.body;
     const namePinyin = toPinyin(name);
@@ -2621,7 +2816,7 @@ app.post('/api/admin/tables', authMiddleware, async (req, res) => {
 });
 
 // 更新台桌
-app.put('/api/admin/tables/:id', authMiddleware, async (req, res) => {
+app.put('/api/admin/tables/:id', authMiddleware, requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
     const { area, name, status } = req.body;
     const namePinyin = toPinyin(name);
@@ -2641,7 +2836,7 @@ app.put('/api/admin/tables/:id', authMiddleware, async (req, res) => {
 });
 
 // 删除台桌
-app.delete('/api/admin/tables/:id', authMiddleware, async (req, res) => {
+app.delete('/api/admin/tables/:id', authMiddleware, requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
     await dbRun('DELETE FROM tables WHERE id = ?', [req.params.id]);
     operationLog.info(`删除台桌: ${req.params.id}`);
@@ -2652,7 +2847,7 @@ app.delete('/api/admin/tables/:id', authMiddleware, async (req, res) => {
 });
 
 // 获取台桌同步状态
-app.get('/api/admin/sync-tables-status', authMiddleware, async (req, res) => {
+app.get('/api/admin/sync-tables-status', authMiddleware, requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
     const statusPath = path.join(__dirname, '../scripts/sync-status.json');
     
@@ -2709,7 +2904,7 @@ app.get('/api/vip-rooms/:id', async (req, res) => {
 });
 
 // 获取包房列表（后台）
-app.get('/api/admin/vip-rooms', authMiddleware, async (req, res) => {
+app.get('/api/admin/vip-rooms', authMiddleware, requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
     let rooms = await dbAll('SELECT * FROM vip_rooms ORDER BY id');
     rooms = rooms.map(r => ({
@@ -2724,7 +2919,7 @@ app.get('/api/admin/vip-rooms', authMiddleware, async (req, res) => {
 });
 
 // 新增包房
-app.post('/api/admin/vip-rooms', authMiddleware, async (req, res) => {
+app.post('/api/admin/vip-rooms', authMiddleware, requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
     const { name, status, intro, photos, videos } = req.body;
     
@@ -2744,7 +2939,7 @@ app.post('/api/admin/vip-rooms', authMiddleware, async (req, res) => {
 });
 
 // 更新包房
-app.put('/api/admin/vip-rooms/:id', authMiddleware, async (req, res) => {
+app.put('/api/admin/vip-rooms/:id', authMiddleware, requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
     const { name, status, intro, photos, videos } = req.body;
     
@@ -2763,7 +2958,7 @@ app.put('/api/admin/vip-rooms/:id', authMiddleware, async (req, res) => {
 });
 
 // 删除包房
-app.delete('/api/admin/vip-rooms/:id', authMiddleware, async (req, res) => {
+app.delete('/api/admin/vip-rooms/:id', authMiddleware, requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
     // 获取包房信息以便删除OSS文件
     const room = await dbGet('SELECT photos, videos FROM vip_rooms WHERE id = ?', [req.params.id]);
@@ -2813,7 +3008,7 @@ app.delete('/api/admin/vip-rooms/:id', authMiddleware, async (req, res) => {
 });
 
 // 删除包房的单张照片
-app.delete('/api/admin/vip-rooms/:id/photo', authMiddleware, async (req, res) => {
+app.delete('/api/admin/vip-rooms/:id/photo', authMiddleware, requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
     const { photoUrl } = req.body;
     const room = await dbGet('SELECT photos FROM vip_rooms WHERE id = ?', [req.params.id]);
@@ -2848,7 +3043,7 @@ app.delete('/api/admin/vip-rooms/:id/photo', authMiddleware, async (req, res) =>
 });
 
 // 删除包房的单个视频
-app.delete('/api/admin/vip-rooms/:id/video', authMiddleware, async (req, res) => {
+app.delete('/api/admin/vip-rooms/:id/video', authMiddleware, requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
     const { videoUrl } = req.body;
     const room = await dbGet('SELECT videos FROM vip_rooms WHERE id = ?', [req.params.id]);
@@ -2883,7 +3078,7 @@ app.delete('/api/admin/vip-rooms/:id/video', authMiddleware, async (req, res) =>
 });
 
 // 设置包房头像（将照片置顶）
-app.put('/api/admin/vip-rooms/:id/avatar', authMiddleware, async (req, res) => {
+app.put('/api/admin/vip-rooms/:id/avatar', authMiddleware, requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
     const { photoIndex } = req.body;
     const room = await dbGet('SELECT photos FROM vip_rooms WHERE id = ?', [req.params.id]);

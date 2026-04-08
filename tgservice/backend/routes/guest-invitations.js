@@ -8,13 +8,14 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { requireBackendPermission } = require('../middleware/permission');
 const operationLogService = require('../services/operation-log');
 
 /**
  * POST /api/guest-invitations
  * 提交约客记录
  */
-router.post('/', auth.required, async (req, res) => {
+router.post('/', auth.required, requireBackendPermission(['all']), async (req, res) => {
   const transaction = await db.beginTransaction();
   
   try {
@@ -143,7 +144,7 @@ router.post('/', auth.required, async (req, res) => {
  * GET /api/guest-invitations
  * 获取约客记录列表
  */
-router.get('/', auth.required, async (req, res) => {
+router.get('/', auth.required, requireBackendPermission(['invitationReview']), async (req, res) => {
   try {
     const {
       date,
@@ -199,7 +200,7 @@ router.get('/', auth.required, async (req, res) => {
  * PUT /api/guest-invitations/:id/review
  * 审查约客记录
  */
-router.put('/:id/review', auth.required, async (req, res) => {
+router.put('/:id/review', auth.required, requireBackendPermission(['invitationReview']), async (req, res) => {
   const transaction = await db.beginTransaction();
   
   try {
@@ -275,7 +276,7 @@ router.put('/:id/review', auth.required, async (req, res) => {
  * POST /api/guest-invitations/statistics
  * 生成约客统计
  */
-router.post('/statistics', auth.required, async (req, res) => {
+router.post('/statistics', auth.required, requireBackendPermission(['invitationStats']), async (req, res) => {
   const transaction = await db.beginTransaction();
   
   try {
@@ -318,18 +319,11 @@ router.post('/statistics', auth.required, async (req, res) => {
     }
     
     // 校验所有记录是否审查完毕
-    const shouldInviteStatusForCheck = shift === '早班'
-      ? ['早班空闲', '早班上桌']
-      : ['晚班空闲', '晚班上桌'];
-    const placeholders = shouldInviteStatusForCheck.map(() => '?').join(',');
-    
+    // 检查所有已提交的约客记录是否都已审查
     const allInvitations = await transaction.all(`
-      SELECT gir.result
-      FROM guest_invitation_results gir
-      INNER JOIN coaches c ON gir.coach_no = c.coach_no
-      INNER JOIN water_boards wb ON wb.coach_no = c.coach_no
-      WHERE gir.date = ? AND gir.shift = ? AND wb.status IN (${placeholders})
-    `, [date, shift, ...shouldInviteStatusForCheck]);
+      SELECT result FROM guest_invitation_results
+      WHERE date = ? AND shift = ?
+    `, [date, shift]);
     
     const hasUnreviewed = allInvitations.some(inv => inv.result === '待审查');
     if (hasUnreviewed) {
@@ -339,10 +333,10 @@ router.post('/statistics', auth.required, async (req, res) => {
       });
     }
     
-    // 应约客状态定义
+    // 【第 3 轮修订】应约客状态定义：只算空闲，不算上桌
     const shouldInviteStatus = shift === '早班'
-      ? ['早班空闲', '早班上桌']
-      : ['晚班空闲', '晚班上桌'];
+      ? ['早班空闲']
+      : ['晚班空闲'];
     
     // 获取应约客助教列表（首次生成时取当前水牌状态）
     const placeholders2 = shouldInviteStatus.map(() => '?').join(',');
@@ -350,7 +344,7 @@ router.post('/statistics', auth.required, async (req, res) => {
       SELECT wb.coach_no, wb.stage_name, wb.status
       FROM water_boards wb
       INNER JOIN coaches c ON wb.coach_no = c.coach_no
-      WHERE wb.status IN (${placeholders})
+      WHERE wb.status IN (${placeholders2})
         AND c.shift = ?
     `, [...shouldInviteStatus, shift]);
     
@@ -444,7 +438,7 @@ router.post('/statistics', auth.required, async (req, res) => {
  * GET /api/guest-invitations/statistics/:date/:shift
  * 获取约客统计结果
  */
-router.get('/statistics/:date/:shift', auth.required, async (req, res) => {
+router.get('/statistics/:date/:shift', auth.required, requireBackendPermission(['invitationStats']), async (req, res) => {
   try {
     const { date, shift } = req.params;
     
@@ -456,10 +450,10 @@ router.get('/statistics/:date/:shift', auth.required, async (req, res) => {
       });
     }
     
-    // 应约客状态定义
+    // 【第 3 轮修订】应约客状态定义：只算空闲，不算上桌
     const shouldInviteStatus = shift === '早班'
-      ? ['早班空闲', '早班上桌']
-      : ['晚班空闲', '晚班上桌'];
+      ? ['早班空闲']
+      : ['晚班空闲'];
     
     // 获取应约客助教列表
     const placeholders = shouldInviteStatus.map(() => '?').join(',');

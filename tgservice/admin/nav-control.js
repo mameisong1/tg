@@ -1,6 +1,11 @@
 // 后台导航控制脚本
-// 收银员只能看到：数据概览、收银看板、商品管理、订单管理
-// 管理员可以看到全部菜单
+// 根据用户角色过滤菜单和页面访问权限
+// 权限矩阵:
+//   管理员/店长/助教管理 → 全部菜单
+//   前厅管理 → 收银看板、商品管理、包房管理
+//   收银 → 收银看板、商品管理
+//   教练 → 水牌管理(只读)
+//   服务员 → 禁止后台访问
 
 (function() {
   const token = localStorage.getItem('adminToken');
@@ -14,15 +19,32 @@
     // 保存角色到localStorage
     localStorage.setItem('adminRole', role);
     
-    // 收银员权限控制
-    if (role === 'cashier') {
-      // 允许的页面
-      const allowedPages = ['index.html', 'cashier-dashboard.html', 'products.html', 'orders.html'];
+    // 服务员禁止访问后台
+    if (role === '服务员') {
+      alert('服务员不允许访问后台管理系统');
+      window.location.href = 'login.html';
+      return;
+    }
+    
+    // 角色菜单权限映射
+    const roleAllowedPages = {
+      '管理员': 'all',
+      '店长': 'all',
+      '助教管理': 'all',
+      '前厅管理': ['index.html', 'cashier-dashboard.html', 'products.html', 'orders.html', 'vip-rooms.html', 'tables.html'],
+      '收银': ['index.html', 'cashier-dashboard.html', 'products.html', 'orders.html'],
+      '教练': ['water-boards.html']
+    };
+    
+    const allowed = roleAllowedPages[role];
+    const isAdmin = (allowed === 'all');
+    
+    if (!isAdmin && Array.isArray(allowed)) {
       const currentPage = window.location.pathname.split('/').pop() || 'index.html';
       
-      // 如果当前页面不允许访问，跳转到收银看板
-      if (!allowedPages.includes(currentPage)) {
-        window.location.href = 'cashier-dashboard.html';
+      // 如果当前页面不允许访问，跳转到第一个允许页面
+      if (!allowed.includes(currentPage)) {
+        window.location.href = allowed[0];
         return;
       }
       
@@ -30,7 +52,7 @@
       const navItems = document.querySelectorAll('.nav-item');
       navItems.forEach(item => {
         const href = item.getAttribute('href');
-        if (href && !allowedPages.includes(href)) {
+        if (href && !allowed.includes(href)) {
           item.style.display = 'none';
         }
       });
@@ -42,17 +64,23 @@
         let allHidden = true;
         subItems.forEach(item => {
           const href = item.getAttribute('href');
-          if (href && allowedPages.includes(href)) {
+          if (href && allowed.includes(href)) {
             allHidden = false;
           }
         });
-        if (allHidden) {
+        if (allHidden && subItems.length > 0) {
           group.style.display = 'none';
         }
       });
     }
     
-    // 其他角色（admin, manager等）默认可以看到全部菜单
+    // 教练只读模式：隐藏水牌页面的编辑按钮
+    if (role === '教练') {
+      const style = document.createElement('style');
+      style.textContent = '.edit-btn, .delete-btn, .add-btn, .save-btn { display: none !important; }';
+      document.head.appendChild(style);
+    }
+    
   } catch (e) {
     console.error('解析token失败:', e);
   }

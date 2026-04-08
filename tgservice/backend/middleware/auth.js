@@ -47,7 +47,7 @@ async function required(req, res, next) {
     
     // 验证用户是否存在
     const user = await db.get(
-      'SELECT username, role FROM admin_users WHERE username = ?',
+      'SELECT username, name, role FROM admin_users WHERE username = ?',
       [username]
     );
     
@@ -61,6 +61,7 @@ async function required(req, res, next) {
     // 附加用户信息到请求对象
     req.user = {
       username: user.username,
+      name: user.name || '',
       role: user.role
     };
     

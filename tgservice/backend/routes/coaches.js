@@ -7,13 +7,14 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { requireBackendPermission } = require('../middleware/permission');
 const operationLogService = require('../services/operation-log');
 
 /**
  * POST /api/coaches/:coach_no/clock-in
  * 助教上班
  */
-router.post('/:coach_no/clock-in', auth.required, async (req, res) => {
+router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coachManagement']), async (req, res) => {
   const transaction = await db.beginTransaction();
   
   try {
@@ -104,7 +105,7 @@ router.post('/:coach_no/clock-in', auth.required, async (req, res) => {
  * POST /api/coaches/:coach_no/clock-out
  * 助教下班
  */
-router.post('/:coach_no/clock-out', auth.required, async (req, res) => {
+router.post('/:coach_no/clock-out', auth.required, requireBackendPermission(['coachManagement']), async (req, res) => {
   const transaction = await db.beginTransaction();
   
   try {
@@ -183,7 +184,7 @@ router.post('/:coach_no/clock-out', auth.required, async (req, res) => {
  * PUT /api/coaches/batch-shift
  * 批量修改班次
  */
-router.put('/batch-shift', auth.required, async (req, res) => {
+router.put('/batch-shift', auth.required, requireBackendPermission(['coachManagement']), async (req, res) => {
   const transaction = await db.beginTransaction();
   
   try {
@@ -204,23 +205,94 @@ router.put('/batch-shift', auth.required, async (req, res) => {
       });
     }
     
-    // 批量更新班次
+    // 水牌状态映射：根据班次切换映射水牌状态
+    const statusMap = {
+      '早班空闲': '晚班空闲',
+      '晚班空闲': '早班空闲',
+      '早班上桌': '晚班上桌',
+      '晚班上桌': '早班上桌',
+      '早加班': '晚加班',
+      '晚加班': '早加班'
+    };
+    
+    // 查询每个助教的原始班次和水牌状态
     const placeholders = coach_no_list.map(() => '?').join(',');
+    const coaches = await transaction.all(`
+      SELECT coach_no, stage_name, shift FROM coaches WHERE coach_no IN (${placeholders})
+    `, coach_no_list);
+    
+    const waterBoards = await transaction.all(`
+      SELECT coach_no, id, status, table_no FROM water_boards WHERE coach_no IN (${placeholders})
+    `, coach_no_list);
+    
+    const waterBoardMap = {};
+    waterBoards.forEach(wb => { waterBoardMap[wb.coach_no] = wb; });
+    
+    const coachMap = {};
+    coaches.forEach(c => { coachMap[c.coach_no] = c; });
+    
+    // 记录每个助教的变更详情
+    const changeDetails = [];
+    
+    // 批量更新班次
     await transaction.run(`
       UPDATE coaches SET shift = ?, updated_at = CURRENT_TIMESTAMP 
       WHERE coach_no IN (${placeholders})
     `, [shift, ...coach_no_list]);
     
-    // 记录操作日志
+    // 联动更新水牌状态
+    for (const coachNo of coach_no_list) {
+      const coach = coachMap[coachNo];
+      const waterBoard = waterBoardMap[coachNo];
+      
+      if (!coach) continue;
+      
+      const oldShift = coach.shift;
+      let waterBoardStatusChanged = false;
+      
+      if (waterBoard && statusMap[waterBoard.status]) {
+        const oldStatus = waterBoard.status;
+        const newStatus = statusMap[oldStatus];
+        
+        await transaction.run(
+          'UPDATE water_boards SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE coach_no = ?',
+          [newStatus, coachNo]
+        );
+        
+        waterBoardStatusChanged = true;
+        
+        // 记录水牌状态变更日志
+        await operationLogService.create(transaction, {
+          operator_phone: req.user.username,
+          operator_name: req.user.name,
+          operation_type: '水牌状态变更',
+          target_type: 'water_board',
+          target_id: waterBoard.id,
+          old_value: JSON.stringify({ status: oldStatus, table_no: waterBoard.table_no }),
+          new_value: JSON.stringify({ status: newStatus, table_no: waterBoard.table_no }),
+          remark: `批量班次变更联动：${oldShift}→${shift}，水牌 ${oldStatus}→${newStatus}`
+        });
+      }
+      
+      changeDetails.push({
+        coach_no: coachNo,
+        stage_name: coach.stage_name,
+        old_shift: oldShift,
+        new_shift: shift,
+        water_board_changed: waterBoardStatusChanged
+      });
+    }
+    
+    // 记录汇总操作日志（包含每个助教的详细变更）
     const user = req.user;
     await operationLogService.create(transaction, {
       operator_phone: user.username,
       operator_name: user.name,
       operation_type: '批量修改班次',
       target_type: 'coaches',
-      old_value: JSON.stringify({ coach_no_list, shift: '原班次' }),
-      new_value: JSON.stringify({ coach_no_list, shift }),
-      remark: `批量修改${coach_no_list.length}名助教班次为${shift}`
+      old_value: JSON.stringify(changeDetails.map(d => ({ coach_no: d.coach_no, stage_name: d.stage_name, shift: d.old_shift, water_board_changed: d.water_board_changed }))),
+      new_value: JSON.stringify({ shift, count: coach_no_list.length }),
+      remark: `批量修改${coach_no_list.length}名助教班次为${shift}，详情：${changeDetails.map(d => `${d.stage_name}(${d.coach_no}): ${d.old_shift}→${d.shift}${d.water_board_changed ? ' [水牌已联动]' : ''}`).join('；')}`
     });
     
     await transaction.commit();
@@ -228,7 +300,8 @@ router.put('/batch-shift', auth.required, async (req, res) => {
     res.json({
       success: true,
       data: {
-        updated_count: coach_no_list.length
+        updated_count: coach_no_list.length,
+        details: changeDetails
       }
     });
   } catch (error) {
@@ -237,6 +310,120 @@ router.put('/batch-shift', auth.required, async (req, res) => {
     res.status(500).json({
       success: false,
       error: '批量修改班次失败'
+    });
+  }
+});
+
+/**
+ * PUT /api/coaches/v2/:coach_no/shift
+ * 单个修改助教班次（第 3 轮修订新增）
+ */
+router.put('/:coach_no/shift', auth.required, requireBackendPermission(['coachManagement']), async (req, res) => {
+  const transaction = await db.beginTransaction();
+  
+  try {
+    const { coach_no } = req.params;
+    const { shift } = req.body;
+    
+    // 验证班次枚举值
+    if (!['早班', '晚班'].includes(shift)) {
+      return res.status(400).json({
+        success: false,
+        error: '无效的班次值，应为早班或晚班'
+      });
+    }
+    
+    // 获取助教信息
+    const coach = await transaction.get(
+      'SELECT coach_no, stage_name, shift FROM coaches WHERE coach_no = ?',
+      [coach_no]
+    );
+    
+    if (!coach) {
+      return res.status(404).json({
+        success: false,
+        error: '助教不存在'
+      });
+    }
+    
+    const oldShift = coach.shift;
+    
+    // 更新班次
+    await transaction.run(
+      'UPDATE coaches SET shift = ?, updated_at = CURRENT_TIMESTAMP WHERE coach_no = ?',
+      [shift, coach_no]
+    );
+    
+    // 联动更新水牌状态：如果水牌状态是早班相关的，改为晚班相关的（反之亦然）
+    const waterBoard = await transaction.get(
+      'SELECT * FROM water_boards WHERE coach_no = ?',
+      [coach_no]
+    );
+    
+    if (waterBoard) {
+      const oldStatus = waterBoard.status;
+      let newStatus = oldStatus;
+      
+      // 状态映射
+      const statusMap = {
+        '早班空闲': '晚班空闲',
+        '晚班空闲': '早班空闲',
+        '早班上桌': '晚班上桌',
+        '晚班上桌': '早班上桌',
+        '早加班': '晚加班',
+        '晚加班': '早加班'
+      };
+      
+      if (statusMap[oldStatus]) {
+        newStatus = statusMap[oldStatus];
+        await transaction.run(
+          'UPDATE water_boards SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE coach_no = ?',
+          [newStatus, coach_no]
+        );
+        
+        // 记录操作日志
+        const user = req.user;
+        await operationLogService.create(transaction, {
+          operator_phone: user.username,
+          operator_name: user.name,
+          operation_type: '水牌状态变更',
+          target_type: 'water_board',
+          target_id: waterBoard.id,
+          old_value: JSON.stringify({ status: oldStatus, table_no: waterBoard.table_no }),
+          new_value: JSON.stringify({ status: newStatus, table_no: waterBoard.table_no }),
+          remark: `班次变更联动：${oldShift}→${shift}，水牌 ${oldStatus}→${newStatus}`
+        });
+      }
+    }
+    
+    // 记录操作日志
+    const user = req.user;
+    await operationLogService.create(transaction, {
+      operator_phone: user.username,
+      operator_name: user.name,
+      operation_type: '修改班次',
+      target_type: 'coaches',
+      old_value: JSON.stringify({ coach_no, shift: oldShift }),
+      new_value: JSON.stringify({ coach_no, shift }),
+      remark: `修改助教${coach.stage_name}班次：${oldShift}→${shift}`
+    });
+    
+    await transaction.commit();
+    
+    res.json({
+      success: true,
+      data: {
+        coach_no,
+        shift,
+        old_shift: oldShift
+      }
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('修改班次失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '修改班次失败'
     });
   }
 });

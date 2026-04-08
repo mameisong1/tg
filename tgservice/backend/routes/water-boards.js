@@ -7,13 +7,14 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
+const { requireBackendPermission } = require('../middleware/permission');
 const operationLogService = require('../services/operation-log');
 
 /**
  * GET /api/water-boards
  * 获取所有水牌状态
  */
-router.get('/', auth.required, async (req, res) => {
+router.get('/', auth.required, requireBackendPermission(['waterBoardManagement']), async (req, res) => {
   try {
     const { status, shift } = req.query;
     
@@ -56,7 +57,7 @@ router.get('/', auth.required, async (req, res) => {
  * GET /api/water-boards/:coach_no
  * 获取单个助教水牌
  */
-router.get('/:coach_no', auth.required, async (req, res) => {
+router.get('/:coach_no', auth.required, requireBackendPermission(['waterBoardManagement']), async (req, res) => {
   try {
     const { coach_no } = req.params;
     
@@ -91,7 +92,7 @@ router.get('/:coach_no', auth.required, async (req, res) => {
  * PUT /api/water-boards/:coach_no/status
  * 更新水牌状态
  */
-router.put('/:coach_no/status', auth.required, async (req, res) => {
+router.put('/:coach_no/status', auth.required, requireBackendPermission(['waterBoardManagement']), async (req, res) => {
   const transaction = await db.beginTransaction();
   
   try {
