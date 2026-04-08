@@ -28,7 +28,7 @@ async function required(req, res, next) {
     const path = require('path');
     const env = process.env.TGSERVICE_ENV || 'production';
     const configFileName = env === 'test' ? '.config.env' : '.config';
-    const configPath = path.join(__dirname, '../' + configFileName);
+    const configPath = path.join(__dirname, '../../' + configFileName);
     const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
     
     // 验证 JWT token
