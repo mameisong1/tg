@@ -96,6 +96,9 @@ router.post('/', auth.required, async (req, res) => {
       newTableNo = null;
     }
     
+    // 获取当前 updated_at 用于乐观锁
+    const currentUpdatedAt = waterBoard.updated_at;
+    
     // 创建上下桌单记录
     const result = await transaction.run(`
       INSERT INTO table_action_orders (
@@ -108,12 +111,21 @@ router.post('/', auth.required, async (req, res) => {
       ) VALUES (?, ?, ?, ?, ?, '待处理')
     `, [table_no, coach_no, order_type, action_category || null, stage_name]);
     
-    // 更新水牌状态
-    await transaction.run(`
+    // 更新水牌状态（增加乐观锁检查 updated_at）
+    const updateResult = await transaction.run(`
       UPDATE water_boards 
       SET status = ?, table_no = ?, updated_at = CURRENT_TIMESTAMP 
-      WHERE coach_no = ?
-    `, [newStatus, newTableNo, coach_no]);
+      WHERE coach_no = ? AND updated_at = ?
+    `, [newStatus, newTableNo, coach_no, currentUpdatedAt]);
+    
+    // 检查乐观锁：如果没有更新任何行，说明数据已被其他请求修改
+    if (updateResult.changes === 0) {
+      await transaction.rollback();
+      return res.status(409).json({
+        success: false,
+        error: '数据已被其他请求修改，请重试'
+      });
+    }
     
     // 记录操作日志
     const user = req.user;

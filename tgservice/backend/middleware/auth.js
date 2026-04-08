@@ -63,7 +63,7 @@ async function required(req, res, next) {
     const crypto = require('crypto');
     const expectedSignature = crypto
       .createHash('md5')
-      .update(username + timestamp + 'tgservice-secret-key')
+      .update(username + timestamp + (process.env.TGSERVICE_SECRET_KEY || 'tgservice-secret-key'))
       .digest('hex');
     
     if (signature !== expectedSignature) {

@@ -51,15 +51,9 @@ router.post('/:coach_no/clock-in', auth.required, async (req, res) => {
       // 从非在班状态进入在班状态，根据班次决定
       newStatus = coach.shift === '早班' ? '早班空闲' : '晚班空闲';
     } else if (waterBoard.status === '早班空闲' || waterBoard.status === '晚班空闲') {
-      // 已在班状态，返回提示
-      return res.json({
-        success: true,
-        data: {
-          coach_no,
-          status: waterBoard.status,
-          message: '已在班状态'
-        },
-        warning: '已在班状态'
+      // 已在班状态，返回 400 错误
+      return res.status(400).json({
+        error: '助教已在班状态，无需重复上班'
       });
     } else {
       // 其他状态（如早班上桌等），根据班次决定
