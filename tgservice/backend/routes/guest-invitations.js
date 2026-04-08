@@ -317,6 +317,28 @@ router.post('/statistics', auth.required, async (req, res) => {
       });
     }
     
+    // 校验所有记录是否审查完毕
+    const shouldInviteStatus = shift === '早班'
+      ? ['早班空闲', '早班上桌']
+      : ['晚班空闲', '晚班上桌'];
+    const placeholders = shouldInviteStatus.map(() => '?').join(',');
+    
+    const allInvitations = await transaction.all(`
+      SELECT gir.result
+      FROM guest_invitation_results gir
+      INNER JOIN coaches c ON gir.coach_no = c.coach_no
+      INNER JOIN water_boards wb ON wb.coach_no = c.coach_no
+      WHERE gir.date = ? AND gir.shift = ? AND wb.status IN (${placeholders})
+    `, [date, shift, ...shouldInviteStatus]);
+    
+    const hasUnreviewed = allInvitations.some(inv => inv.result === '待审查');
+    if (hasUnreviewed) {
+      return res.status(400).json({
+        success: false,
+        error: '尚有约客记录未审查完毕，无法生成统计'
+      });
+    }
+    
     // 应约客状态定义
     const shouldInviteStatus = shift === '早班'
       ? ['早班空闲', '早班上桌']

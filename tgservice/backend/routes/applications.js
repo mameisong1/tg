@@ -39,8 +39,7 @@ router.post('/', auth.required, async (req, res) => {
       '早加班申请',
       '晚加班申请',
       '公休申请',
-      '乐捐报备',
-      '约客记录'
+      '乐捐报备'
     ];
     
     if (!validTypes.includes(application_type)) {
@@ -229,15 +228,16 @@ router.get('/lejuan', auth.required, async (req, res) => {
   try {
     const { days = 10 } = req.query;
     
+    const daysNum = parseInt(days, 10);
     const applications = await db.all(`
       SELECT a.*, c.stage_name
       FROM applications a
       LEFT JOIN coaches c ON a.applicant_phone = c.employee_id OR a.applicant_phone = c.phone
       WHERE a.application_type = '乐捐报备'
         AND a.status = 1
-        AND date(a.created_at) >= date('now', '-${parseInt(days, 10)} days')
+        AND date(a.created_at) >= date('now', ?)
       ORDER BY a.created_at DESC
-    `);
+    `, ['-' + daysNum + ' days']);
     
     // 格式化返回数据
     const formattedData = applications.map(a => ({
@@ -329,6 +329,19 @@ router.put('/:id/approve', auth.required, async (req, res) => {
         );
         
         if (currentWaterBoard) {
+          // 状态转换校验：检查当前状态是否允许转换
+          const currentStatus = currentWaterBoard.status;
+          const isOnTable = currentStatus === '早班上桌' || currentStatus === '晚班上桌';
+          
+          // 如果助教正在上桌服务，不允许审批通过加班/公休申请
+          if (isOnTable) {
+            await transaction.rollback();
+            return res.status(400).json({
+              success: false,
+              error: `助教${coach.stage_name}正在上桌服务（${currentStatus}），无法审批通过${application.application_type}`
+            });
+          }
+          
           const oldValue = {
             status: currentWaterBoard.status,
             table_no: currentWaterBoard.table_no
