@@ -1579,6 +1579,9 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
+// V2.0: 权限中间件
+const { requireBackendPermission, hasBackendPermission } = require('./middleware/permission');
+
 // 后台数据概览
 app.get('/api/admin/stats', authMiddleware, async (req, res) => {
   try {
