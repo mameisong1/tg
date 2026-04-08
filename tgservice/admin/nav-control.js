@@ -11,15 +11,36 @@
   const token = localStorage.getItem('adminToken');
   if (!token) return;
   
+  // 角色名映射（中英文兼容）
+  const ROLE_MAP = {
+    '管理员': ['管理员', 'admin', 'superadmin'],
+    '店长': ['店长', 'manager', 'store_manager'],
+    '助教管理': ['助教管理', 'coach_manager'],
+    '前厅管理': ['前厅管理', 'front_admin', 'front_desk'],
+    '收银': ['收银', 'cashier'],
+    '教练': ['教练', 'coach'],
+    '服务员': ['服务员', 'waiter', 'server']
+  };
+
+  // 将角色名统一转为中文标准名（中英文兼容）
+  function normalizeRole(role) {
+    if (!role) return '管理员';
+    for (const [cn, aliases] of Object.entries(ROLE_MAP)) {
+      if (aliases.includes(role)) return cn;
+    }
+    return role; // 未知角色名原样返回
+  }
+
   // 解析JWT获取角色
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
-    const role = payload.role || 'admin';
+    const rawRole = payload.role || 'admin';
+    const role = normalizeRole(rawRole); // 统一转为中文标准名
     
     // 保存角色到localStorage
     localStorage.setItem('adminRole', role);
     
-    // 服务员禁止访问后台
+    // 服务员禁止访问后台（同时检查原始角色和标准化角色）
     if (role === '服务员') {
       alert('服务员不允许访问后台管理系统');
       window.location.href = 'login.html';

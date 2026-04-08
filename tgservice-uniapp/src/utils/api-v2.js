@@ -1,0 +1,131 @@
+/**
+ * 天宫国际 V2.0 - API请求工具
+ * 用于内部专用模块（水牌、服务单、上下桌、申请、约客等）
+ */
+
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api'
+
+// 请求封装（后台用户认证）
+const request = (options) => {
+  return new Promise((resolve, reject) => {
+    const adminToken = uni.getStorageSync('adminToken')
+    
+    uni.request({
+      url: BASE_URL + options.url,
+      method: options.method || 'GET',
+      data: options.data,
+      header: {
+        'Content-Type': 'application/json',
+        'Authorization': adminToken ? `Bearer ${adminToken}` : '',
+        ...options.header
+      },
+      success: (res) => {
+        if (res.statusCode === 200) {
+          resolve(res.data)
+        } else if (res.statusCode === 401) {
+          uni.removeStorageSync('adminToken')
+          uni.removeStorageSync('adminInfo')
+          uni.showToast({ title: '请先登录', icon: 'none' })
+          reject(res.data)
+        } else {
+          reject(res.data)
+        }
+      },
+      fail: (err) => {
+        uni.showToast({ title: '网络请求失败', icon: 'none' })
+        reject(err)
+      }
+    })
+  })
+}
+
+// ========== 水牌管理 ==========
+export const waterBoards = {
+  // 获取所有水牌
+  getList: (params) => request({ url: '/water-boards', data: params }),
+  // 获取单个助教水牌
+  getOne: (coachNo) => request({ url: `/water-boards/${coachNo}` }),
+  // 更新水牌状态（手动）
+  updateStatus: (coachNo, data) => request({ url: `/water-boards/${coachNo}/status`, method: 'PUT', data })
+}
+
+// ========== 服务单 ==========
+export const serviceOrders = {
+  // 创建服务单
+  create: (data) => request({ url: '/service-orders', method: 'POST', data }),
+  // 获取服务单列表
+  getList: (params) => request({ url: '/service-orders', data: params }),
+  // 更新服务单状态
+  updateStatus: (id, data) => request({ url: `/service-orders/${id}/status`, method: 'PUT', data })
+}
+
+// ========== 上下桌单 ==========
+export const tableActionOrders = {
+  // 提交上桌/下桌/取消单
+  create: (data) => request({ url: '/table-action-orders', method: 'POST', data }),
+  // 获取上下桌单列表
+  getList: (params) => request({ url: '/table-action-orders', data: params }),
+  // 更新上下桌单状态
+  updateStatus: (id, data) => request({ url: `/table-action-orders/${id}/status`, method: 'PUT', data })
+}
+
+// ========== 申请事项 ==========
+export const applications = {
+  // 提交申请（加班/公休/乐捐）
+  create: (data) => request({ url: '/applications', method: 'POST', data }),
+  // 获取申请列表
+  getList: (params) => request({ url: '/applications', data: params }),
+  // 审批申请
+  approve: (id, data) => request({ url: `/applications/${id}/approve`, method: 'PUT', data }),
+  // 获取乐捐报备一览
+  getLejuanList: (params) => request({ url: '/applications/lejuan', data: params })
+}
+
+// ========== 约客管理 ==========
+export const guestInvitations = {
+  // 提交约客记录
+  create: (data) => request({ url: '/guest-invitations', method: 'POST', data }),
+  // 获取约客记录列表
+  getList: (params) => request({ url: '/guest-invitations', data: params }),
+  // 审查约客记录
+  review: (id, data) => request({ url: `/guest-invitations/${id}/review`, method: 'PUT', data }),
+  // 生成约客统计
+  generateStats: (data) => request({ url: '/guest-invitations/statistics', method: 'POST', data }),
+  // 获取约客统计结果
+  getStats: (date, shift) => request({ url: `/guest-invitations/statistics/${date}/${shift}` })
+}
+
+// ========== 助教管理（V2） ==========
+export const coachesV2 = {
+  // 上班
+  clockIn: (coachNo) => request({ url: `/coaches/v2/${coachNo}/clock-in`, method: 'POST' }),
+  // 下班
+  clockOut: (coachNo) => request({ url: `/coaches/v2/${coachNo}/clock-out`, method: 'POST' }),
+  // 批量修改班次
+  batchShift: (data) => request({ url: '/coaches/v2/batch-shift', method: 'PUT', data }),
+  // 单个修改班次
+  updateShift: (coachNo, data) => request({ url: `/coaches/v2/${coachNo}/shift`, method: 'PUT', data })
+}
+
+// ========== 操作日志 ==========
+export const operationLogs = {
+  // 获取操作日志列表
+  getList: (params) => request({ url: '/operation-logs', data: params })
+}
+
+// ========== 权限检查 ==========
+export const authV2 = {
+  // 检查用户权限（后台用户/助教）
+  checkPermission: (phone) => request({ url: `/auth/check-permission?phone=${phone}` })
+}
+
+export default {
+  waterBoards,
+  serviceOrders,
+  tableActionOrders,
+  applications,
+  guestInvitations,
+  coachesV2,
+  operationLogs,
+  authV2
+}

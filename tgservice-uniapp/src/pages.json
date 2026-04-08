@@ -107,6 +107,159 @@
         "navigationBarTextStyle": "white",
         "navigationStyle": "custom"
       }
+    },
+    {
+      "path": "pages/internal/internal-home",
+      "style": {
+        "navigationBarTitleText": "内部专用",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/admin-login",
+      "style": {
+        "navigationBarTitleText": "员工登录",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/water-board",
+      "style": {
+        "navigationBarTitleText": "水牌管理",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/water-board-view",
+      "style": {
+        "navigationBarTitleText": "水牌查看",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/clock",
+      "style": {
+        "navigationBarTitleText": "上班/下班",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/table-action",
+      "style": {
+        "navigationBarTitleText": "上桌/下桌",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/service-order",
+      "style": {
+        "navigationBarTitleText": "服务下单",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/overtime-apply",
+      "style": {
+        "navigationBarTitleText": "加班申请",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/leave-apply",
+      "style": {
+        "navigationBarTitleText": "公休申请",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/lejuan",
+      "style": {
+        "navigationBarTitleText": "乐捐报备",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/invitation-upload",
+      "style": {
+        "navigationBarTitleText": "上传约客记录",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/overtime-approval",
+      "style": {
+        "navigationBarTitleText": "加班审批",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/leave-approval",
+      "style": {
+        "navigationBarTitleText": "公休审批",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/lejuan-list",
+      "style": {
+        "navigationBarTitleText": "乐捐报备一览",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/invitation-review",
+      "style": {
+        "navigationBarTitleText": "约客审查",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/invitation-stats",
+      "style": {
+        "navigationBarTitleText": "约客统计",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/cashier-dashboard",
+      "style": {
+        "navigationBarTitleText": "收银看板",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
     }
   ],
   "globalStyle": {

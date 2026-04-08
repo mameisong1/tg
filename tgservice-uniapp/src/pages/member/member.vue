@@ -152,6 +152,27 @@
       </view>
     </view>
     
+    <!-- V2.0 内部专用入口 -->
+    <view class="internal-section" v-if="memberInfo.memberNo">
+      <view class="section-header">
+        <text class="section-title">🔧 内部专用</text>
+      </view>
+      <view class="internal-btns">
+        <view class="internal-btn" @click="goInternalHome">
+          <text class="internal-btn-icon">🏠</text>
+          <text class="internal-btn-text">内部首页</text>
+        </view>
+        <view class="internal-btn" @click="goAdminLogin">
+          <text class="internal-btn-icon">👤</text>
+          <text class="internal-btn-text">员工登录</text>
+        </view>
+        <view class="internal-btn" @click="goCashierDashboard">
+          <text class="internal-btn-icon">📊</text>
+          <text class="internal-btn-text">收银看板</text>
+        </view>
+      </view>
+    </view>
+    
     <!-- 台桌信息 -->
     <view class="table-section">
       <view class="section-header">
@@ -862,6 +883,31 @@ const goCoachProfile = () => {
   uni.navigateTo({ url: '/pages/coach-profile/coach-profile' })
 }
 
+// V2.0 内部专用导航
+const goInternalHome = () => {
+  const adminInfo = uni.getStorageSync('adminInfo')
+  const coachInfo = uni.getStorageSync('coachInfo')
+  if (adminInfo || coachInfo) {
+    uni.navigateTo({ url: '/pages/internal/internal-home' })
+  } else {
+    uni.showToast({ title: '请先登录员工账号', icon: 'none' })
+    setTimeout(() => uni.navigateTo({ url: '/pages/internal/admin-login' }), 1000)
+  }
+}
+
+const goAdminLogin = () => {
+  uni.navigateTo({ url: '/pages/internal/admin-login' })
+}
+
+const goCashierDashboard = () => {
+  const adminInfo = uni.getStorageSync('adminInfo')
+  if (!adminInfo) {
+    uni.showToast({ title: '请先登录员工账号', icon: 'none' })
+    return uni.navigateTo({ url: '/pages/internal/admin-login' })
+  }
+  uni.navigateTo({ url: '/pages/internal/cashier-dashboard' })
+}
+
 const getCoachPhoto = (coach) => {
   const photo = coach.photos && coach.photos[0]
   if (!photo) return '/static/avatar-default.png'
@@ -1136,6 +1182,23 @@ onShow(() => {
   border-radius: 12px;
 }
 .empty-text { font-size: 14px; color: rgba(255,255,255,0.3); }
+
+/* V2.0 内部专用入口 */
+.internal-section { margin: 0 16px 16px; }
+.internal-btns { display: flex; gap: 10px; margin-top: 12px; }
+.internal-btn {
+  flex: 1;
+  padding: 14px 8px;
+  background: rgba(20,20,30,0.6);
+  border: 1px solid rgba(218,165,32,0.1);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.internal-btn-icon { font-size: 24px; }
+.internal-btn-text { font-size: 12px; color: rgba(255,255,255,0.7); }
 
 /* 助教专用板块 */
 .coach-section { margin-top: 24px; }

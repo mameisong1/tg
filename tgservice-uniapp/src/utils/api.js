@@ -143,6 +143,9 @@ export default {
     return request({ url: '/device/visit', method: 'POST', data: { deviceFp: fp } })
   },
   
+  // =============== 后台用户登录 ===============
+  adminLogin: (data) => request({ url: '/admin/login', method: 'POST', data }),
+  
   // =============== 会员相关（需要member认证）==============
   
   // H5短信验证码发送
