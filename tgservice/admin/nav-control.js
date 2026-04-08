@@ -120,7 +120,8 @@
       // 教练只读模式：隐藏水牌页面的编辑按钮
       if (role === '教练') {
         const style = document.createElement('style');
-        style.textContent = '.edit-btn, .delete-btn, .add-btn, .save-btn { display: none !important; }';
+        // 隐藏各种编辑/删除/添加/保存按钮，以及水牌页面表格中的操作列按钮
+        style.textContent = '.edit-btn, .delete-btn, .add-btn, .save-btn { display: none !important; } .btn-sm { display: none !important; }';
         document.head.appendChild(style);
       }
       
