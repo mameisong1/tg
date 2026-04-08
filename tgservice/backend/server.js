@@ -1542,10 +1542,21 @@ app.post('/api/admin/login', async (req, res) => {
       return res.status(401).json({ error: '用户名或密码错误' });
     }
     
-    const token = jwt.sign({ username: user.username, role: user.role }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
+    // V2.0: 登录时检查权限
+    const role = user.role || '管理员';
+    const token = jwt.sign({ username: user.username, role: role }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
     
-    operationLog.info(`后台登录: ${username} (${user.role || '管理员'})`);
-    res.json({ success: true, token, role: user.role || '管理员' });
+    // 获取用户权限
+    const { getUserPermissions } = require('./middleware/permission');
+    const permissions = getUserPermissions(role);
+    
+    operationLog.info(`后台登录：${username} (${role})`);
+    res.json({ 
+      success: true, 
+      token, 
+      role,
+      permissions: permissions.backend
+    });
   } catch (err) {
     logger.error(`后台登录失败: ${err.message}`);
     res.status(500).json({ error: '服务器错误' });
@@ -1771,6 +1782,36 @@ app.get('/api/admin/users', authMiddleware, async (req, res) => {
     const users = await dbAll('SELECT username, role, created_at FROM admin_users');
     res.json(users);
   } catch (err) {
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// V2.0: 获取用户权限
+app.get('/api/admin/users/:username/permissions', authMiddleware, async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    // 获取用户信息
+    const user = await dbGet('SELECT username, role, name FROM admin_users WHERE username = ?', [username]);
+    if (!user) {
+      return res.status(404).json({ error: '用户不存在' });
+    }
+    
+    // 获取权限
+    const { getUserPermissions } = require('./middleware/permission');
+    const permissions = getUserPermissions(user.role || '管理员');
+    
+    res.json({
+      success: true,
+      data: {
+        username: user.username,
+        name: user.name,
+        role: user.role || '管理员',
+        permissions: permissions.backend
+      }
+    });
+  } catch (err) {
+    logger.error(`获取用户权限失败：${err.message}`);
     res.status(500).json({ error: '服务器错误' });
   }
 });
