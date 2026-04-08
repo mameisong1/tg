@@ -1,0 +1,33 @@
+const WebSocket = require('ws');
+const fs = require('fs');
+const path = process.argv[1];
+const wsUrl = process.argv[2];
+const ws = new WebSocket(wsUrl);
+
+ws.on('open', () => {
+  let id = 0;
+  const send = (method, params) => {
+    return new Promise(resolve => {
+      const thisId = ++id;
+      ws.send(JSON.stringify({id: thisId, method, params}));
+      const handler = (data) => {
+        const msg = JSON.parse(data);
+        if (msg.id === thisId) {
+          ws.removeListener('message', handler);
+          resolve(msg.result);
+        }
+      };
+      ws.on('message', handler);
+    });
+  };
+
+  (async () => {
+    await send('Page.enable');
+    await send('Emulation.setDeviceMetricsOverride', {width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false});
+    const result = await send('Page.captureScreenshot', {format: 'png', fullPage: true});
+    const buffer = Buffer.from(result.data, 'base64');
+    fs.writeFileSync(path, buffer);
+    console.log('Screenshot saved to', path);
+    ws.close();
+  })();
+});
