@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>水牌管理 - 天宫国际</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0f; font-family: 'PingFang SC', sans-serif; color: #fff; display: flex; min-height: 100vh; }
+    .sidebar { width: 220px; background: rgba(20,20,30,0.8); border-right: 1px solid rgba(218,165,32,0.1); padding: 20px 0; }
+    .sidebar-logo { padding: 0 20px 30px; display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px; }
+    .sidebar-logo img { width: 32px; height: 32px; filter: sepia(60%) saturate(200%) hue-rotate(10deg); }
+    .sidebar-title { font-size: 16px; color: #d4af37; }
+    .sidebar-sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+    
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: rgba(255,255,255,0.6); text-decoration: none; font-size: 14px; transition: all 0.2s; }
+    .nav-item:hover, .nav-item.active { background: rgba(212,175,55,0.1); color: #d4af37; }
+    .main { flex: 1; padding: 20px; overflow-y: auto; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .page-title { font-size: 22px; }
+    
+    .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; border: none; }
+    .btn-primary { background: linear-gradient(135deg, #d4af37 0%, #ffd700 100%); color: #000; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    
+    .data-table { width: 100%; background: rgba(20,20,30,0.6); border-radius: 12px; border: 1px solid rgba(218,165,32,0.1); overflow: hidden; border-collapse: collapse; }
+    .data-table th, .data-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .data-table th { background: rgba(212,175,55,0.1); font-weight: 500; font-size: 13px; color: rgba(255,255,255,0.7); }
+    .data-table td { font-size: 14px; }
+    
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; }
+    .status-on-table-early { background: rgba(52,152,219,0.2); color: #3498db; }
+    .status-free-early { background: rgba(46,204,113,0.2); color: #2ecc71; }
+    .status-on-table-late { background: rgba(155,89,182,0.2); color: #9b59b6; }
+    .status-free-late { background: rgba(241,196,15,0.2); color: #f1c40f; }
+    .status-overtime-early { background: rgba(230,126,34,0.2); color: #e67e22; }
+    .status-overtime-late { background: rgba(231,76,60,0.2); color: #e74c3c; }
+    .status-rest { background: rgba(149,165,166,0.2); color: #95a5a6; }
+    .status-off-day { background: rgba(26,188,156,0.2); color: #1abc9c; }
+    .status-leave { background: rgba(52,73,94,0.2); color: #7f8c8d; }
+    .status-lejuan { background: rgba(243,156,18,0.2); color: #f39c12; }
+    .status-off-work { background: rgba(44,62,80,0.2); color: #bdc3c7; }
+    
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
+    .modal.show { display: flex; }
+    .modal-content { background: rgba(20,20,30,0.95); border-radius: 16px; padding: 24px; width: 90%; max-width: 400px; }
+    .modal-title { font-size: 18px; margin-bottom: 20px; }
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 8px; }
+    .form-input { width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; }
+    .form-select { width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; }
+    .toast { position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.9); padding: 12px 24px; border-radius: 8px; z-index: 1001; display: none; }
+    .toast.show { display: block; }
+    
+    .filter-bar { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; }
+    .filter-bar select { padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 13px; }
+    .filter-bar select option { background: #1a1a2e; color: #fff; }
+    .stats { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+    .stat-card { background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.1); border-radius: 8px; padding: 12px 20px; }
+    .stat-value { font-size: 20px; color: #d4af37; }
+    .stat-label { font-size: 12px; color: rgba(255,255,255,0.5); }
+
+    /* 折叠菜单 */
+    .nav-group { border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .nav-group-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      color: rgba(255,255,255,0.6);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .nav-group-title:hover { background: rgba(212,175,55,0.05); color: rgba(255,255,255,0.8); }
+    .nav-group-title .arrow { transition: transform 0.2s; font-size: 12px; }
+    .nav-group.open .nav-group-title .arrow { transform: rotate(180deg); }
+    .nav-group-title .group-icon { font-size: 18px; margin-right: 12px; }
+    .nav-group-title .group-text { flex: 1; }
+    
+    .nav-submenu { display: none; background: rgba(0,0,0,0.2); }
+    .nav-group.open .nav-submenu { display: block; }
+    .nav-submenu .nav-item { padding-left: 48px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <img src="/images/logo.png" alt="Logo">
+      <div>
+        <div class="sidebar-title">天宫国际</div>
+        <div class="sidebar-sub">后台管理系统</div>
+      </div>
+    </div>
+    
+    <a href="index.html" class="nav-item"><span class="nav-icon">📊</span> 数据概览</a>
+    <a href="cashier-dashboard.html" class="nav-item"><span class="nav-icon">💰</span> 收银看板</a>
+    <a href="products.html" class="nav-item"><span class="nav-icon">📦</span> 商品管理</a>
+    <a href="vip-rooms.html" class="nav-item"><span class="nav-icon">🛋️</span> 包房管理</a>
+    
+    <!-- 助教管理 -->
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">👩‍🏫</span>
+        <span class="group-text">助教管理</span>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="coaches.html" class="nav-item"><span class="nav-icon">👩</span> 助教列表</a>
+        <a href="coaches.html#batch-shift" class="nav-item"><span class="nav-icon">🔄</span> 批量更新班次</a>
+      </div>
+    </div>
+    
+    <a href="water-boards.html" class="nav-item active"><span class="nav-icon">📋</span> 水牌管理</a>
+    
+    <!-- 约客审查 -->
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">📝</span>
+        <span class="group-text">约客审查</span>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="invitation-review.html?shift=early" class="nav-item"><span class="nav-icon">☀️</span> 早班约客</a>
+        <a href="invitation-review.html?shift=late" class="nav-item"><span class="nav-icon">🌙</span> 晚班约客</a>
+      </div>
+    </div>
+    
+    <a href="operation-logs.html" class="nav-item"><span class="nav-icon">📜</span> 操作日志</a>
+    
+    <!-- 配置 -->
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">⚙️</span>
+        <span class="group-text">配置</span>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="home.html" class="nav-item"><span class="nav-icon">🏠</span> 首页配置</a>
+        <a href="users.html" class="nav-item"><span class="nav-icon">👥</span> 用户管理</a>
+        <a href="settings.html" class="nav-item"><span class="nav-icon">🛡️</span> 系统配置</a>
+      </div>
+    </div>
+  </div>
+    </div>
+    
+    <a href="index.html" class="nav-item"><span class="nav-icon">📊</span> 数据概览</a>
+    <a href="coaches.html" class="nav-item"><span class="nav-icon">👩</span> 助教管理</a>
+    <a href="orders.html" class="nav-item"><span class="nav-icon">🛒</span> 订单管理</a>
+    <a href="members.html" class="nav-item"><span class="nav-icon">👤</span> 会员管理</a>
+    
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">🏬</span>
+        <span class="group-text">商品台桌包房</span>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="categories.html" class="nav-item"><span class="nav-icon">📁</span> 分类管理</a>
+        <a href="products.html" class="nav-item"><span class="nav-icon">📦</span> 商品管理</a>
+        <a href="tables.html" class="nav-item"><span class="nav-icon">🎱</span> 台桌管理</a>
+        <a href="vip-rooms.html" class="nav-item"><span class="nav-icon">🛋️</span> 包房管理</a>
+      </div>
+    </div>
+    
+    <div class="nav-group open">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">⚙️</span>
+        <span class="group-text">配置</span>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="home.html" class="nav-item"><span class="nav-icon">🏠</span> 首页配置</a>
+        <a href="users.html" class="nav-item"><span class="nav-icon">👥</span> 用户管理</a>
+        <a href="water-boards.html" class="nav-item active"><span class="nav-icon">📋</span> 水牌管理</a>
+        <a href="settings.html" class="nav-item"><span class="nav-icon">🛡️</span> 系统配置</a>
+      </div>
+    </div>
+  </div>
+  
+  <div class="main">
+    <div class="page-header">
+      <div class="page-title">水牌管理</div>
+      <button class="btn btn-primary" onclick="refreshData()">🔄 刷新</button>
+    </div>
+    
+    <!-- 筛选栏 -->
+    <div class="filter-bar">
+      <label style="font-size:13px;color:rgba(255,255,255,0.5)">状态筛选：</label>
+      <select id="filterStatus" onchange="applyFilter()">
+        <option value="">全部</option>
+        <option value="早班上桌">早班上桌</option>
+        <option value="早班空闲">早班空闲</option>
+        <option value="晚班上桌">晚班上桌</option>
+        <option value="晚班空闲">晚班空闲</option>
+        <option value="早加班">早加班</option>
+        <option value="晚加班">晚加班</option>
+        <option value="休息">休息</option>
+        <option value="公休">公休</option>
+        <option value="请假">请假</option>
+        <option value="乐捐">乐捐</option>
+        <option value="下班">下班</option>
+      </select>
+      <label style="font-size:13px;color:rgba(255,255,255,0.5)">班次筛选：</label>
+      <select id="filterShift" onchange="applyFilter()">
+        <option value="">全部</option>
+        <option value="早班">早班</option>
+        <option value="晚班">晚班</option>
+      </select>
+    </div>
+    
+    <!-- 统计卡片 -->
+    <div class="stats" id="statsBar"></div>
+    
+    <table class="data-table">
+      <thead>
+        <tr><th>助教编号</th><th>艺名</th><th>班次</th><th>台桌号</th><th>水牌状态</th><th>更新时间</th><th>操作</th></tr>
+      </thead>
+      <tbody id="waterBoardsTable"></tbody>
+    </table>
+  </div>
+  
+  <!-- 编辑水牌弹窗 -->
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <div class="modal-title" id="modalTitle">编辑水牌</div>
+      <div class="form-group">
+        <label class="form-label">助教编号</label>
+        <input type="text" class="form-input" id="formCoachNo" readonly>
+      </div>
+      <div class="form-group">
+        <label class="form-label">艺名</label>
+        <input type="text" class="form-input" id="formStageName" readonly>
+      </div>
+      <div class="form-group">
+        <label class="form-label">水牌状态</label>
+        <select class="form-select" id="formStatus">
+          <option value="早班上桌">早班上桌</option>
+          <option value="早班空闲">早班空闲</option>
+          <option value="晚班上桌">晚班上桌</option>
+          <option value="晚班空闲">晚班空闲</option>
+          <option value="早加班">早加班</option>
+          <option value="晚加班">晚加班</option>
+          <option value="休息">休息</option>
+          <option value="公休">公休</option>
+          <option value="请假">请假</option>
+          <option value="乐捐">乐捐</option>
+          <option value="下班">下班</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">台桌号（选填）</label>
+        <input type="text" class="form-input" id="formTableNo" placeholder="留空表示无上桌">
+      </div>
+      <div style="display:flex;gap:12px;margin-top:20px">
+        <button class="btn" style="flex:1;background:rgba(255,255,255,0.1);color:#fff" onclick="closeModal()">取消</button>
+        <button class="btn btn-primary" style="flex:1" onclick="saveWaterBoard()">保存</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="toast" id="toast"></div>
+  
+  <script>
+    const token = localStorage.getItem('adminToken');
+    if (!token) window.location.href = 'login.html';
+    
+    let allData = [];
+    let filteredData = [];
+    
+    async function api(url, options = {}) {
+      options.headers = { ...options.headers, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+      const res = await fetch(url, options);
+      if (res.status === 401) { localStorage.removeItem('adminToken'); window.location.href = 'login.html'; }
+      return res.json();
+    }
+    
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3000);
+    }
+    
+    function getStatusBadge(status) {
+      const map = {
+        '早班上桌': 'status-on-table-early',
+        '早班空闲': 'status-free-early',
+        '晚班上桌': 'status-on-table-late',
+        '晚班空闲': 'status-free-late',
+        '早加班': 'status-overtime-early',
+        '晚加班': 'status-overtime-late',
+        '休息': 'status-rest',
+        '公休': 'status-off-day',
+        '请假': 'status-leave',
+        '乐捐': 'status-lejuan',
+        '下班': 'status-off-work'
+      };
+      return map[status] || 'badge-admin';
+    }
+    
+    async function refreshData() {
+      const res = await api('/api/water-boards');
+      if (res.success) {
+        allData = res.data;
+        applyFilter();
+      } else {
+        showToast('获取水牌数据失败');
+      }
+    }
+    
+    function applyFilter() {
+      const statusFilter = document.getElementById('filterStatus').value;
+      const shiftFilter = document.getElementById('filterShift').value;
+      
+      filteredData = allData.filter(item => {
+        if (statusFilter && item.status !== statusFilter) return false;
+        if (shiftFilter && item.shift !== shiftFilter) return false;
+        return true;
+      });
+      
+      renderTable();
+      renderStats();
+    }
+    
+    function renderStats() {
+      const statusCount = {};
+      allData.forEach(item => {
+        statusCount[item.status] = (statusCount[item.status] || 0) + 1;
+      });
+      
+      const statsHtml = Object.entries(statusCount)
+        .sort((a, b) => b[1] - a[1])
+        .map(([status, count]) => `
+          <div class="stat-card">
+            <div class="stat-value">${count}</div>
+            <div class="stat-label">${status}</div>
+          </div>
+        `).join('');
+      
+      document.getElementById('statsBar').innerHTML = statsHtml;
+    }
+    
+    function renderTable() {
+      document.getElementById('waterBoardsTable').innerHTML = filteredData.map(item => `
+        <tr>
+          <td>${item.coach_no}</td>
+          <td>${item.stage_name}</td>
+          <td>${item.shift || '-'}</td>
+          <td>${item.table_no || '-'}</td>
+          <td><span class="badge ${getStatusBadge(item.status)}">${item.status}</span></td>
+          <td>${formatBeijingTime(item.updated_at)}</td>
+          <td>
+            <button class="btn btn-sm" onclick="editWaterBoard('${item.coach_no}')">编辑</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+    
+    function formatBeijingTime(timeStr) {
+      if (!timeStr) return '-';
+      const d = new Date(timeStr + ' UTC');
+      return d.toLocaleString('zh-CN', { 
+        timeZone: 'Asia/Shanghai',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    }
+    
+    function editWaterBoard(coachNo) {
+      const item = allData.find(d => d.coach_no === coachNo);
+      if (!item) return;
+      
+      document.getElementById('formCoachNo').value = item.coach_no;
+      document.getElementById('formStageName').value = item.stage_name;
+      document.getElementById('formStatus').value = item.status;
+      document.getElementById('formTableNo').value = item.table_no || '';
+      document.getElementById('modal').classList.add('show');
+    }
+    
+    function closeModal() {
+      document.getElementById('modal').classList.remove('show');
+    }
+    
+    async function saveWaterBoard() {
+      const coachNo = document.getElementById('formCoachNo').value;
+      const status = document.getElementById('formStatus').value;
+      const tableNo = document.getElementById('formTableNo').value.trim() || null;
+      
+      try {
+        const res = await api(`/api/water-boards/${coachNo}/status`, {
+          method: 'PUT',
+          body: JSON.stringify({ status, table_no: tableNo })
+        });
+        if (res.success) {
+          showToast('水牌已更新');
+          closeModal();
+          refreshData();
+        } else {
+          showToast(res.error || '更新失败');
+        }
+      } catch (err) {
+        showToast('更新失败: ' + err.message);
+      }
+    }
+    
+    refreshData();
+  </script>
+  <script src="nav-control.js"></script>
+  <script>
+    function toggleGroup(el) {
+      el.parentElement.classList.toggle('open');
+    }
+  </script>
+</body>
+</html>

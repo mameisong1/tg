@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>约客审查 - 天宫国际</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0f; font-family: 'PingFang SC', sans-serif; color: #fff; display: flex; min-height: 100vh; }
+    .sidebar { width: 220px; background: rgba(20,20,30,0.8); border-right: 1px solid rgba(218,165,32,0.1); padding: 20px 0; flex-shrink: 0; }
+    .sidebar-logo { padding: 0 20px 30px; display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px; }
+    .sidebar-logo img { width: 32px; height: 32px; filter: sepia(60%) saturate(200%) hue-rotate(10deg); }
+    .sidebar-title { font-size: 16px; color: #d4af37; }
+    .sidebar-sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: rgba(255,255,255,0.6); text-decoration: none; font-size: 14px; transition: all 0.2s; }
+    .nav-item:hover, .nav-item.active { background: rgba(212,175,55,0.1); color: #d4af37; }
+    .nav-icon { font-size: 18px; }
+
+    .nav-group { border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .nav-group-title { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; color: rgba(255,255,255,0.6); font-size: 14px; cursor: pointer; transition: all 0.2s; }
+    .nav-group-title:hover { background: rgba(212,175,55,0.05); color: rgba(255,255,255,0.8); }
+    .nav-group-title .arrow { transition: transform 0.2s; font-size: 12px; }
+    .nav-group.open .nav-group-title .arrow { transform: rotate(180deg); }
+    .nav-group-title .group-icon { font-size: 18px; margin-right: 12px; }
+    .nav-group-title .group-text { flex: 1; }
+    .nav-submenu { display: none; background: rgba(0,0,0,0.2); }
+    .nav-group.open .nav-submenu { display: block; }
+    .nav-submenu .nav-item { padding-left: 48px; font-size: 13px; }
+
+    .main { flex: 1; padding: 20px; overflow-y: auto; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .page-title { font-size: 22px; }
+    .logout-btn { padding: 8px 16px; background: transparent; border: 1px solid rgba(231,76,60,0.3); border-radius: 8px; color: #e74c3c; font-size: 13px; cursor: pointer; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stat-card { background: rgba(20,20,30,0.6); border-radius: 12px; padding: 20px; border: 1px solid rgba(218,165,32,0.1); }
+    .stat-value { font-size: 28px; color: #d4af37; }
+    .stat-label { font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 8px; }
+
+    .data-table { width: 100%; background: rgba(20,20,30,0.6); border-radius: 12px; border: 1px solid rgba(218,165,32,0.1); overflow: hidden; border-collapse: collapse; }
+    .data-table th, .data-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .data-table th { background: rgba(212,175,55,0.1); font-weight: 500; font-size: 13px; color: rgba(255,255,255,0.7); }
+    .data-table td { font-size: 14px; }
+
+    .btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; }
+    .btn-primary { background: linear-gradient(135deg, #d4af37 0%, #ffd700 100%); color: #000; }
+    .btn-success { background: rgba(46,204,113,0.2); color: #2ecc71; }
+    .btn-danger { background: rgba(231,76,60,0.2); color: #e74c3c; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; }
+    .badge-pending { background: rgba(241,196,15,0.2); color: #f1c40f; }
+    .badge-approved { background: rgba(46,204,113,0.2); color: #2ecc71; }
+    .badge-rejected { background: rgba(231,76,60,0.2); color: #e74c3c; }
+
+    .toast { position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.9); color: #fff; padding: 12px 24px; border-radius: 8px; font-size: 14px; z-index: 1001; display: none; }
+    .toast.show { display: block; }
+
+    .filter-bar { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+    .filter-bar select, .filter-bar input { padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 13px; }
+    .filter-bar input[type="text"] { width: 200px; }
+
+    .shift-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+    .shift-tab { padding: 10px 24px; border-radius: 8px; font-size: 14px; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); background: transparent; color: rgba(255,255,255,0.6); transition: all 0.2s; }
+    .shift-tab.active { background: rgba(212,175,55,0.2); border-color: rgba(212,175,55,0.4); color: #d4af37; }
+    .shift-tab:hover { background: rgba(255,255,255,0.05); }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <img src="/images/logo.png" alt="Logo">
+      <div>
+        <div class="sidebar-title">天宫国际</div>
+        <div class="sidebar-sub">后台管理系统</div>
+      </div>
+    </div>
+    <a href="index.html" class="nav-item"><span class="nav-icon">📊</span> 数据概览</a>
+    <a href="cashier-dashboard.html" class="nav-item"><span class="nav-icon">💰</span> 收银看板</a>
+    <a href="products.html" class="nav-item"><span class="nav-icon">📦</span> 商品管理</a>
+    <a href="vip-rooms.html" class="nav-item"><span class="nav-icon">🛋️</span> 包房管理</a>
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">👩‍🏫</span><span class="group-text">助教管理</span><span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="coaches.html" class="nav-item"><span class="nav-icon">👩</span> 助教列表</a>
+        <a href="coaches.html#batch-shift" class="nav-item"><span class="nav-icon">🔄</span> 批量更新班次</a>
+      </div>
+    </div>
+    <a href="water-boards.html" class="nav-item"><span class="nav-icon">📋</span> 水牌管理</a>
+    <div class="nav-group open">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">📝</span><span class="group-text">约客审查</span><span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="invitation-review.html?shift=early" class="nav-item" id="navEarly"><span class="nav-icon">☀️</span> 早班约客</a>
+        <a href="invitation-review.html?shift=late" class="nav-item" id="navLate"><span class="nav-icon">🌙</span> 晚班约客</a>
+      </div>
+    </div>
+    <a href="operation-logs.html" class="nav-item"><span class="nav-icon">📜</span> 操作日志</a>
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">⚙️</span><span class="group-text">配置</span><span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="home.html" class="nav-item"><span class="nav-icon">🏠</span> 首页配置</a>
+        <a href="users.html" class="nav-item"><span class="nav-icon">👥</span> 用户管理</a>
+        <a href="settings.html" class="nav-item"><span class="nav-icon">🛡️</span> 系统配置</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="page-header">
+      <div class="page-title">📝 约客审查</div>
+      <div style="display:flex;gap:12px;align-items:center;">
+        <button class="btn btn-primary" onclick="refreshData()">🔄 刷新</button>
+        <button class="logout-btn" onclick="logout()">退出登录</button>
+      </div>
+    </div>
+
+    <!-- 班次切换 -->
+    <div class="shift-tabs">
+      <button class="shift-tab active" data-shift="early" onclick="switchShift('early')">☀️ 早班约客</button>
+      <button class="shift-tab" data-shift="late" onclick="switchShift('late')">🌙 晚班约客</button>
+    </div>
+
+    <!-- 统计卡片 -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="statTotal">-</div>
+        <div class="stat-label">约客总数</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statPending">-</div>
+        <div class="stat-label">待审查</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statApproved">-</div>
+        <div class="stat-label">已通过</div>
+      </div>
+    </div>
+
+    <!-- 筛选栏 -->
+    <div class="filter-bar">
+      <label style="font-size:13px;color:rgba(255,255,255,0.5)">状态筛选：</label>
+      <select id="filterStatus" onchange="applyFilter()">
+        <option value="">全部</option>
+        <option value="待审查">待审查</option>
+        <option value="已通过">已通过</option>
+        <option value="已驳回">已驳回</option>
+      </select>
+      <input type="text" id="searchName" placeholder="搜索助教姓名/编号" oninput="applyFilter()">
+    </div>
+
+    <!-- 记录列表 -->
+    <table class="data-table">
+      <thead>
+        <tr><th>助教编号</th><th>助教姓名</th><th>班次</th><th>约客数</th><th>状态</th><th>提交时间</th><th>审查人</th><th>操作</th></tr>
+      </thead>
+      <tbody id="recordsTable"></tbody>
+    </table>
+  </div>
+
+  <!-- 审查弹窗 -->
+  <div class="modal" id="reviewModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:rgba(20,20,30,0.95);border-radius:16px;padding:24px;width:90%;max-width:500px;border:1px solid rgba(218,165,32,0.2);">
+      <h3 style="font-size:18px;margin-bottom:20px;">审查约客记录</h3>
+      <div id="reviewInfo" style="margin-bottom:16px;font-size:14px;color:rgba(255,255,255,0.7);"></div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:8px;">审查备注（选填）</label>
+        <textarea id="reviewNote" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:14px;min-height:80px;resize:vertical;"></textarea>
+      </div>
+      <div style="display:flex;gap:12px;">
+        <button class="btn" style="flex:1;background:rgba(255,255,255,0.1);color:#fff;" onclick="closeReviewModal()">取消</button>
+        <button class="btn" style="flex:1;background:rgba(231,76,60,0.2);color:#e74c3c;" onclick="submitReview('rejected')">驳回</button>
+        <button class="btn" style="flex:1;background:linear-gradient(135deg,#d4af37,#ffd700);color:#000;" onclick="submitReview('approved')">通过</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const token = localStorage.getItem('adminToken');
+    if (!token) window.location.href = 'login.html';
+
+    let currentShift = 'early';
+    let allRecords = [];
+    let reviewingId = null;
+
+    // 解析URL参数
+    function parseShiftFromURL() {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('shift') || 'early';
+    }
+
+    async function api(url, options = {}) {
+      options.headers = { ...options.headers, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+      const res = await fetch(url, options);
+      if (res.status === 401) { localStorage.removeItem('adminToken'); window.location.href = 'login.html'; }
+      return res.json();
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    function formatBeijingTime(timeStr) {
+      if (!timeStr) return '-';
+      const d = new Date(timeStr + ' UTC');
+      return d.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+    }
+
+    function getStatusBadge(status) {
+      const map = { '待审查': 'badge-pending', '已通过': 'badge-approved', '已驳回': 'badge-rejected' };
+      return map[status] || 'badge-pending';
+    }
+
+    function switchShift(shift) {
+      currentShift = shift;
+      document.querySelectorAll('.shift-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.shift === shift);
+      });
+      // 更新导航高亮
+      document.getElementById('navEarly').classList.toggle('active', shift === 'early');
+      document.getElementById('navLate').classList.toggle('active', shift === 'late');
+      // 更新URL
+      window.history.replaceState({}, '', '?shift=' + shift);
+      refreshData();
+    }
+
+    async function refreshData() {
+      try {
+        // 尝试获取约客数据
+        const res = await api('/api/invitations?shift=' + currentShift);
+        allRecords = res.success ? (res.data || []) : (Array.isArray(res) ? res : []);
+        applyFilter();
+      } catch (e) {
+        // 如果API不存在，显示空状态
+        allRecords = [];
+        document.getElementById('recordsTable').innerHTML = '<tr><td colspan="8" style="text-align:center;color:rgba(255,255,255,0.3);padding:40px">暂无约客数据（API尚未启用）</td></tr>';
+        updateStats();
+      }
+    }
+
+    function updateStats() {
+      document.getElementById('statTotal').textContent = allRecords.length;
+      document.getElementById('statPending').textContent = allRecords.filter(r => r.status === '待审查').length;
+      document.getElementById('statApproved').textContent = allRecords.filter(r => r.status === '已通过').length;
+    }
+
+    function applyFilter() {
+      const statusFilter = document.getElementById('filterStatus').value;
+      const searchText = document.getElementById('searchName').value.trim().toLowerCase();
+
+      let filtered = allRecords;
+      if (statusFilter) filtered = filtered.filter(r => r.status === statusFilter);
+      if (searchText) filtered = filtered.filter(r =>
+        (r.coach_name || '').toLowerCase().includes(searchText) ||
+        (r.coach_no || '').toLowerCase().includes(searchText)
+      );
+
+      updateStats();
+
+      document.getElementById('recordsTable').innerHTML = filtered.length === 0
+        ? '<tr><td colspan="8" style="text-align:center;color:rgba(255,255,255,0.3);padding:40px">暂无数据</td></tr>'
+        : filtered.slice(0, 50).map(r => `
+          <tr>
+            <td>${r.coach_no || '-'}</td>
+            <td>${r.coach_name || '-'}</td>
+            <td>${r.shift || currentShift === 'early' ? '早班' : '晚班'}</td>
+            <td>${r.invitation_count || 0}</td>
+            <td><span class="badge ${getStatusBadge(r.status)}">${r.status || '待审查'}</span></td>
+            <td>${formatBeijingTime(r.created_at)}</td>
+            <td>${r.reviewer || '-'}</td>
+            <td>
+              ${r.status === '待审查' || !r.status ? `<button class="btn btn-sm btn-primary" onclick="openReviewModal('${r.id}')">审查</button>` : '-'}
+            </td>
+          </tr>
+        `).join('');
+    }
+
+    function openReviewModal(id) {
+      reviewingId = id;
+      const record = allRecords.find(r => r.id === id);
+      if (record) {
+        document.getElementById('reviewInfo').innerHTML = `
+          <p>助教：${record.coach_no}号 ${record.coach_name}</p>
+          <p>约客数：${record.invitation_count || 0}</p>
+          <p>班次：${record.shift || currentShift === 'early' ? '早班' : '晚班'}</p>
+        `;
+      }
+      document.getElementById('reviewNote').value = '';
+      document.getElementById('reviewModal').style.display = 'flex';
+    }
+
+    function closeReviewModal() {
+      document.getElementById('reviewModal').style.display = 'none';
+      reviewingId = null;
+    }
+
+    async function submitReview(action) {
+      if (!reviewingId) return;
+      const note = document.getElementById('reviewNote').value.trim();
+      const status = action === 'approved' ? '已通过' : '已驳回';
+      try {
+        const res = await api(`/api/invitations/${reviewingId}/review`, {
+          method: 'PUT',
+          body: JSON.stringify({ status, note })
+        });
+        if (res.success || res.data) {
+          showToast(status === '已通过' ? '审查通过' : '已驳回');
+          closeReviewModal();
+          refreshData();
+        } else {
+          showToast(res.error || '操作失败');
+        }
+      } catch (e) {
+        showToast('操作失败: ' + e.message);
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('adminToken');
+      window.location.href = 'login.html';
+    }
+
+    function toggleGroup(el) {
+      el.parentElement.classList.toggle('open');
+    }
+
+    // 初始化
+    currentShift = parseShiftFromURL();
+    switchShift(currentShift);
+  </script>
+  <script src="nav-control.js"></script>
+</body>
+</html>

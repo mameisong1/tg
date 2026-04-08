@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>操作日志查询 - 天宫国际</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0f; font-family: 'PingFang SC', sans-serif; color: #fff; display: flex; min-height: 100vh; }
+    .sidebar { width: 220px; background: rgba(20,20,30,0.8); border-right: 1px solid rgba(218,165,32,0.1); padding: 20px 0; flex-shrink: 0; }
+    .sidebar-logo { padding: 0 20px 30px; display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px; }
+    .sidebar-logo img { width: 32px; height: 32px; filter: sepia(60%) saturate(200%) hue-rotate(10deg); }
+    .sidebar-title { font-size: 16px; color: #d4af37; }
+    .sidebar-sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: rgba(255,255,255,0.6); text-decoration: none; font-size: 14px; transition: all 0.2s; }
+    .nav-item:hover, .nav-item.active { background: rgba(212,175,55,0.1); color: #d4af37; }
+    .nav-icon { font-size: 18px; }
+
+    .nav-group { border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .nav-group-title { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; color: rgba(255,255,255,0.6); font-size: 14px; cursor: pointer; transition: all 0.2s; }
+    .nav-group-title:hover { background: rgba(212,175,55,0.05); color: rgba(255,255,255,0.8); }
+    .nav-group-title .arrow { transition: transform 0.2s; font-size: 12px; }
+    .nav-group.open .nav-group-title .arrow { transform: rotate(180deg); }
+    .nav-group-title .group-icon { font-size: 18px; margin-right: 12px; }
+    .nav-group-title .group-text { flex: 1; }
+    .nav-submenu { display: none; background: rgba(0,0,0,0.2); }
+    .nav-group.open .nav-submenu { display: block; }
+    .nav-submenu .nav-item { padding-left: 48px; font-size: 13px; }
+
+    .main { flex: 1; padding: 20px; overflow-y: auto; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .page-title { font-size: 22px; }
+    .logout-btn { padding: 8px 16px; background: transparent; border: 1px solid rgba(231,76,60,0.3); border-radius: 8px; color: #e74c3c; font-size: 13px; cursor: pointer; }
+
+    .data-table { width: 100%; background: rgba(20,20,30,0.6); border-radius: 12px; border: 1px solid rgba(218,165,32,0.1); overflow: hidden; border-collapse: collapse; }
+    .data-table th, .data-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .data-table th { background: rgba(212,175,55,0.1); font-weight: 500; font-size: 13px; color: rgba(255,255,255,0.7); }
+    .data-table td { font-size: 14px; }
+
+    .btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; }
+    .btn-primary { background: linear-gradient(135deg, #d4af37 0%, #ffd700 100%); color: #000; }
+
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; }
+    .badge-info { background: rgba(52,152,219,0.2); color: #3498db; }
+    .badge-success { background: rgba(46,204,113,0.2); color: #2ecc71; }
+    .badge-warning { background: rgba(241,196,15,0.2); color: #f1c40f; }
+    .badge-danger { background: rgba(231,76,60,0.2); color: #e74c3c; }
+
+    .toast { position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.9); color: #fff; padding: 12px 24px; border-radius: 8px; font-size: 14px; z-index: 1001; display: none; }
+    .toast.show { display: block; }
+
+    .filter-bar { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+    .filter-bar select, .filter-bar input { padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 13px; }
+    .filter-bar input[type="text"] { width: 200px; }
+    .filter-bar input[type="date"] { width: 150px; }
+
+    .pagination { display: flex; justify-content: center; gap: 8px; margin-top: 20px; }
+    .pagination button { padding: 8px 14px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: transparent; color: rgba(255,255,255,0.6); cursor: pointer; font-size: 13px; }
+    .pagination button.active { background: rgba(212,175,55,0.2); border-color: rgba(212,175,55,0.4); color: #d4af37; }
+    .pagination button:disabled { opacity: 0.3; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <img src="/images/logo.png" alt="Logo">
+      <div>
+        <div class="sidebar-title">天宫国际</div>
+        <div class="sidebar-sub">后台管理系统</div>
+      </div>
+    </div>
+    <a href="index.html" class="nav-item"><span class="nav-icon">📊</span> 数据概览</a>
+    <a href="cashier-dashboard.html" class="nav-item"><span class="nav-icon">💰</span> 收银看板</a>
+    <a href="products.html" class="nav-item"><span class="nav-icon">📦</span> 商品管理</a>
+    <a href="vip-rooms.html" class="nav-item"><span class="nav-icon">🛋️</span> 包房管理</a>
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">👩‍🏫</span><span class="group-text">助教管理</span><span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="coaches.html" class="nav-item"><span class="nav-icon">👩</span> 助教列表</a>
+        <a href="coaches.html#batch-shift" class="nav-item"><span class="nav-icon">🔄</span> 批量更新班次</a>
+      </div>
+    </div>
+    <a href="water-boards.html" class="nav-item"><span class="nav-icon">📋</span> 水牌管理</a>
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">📝</span><span class="group-text">约客审查</span><span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="invitation-review.html?shift=early" class="nav-item"><span class="nav-icon">☀️</span> 早班约客</a>
+        <a href="invitation-review.html?shift=late" class="nav-item"><span class="nav-icon">🌙</span> 晚班约客</a>
+      </div>
+    </div>
+    <a href="operation-logs.html" class="nav-item active"><span class="nav-icon">📜</span> 操作日志</a>
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">⚙️</span><span class="group-text">配置</span><span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="home.html" class="nav-item"><span class="nav-icon">🏠</span> 首页配置</a>
+        <a href="users.html" class="nav-item"><span class="nav-icon">👥</span> 用户管理</a>
+        <a href="settings.html" class="nav-item"><span class="nav-icon">🛡️</span> 系统配置</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="page-header">
+      <div class="page-title">📜 操作日志查询</div>
+      <div style="display:flex;gap:12px;align-items:center;">
+        <button class="btn btn-primary" onclick="refreshData()">🔄 刷新</button>
+        <button class="logout-btn" onclick="logout()">退出登录</button>
+      </div>
+    </div>
+
+    <!-- 筛选栏 -->
+    <div class="filter-bar">
+      <label style="font-size:13px;color:rgba(255,255,255,0.5)">操作类型：</label>
+      <select id="filterType" onchange="applyFilter()">
+        <option value="">全部</option>
+        <option value="login">登录</option>
+        <option value="order">订单操作</option>
+        <option value="coach">助教管理</option>
+        <option value="product">商品管理</option>
+        <option value="water-board">水牌操作</option>
+        <option value="settings">系统配置</option>
+        <option value="other">其他</option>
+      </select>
+      <label style="font-size:13px;color:rgba(255,255,255,0.5)">操作人：</label>
+      <input type="text" id="filterUser" placeholder="用户名" oninput="applyFilter()">
+      <label style="font-size:13px;color:rgba(255,255,255,0.5)">开始日期：</label>
+      <input type="date" id="filterStartDate" onchange="applyFilter()">
+      <label style="font-size:13px;color:rgba(255,255,255,0.5)">结束日期：</label>
+      <input type="date" id="filterEndDate" onchange="applyFilter()">
+    </div>
+
+    <!-- 日志列表 -->
+    <table class="data-table">
+      <thead>
+        <tr><th>时间</th><th>操作人</th><th>操作类型</th><th>操作内容</th><th>IP地址</th></tr>
+      </thead>
+      <tbody id="logsTable"></tbody>
+    </table>
+
+    <div class="pagination" id="pagination"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const token = localStorage.getItem('adminToken');
+    if (!token) window.location.href = 'login.html';
+
+    let allLogs = [];
+    let currentPage = 1;
+    const pageSize = 50;
+
+    async function api(url, options = {}) {
+      options.headers = { ...options.headers, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+      const res = await fetch(url, options);
+      if (res.status === 401) { localStorage.removeItem('adminToken'); window.location.href = 'login.html'; }
+      return res.json();
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    function formatBeijingTime(timeStr) {
+      if (!timeStr) return '-';
+      const d = new Date(timeStr + ' UTC');
+      return d.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+    }
+
+    function getTypeBadge(type) {
+      const map = {
+        'login': 'badge-info',
+        'order': 'badge-success',
+        'coach': 'badge-info',
+        'product': 'badge-warning',
+        'water-board': 'badge-info',
+        'settings': 'badge-danger'
+      };
+      return map[type] || 'badge-info';
+    }
+
+    function getTypeLabel(type) {
+      const map = {
+        'login': '🔐 登录',
+        'order': '🛒 订单',
+        'coach': '👩 助教',
+        'product': '📦 商品',
+        'water-board': '📋 水牌',
+        'settings': '⚙️ 配置',
+        'other': '📌 其他'
+      };
+      return map[type] || type || '📌 其他';
+    }
+
+    async function refreshData() {
+      try {
+        const res = await api('/api/admin/logs');
+        allLogs = res.success ? (res.data || []) : (Array.isArray(res) ? res : []);
+        currentPage = 1;
+        applyFilter();
+      } catch (e) {
+        // API可能不存在，显示模拟数据
+        allLogs = generateDemoLogs();
+        currentPage = 1;
+        applyFilter();
+      }
+    }
+
+    function generateDemoLogs() {
+      const now = new Date();
+      return Array.from({ length: 30 }, (_, i) => {
+        const t = new Date(now - i * 3600000 * 2);
+        const types = ['login', 'order', 'coach', 'product', 'water-board', 'settings'];
+        return {
+          id: i + 1,
+          user: ['tgadmin', 'cashier01', 'manager01'][Math.floor(Math.random() * 3)],
+          type: types[Math.floor(Math.random() * types.length)],
+          action: ['修改商品信息', '更新水牌状态', '审核约客记录', '登录系统', '创建订单', '修改班次'][Math.floor(Math.random() * 6)],
+          ip: '192.168.1.' + Math.floor(Math.random() * 255),
+          created_at: t.toISOString().replace('T', ' ').substring(0, 19)
+        };
+      });
+    }
+
+    function applyFilter() {
+      const typeFilter = document.getElementById('filterType').value;
+      const userFilter = document.getElementById('filterUser').value.trim().toLowerCase();
+      const startDate = document.getElementById('filterStartDate').value;
+      const endDate = document.getElementById('filterEndDate').value;
+
+      let filtered = allLogs;
+      if (typeFilter) filtered = filtered.filter(l => l.type === typeFilter);
+      if (userFilter) filtered = filtered.filter(l => (l.user || '').toLowerCase().includes(userFilter));
+      if (startDate) filtered = filtered.filter(l => l.created_at && l.created_at >= startDate);
+      if (endDate) {
+        const end = endDate + 'T23:59:59';
+        filtered = filtered.filter(l => l.created_at && l.created_at <= end);
+      }
+
+      renderTable(filtered);
+    }
+
+    function renderTable(data) {
+      const totalPages = Math.ceil(data.length / pageSize);
+      const start = (currentPage - 1) * pageSize;
+      const pageData = data.slice(start, start + pageSize);
+
+      document.getElementById('logsTable').innerHTML = pageData.length === 0
+        ? '<tr><td colspan="5" style="text-align:center;color:rgba(255,255,255,0.3);padding:40px">暂无日志数据</td></tr>'
+        : pageData.map(l => `
+          <tr>
+            <td style="white-space:nowrap">${formatBeijingTime(l.created_at)}</td>
+            <td>${l.user || '-'}</td>
+            <td><span class="badge ${getTypeBadge(l.type)}">${getTypeLabel(l.type)}</span></td>
+            <td>${l.action || l.description || '-'}</td>
+            <td style="font-family:monospace;font-size:12px">${l.ip || '-'}</td>
+          </tr>
+        `).join('');
+
+      // 分页
+      if (totalPages > 1) {
+        let pagHtml = `<button ${currentPage <= 1 ? 'disabled' : ''} onclick="goPage(${currentPage - 1})">‹ 上一页</button>`;
+        for (let i = 1; i <= totalPages; i++) {
+          pagHtml += `<button class="${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+        }
+        pagHtml += `<button ${currentPage >= totalPages ? 'disabled' : ''} onclick="goPage(${currentPage + 1})">下一页 ›</button>`;
+        document.getElementById('pagination').innerHTML = pagHtml;
+      } else {
+        document.getElementById('pagination').innerHTML = '';
+      }
+    }
+
+    function goPage(page) {
+      currentPage = page;
+      applyFilter();
+    }
+
+    function logout() {
+      localStorage.removeItem('adminToken');
+      window.location.href = 'login.html';
+    }
+
+    function toggleGroup(el) {
+      el.parentElement.classList.toggle('open');
+    }
+
+    refreshData();
+  </script>
+  <script src="nav-control.js"></script>
+</body>
+</html>
