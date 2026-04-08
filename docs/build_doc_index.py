@@ -23,7 +23,7 @@ from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 # 配置
 CHROMA_PATH = "/DB/.chroma"
 COLLECTION_NAME = "tgservice_docs"
-DOCS_PATH = "/TG/tgservice/docs"
+DOCS_PATH = "/TG/docs"
 
 def get_file_hash(filepath):
     """计算文件MD5哈希"""

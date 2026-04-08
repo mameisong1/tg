@@ -101,8 +101,8 @@
 
 **正确做法**：
 ```bash
-✅ /DB/rag-venv/bin/python3 /TG/tgservice/docs/build_doc_index.py
-✅ /DB/rag-venv/bin/python3 /TG/tgservice/docs/build_code_index.py
+✅ /DB/rag-venv/bin/python3 /TG/docs/build_doc_index.py
+✅ /DB/rag-venv/bin/python3 /TG/docs/build_code_index.py
 ```
 
 ---
@@ -116,7 +116,7 @@
 | qrcode | /TG/tgservice/qrcode/ | 台桌二维码 | ❌ 不可删除 |
 | frontend | /TG/tgservice/frontend/ | H5 前端 | ✅ 可被H5构建覆盖 |
 | db | /TG/tgservice/db/ | 数据库 | ❌ 不可删除 |
-| docs | /TG/tgservice/docs/ | 文档 | ✅ 可重建 |
+| docs | /TG/docs/ | 文档 | ✅ 可重建 |
 
 ---
 
