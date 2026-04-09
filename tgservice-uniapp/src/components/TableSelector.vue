@@ -134,20 +134,21 @@ watch(areas, (newAreas) => {
 const filteredTables = computed(() => {
   let tables = allTables.value.filter(t => t.area === currentArea.value)
   // 大厅区按数字排序，其他区域按字符串排序
-  if (currentArea.value === '大厅' || currentArea.value === '普台区') {
+  if (currentArea.value === '大厅区' || currentArea.value === '大厅' || currentArea.value === '普台区') {
     return tables.sort((a, b) => {
-      const numA = parseInt(a.name.replace(/\D/g, '')) || 0
-      const numB = parseInt(b.name.replace(/\D/g, '')) || 0
+      // 提取数字部分进行排序
+      const numA = parseInt(a.name.replace(/[^0-9]/g, '')) || 0
+      const numB = parseInt(b.name.replace(/[^0-9]/g, '')) || 0
       return numA - numB
     })
   } else {
-    return tables.sort((a, b) => a.name.localeCompare(b.name))
+    return tables.sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
   }
 })
 
 // 大厅区分段显示
 const hallSegments = computed(() => {
-  if (currentArea.value !== '大厅' && currentArea.value !== '普台区') return []
+  if (currentArea.value !== '大厅区' && currentArea.value !== '大厅' && currentArea.value !== '普台区') return []
   
   const tables = filteredTables.value
   const seg1 = [], seg2 = [], seg3 = []
