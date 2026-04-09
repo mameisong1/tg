@@ -40,9 +40,15 @@ router.get('/', auth.required, requireBackendPermission(['waterBoardManagement']
     
     const waterBoards = await db.all(sql, params);
     
+    // 解析 photos 字段（从 JSON 字符串转为数组）
+    const parsedData = waterBoards.map(item => ({
+      ...item,
+      photos: item.photos ? JSON.parse(item.photos) : []
+    }));
+    
     res.json({
       success: true,
-      data: waterBoards
+      data: parsedData
     });
   } catch (error) {
     console.error('获取水牌列表失败:', error);
@@ -74,6 +80,9 @@ router.get('/:coach_no', auth.required, requireBackendPermission(['waterBoardMan
         error: '水牌不存在'
       });
     }
+    
+    // 解析 photos 字段
+    waterBoard.photos = waterBoard.photos ? JSON.parse(waterBoard.photos) : [];
     
     res.json({
       success: true,
