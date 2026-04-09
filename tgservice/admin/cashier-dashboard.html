@@ -329,14 +329,7 @@
       return diffMs <= minutes * 60 * 1000;
     }
 
-    // 检查订单是否超时（超过指定分钟数仍为待处理）
-    function isOrderTimeout(timeStr, minutes) {
-      if (!timeStr) return false;
-      const d = new Date(timeStr + ' UTC');
-      const now = new Date();
-      const diffMs = now - d;
-      return diffMs > minutes * 60 * 1000;
-    }
+
 
     // 筛选函数：已完成/已取消只显示近2小时数据
     function filterByTime(items, status) {
@@ -472,11 +465,11 @@
         
         renderAll();
         
-        // 只对超时（超过15分钟）的待处理订单触发警报
-        const timedoutPending = productOrders.filter(o => o.status === '待处理' && isOrderTimeout(o.created_at, 15)).length +
-                          serviceOrders.filter(o => o.status === '待处理' && isOrderTimeout(o.created_at, 15)).length +
-                          coachSessions.filter(o => o.status === '待处理' && isOrderTimeout(o.created_at, 15)).length;
-        if (timedoutPending > 0 && alertEnabled) {
+        // 对所有待处理订单触发警报
+        const allPending = productOrders.filter(o => o.status === '待处理').length +
+                          serviceOrders.filter(o => o.status === '待处理').length +
+                          coachSessions.filter(o => o.status === '待处理').length;
+        if (allPending > 0 && alertEnabled) {
           playAlertSound();
         }
         
@@ -514,8 +507,8 @@
       container.innerHTML = filtered.slice(0, 50).map(o => {
         const items = (o.items || []);
         const isPending = o.status === '待处理';
-        // 只对超时超过15分钟的待处理订单显示警报闪烁
-        const alertClass = (isPending && alertEnabled && isOrderTimeout(o.created_at, 15)) ? 'pending-alert' : '';
+        // 所有待处理订单都显示警报闪烁
+        const alertClass = (isPending && alertEnabled) ? 'pending-alert' : '';
         return `
           <div class="product-order-card ${alertClass}">
             <div class="product-order-header">
@@ -556,8 +549,8 @@
       }
       container.innerHTML = filtered.map(o => {
         const isPending = o.status === '待处理';
-        // 只对超时超过15分钟的待处理订单显示警报闪烁
-        const alertClass = (isPending && alertEnabled && isOrderTimeout(o.created_at, 15)) ? 'pending-alert' : '';
+        // 所有待处理订单都显示警报闪烁
+        const alertClass = (isPending && alertEnabled) ? 'pending-alert' : '';
         return `
           <div class="service-order-card ${alertClass}">
             <div class="service-order-header">
@@ -586,8 +579,8 @@
       }
       container.innerHTML = filtered.map(s => {
         const isPending = s.status === '待处理';
-        // 只对超时超过15分钟的待处理订单显示警报闪烁
-        const alertClass = (isPending && alertEnabled && isOrderTimeout(s.created_at, 15)) ? 'pending-alert' : '';
+        // 所有待处理订单都显示警报闪烁
+        const alertClass = (isPending && alertEnabled) ? 'pending-alert' : '';
         return `
           <div class="coach-session-card ${alertClass}">
             <div class="coach-session-header">
