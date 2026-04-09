@@ -7,7 +7,7 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #0a0a0f; font-family: 'PingFang SC', sans-serif; color: #fff; display: flex; min-height: 100vh; }
-    .sidebar { width: 220px; background: rgba(20,20,30,0.8); border-right: 1px solid rgba(218,165,32,0.1); padding: 20px 0; flex-shrink: 0; }
+    .sidebar { width: 220px; background: rgba(20,20,30,0.8); border-right: 1px solid rgba(218,165,32,0.1); padding: 20px 0; flex-shrink: 0; overflow-y: auto; height: 100vh; position: sticky; top: 0; }
     .sidebar-logo { padding: 0 20px 30px; display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px; }
     .sidebar-logo img { width: 32px; height: 32px; }
     .sidebar-title { font-size: 16px; color: #d4af37; }
@@ -91,10 +91,10 @@
     /* 批量修改班次 */
     .batch-shift-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
     .batch-shift-card { background: rgba(20,20,30,0.6); border-radius: 10px; padding: 12px; border: 1px solid rgba(218,165,32,0.1); display: flex; gap: 12px; align-items: center; }
-    .batch-shift-card .coach-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; background: rgba(30,30,40,0.5); flex-shrink: 0; }
-    .batch-shift-card .coach-info { flex: 1; }
-    .batch-shift-card .coach-name { font-size: 14px; font-weight: 500; }
-    .batch-shift-card .coach-id { font-size: 11px; color: rgba(255,255,255,0.4); }
+    .batch-shift-card .batch-shift-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; background: rgba(30,30,40,0.5); flex-shrink: 0; }
+    .batch-shift-card .batch-shift-info { flex: 1; min-width: 0; }
+    .batch-shift-card .batch-shift-name { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
+    .batch-shift-card .batch-shift-id { font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 4px; }
     /* 批量班次 - 单选按钮样式 */
     .shift-radio-group { display: flex; gap: 8px; margin-top: 6px; }
     .shift-radio-group label {
@@ -116,8 +116,8 @@
       color: #d4af37;
     }
     .shift-radio-group input[type="radio"] { display: none; }
-    .batch-shift-card .save-indicator { font-size: 11px; color: rgba(46,204,113,0.7); margin-top: 4px; display: none; }
-    .batch-shift-card .save-indicator.show { display: block; }
+    .batch-shift-card .batch-shift-save { font-size: 11px; color: rgba(46,204,113,0.7); margin-top: 4px; display: none; }
+    .batch-shift-card .batch-shift-save.show { display: block; }
 
     /* 批量班次视图 - 搜索筛选 */
     .batch-search { margin-bottom: 16px; }
@@ -157,8 +157,8 @@
         <a href="coaches.html" class="nav-item active"><span class="nav-icon">👩</span> 助教列表</a>
         <a href="coaches.html#batch-shift" class="nav-item"><span class="nav-icon">🔄</span> 批量更新班次</a>
         <a href="water-boards.html" class="nav-item"><span class="nav-icon">📋</span> 水牌管理</a>
-        <a href="invitation-review.html?shift=early" class="nav-item"><span class="nav-icon">☀️</span> 早班约课</a>
-        <a href="invitation-review.html?shift=late" class="nav-item"><span class="nav-icon">🌙</span> 晚班约课</a>
+        <a href="invitation-review.html?shift=early" class="nav-item"><span class="nav-icon">☀️</span> 早班约客</a>
+        <a href="invitation-review.html?shift=late" class="nav-item"><span class="nav-icon">🌙</span> 晚班约客</a>
       </div>
     </div>
 

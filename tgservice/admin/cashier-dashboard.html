@@ -7,7 +7,7 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #0a0a0f; font-family: 'PingFang SC', sans-serif; color: #fff; display: flex; min-height: 100vh; overflow: hidden; }
-    .sidebar { width: 220px; background: rgba(20,20,30,0.8); border-right: 1px solid rgba(218,165,32,0.1); padding: 20px 0; flex-shrink: 0; overflow-y: auto; }
+    .sidebar { width: 220px; background: rgba(20,20,30,0.8); border-right: 1px solid rgba(218,165,32,0.1); padding: 20px 0; flex-shrink: 0; overflow-y: auto; height: 100vh; position: sticky; top: 0; }
     .sidebar-logo { padding: 0 20px 30px; display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px; }
     .sidebar-logo img { width: 32px; height: 32px; filter: sepia(60%) saturate(200%) hue-rotate(10deg); }
     .sidebar-title { font-size: 16px; color: #d4af37; }
@@ -216,8 +216,8 @@
         <a href="coaches.html" class="nav-item"><span class="nav-icon">👩</span> 助教列表</a>
         <a href="coaches.html#batch-shift" class="nav-item"><span class="nav-icon">🔄</span> 批量更新班次</a>
         <a href="water-boards.html" class="nav-item"><span class="nav-icon">📋</span> 水牌管理</a>
-        <a href="invitation-review.html?shift=early" class="nav-item"><span class="nav-icon">☀️</span> 早班约课</a>
-        <a href="invitation-review.html?shift=late" class="nav-item"><span class="nav-icon">🌙</span> 晚班约课</a>
+        <a href="invitation-review.html?shift=early" class="nav-item"><span class="nav-icon">☀️</span> 早班约客</a>
+        <a href="invitation-review.html?shift=late" class="nav-item"><span class="nav-icon">🌙</span> 晚班约客</a>
       </div>
     </div>
     
@@ -661,9 +661,8 @@
       const isPending = s.status === '待处理';
       const alertClass = (isPending && alertEnabled) ? 'pending-alert' : '';
       const newClass = isNew ? 'card-new' : '';
-      // 显示工号而不是编号
-      const displayId = s.employee_id || s.coach_no || '-';
-      const idLabel = s.employee_id ? '工号' : '编号';
+      // 显示工号（employee_id）而非编号（coach_no）
+      const displayId = s.employee_id || '-';
       return `
         <div class="coach-session-card ${alertClass} ${newClass}">
           <div class="coach-session-header">
@@ -672,7 +671,7 @@
           </div>
           <div class="coach-session-info">
             ${s.order_type === '上桌单' ? '⬆️' : s.order_type === '下桌单' ? '⬇️' : '❌'} ${s.order_type || s.type || '-'}
-            | 👤 ${s.stage_name || '-'} (${idLabel}${displayId})
+            | 👤 ${s.stage_name || '-'} (工号${displayId})
           </div>
           <div class="coach-session-detail">🎱 台桌: ${s.table_no || '-'} ${s.action_category ? '| ' + s.action_category : ''}</div>
           <div class="coach-session-time" style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:4px">${formatBeijingTime(s.created_at)}</div>
@@ -719,12 +718,29 @@
         coachSessions = (tblRes.success ? (tblRes.data || []) : []);
       } catch(e) { coachSessions = []; }
       
+      // 如果商品订单为空，添加测试数据
+      if (productOrders.length === 0) {
+        productOrders = [
+          { id: 9001, order_no: 'CS20260409001', status: '待处理', total_price: 128.00, created_at: new Date(Date.now() - 120000).toISOString(), items: [{ name: '百威啤酒', quantity: 2, price: 39.00 }, { name: '薯条', quantity: 1, price: 50.00 }] },
+          { id: 9002, order_no: 'CS20260409002', status: '待处理', total_price: 88.00, created_at: new Date(Date.now() - 300000).toISOString(), items: [{ name: '轩尼诗VS', quantity: 1, price: 88.00 }] },
+        ];
+      }
+      
       // 如果服务订单为空，添加测试数据
       if (serviceOrders.length === 0) {
         serviceOrders = [
           { id: 1001, table_no: 'A03', requirement: '换垃圾袋', requester_name: '小美', requester_type: '助教', status: '待处理', created_at: new Date(Date.now() - 60000).toISOString() },
           { id: 1002, table_no: 'B07', requirement: '搞卫生', requester_name: '阿杰', requester_type: '助教', status: '待处理', created_at: new Date(Date.now() - 120000).toISOString() },
           { id: 1003, table_no: 'C02', requirement: '音响连接有问题，没声音', requester_name: '丽丽', requester_type: '助教', status: '待处理', created_at: new Date(Date.now() - 180000).toISOString() },
+        ];
+      }
+      
+      // 如果上下桌单为空，添加测试数据
+      if (coachSessions.length === 0) {
+        coachSessions = [
+          { id: 2001, table_no: 'A01', coach_no: 'C001', employee_id: '1', stage_name: '小美', order_type: '上桌单', action_category: '普通课', status: '待处理', created_at: new Date(Date.now() - 90000).toISOString() },
+          { id: 2002, table_no: 'B03', coach_no: 'C005', employee_id: '5', stage_name: '阿杰', order_type: '下桌单', action_category: null, status: '待处理', created_at: new Date(Date.now() - 150000).toISOString() },
+          { id: 2003, table_no: 'C05', coach_no: 'C003', employee_id: '3', stage_name: '丽丽', order_type: '上桌单', action_category: '标签课', status: '待处理', created_at: new Date(Date.now() - 240000).toISOString() },
         ];
       }
       
@@ -782,8 +798,11 @@
         renderCoachSessions(true);
         updateCounts();
         
-        // 有新订单且警报开启时播放声音
-        if (hasNew && alertEnabled && soundEnabled) {
+        // 有待处理订单时播放声音（不再只检测新订单，而是检测是否有待处理订单）
+        const hasPendingOrders = (productOrders.some(o => o.status === '待处理') ||
+                                   serviceOrders.some(o => o.status === '待处理') ||
+                                   coachSessions.some(o => o.status === '待处理'));
+        if (hasPendingOrders && alertEnabled && soundEnabled) {
           playAlertSound();
         }
         

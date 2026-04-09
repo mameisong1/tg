@@ -7,7 +7,7 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #0a0a0f; font-family: 'PingFang SC', sans-serif; color: #fff; display: flex; min-height: 100vh; }
-    .sidebar { width: 220px; background: rgba(20,20,30,0.8); border-right: 1px solid rgba(218,165,32,0.1); padding: 20px 0; }
+    .sidebar { width: 220px; background: rgba(20,20,30,0.8); border-right: 1px solid rgba(218,165,32,0.1); padding: 20px 0; flex-shrink: 0; overflow-y: auto; height: 100vh; position: sticky; top: 0; }
     .sidebar-logo { padding: 0 20px 30px; display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px; }
     .sidebar-logo img { width: 32px; height: 32px; filter: sepia(60%) saturate(200%) hue-rotate(10deg); }
     .sidebar-logo img { width: 32px; height: 32px; filter: sepia(60%) saturate(200%) hue-rotate(10deg); }
@@ -46,7 +46,7 @@
     
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
     .modal.show { display: flex; }
-    .modal-content { background: rgba(20,20,30,0.95); border-radius: 16px; padding: 24px; width: 90%; max-width: 400px; }
+    .modal-content { background: rgba(20,20,30,0.95); border-radius: 16px; padding: 24px; width: 90%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
     .modal-title { font-size: 18px; margin-bottom: 20px; }
     .form-group { margin-bottom: 16px; }
     .form-label { display: block; font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 8px; }
@@ -110,8 +110,8 @@
         <a href="coaches.html" class="nav-item"><span class="nav-icon">👩</span> 助教列表</a>
         <a href="coaches.html#batch-shift" class="nav-item"><span class="nav-icon">🔄</span> 批量更新班次</a>
         <a href="water-boards.html" class="nav-item"><span class="nav-icon">📋</span> 水牌管理</a>
-        <a href="invitation-review.html?shift=early" class="nav-item"><span class="nav-icon">☀️</span> 早班约课</a>
-        <a href="invitation-review.html?shift=late" class="nav-item"><span class="nav-icon">🌙</span> 晚班约课</a>
+        <a href="invitation-review.html?shift=early" class="nav-item"><span class="nav-icon">☀️</span> 早班约客</a>
+        <a href="invitation-review.html?shift=late" class="nav-item"><span class="nav-icon">🌙</span> 晚班约客</a>
       </div>
     </div>
 
