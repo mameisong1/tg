@@ -115,6 +115,23 @@ const uploadImage = async () => {
 
 const submitInvitation = async () => {
   if (!canSubmit.value) return uni.showToast({ title: '请上传截图', icon: 'none' })
+  
+  // 检查提交时间限制
+  const hour = new Date().getHours()
+  const shift = form.value.shift
+  
+  if (shift === '早班') {
+    // 早班限制在14:00-18:00（16点前后2小时）
+    if (hour < 14 || hour >= 18) {
+      return uni.showToast({ title: '早班上传时间为14:00-18:00', icon: 'none' })
+    }
+  } else if (shift === '晚班') {
+    // 晚班限制在18:00-22:00（20点前后2小时）
+    if (hour < 18 || hour >= 22) {
+      return uni.showToast({ title: '晚班上传时间为18:00-22:00', icon: 'none' })
+    }
+  }
+  
   try {
     uni.showLoading({ title: '提交中...' })
     await api.guestInvitations.create({

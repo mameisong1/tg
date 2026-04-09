@@ -12,6 +12,14 @@
 
     <view class="form-section">
       <view class="form-item">
+        <text class="form-label">加班到几点</text>
+        <view class="quick-hours">
+          <view class="hour-btn" v-for="h in [6,7,8,9,10]" :key="h" @click="setHours(h)">
+            <text>{{ h }}点以后</text>
+          </view>
+        </view>
+      </view>
+      <view class="form-item">
         <text class="form-label">备注</text>
         <input class="input" v-model="form.remark" placeholder="如通宵加班后申请公休" maxlength="200" />
       </view>
@@ -51,6 +59,10 @@ onMounted(() => {
 })
 
 const canSubmit = computed(() => form.value.proof_image_url && form.value.remark)
+
+const setHours = (hours) => {
+  form.value.remark = `通宵加班到${hours}点以后`
+}
 
 const uploadImage = async () => {
   try {
@@ -111,6 +123,11 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .form-section { margin: 16px; }
 .form-item { margin-bottom: 24px; }
 .form-label { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 8px; display: block; }
+.quick-hours { display: flex; flex-wrap: wrap; gap: 8px; }
+.hour-btn { width: 18%; height: 36px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.hour-btn text { font-size: 13px; color: rgba(255,255,255,0.8); }
+.hour-btn:active { background: rgba(212,175,55,0.2); border-color: #d4af37; }
+.hour-btn:active text { color: #d4af37; }
 .input { width: 100%; height: 48px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 0 12px; font-size: 14px; color: #fff; box-sizing: border-box; }
 .upload-area { width: 120px; height: 120px; background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .upload-img { width: 100%; height: 100%; }
