@@ -850,4 +850,84 @@ const submitOrder = async () => {
 
 ---
 
-*文档更新时间：2026年3月*
+## V2.0 后台管理页面
+
+### 概述
+
+V2.0 新增了多个后台管理页面，位于 `/TG/tgservice/admin/` 目录。这些页面使用原生 HTML/CSS/JavaScript 开发，不依赖前端 UniApp 项目。
+
+### 后台页面列表
+
+| 页面 | 文件名 | 说明 | 所需权限 |
+|------|--------|------|----------|
+| 后台首页 | `index.html` | 菜单入口 | 登录即可 |
+| 登录页 | `login.html` | 管理员登录 | 无 |
+| 订单管理 | `orders.html` | 订单列表与操作 | 管理员 |
+| 商品管理 | `products.html` | 商品CRUD | 管理员/前厅管理 |
+| 商品分类 | `categories.html` | 分类管理 | 管理员 |
+| 台桌管理 | `tables.html` | 台桌CRUD | 管理员 |
+| VIP包房 | `vip-rooms.html` | 包房管理 | 管理员/前厅管理 |
+| 助教管理 | `coaches.html` | 助教CRUD + 批量更新班次 | 管理员/助教管理 |
+| 水牌管理 | `water-boards.html` | 助教实时状态管理 | 管理员/助教管理/店长 |
+| 约客审查 | `invitation-review.html` | 早/晚班约客记录审查 | 管理员/助教管理/店长 |
+| 收银看板 | `cashier-dashboard.html` | 全屏收银调度看板 | 收银/前厅管理 |
+| 会员管理 | `members.html` | 会员列表 | 管理员 |
+| 用户管理 | `users.html` | 后台用户管理 | 管理员 |
+| 首页配置 | `home.html` | Banner/公告配置 | 管理员 |
+| 操作日志 | `operation-logs.html` | 操作日志查询 | 管理员 |
+| 系统设置 | `settings.html` | 系统参数配置 | 管理员 |
+
+### 导航与权限
+
+- 每个页面左侧为统一侧边栏导航（`height:100vh; position:sticky; top:0; overflow-y:auto`）
+- 导航项根据用户权限动态显示/隐藏
+- 菜单名称（2026-04-09 更新）：
+  - ☀️ **早班约客**（原"早班约课"）
+  - 🌙 **晚班约客**（原"晚班约课"）
+
+### 收银看板（cashier-dashboard.html）
+
+全屏收银调度看板，用于统一管理商品订单、服务单、上下桌单。
+
+**主要功能**：
+- 三列布局：商品订单 | 服务单 | 上下桌单
+- 标签页切换：待处理 / 已完成（2小时内）/ 已取消（2小时内）
+- **发声提醒**：每10秒轮询检查，有待处理订单时自动播放提示音
+- **工号显示**：上下桌单显示助教工号(`employee_id`)而非编号(`coach_no`)
+- **测试数据**：API 返回空数据时自动注入待处理测试数据
+
+**轮询逻辑**：
+```javascript
+// 每10秒轮询
+setInterval(async () => {
+  // 获取三类订单数据
+  // ... 检查是否有待处理订单
+  const hasPendingOrders = productOrders.some(o => o.status === '待处理') ||
+    serviceOrders.some(o => o.status === '待处理') ||
+    coachSessions.some(o => o.status === '待处理');
+  if (hasPendingOrders && alertEnabled && soundEnabled) {
+    playAlertSound();
+  }
+}, 10000);
+```
+
+### 批量更新班次（coaches.html 内嵌页面）
+
+**v2.0.1 更新（2026-04-09）**：改为自动保存模式
+
+- 选择早班/晚班后**立即调用 PUT API 保存**
+- 移除了「全部保存」按钮
+- 保存状态反馈：⏳ 保存中 → ✓ 已保存（2秒消失）→ ✗ 失败（自动回滚）
+- 使用 `savingShifts` 对象防止重复提交
+
+### 用户管理（users.html）
+
+**v2.0.1 更新（2026-04-09）**：
+- 模态框宽度从 400px 增加到 480px
+- 添加 `max-height: 90vh; overflow-y: auto` 支持内容滚动
+- 新增用户时可录入姓名字段
+- 用户名字段录入手机号，姓名字段录入真实姓名
+
+---
+
+*文档更新时间：2026年4月9日*

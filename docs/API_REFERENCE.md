@@ -745,6 +745,32 @@
 | `/api/admin/users/:username` | PUT | 更新管理员 |
 | `/api/admin/users/:username` | DELETE | 删除管理员 |
 
+#### 创建管理员
+
+- **路径**: `POST /api/admin/users`
+- **参数**:
+  ```json
+  {
+    "username": "13800138000",
+    "name": "张三",
+    "role": "cashier",
+    "password": "随机密码"
+  }
+  ```
+- **说明**: 创建后台用户。**v2.0.1更新**：`username` 字段录入手机号，`name` 字段为姓名（新增时可录入），初始密码随机生成。
+
+#### 更新管理员
+
+- **路径**: `PUT /api/admin/users/:username`
+- **参数**:
+  ```json
+  {
+    "name": "新姓名",
+    "role": "floorManager"
+  }
+  ```
+- **说明**: 更新管理员信息。**v2.0.1更新**：`name`（姓名）字段可修改。
+
 ### 商品分类管理
 
 | 路径 | 方法 | 说明 |
@@ -812,6 +838,44 @@
 | `/api/admin/vip-rooms/:id/photo` | DELETE | 删除包房照片 |
 | `/api/admin/vip-rooms/:id/video` | DELETE | 删除包房视频 |
 | `/api/admin/vip-rooms/:id/avatar` | PUT | 设置包房封面 |
+
+### 上下桌单管理
+
+> 以下接口需要在Headers中携带：`Authorization: Bearer <admin-token>`
+
+| 路径 | 方法 | 说明 |
+|------|------|------|
+| `/api/admin/table-action-orders` | GET | 获取上下桌单列表 |
+| `/api/admin/table-action-orders/:id` | PUT | 更新上下桌单状态 |
+
+#### 获取上下桌单列表
+
+- **路径**: `GET /api/admin/table-action-orders`
+- **参数**:
+  | 参数 | 类型 | 必填 | 说明 |
+  |------|------|------|------|
+  | status | string | 否 | 状态筛选（待处理/已完成/已取消） |
+  | order_type | string | 否 | 单类型筛选（上桌单/下桌单/取消单） |
+  | coach_no | string | 否 | 助教工号筛选 |
+  | limit | number | 否 | 返回数量（默认50） |
+- **返回**:
+  ```json
+  [
+    {
+      "id": 1,
+      "table_no": "A01",
+      "coach_no": "C001",
+      "employee_id": "1",
+      "stage_name": "小美",
+      "order_type": "上桌单",
+      "action_category": "普通课",
+      "status": "待处理",
+      "created_at": "2026-04-09T10:00:00.000Z"
+    }
+  ]
+  ```
+- **说明**: 获取上下桌单列表，支持状态/类型/助教筛选。**v2.0.1更新**：返回结果包含 `employee_id` 字段（通过 LEFT JOIN coaches 表获取），用于收银看板显示工号。
+- **更新时间**: 2026-04-09
 
 ### 设备统计
 
@@ -1046,4 +1110,4 @@
 
 ---
 
-*文档更新时间：2026年3月*
+*文档更新时间：2026年4月9日*
