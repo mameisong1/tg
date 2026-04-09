@@ -41,11 +41,15 @@
     .status-section { margin-bottom: 24px; border: 2px solid rgba(218,165,32,0.15); border-radius: 16px; padding: 16px; min-height: 80px; transition: border-color 0.3s, background 0.3s; }
     .status-section.drag-over { border-color: #d4af37; background: rgba(212,175,55,0.08); }
     .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-    .section-title { font-size: 16px; font-weight: 600; color: #d4af37; }
+    .section-title { font-size: 16px; font-weight: 600; color: #d4af37; cursor: pointer; }
+    .section-title:hover { text-decoration: underline; }
     .section-count { font-size: 13px; color: rgba(255,255,255,0.4); }
 
     /* 助教圆形卡片 */
-    .coach-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+    .coach-chips { display: flex; flex-wrap: wrap; gap: 10px; max-height: 120px; overflow: hidden; }
+    /* 早班空闲和晚班空闲显示两行 */
+    .status-section[data-status="早班空闲"] .coach-chips,
+    .status-section[data-status="晚班空闲"] .coach-chips { max-height: 250px; }
     .coach-chip {
       display: flex; flex-direction: column; align-items: center; width: 100px; padding: 10px 6px;
       background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.15);
@@ -110,6 +114,15 @@
     .status-modal-btn { padding: 10px 8px; border-radius: 8px; font-size: 12px; cursor: pointer; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); color: #fff; transition: all 0.2s; }
     .status-modal-btn:hover { background: rgba(212,175,55,0.2); border-color: #d4af37; }
     .status-modal-btn.current { background: rgba(212,175,55,0.3); border-color: #d4af37; color: #d4af37; font-weight: 600; }
+
+    /* 分段放大弹窗 */
+    .section-expand-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 999; align-items: center; justify-content: center; }
+    .section-expand-overlay.show { display: flex; }
+    .section-expand-box { background: rgba(20,20,30,0.95); border-radius: 16px; padding: 24px; width: 90%; max-width: 800px; max-height: 80vh; overflow-y: auto; border: 2px solid rgba(218,165,55,0.3); }
+    .section-expand-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .section-expand-title { font-size: 18px; font-weight: 600; }
+    .section-expand-count { font-size: 13px; color: rgba(255,255,255,0.4); }
+    .section-expand-box .coach-chips { max-height: none; }
   </style>
 </head>
 <body>
@@ -213,6 +226,17 @@
       <div class="modal-box-actions" style="margin-top:16px">
         <button class="btn btn-cancel" onclick="closeStatusChangeModal()">取消</button>
       </div>
+    </div>
+  </div>
+  
+  <!-- 分段放大弹窗 -->
+  <div class="section-expand-overlay" id="sectionExpandOverlay">
+    <div class="section-expand-box">
+      <div class="section-expand-header">
+        <span class="section-expand-title" id="sectionExpandTitle"></span>
+        <span class="section-expand-count" id="sectionExpandCount"></span>
+      </div>
+      <div class="coach-chips" id="sectionExpandChips"></div>
     </div>
   </div>
   
@@ -615,6 +639,59 @@
     function toggleGroup(el) {
       el.parentElement.classList.toggle('open');
     }
+    
+    // ===== 分段放大功能 =====
+    // 点击分段标题放大显示
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('section-title')) {
+        const section = e.target.closest('.status-section');
+        const status = section.dataset.status;
+        const coaches = allData.filter(c => c.status === status);
+        showSectionExpand(status, coaches);
+      }
+    });
+    
+    // 显示放大弹窗
+    function showSectionExpand(status, coaches) {
+      // 获取状态对应的颜色
+      const colorMap = {
+        '早班上桌': '#3498db', '早班空闲': '#2ecc71', '晚班上桌': '#9b59b6', '晚班空闲': '#f1c40f',
+        '早加班': '#e67e22', '晚加班': '#e74c3c', '休息': '#95a5a6', '公休': '#1abc9c',
+        '请假': '#7f8c8d', '乐捐': '#f39c12', '下班': '#bdc3c7'
+      };
+      
+      document.getElementById('sectionExpandTitle').textContent = status;
+      document.getElementById('sectionExpandTitle').style.color = colorMap[status] || '#d4af37';
+      document.getElementById('sectionExpandCount').textContent = `${coaches.length}人`;
+      
+      // 生成助教卡片
+      const chips = document.getElementById('sectionExpandChips');
+      chips.innerHTML = coaches.map(c => {
+        const eid = c.employee_id || c.coach_no;
+        const avatar = (c.photos && c.photos.length > 0) ? c.photos[0] : '/static/avatar-default.png';
+        return `
+          <div class="coach-chip" draggable="true" data-coach-no="${c.coach_no}"
+               ondragstart="handleDragStart(event, '${c.coach_no}')" ondragend="handleDragEnd(event)"
+               ontouchstart="handleLongPressStart(event, '${c.coach_no}')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)"
+               onmousedown="handleLongPressStart(event, '${c.coach_no}')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)"
+               oncontextmenu="return false">
+            <img class="coach-chip-avatar" src="${avatar}" onerror="this.src='/static/avatar-default.png'">
+            <span class="coach-chip-id">工号${eid}</span>
+            <span class="coach-chip-name">${c.stage_name}</span>
+            ${c.table_no ? `<span class="coach-chip-table">${c.table_no}</span>` : ''}
+          </div>
+        `;
+      }).join('') || '<div class="empty-section">暂无</div>';
+      
+      document.getElementById('sectionExpandOverlay').classList.add('show');
+    }
+    
+    // 点击空白处关闭放大弹窗
+    document.getElementById('sectionExpandOverlay').addEventListener('click', (e) => {
+      if (e.target.id === 'sectionExpandOverlay') {
+        e.target.classList.remove('show');
+      }
+    });
     
     refreshData();
   </script>
