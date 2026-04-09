@@ -22,15 +22,18 @@
 
       <!-- 快捷需求按钮 -->
       <view class="form-item">
-        <text class="form-label">需求</text>
+        <text class="form-label">快捷需求</text>
         <view class="quick-tags">
-          <view class="quick-tag" v-for="tag in quickTags" :key="tag" :class="{ active: form.requirement === tag }"
-            @click="form.requirement = tag">
+          <view class="quick-tag" v-for="tag in quickTags" :key="tag" @click="selectQuickTag(tag)">
             <text>{{ tag }}</text>
           </view>
         </view>
-        <textarea class="custom-input" v-model="customRequirement" placeholder="或输入自定义需求..." maxlength="200"
-          :focus="form.requirement === '其他'"></textarea>
+      </view>
+
+      <!-- 自定义需求（必填） -->
+      <view class="form-item">
+        <text class="form-label">需求内容 <text class="required">*</text></text>
+        <input class="input" v-model="form.requirement" placeholder="请输入需求内容" maxlength="200" />
       </view>
 
       <!-- 下单人 -->
@@ -44,6 +47,9 @@
 
     <!-- 台桌选择器 -->
     <TableSelector :visible="showTableSelector" @confirm="onTableSelected" @cancel="showTableSelector = false" />
+    
+    <!-- 成功弹窗 -->
+    <SuccessModal :visible="showSuccess" title="提交成功" content="服务单已提交，请等待处理" @confirm="handleSuccessConfirm" />
   </view>
 </template>
 
@@ -51,14 +57,15 @@
 import { ref, computed, onMounted } from 'vue'
 import api from '@/utils/api-v2.js'
 import TableSelector from '@/components/TableSelector.vue'
+import SuccessModal from '@/components/SuccessModal.vue'
 
 const statusBarHeight = ref(0)
 const showTableSelector = ref(false)
-const customRequirement = ref('')
+const showSuccess = ref(false)
 const adminInfo = ref({})
 const coachInfo = ref({})
 
-const quickTags = ['换垃圾袋', '搞卫生', '音响连接', '加水', '其他']
+const quickTags = ['换垃圾袋', '搞卫生', '音响连接', '加水']
 
 const form = ref({ table_no: '', requirement: '' })
 
@@ -97,28 +104,36 @@ const onTableSelected = (tableNo) => {
   showTableSelector.value = false
 }
 
+// 点击快捷需求，直接填入需求内容
+const selectQuickTag = (tag) => {
+  form.value.requirement = tag
+}
+
 const submitOrder = async () => {
   if (!form.value.table_no) return uni.showToast({ title: '请选择台桌', icon: 'none' })
-  const requirement = form.value.requirement === '其他' ? customRequirement.value : form.value.requirement
-  if (!requirement) return uni.showToast({ title: '请选择或输入需求', icon: 'none' })
+  if (!form.value.requirement) return uni.showToast({ title: '请输入需求内容', icon: 'none' })
 
   try {
     uni.showLoading({ title: '提交中...' })
     await api.serviceOrders.create({
       table_no: form.value.table_no,
-      requirement,
+      requirement: form.value.requirement,
       requester_name: requesterName.value,
       requester_type: requesterType.value
     })
     uni.hideLoading()
-    uni.showToast({ title: '服务单已提交', icon: 'success' })
     form.value.table_no = ''
     form.value.requirement = ''
-    customRequirement.value = ''
+    showSuccess.value = true
   } catch (e) {
     uni.hideLoading()
     uni.showToast({ title: e.error || '提交失败', icon: 'none' })
   }
+}
+
+const handleSuccessConfirm = () => {
+  showSuccess.value = false
+  uni.switchTab({ url: '/pages/member/member' })
 }
 
 const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { uni.navigateBack() } else { uni.switchTab({ url: '/pages/member/member' }) } }
@@ -138,15 +153,16 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .form-section { margin: 16px; }
 .form-item { margin-bottom: 24px; }
 .form-label { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 8px; display: block; }
+.required { color: #e74c3c; }
 .form-value { display: flex; justify-content: space-between; align-items: center; height: 48px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 0 16px; }
 .form-value .placeholder { color: rgba(255,255,255,0.3); }
 .arrow { font-size: 18px; color: rgba(255,255,255,0.3); }
 
-.quick-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
-.quick-tag { padding: 8px 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; font-size: 13px; color: rgba(255,255,255,0.6); }
-.quick-tag.active { background: rgba(212,175,55,0.2); border-color: #d4af37; color: #d4af37; }
+.quick-tags { display: flex; flex-wrap: wrap; gap: 8px; }
+.quick-tag { padding: 10px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; font-size: 13px; color: rgba(255,255,255,0.7); }
+.quick-tag:active { background: rgba(212,175,55,0.2); border-color: #d4af37; color: #d4af37; }
 
-.custom-input { width: 100%; min-height: 80px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 12px; font-size: 14px; color: #fff; box-sizing: border-box; }
+.input { width: 100%; height: 48px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 0 12px; font-size: 14px; color: #fff; box-sizing: border-box; }
 
 .requester-name { font-size: 15px; color: #d4af37; }
 
