@@ -170,7 +170,7 @@
       </div>
     </div>
     
-    <p style="color:rgba(255,255,255,0.4);margin-bottom:16px;font-size:13px">💡 拖动助教卡片到不同状态区域可修改水牌状态</p>
+    <p style="color:rgba(255,255,255,0.4);margin-bottom:16px;font-size:13px">💡 拖动助教卡片到不同状态区域可修改水牌状态；长按卡片可弹出状态选择菜单</p>
     
     <div id="statusSections"></div>
   </div>
@@ -282,7 +282,7 @@
                   return `
                   <div class="coach-chip" draggable="true" data-coach-no="${c.coach_no}"
                        ondragstart="handleDragStart(event, '${c.coach_no}')" ondragend="handleDragEnd(event)"
-                       ontouchstart="handleLongPressStart(event, '${c.coach_no}')" ontouchend="handleLongPressEnd(event)"
+                       ontouchstart="handleLongPressStart(event, '${c.coach_no}')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)"
                        onmousedown="handleLongPressStart(event, '${c.coach_no}')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)">
                     <img class="coach-chip-avatar" src="${avatar}" 
                          onerror="this.src='/static/avatar-default.png'">
@@ -300,14 +300,110 @@
       container.innerHTML = html;
     }
     
-    // ===== 拖放功能 =====
+    // ===== 拖放 + 长按功能 =====
     let draggedCoachNo = null;
     
     // 上桌弹窗相关变量
     let pendingDropStatus = null;
     let pendingDropCoach = null;
     
+    // 长按/拖动冲突解决
+    let longPressTimer = null;
+    let longPressFired = false; // 标记长按是否已触发
+    let startX, startY;
+    const LONG_PRESS_DURATION = 500; // 500ms长按阈值
+    const MOVE_THRESHOLD = 10; // 移动10px视为拖动
+    let currentCoachNo = null; // 当前长按的助教工号
+    
+    // ===== 长按功能 =====
+    function handleLongPressStart(e, coachNo) {
+      startX = e.touches ? e.touches[0].clientX : e.clientX;
+      startY = e.touches ? e.touches[0].clientY : e.clientY;
+      longPressFired = false;
+      
+      longPressTimer = setTimeout(() => {
+        longPressFired = true;
+        showStatusChangeModal(coachNo);
+        // 长按触发后，取消拖动状态
+        draggedCoachNo = null;
+      }, LONG_PRESS_DURATION);
+    }
+    
+    function handleLongPressEnd(e) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+    
+    // 检测移动，如果移动超过阈值则取消长按
+    function handleTouchMove(e) {
+      if (!longPressTimer) return;
+      
+      const moveX = e.touches ? e.touches[0].clientX : e.clientX;
+      const moveY = e.touches ? e.touches[0].clientY : e.clientY;
+      
+      if (Math.abs(moveX - startX) > MOVE_THRESHOLD || 
+          Math.abs(moveY - startY) > MOVE_THRESHOLD) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+        longPressFired = false;
+      }
+    }
+    
+    // ===== 状态修改弹窗 =====
+    function showStatusChangeModal(coachNo) {
+      currentCoachNo = coachNo;
+      const coach = allData.find(c => c.coach_no === coachNo);
+      if (!coach) return;
+      
+      const eid = coach.employee_id || coach.coach_no;
+      document.getElementById('statusChangeCoachInfo').textContent = 
+        `工号${eid} - ${coach.stage_name}`;
+      
+      // 生成状态按钮
+      const grid = document.getElementById('statusChangeGrid');
+      grid.innerHTML = STATUS_LIST.map(status => `
+        <button class="status-modal-btn ${coach.status === status ? 'current' : ''}"
+                onclick="changeStatus('${status}')">${status}</button>
+      `).join('');
+      
+      document.getElementById('statusChangeModal').style.display = 'flex';
+    }
+    
+    function closeStatusChangeModal() {
+      document.getElementById('statusChangeModal').style.display = 'none';
+      currentCoachNo = null;
+    }
+    
+    async function changeStatus(newStatus) {
+      if (!currentCoachNo) return;
+      
+      const coach = allData.find(c => c.coach_no === currentCoachNo);
+      if (!coach) return;
+      
+      try {
+        const res = await api(`/api/water-boards/${currentCoachNo}/status`, {
+          method: 'PUT',
+          body: JSON.stringify({ status: newStatus, table_no: coach.table_no || null })
+        });
+        
+        if (res.success) {
+          showToast(`${coach.stage_name}: ${coach.status} → ${newStatus}`);
+          closeStatusChangeModal();
+          refreshData();
+        } else {
+          showToast(res.error || '更新失败');
+        }
+      } catch (err) {
+        showToast('修改状态失败: ' + err.message);
+      }
+    }
+    
     function handleDragStart(e, coachNo) {
+      // 如果长按已触发，不执行拖动
+      if (longPressFired) {
+        e.preventDefault();
+        return;
+      }
       draggedCoachNo = coachNo;
       e.target.classList.add('dragging');
       e.dataTransfer.effectAllowed = 'move';
@@ -316,6 +412,8 @@
     function handleDragEnd(e) {
       e.target.classList.remove('dragging');
       document.querySelectorAll('.status-section').forEach(s => s.classList.remove('drag-over'));
+      draggedCoachNo = null;
+      longPressFired = false;
     }
     
     function handleDragOver(e) {
