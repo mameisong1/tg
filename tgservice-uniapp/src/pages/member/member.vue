@@ -801,8 +801,15 @@ const onGetPhoneNumber = async (e) => {
   }
 }
 
-// 自动登录检查
+// 自动登录检查（10分钟冷却）
+let lastCheckTime = 0
+const CHECK_COOLDOWN = 10 * 60 * 1000 // 10分钟
+
 const checkAutoLogin = async () => {
+  const now = Date.now()
+  if (now - lastCheckTime < CHECK_COOLDOWN) return // 冷却期内跳过
+  lastCheckTime = now
+
   const token = uni.getStorageSync('memberToken')
   if (token) {
     // 已有token，获取会员信息
@@ -829,12 +836,16 @@ const checkAutoLogin = async () => {
         uni.removeStorageSync('coachInfo')
       }
     } catch (err) {
-      // token失效，清空信息
-      memberInfo.value = {}
-      coachInfo.value = {}
-      uni.removeStorageSync('memberToken')
-      // 自动填充上次手机号
-      autoFillPhone()
+      // ⚠️ 只有 401（token 过期/无效）才清除 token
+      // 网络错误（502、超时等）保留 token，不踢用户下线
+      if (err?.statusCode === 401) {
+        memberInfo.value = {}
+        coachInfo.value = {}
+        uni.removeStorageSync('memberToken')
+        // 自动填充上次手机号
+        autoFillPhone()
+      }
+      // 其他错误：静默忽略，保留用户状态
     }
   } else {
     // 无token，先清空会员和教练信息

@@ -944,7 +944,9 @@ app.post('/api/coach/login', async (req, res) => {
       token,
       coach: {
         coachNo: coach.coach_no,
+        employeeId: coach.employee_id,
         stageName: coach.stage_name,
+        phone: coach.phone || '',
         level: coach.level,
         shift: coach.shift || '晚班'
       },

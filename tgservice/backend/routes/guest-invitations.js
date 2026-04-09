@@ -167,7 +167,7 @@ router.get('/', auth.required, requireBackendPermission(['invitationReview']), a
     }
     
     if (shift) {
-      sql += ' AND shift = ?';
+      sql += ' AND gir.shift = ?';
       params.push(shift);
     }
     
