@@ -40,19 +40,17 @@
     /* 状态分段 */
     .status-section { display: flex; gap: 12px; margin-bottom: 12px; border: 2px solid rgba(218,165,32,0.15); border-radius: 12px; padding: 10px; min-height: 60px; transition: border-color 0.3s, background 0.3s; }
     .status-section.drag-over { border-color: #d4af37; background: rgba(212,175,55,0.08); }
-    .section-header { display: flex; flex-direction: column; justify-content: center; align-items: center; min-width: 70px; padding-right: 12px; border-right: 1px solid rgba(255,255,255,0.1); gap: 4px; }
-    .section-title { font-size: 13px; font-weight: 600; color: #d4af37; cursor: pointer; white-space: nowrap; }
-    .section-title:hover { text-decoration: underline; }
-    .section-expand-icon { font-size: 11px; color: rgba(255,255,255,0.3); cursor: pointer; }
-    .section-expand-icon:hover { color: #d4af37; }
-    .section-count { font-size: 11px; color: rgba(255,255,255,0.4); }
+    .section-header { display: flex; flex-direction: column; justify-content: center; align-items: center; min-width: 70px; padding-right: 12px; border-right: 1px solid rgba(255,255,255,0.1); gap: 2px; cursor: pointer; }
+    .section-header:hover .section-title { text-decoration: underline; }
+    .section-title { font-size: 14px; font-weight: 600; color: #d4af37; white-space: nowrap; }
+    .section-expand-icon { font-size: 13px; color: rgba(255,255,255,0.5); }
     .section-content { flex: 1; }
 
     /* 助教圆形卡片 */
-    .coach-chips { display: flex; flex-wrap: wrap; gap: 10px; max-height: 65px; overflow: hidden; align-items: flex-start; }
+    .coach-chips { display: flex; flex-wrap: wrap; gap: 10px; max-height: 75px; overflow: hidden; align-items: flex-start; padding-bottom: 4px; }
     /* 早班空闲和晚班空闲显示两行 */
     .status-section[data-status="早班空闲"] .coach-chips,
-    .status-section[data-status="晚班空闲"] .coach-chips { max-height: 145px; }
+    .status-section[data-status="晚班空闲"] .coach-chips { max-height: 160px; }
     .coach-chip {
       display: flex; flex-direction: column; align-items: center; width: 70px; padding: 6px 4px;
       background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.15);
@@ -340,10 +338,9 @@
         html += `
           <div class="status-section" data-status="${status}"
                ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, '${status}')">
-            <div class="section-header">
+            <div class="section-header" onclick="showSectionExpand('${status}')">
               <span class="section-title">${status}</span>
-              <span class="section-expand-icon">⛶</span>
-              <span class="section-count">${coaches.length}</span>
+              <span class="section-expand-icon">⛶ ${coaches.length}</span>
             </div>
             <div class="section-content">
               <div class="coach-chips">
@@ -653,17 +650,9 @@
     
     // ===== 分段放大功能 =====
     // 点击分段标题放大显示
-    document.addEventListener('click', (e) => {
-      if (e.target.classList.contains('section-title')) {
-        const section = e.target.closest('.status-section');
-        const status = section.dataset.status;
-        const coaches = allData.filter(c => c.status === status);
-        showSectionExpand(status, coaches);
-      }
-    });
-    
     // 显示放大弹窗
-    function showSectionExpand(status, coaches) {
+    function showSectionExpand(status) {
+      const coaches = allData.filter(c => c.status === status);
       // 获取状态对应的颜色
       const colorMap = {
         '早班上桌': '#3498db', '早班空闲': '#2ecc71', '晚班上桌': '#9b59b6', '晚班空闲': '#f1c40f',
