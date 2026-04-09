@@ -802,6 +802,59 @@
 > - 创建重复时返回: `{ "error": "该工号和艺名组合已存在，请检查是否重复添加" }`
 > - 更新重复时返回: `{ "error": "该工号和艺名组合已被其他助教使用" }`
 
+### 水牌管理
+
+| 路径 | 方法 | 说明 |
+|------|------|------|
+| `/api/water-boards` | GET | 获取所有水牌状态 |
+| `/api/water-boards/:coach_no` | GET | 获取单个助教水牌 |
+| `/api/water-boards/:coach_no/status` | PUT | 更新水牌状态 |
+
+#### 获取所有水牌状态
+
+- **路径**: `GET /api/water-boards`
+- **返回**: 
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "coach_no": "10005",
+        "stage_name": "芝芝",
+        "status": "早班空闲",
+        "table_no": null,
+        "shift": "早班",
+        "photos": ["https://..."],
+        "employee_id": "1005"
+      }
+    ]
+  }
+  ```
+- **说明**: 返回所有助教的水牌状态，`photos` 字段已解析为数组格式
+
+#### 更新水牌状态
+
+- **路径**: `PUT /api/water-boards/:coach_no/status`
+- **参数**: 
+  ```json
+  {
+    "status": "早班上桌",
+    "table_no": "A01"
+  }
+  ```
+- **返回**: 
+  ```json
+  {
+    "success": true,
+    "data": {
+      "coach_no": "10005",
+      "status": "早班上桌",
+      "table_no": "A01"
+    }
+  }
+  ```
+- **有效状态值**: 早班上桌、早班空闲、晚班上桌、晚班空闲、早加班、晚加班、休息、公休、请假、乐捐、下班
+
 ### 会员管理
 
 | 路径 | 方法 | 说明 |
