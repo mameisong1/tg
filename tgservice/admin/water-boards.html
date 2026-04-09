@@ -101,6 +101,10 @@
     .btn-cancel { background: rgba(255,255,255,0.1); color: #fff; }
     .btn-confirm { background: linear-gradient(135deg, #d4af37 0%, #ffd700 100%); color: #000; }
 
+    /* 全屏按钮样式 */
+    .fullscreen-btn { padding: 8px 16px; background: rgba(212,175,55,0.15); border: 1px solid rgba(212,175,55,0.3); border-radius: 8px; color: #d4af37; font-size: 13px; cursor: pointer; }
+    .fullscreen-btn:hover { background: rgba(212,175,55,0.25); }
+
     /* 长按修改状态弹窗 */
     .status-modal-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
     .status-modal-btn { padding: 10px 8px; border-radius: 8px; font-size: 12px; cursor: pointer; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); color: #fff; transition: all 0.2s; }
@@ -165,7 +169,7 @@
     <div class="page-header">
       <div class="page-title">📋 水牌管理</div>
       <div style="display:flex;gap:12px;align-items:center;">
-        <button class="btn btn-sm" style="background:rgba(255,255,255,0.1);color:#fff" onclick="toggleFullscreen()">⛶ 全屏</button>
+        <button class="fullscreen-btn" id="fullscreenBtn" onclick="toggleFullscreen()">🖥️ 全屏</button>
         <button class="btn btn-sm" style="background:rgba(255,255,255,0.1);color:#fff" onclick="refreshData()">🔄 刷新</button>
         <button class="btn btn-sm" style="background:rgba(255,255,255,0.1);color:#fff" onclick="logout()">退出</button>
       </div>
@@ -239,14 +243,36 @@
     
     // 全屏切换
     function toggleFullscreen() {
+      const sidebar = document.querySelector('.sidebar');
+      const btn = document.getElementById('fullscreenBtn');
       if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(err => {
-          showToast('无法进入全屏模式');
+        document.documentElement.requestFullscreen().then(() => {
+          sidebar.style.display = 'none';
+          btn.textContent = '🖥️ 退出全屏';
+        }).catch(() => {
+          sidebar.style.display = 'none';
+          btn.textContent = '🖥️ 退出全屏';
         });
       } else {
-        document.exitFullscreen();
+        document.exitFullscreen().then(() => {
+          sidebar.style.display = '';
+          btn.textContent = '🖥️ 全屏';
+        }).catch(() => {
+          sidebar.style.display = '';
+          btn.textContent = '🖥️ 全屏';
+        });
       }
     }
+
+    // 监听全屏状态变化（用户按 ESC 退出全屏时）
+    document.addEventListener('fullscreenchange', () => {
+      const sidebar = document.querySelector('.sidebar');
+      const btn = document.getElementById('fullscreenBtn');
+      if (!document.fullscreenElement) {
+        sidebar.style.display = '';
+        btn.textContent = '🖥️ 全屏';
+      }
+    });
     
     async function refreshData() {
       try {
