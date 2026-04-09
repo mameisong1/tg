@@ -104,56 +104,28 @@
       </view>
     </view>
     
-    <!-- 教练专用版块 - 紧跟会员姓名版块 -->
-    <view class="coach-section" v-if="memberInfo.memberNo && coachInfo.coachNo">
+    <!-- 人气值板块 - 移到管理功能下面 -->
+    
+    <!-- V2.0 内部专用（直接显示在「我的」页面，不再跳转内部首页） -->
+    
+    <!-- 常用功能板块 - 所有后台用户可见 -->
+    <view class="internal-section" v-if="memberInfo.memberNo && showCommonFeatures">
       <view class="section-header">
-        <text class="section-title">👤 教练专用</text>
+        <text class="section-title">🔧 常用功能</text>
       </view>
-      
-      <view class="popularity-card">
-        <text class="popularity-label">我的人气值</text>
-        <text class="popularity-value">{{ myPopularity }}</text>
-        <view class="coach-profile-btn" @click="goCoachProfile">
-          <text class="coach-profile-text">教练个人中心 ›</text>
+      <view class="internal-btns">
+        <view class="internal-btn" @click="navigateTo('/pages/internal/water-board-view')">
+          <text class="internal-btn-icon">📋</text>
+          <text class="internal-btn-text">水牌查看</text>
         </view>
-      </view>
-      
-      <view class="ranking-section" v-if="topCoaches.length > 0">
-        <text class="ranking-title">🔥 人气榜 TOP6</text>
-        <!-- 第一行：第1名，最大卡片 -->
-        <view class="ranking-row first-row" v-if="topCoaches.length > 0">
-          <view class="ranking-card large card-gold" v-for="(coach, index) in topCoaches.slice(0, 1)" :key="coach.coach_no">
-            <view class="medal medal-gold">🥇</view>
-            <image class="ranking-avatar large" :src="getCoachPhoto(coach)" mode="aspectFill"></image>
-            <text class="ranking-name">{{ coach.employee_id }}号 {{ coach.stage_name }}</text>
-            <text class="ranking-pop">{{ coach.popularity || 0 }}</text>
-          </view>
-        </view>
-        <!-- 第二行：第2-3名 -->
-        <view class="ranking-row" v-if="topCoaches.length > 1">
-          <view class="ranking-card medium" :class="index === 0 ? 'card-silver' : 'card-bronze'" v-for="(coach, index) in topCoaches.slice(1, 3)" :key="coach.coach_no">
-            <view class="medal" :class="['medal-' + ['silver','bronze'][index]]">
-              {{ ['🥈','🥉'][index] }}
-            </view>
-            <image class="ranking-avatar medium" :src="getCoachPhoto(coach)" mode="aspectFill"></image>
-            <text class="ranking-name">{{ coach.employee_id }}号 {{ coach.stage_name }}</text>
-            <text class="ranking-pop">{{ coach.popularity || 0 }}</text>
-          </view>
-        </view>
-        <!-- 第三行：第4-6名 -->
-        <view class="ranking-row" v-if="topCoaches.length > 3">
-          <view class="ranking-card small" v-for="(coach, index) in topCoaches.slice(3, 6)" :key="coach.coach_no">
-            <view class="medal medal-normal">{{ index + 4 }}</view>
-            <image class="ranking-avatar small" :src="getCoachPhoto(coach)" mode="aspectFill"></image>
-            <text class="ranking-name">{{ coach.employee_id }}号 {{ coach.stage_name }}</text>
-            <text class="ranking-pop">{{ coach.popularity || 0 }}</text>
-          </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/service-order')">
+          <text class="internal-btn-icon">🔔</text>
+          <text class="internal-btn-text">服务下单</text>
         </view>
       </view>
     </view>
-    
-    <!-- V2.0 内部专用（直接显示在「我的」页面，不再跳转内部首页） -->
-    <!-- 助教专用按钮 -->
+
+    <!-- 助教专用板块 -->
     <view class="internal-section" v-if="memberInfo.memberNo && isCoach">
       <view class="section-header">
         <text class="section-title">🔧 助教专用</text>
@@ -169,11 +141,7 @@
         </view>
         <view class="internal-btn" @click="navigateTo('/pages/internal/table-action')">
           <text class="internal-btn-icon">🎱</text>
-          <text class="internal-btn-text">上桌/下桌</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/service-order')">
-          <text class="internal-btn-icon">🔔</text>
-          <text class="internal-btn-text">服务下单</text>
+          <text class="internal-btn-text">上下桌</text>
         </view>
         <view class="internal-btn" @click="navigateTo('/pages/internal/overtime-apply')">
           <text class="internal-btn-icon">📋</text>
@@ -235,28 +203,50 @@
       </view>
     </view>
 
-    <!-- 教练只读水牌 -->
-    <view class="internal-section" v-if="memberInfo.memberNo && isCoachViewer">
+    <!-- 人气值板块 - 原教练专用板块 -->
+    <view class="coach-section" v-if="memberInfo.memberNo && coachInfo.coachNo && coachInfo.status !== '离职'">
       <view class="section-header">
-        <text class="section-title">🔧 查看</text>
+        <text class="section-title">🔥 人气值</text>
       </view>
-      <view class="internal-btns">
-        <view class="internal-btn" @click="navigateTo('/pages/internal/water-board-view')">
-          <text class="internal-btn-icon">📋</text>
-          <text class="internal-btn-text">水牌查看</text>
+      
+      <view class="popularity-card">
+        <text class="popularity-label">我的人气值</text>
+        <text class="popularity-value">{{ myPopularity }}</text>
+        <view class="coach-profile-btn" @click="goCoachProfile">
+          <text class="coach-profile-text">教练个人中心 ›</text>
         </view>
       </view>
-    </view>
-
-    <!-- 其他后台用户：常用功能 -->
-    <view class="internal-section" v-if="memberInfo.memberNo && isOtherAdmin">
-      <view class="section-header">
-        <text class="section-title">🔧 内部专用</text>
-      </view>
-      <view class="internal-btns">
-        <view class="internal-btn" @click="navigateTo('/pages/internal/service-order')">
-          <text class="internal-btn-icon">🔔</text>
-          <text class="internal-btn-text">服务下单</text>
+      
+      <view class="ranking-section" v-if="topCoaches.length > 0">
+        <text class="ranking-title">🔥 人气榜 TOP6</text>
+        <!-- 第一行：第1名，最大卡片 -->
+        <view class="ranking-row first-row" v-if="topCoaches.length > 0">
+          <view class="ranking-card large card-gold" v-for="(coach, index) in topCoaches.slice(0, 1)" :key="coach.coach_no">
+            <view class="medal medal-gold">🥇</view>
+            <image class="ranking-avatar large" :src="getCoachPhoto(coach)" mode="aspectFill"></image>
+            <text class="ranking-name">{{ coach.employee_id }}号 {{ coach.stage_name }}</text>
+            <text class="ranking-pop">{{ coach.popularity || 0 }}</text>
+          </view>
+        </view>
+        <!-- 第二行：第2-3名 -->
+        <view class="ranking-row" v-if="topCoaches.length > 1">
+          <view class="ranking-card medium" :class="index === 0 ? 'card-silver' : 'card-bronze'" v-for="(coach, index) in topCoaches.slice(1, 3)" :key="coach.coach_no">
+            <view class="medal" :class="['medal-' + ['silver','bronze'][index]]">
+              {{ ['🥈','🥉'][index] }}
+            </view>
+            <image class="ranking-avatar medium" :src="getCoachPhoto(coach)" mode="aspectFill"></image>
+            <text class="ranking-name">{{ coach.employee_id }}号 {{ coach.stage_name }}</text>
+            <text class="ranking-pop">{{ coach.popularity || 0 }}</text>
+          </view>
+        </view>
+        <!-- 第三行：第4-6名 -->
+        <view class="ranking-row" v-if="topCoaches.length > 3">
+          <view class="ranking-card small" v-for="(coach, index) in topCoaches.slice(3, 6)" :key="coach.coach_no">
+            <view class="medal medal-normal">{{ index + 4 }}</view>
+            <image class="ranking-avatar small" :src="getCoachPhoto(coach)" mode="aspectFill"></image>
+            <text class="ranking-name">{{ coach.employee_id }}号 {{ coach.stage_name }}</text>
+            <text class="ranking-pop">{{ coach.popularity || 0 }}</text>
+          </view>
         </view>
       </view>
     </view>
