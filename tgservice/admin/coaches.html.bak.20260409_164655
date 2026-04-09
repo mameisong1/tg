@@ -89,12 +89,6 @@
     .nav-submenu .nav-item { padding-left: 48px; font-size: 13px; }
 
     /* 批量修改班次 */
-    /* 批量班次筛选栏 */
-    .batch-filter-bar { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
-    .batch-filter-bar label { font-size: 13px; color: rgba(255,255,255,0.6); }
-    .batch-filter-btn { padding: 6px 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 16px; color: rgba(255,255,255,0.6); font-size: 13px; cursor: pointer; transition: all 0.2s; }
-    .batch-filter-btn:hover { background: rgba(212,175,55,0.1); border-color: rgba(212,175,55,0.3); }
-    .batch-filter-btn.active { background: rgba(212,175,55,0.2); border-color: #d4af37; color: #d4af37; }
     .batch-shift-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
     .batch-shift-card { background: rgba(20,20,30,0.6); border-radius: 10px; padding: 12px; border: 1px solid rgba(218,165,32,0.1); display: flex; gap: 12px; align-items: center; }
     .batch-shift-card .batch-shift-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; background: rgba(30,30,40,0.5); flex-shrink: 0; }
@@ -192,15 +186,7 @@
         <div class="page-title">批量更新班次</div>
         <button class="btn btn-sm" style="background:rgba(255,255,255,0.1);color:#fff" onclick="expandAllShifts()">全部展开</button>
       </div>
-      <p style="color:rgba(255,255,255,0.5);margin-bottom:12px">为每位助教选择班次，修改后自动保存</p>
-      <!-- 筛选栏 -->
-      <div class="batch-filter-bar">
-        <label>等级：</label>
-        <div id="batchLevelFilter"></div>
-        <label style="margin-left:16px">班次：</label>
-        <div id="batchShiftFilter"></div>
-        <span id="batchCount" style="margin-left:auto;font-size:13px;color:rgba(255,255,255,0.4)"></span>
-      </div>
+      <p style="color:rgba(255,255,255,0.5);margin-bottom:20px">为每位助教选择班次，修改后自动保存</p>
       <div class="batch-shift-grid" id="batchShiftGrid"></div>
     </div>
 
@@ -497,27 +483,13 @@
       }
     }
 
-    // 批量班次筛选状态
-    let batchLevelFilter = '全部';
-    let batchShiftFilter = '全部';
-
     function renderBatchShift() {
       const grid = document.getElementById('batchShiftGrid');
       if (coaches.length === 0) {
         grid.innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.3)">暂无助教数据</div>';
         return;
       }
-      renderBatchFilters();
-      // 筛选
-      let filtered = coaches;
-      if (batchLevelFilter !== '全部') filtered = filtered.filter(c => c.level === batchLevelFilter);
-      if (batchShiftFilter !== '全部') filtered = filtered.filter(c => (c.shift || '早班') === batchShiftFilter);
-      document.getElementById('batchCount').textContent = `显示 ${filtered.length} / ${coaches.length} 人`;
-      if (filtered.length === 0) {
-        grid.innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.3)">没有符合条件的助教</div>';
-        return;
-      }
-      grid.innerHTML = filtered.map(c => {
+      grid.innerHTML = coaches.map(c => {
         const currentShift = c.shift || '早班';
         return `
           <div class="batch-shift-card" data-coach-no="${c.coach_no}">
@@ -560,14 +532,10 @@
         indicator.classList.add('show');
       }
       try {
-        // 使用专用班次修改API，只更新班次字段，不影响其他数据
-        const res = await api(`/api/admin/coaches/${coachNo}/shift`, {
+        await api(`/api/admin/coaches/${coachNo}`, {
           method: 'PUT',
           body: JSON.stringify({ shift: newShift })
         });
-        if (res.error) {
-          throw new Error(res.error);
-        }
         if (indicator) {
           indicator.textContent = '✓ 已保存';
           indicator.style.color = 'rgba(46,204,113,0.7)';
@@ -609,31 +577,6 @@
         onShiftChange(coachNo, e.target.value);
       }
     });
-
-    function renderBatchFilters() {
-      // 等级筛选
-      const levels = ['全部', '网红', '女神', '高级', '中级', '初级'];
-      document.getElementById('batchLevelFilter').innerHTML = levels.map(l => {
-        const count = l === '全部' ? coaches.length : coaches.filter(c => c.level === l).length;
-        return `<button class="batch-filter-btn ${batchLevelFilter === l ? 'active' : ''}" onclick="setBatchLevelFilter('${l}')">${l} (${count})</button>`;
-      }).join('');
-      // 班次筛选
-      const shifts = ['全部', '早班', '晚班'];
-      document.getElementById('batchShiftFilter').innerHTML = shifts.map(s => {
-        const count = s === '全部' ? coaches.length : coaches.filter(c => (c.shift || '早班') === s).length;
-        return `<button class="batch-filter-btn ${batchShiftFilter === s ? 'active' : ''}" onclick="setBatchShiftFilter('${s}')">${s} (${count})</button>`;
-      }).join('');
-    }
-
-    function setBatchLevelFilter(level) {
-      batchLevelFilter = level;
-      renderBatchShift();
-    }
-
-    function setBatchShiftFilter(shift) {
-      batchShiftFilter = shift;
-      renderBatchShift();
-    }
 
     function expandAllShifts() {
       // 滚动到顶部

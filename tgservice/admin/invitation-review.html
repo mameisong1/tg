@@ -38,21 +38,55 @@
     .stat-value { font-size: 28px; color: #d4af37; }
     .stat-label { font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 8px; }
 
-    .data-table { width: 100%; background: rgba(20,20,30,0.6); border-radius: 12px; border: 1px solid rgba(218,165,32,0.1); overflow: hidden; border-collapse: collapse; }
+    /* 卡片网格布局 */
+    .cards-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .card { background: rgba(20,20,30,0.8); border-radius: 12px; border: 1px solid rgba(218,165,32,0.1); overflow: hidden; cursor: pointer; transition: all 0.2s; }
+    .card:hover { border-color: rgba(212,175,55,0.4); transform: translateY(-2px); box-shadow: 0 4px 20px rgba(212,175,55,0.1); }
+    .card-image { width: 100%; height: 180px; object-fit: cover; background: #1a1a2a; }
+    .card-image.placeholder { display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.3); font-size: 13px; }
+    .card-info { padding: 12px; }
+    .card-name { font-size: 15px; color: #d4af37; font-weight: 500; }
+    .card-meta { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px; display: flex; justify-content: space-between; }
+    .card-badge { display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 11px; margin-top: 6px; }
+    .badge-pending { background: rgba(241,196,15,0.2); color: #f1c40f; }
+    .badge-approved { background: rgba(46,204,113,0.2); color: #2ecc71; }
+    .badge-rejected { background: rgba(231,76,60,0.2); color: #e74c3c; }
+
+    /* 全屏放大弹窗 */
+    .review-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 2000; flex-direction: column; align-items: center; justify-content: center; }
+    .review-overlay.show { display: flex; }
+    .review-close { position: absolute; top: 20px; right: 20px; background: rgba(255,255,255,0.1); border: none; color: #fff; width: 40px; height: 40px; border-radius: 50%; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .review-close:hover { background: rgba(255,255,255,0.2); }
+    .review-counter { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(20,20,30,0.8); padding: 8px 20px; border-radius: 20px; font-size: 14px; color: #d4af37; }
+    .review-image-container { position: relative; width: 90%; max-width: 700px; max-height: 65vh; display: flex; align-items: center; justify-content: center; }
+    .review-image { max-width: 100%; max-height: 65vh; border-radius: 12px; box-shadow: 0 4px 30px rgba(0,0,0,0.5); }
+    .review-info { text-align: center; margin-top: 16px; }
+    .review-info .name { font-size: 20px; color: #d4af37; font-weight: 600; }
+    .review-info .meta { font-size: 14px; color: rgba(255,255,255,0.6); margin-top: 4px; }
+    .review-actions { display: flex; gap: 16px; margin-top: 24px; width: 90%; max-width: 500px; }
+    .btn-review { flex: 1; padding: 16px; border-radius: 12px; font-size: 18px; font-weight: 600; border: none; cursor: pointer; transition: all 0.2s; }
+    .btn-invalid { background: rgba(231,76,60,0.2); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); }
+    .btn-invalid:hover { background: rgba(231,76,60,0.3); }
+    .btn-valid { background: linear-gradient(135deg, #d4af37, #ffd700); color: #000; }
+    .btn-valid:hover { opacity: 0.9; }
+
+    /* 左右切换箭头 */
+    .review-arrow { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.1); border: none; color: #fff; width: 50px; height: 50px; border-radius: 50%; font-size: 24px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+    .review-arrow:hover { background: rgba(255,255,255,0.2); }
+    .review-arrow.prev { left: 20px; }
+    .review-arrow.next { right: 20px; }
+
+    /* 滑动提示 */
+    .swipe-hint { position: absolute; bottom: 160px; left: 50%; transform: translateX(-50%); font-size: 12px; color: rgba(255,255,255,0.4); }
+
+    .data-table { width: 100%; background: rgba(20,20,30,0.6); border-radius: 12px; border: 1px solid rgba(218,165,32,0.1); overflow: hidden; border-collapse: collapse; margin-top: 24px; }
     .data-table th, .data-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
     .data-table th { background: rgba(212,175,55,0.1); font-weight: 500; font-size: 13px; color: rgba(255,255,255,0.7); }
     .data-table td { font-size: 14px; }
 
     .btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; }
     .btn-primary { background: linear-gradient(135deg, #d4af37 0%, #ffd700 100%); color: #000; }
-    .btn-success { background: rgba(46,204,113,0.2); color: #2ecc71; border: 1px solid rgba(46,204,113,0.3); }
-    .btn-danger { background: rgba(231,76,60,0.2); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); }
     .btn-sm { padding: 6px 12px; font-size: 12px; }
-
-    .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; }
-    .badge-pending { background: rgba(241,196,15,0.2); color: #f1c40f; }
-    .badge-approved { background: rgba(46,204,113,0.2); color: #2ecc71; }
-    .badge-rejected { background: rgba(231,76,60,0.2); color: #e74c3c; }
 
     .toast { position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.9); color: #fff; padding: 12px 24px; border-radius: 8px; font-size: 14px; z-index: 1001; display: none; }
     .toast.show { display: block; }
@@ -65,6 +99,17 @@
     .shift-tab { padding: 10px 24px; border-radius: 8px; font-size: 14px; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); background: transparent; color: rgba(255,255,255,0.6); transition: all 0.2s; }
     .shift-tab.active { background: rgba(212,175,55,0.2); border-color: rgba(212,175,55,0.4); color: #d4af37; }
     .shift-tab:hover { background: rgba(255,255,255,0.05); }
+
+    .section-title { font-size: 16px; color: rgba(255,255,255,0.8); margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+    .section-title .count { font-size: 13px; color: rgba(255,255,255,0.4); }
+
+    /* 空状态 */
+    .empty-state { text-align: center; padding: 60px 20px; color: rgba(255,255,255,0.3); }
+    .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+
+    /* 响应式 */
+    @media (max-width: 1200px) { .cards-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 900px) { .cards-grid { grid-template-columns: repeat(2, 1fr); } }
   </style>
 </head>
 <body>
@@ -93,7 +138,7 @@
 
     <div class="nav-group open">
       <div class="nav-group-title" onclick="toggleGroup(this)">
-        <span class="group-icon">👩‍🏫</span><span class="group-text">助教管理</span><span class="arrow">▼</span>
+        <span class="group-icon">👩🏫</span><span class="group-text">助教管理</span><span class="arrow">▼</span>
       </div>
       <div class="nav-submenu">
         <a href="coaches.html" class="nav-item"><span class="nav-icon">👩</span> 助教列表</a>
@@ -166,31 +211,46 @@
       <input type="text" id="searchName" placeholder="搜索助教姓名/编号" oninput="applyFilter()">
     </div>
 
-    <!-- 记录列表 -->
+    <!-- 待审查卡片区域 -->
+    <div class="section-title">
+      <span>📋 待审查列表</span>
+      <span class="count" id="pendingCount"></span>
+    </div>
+    <div class="cards-grid" id="cardsContainer"></div>
+
+    <!-- 已审查表格 -->
+    <div class="section-title" style="margin-top:32px;">
+      <span>📊 已审查记录</span>
+    </div>
     <table class="data-table">
       <thead>
-        <tr><th>助教编号</th><th>助教姓名</th><th>班次</th><th>约客截图</th><th>状态</th><th>提交时间</th><th>审查人</th><th>操作</th></tr>
+        <tr><th>助教编号</th><th>助教姓名</th><th>班次</th><th>约客截图</th><th>状态</th><th>提交时间</th><th>审查人</th></tr>
       </thead>
       <tbody id="recordsTable"></tbody>
     </table>
   </div>
 
-  <!-- 审查弹窗 -->
-  <div id="reviewModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center;">
-    <div style="background:rgba(20,20,30,0.95);border-radius:16px;padding:24px;width:90%;max-width:500px;border:1px solid rgba(218,165,32,0.2);">
-      <h3 style="font-size:18px;margin-bottom:20px;">审查约客记录</h3>
-      <div id="reviewInfo" style="margin-bottom:16px;font-size:14px;color:rgba(255,255,255,0.7);"></div>
-      <div id="reviewImageContainer" style="margin-bottom:16px;text-align:center;"></div>
-      <div style="margin-bottom:16px;">
-        <label style="display:block;font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:8px;">审查备注（选填）</label>
-        <textarea id="reviewNote" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:14px;min-height:80px;resize:vertical;"></textarea>
-      </div>
-      <div style="display:flex;gap:12px;">
-        <button class="btn" style="flex:1;background:rgba(255,255,255,0.1);color:#fff;" onclick="closeReviewModal()">取消</button>
-        <button class="btn" style="flex:1;background:rgba(231,76,60,0.2);color:#e74c3c;" onclick="submitReview('约客无效')">约客无效</button>
-        <button class="btn" style="flex:1;background:linear-gradient(135deg,#d4af37,#ffd700);color:#000;" onclick="submitReview('约客有效')">约客有效</button>
-      </div>
+  <!-- 全屏审查弹窗 -->
+  <div class="review-overlay" id="reviewOverlay">
+    <button class="review-close" onclick="closeReviewOverlay()">✕</button>
+    <div class="review-counter" id="reviewCounter">1 / 10</div>
+    
+    <div class="review-image-container" id="reviewImageContainer">
+      <img class="review-image" id="reviewImage" src="" alt="约客截图">
+      <button class="review-arrow prev" onclick="navigateCard(-1)">‹</button>
+      <button class="review-arrow next" onclick="navigateCard(1)">›</button>
     </div>
+    
+    <div class="review-info">
+      <div class="name" id="reviewName">-</div>
+      <div class="meta" id="reviewMeta">-</div>
+    </div>
+    
+    <div class="review-actions">
+      <button class="btn-review btn-invalid" onclick="submitReview('约客无效')">❌ 约客无效</button>
+      <button class="btn-review btn-valid" onclick="submitReview('约客有效')">✅ 约客有效</button>
+    </div>
+    <div class="swipe-hint">← 左右滑动或点击箭头切换 →</div>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -201,7 +261,12 @@
 
     let currentShift = 'early';
     let allRecords = [];
-    let reviewingId = null;
+    let pendingCards = [];
+    let currentIndex = 0;
+
+    // 触摸滑动支持
+    let touchStartX = 0;
+    let touchEndX = 0;
 
     // 班次映射
     const shiftMap = { early: '早班', late: '晚班' };
@@ -255,7 +320,8 @@
       } catch (e) {
         console.error('获取约客数据失败:', e);
         allRecords = [];
-        document.getElementById('recordsTable').innerHTML = '<tr><td colspan="8" style="text-align:center;color:rgba(255,255,255,0.3);padding:40px">暂无约客数据</td></tr>';
+        document.getElementById('cardsContainer').innerHTML = '<div class="empty-state"><div class="icon">📭</div><div>暂无约客数据</div></div>';
+        document.getElementById('recordsTable').innerHTML = '<tr><td colspan="7" style="text-align:center;color:rgba(255,255,255,0.3);padding:40px">暂无记录</td></tr>';
         updateStats();
       }
     }
@@ -278,62 +344,126 @@
         (r.coach_no || '').toLowerCase().includes(searchText)
       );
 
-      updateStats();
+      // 分离待审查和已审查
+      const pending = filtered.filter(r => r.result === '待审查');
+      const reviewed = filtered.filter(r => r.result !== '待审查');
 
-      document.getElementById('recordsTable').innerHTML = filtered.length === 0
-        ? '<tr><td colspan="8" style="text-align:center;color:rgba(255,255,255,0.3);padding:40px">暂无数据</td></tr>'
-        : filtered.slice(0, 50).map(r => `
+      // 更新待审查卡片
+      pendingCards = pending;
+      document.getElementById('pendingCount').textContent = `共 ${pending.length} 条待审查`;
+      
+      if (pending.length === 0) {
+        document.getElementById('cardsContainer').innerHTML = '<div class="empty-state"><div class="icon">✅</div><div>暂无待审查记录</div></div>';
+      } else {
+        document.getElementById('cardsContainer').innerHTML = pending.map((r, idx) => {
+          const thumbUrl = r.invitation_image_url ? r.invitation_image_url : '';
+          const imageHtml = thumbUrl 
+            ? `<img class="card-image" src="${thumbUrl}" alt="约客截图" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'card-image placeholder\\'>暂无截图</div>'">`
+            : '<div class="card-image placeholder">暂无截图</div>';
+          
+          return `
+          <div class="card" onclick="openReviewOverlay(${idx})">
+            ${imageHtml}
+            <div class="card-info">
+              <div class="card-name">${r.stage_name || '未知'}</div>
+              <div class="card-meta">
+                <span>${r.coach_no || '-'}号</span>
+                <span>${formatBeijingTime(r.created_at)}</span>
+              </div>
+              <span class="card-badge badge-pending">待审查</span>
+            </div>
+          </div>`;
+        }).join('');
+      }
+
+      // 更新已审查表格
+      document.getElementById('recordsTable').innerHTML = reviewed.length === 0
+        ? '<tr><td colspan="7" style="text-align:center;color:rgba(255,255,255,0.3);padding:40px">暂无已审查记录</td></tr>'
+        : reviewed.slice(0, 50).map(r => `
           <tr>
             <td>${r.coach_no || '-'}</td>
             <td>${r.stage_name || '-'}</td>
             <td>${r.shift || shiftMap[currentShift]}</td>
-            <td>${r.invitation_image_url ? '<a href="' + r.invitation_image_url + '" target="_blank" style="color:#d4af37">查看截图</a>' : '-'}</td>
-            <td><span class="badge ${getStatusBadge(r.result)}">${r.result || '待审查'}</span></td>
+            <td>${r.invitation_image_url ? '<a href="' + r.invitation_image_url + '" target="_blank" style="color:#d4af37">查看</a>' : '-'}</td>
+            <td><span class="badge ${getStatusBadge(r.result)}">${r.result}</span></td>
             <td>${formatBeijingTime(r.created_at)}</td>
             <td>${r.reviewer_phone || '-'}</td>
-            <td>
-              ${r.result === '待审查' ? `<button class="btn btn-sm btn-primary" onclick="openReviewModal(${r.id})">审查</button>` : '-'}
-            </td>
           </tr>
         `).join('');
+
+      updateStats();
     }
 
-    function openReviewModal(id) {
-      reviewingId = id;
-      const record = allRecords.find(r => r.id === id);
-      if (record) {
-        document.getElementById('reviewInfo').innerHTML = `
-          <p>助教：${record.coach_no}号 ${record.stage_name}</p>
-          <p>班次：${record.shift}</p>
-          <p>提交时间：${formatBeijingTime(record.created_at)}</p>
-        `;
-        if (record.invitation_image_url) {
-          document.getElementById('reviewImageContainer').innerHTML = `
-            <img src="${record.invitation_image_url}" style="max-width:100%;max-height:300px;border-radius:8px;" onerror="this.style.display='none'">
-          `;
-        } else {
-          document.getElementById('reviewImageContainer').innerHTML = '<p style="color:rgba(255,255,255,0.3)">暂无截图</p>';
-        }
+    // 全屏审查弹窗
+    function openReviewOverlay(index) {
+      currentIndex = index;
+      showCurrentCard();
+      document.getElementById('reviewOverlay').classList.add('show');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeReviewOverlay() {
+      document.getElementById('reviewOverlay').classList.remove('show');
+      document.body.style.overflow = '';
+    }
+
+    function showCurrentCard() {
+      if (pendingCards.length === 0) return;
+      const r = pendingCards[currentIndex];
+      
+      document.getElementById('reviewCounter').textContent = `${currentIndex + 1} / ${pendingCards.length}`;
+      document.getElementById('reviewName').textContent = `${r.stage_name || '未知'} (${r.coach_no || '-'}号)`;
+      document.getElementById('reviewMeta').textContent = `提交时间：${formatBeijingTime(r.created_at)} | 班次：${r.shift || shiftMap[currentShift]}`;
+      
+      const img = document.getElementById('reviewImage');
+      if (r.invitation_image_url) {
+        img.src = r.invitation_image_url;
+        img.style.display = 'block';
+      } else {
+        img.style.display = 'none';
       }
-      document.getElementById('reviewNote').value = '';
-      document.getElementById('reviewModal').style.display = 'flex';
     }
 
-    function closeReviewModal() {
-      document.getElementById('reviewModal').style.display = 'none';
-      reviewingId = null;
+    function navigateCard(direction) {
+      if (pendingCards.length === 0) return;
+      currentIndex = (currentIndex + direction + pendingCards.length) % pendingCards.length;
+      showCurrentCard();
+    }
+
+    function navigateToNext() {
+      if (pendingCards.length === 0) {
+        closeReviewOverlay();
+        showToast('所有卡片已审查完毕');
+        return;
+      }
+      currentIndex = Math.min(currentIndex, pendingCards.length - 1);
+      showCurrentCard();
     }
 
     async function submitReview(result) {
-      if (!reviewingId) return;
+      if (pendingCards.length === 0) return;
+      const record = pendingCards[currentIndex];
+      if (!record) return;
+
       try {
-        const res = await api(`/api/guest-invitations/${reviewingId}/review`, {
+        const res = await api(`/api/guest-invitations/${record.id}/review`, {
           method: 'PUT',
           body: JSON.stringify({ result, reviewer_phone: null })
         });
         if (res.success) {
-          showToast(result === '约客有效' ? '审查通过' : '已驳回');
-          closeReviewModal();
+          showToast(result === '约客有效' ? '✅ 标记为有效' : '❌ 标记为无效');
+          // 从待审查列表中移除
+          pendingCards.splice(currentIndex, 1);
+          allRecords = allRecords.map(r => r.id === record.id ? { ...r, result } : r);
+          
+          if (pendingCards.length === 0) {
+            closeReviewOverlay();
+            showToast('🎉 所有卡片已审查完毕');
+          } else {
+            // 自动切换下一张
+            if (currentIndex >= pendingCards.length) currentIndex = pendingCards.length - 1;
+            showCurrentCard();
+          }
           refreshData();
         } else {
           showToast(res.error || '操作失败');
@@ -342,6 +472,27 @@
         showToast('操作失败: ' + e.message);
       }
     }
+
+    // 触摸滑动事件
+    document.getElementById('reviewOverlay').addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+    }, { passive: true });
+
+    document.getElementById('reviewOverlay').addEventListener('touchend', (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      const diff = touchStartX - touchEndX;
+      if (Math.abs(diff) > 50) {
+        navigateCard(diff > 0 ? 1 : -1);
+      }
+    }, { passive: true });
+
+    // 键盘事件
+    document.addEventListener('keydown', (e) => {
+      if (!document.getElementById('reviewOverlay').classList.contains('show')) return;
+      if (e.key === 'ArrowLeft') navigateCard(-1);
+      if (e.key === 'ArrowRight') navigateCard(1);
+      if (e.key === 'Escape') closeReviewOverlay();
+    });
 
     function logout() {
       localStorage.removeItem('adminToken');

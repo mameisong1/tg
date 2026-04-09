@@ -162,14 +162,6 @@
           <text class="internal-btn-icon">🏠</text>
           <text class="internal-btn-text">内部首页</text>
         </view>
-        <view class="internal-btn" @click="goAdminLogin">
-          <text class="internal-btn-icon">👤</text>
-          <text class="internal-btn-text">员工登录</text>
-        </view>
-        <view class="internal-btn" @click="goCashierDashboard">
-          <text class="internal-btn-icon">📊</text>
-          <text class="internal-btn-text">收银看板</text>
-        </view>
       </view>
     </view>
     
@@ -632,6 +624,12 @@ const loginBySms = async () => {
       uni.setStorageSync('agreed', true)
       memberInfo.value = data.member
       
+      // 如果匹配后台用户，自动实现内部员工登录
+      if (data.adminInfo) {
+        uni.setStorageSync('adminInfo', data.adminInfo)
+        console.log('自动内部登录:', data.adminInfo.role, data.adminInfo.name)
+      }
+      
       // 如果同时是教练，自动登录教练
       if (data.coachInfo) {
         uni.setStorageSync('coachInfo', data.coachInfo)
@@ -686,6 +684,12 @@ const onGetPhoneNumber = async (e) => {
       uni.setStorageSync('memberToken', data.token)
       memberInfo.value = data.member
       
+      // 如果匹配后台用户，自动实现内部员工登录
+      if (data.adminInfo) {
+        uni.setStorageSync('adminInfo', data.adminInfo)
+        console.log('自动内部登录:', data.adminInfo.role, data.adminInfo.name)
+      }
+      
       // 如果同时是教练，自动登录教练
       if (data.coachInfo) {
         const coachToken = Buffer.from(`${data.coachInfo.coachNo}:${Date.now()}`).toString('base64')
@@ -710,6 +714,11 @@ const checkAutoLogin = async () => {
     try {
       const profile = await api.getMemberProfile()
       memberInfo.value = profile
+      
+      // 如果匹配后台用户，自动实现内部员工登录
+      if (profile.adminInfo) {
+        uni.setStorageSync('adminInfo', profile.adminInfo)
+      }
       
       // 如果同时是教练，设置教练信息
       if (profile.coachInfo) {
@@ -883,29 +892,9 @@ const goCoachProfile = () => {
   uni.navigateTo({ url: '/pages/coach-profile/coach-profile' })
 }
 
-// V2.0 内部专用导航
+// V2.0 内部专用导航（手机号登录时已自动匹配后台用户/助教，实现内部登录）
 const goInternalHome = () => {
-  const adminInfo = uni.getStorageSync('adminInfo')
-  const coachInfo = uni.getStorageSync('coachInfo')
-  if (adminInfo || coachInfo) {
-    uni.navigateTo({ url: '/pages/internal/internal-home' })
-  } else {
-    uni.showToast({ title: '请先登录员工账号', icon: 'none' })
-    setTimeout(() => uni.navigateTo({ url: '/pages/internal/admin-login' }), 1000)
-  }
-}
-
-const goAdminLogin = () => {
-  uni.navigateTo({ url: '/pages/internal/admin-login' })
-}
-
-const goCashierDashboard = () => {
-  const adminInfo = uni.getStorageSync('adminInfo')
-  if (!adminInfo) {
-    uni.showToast({ title: '请先登录员工账号', icon: 'none' })
-    return uni.navigateTo({ url: '/pages/internal/admin-login' })
-  }
-  uni.navigateTo({ url: '/pages/internal/cashier-dashboard' })
+  uni.navigateTo({ url: '/pages/internal/internal-home' })
 }
 
 const getCoachPhoto = (coach) => {

@@ -1271,6 +1271,9 @@ app.post('/api/member/login-sms', async (req, res) => {
     // 检查是否同时是助教
     const coach = await dbGet('SELECT coach_no, stage_name, level FROM coaches WHERE phone = ? AND status != ?', [phone, '离职']);
     
+    // 检查是否匹配后台用户（自动实现内部员工登录）
+    const adminUser = await dbGet('SELECT username, role, name FROM admin_users WHERE username = ?', [phone]);
+    
     operationLog.info(`会员登录(H5): ${phone}`);
     res.json({ 
       success: true, 
@@ -1281,6 +1284,11 @@ app.post('/api/member/login-sms', async (req, res) => {
         name: member.name,
         gender: member.gender
       },
+      adminInfo: adminUser ? {
+        username: adminUser.username,
+        name: adminUser.name || '',
+        role: adminUser.role
+      } : null,
       coachInfo: coach ? {
         coachNo: coach.coach_no,
         stageName: coach.stage_name,
@@ -1370,6 +1378,9 @@ app.post('/api/member/login', async (req, res) => {
     // 5. 检查是否同时是助教
     const coach = await dbGet('SELECT coach_no, stage_name, level FROM coaches WHERE phone = ? AND status != ?', [phone, '离职']);
     
+    // 6. 检查是否匹配后台用户（自动实现内部员工登录）
+    const adminUser = await dbGet('SELECT username, role, name FROM admin_users WHERE username = ?', [phone]);
+    
     res.json({ 
       success: true, 
       token: memberToken,
@@ -1379,6 +1390,11 @@ app.post('/api/member/login', async (req, res) => {
         name: member.name,
         gender: member.gender
       },
+      adminInfo: adminUser ? {
+        username: adminUser.username,
+        name: adminUser.name || '',
+        role: adminUser.role
+      } : null,
       coachInfo: coach ? {
         coachNo: coach.coach_no,
         stageName: coach.stage_name,
@@ -1438,6 +1454,9 @@ app.post('/api/member/auto-login', async (req, res) => {
     // 检查是否同时是助教
     const coach = await dbGet('SELECT coach_no, stage_name, level FROM coaches WHERE phone = ? AND status != ?', [member.phone, '离职']);
     
+    // 检查是否匹配后台用户
+    const adminUser = await dbGet('SELECT username, role, name FROM admin_users WHERE username = ?', [member.phone]);
+    
     res.json({ 
       success: true, 
       registered: true,
@@ -1448,6 +1467,11 @@ app.post('/api/member/auto-login', async (req, res) => {
         name: member.name,
         gender: member.gender
       },
+      adminInfo: adminUser ? {
+        username: adminUser.username,
+        name: adminUser.name || '',
+        role: adminUser.role
+      } : null,
       coachInfo: coach ? {
         coachNo: coach.coach_no,
         stageName: coach.stage_name,
@@ -1478,6 +1502,9 @@ app.get('/api/member/profile', async (req, res) => {
     // 检查是否同时是助教
     const coach = await dbGet('SELECT coach_no, stage_name, level FROM coaches WHERE phone = ? AND status != ?', [member.phone, '离职']);
     
+    // 检查是否匹配后台用户
+    const adminUser = await dbGet('SELECT username, role, name FROM admin_users WHERE username = ?', [member.phone]);
+    
     res.json({
       memberNo: member.member_no,
       phone: member.phone,
@@ -1485,6 +1512,11 @@ app.get('/api/member/profile', async (req, res) => {
       gender: member.gender,
       remark: member.remark,
       createdAt: member.created_at,
+      adminInfo: adminUser ? {
+        username: adminUser.username,
+        name: adminUser.name || '',
+        role: adminUser.role
+      } : null,
       coachInfo: coach ? {
         coachNo: coach.coach_no,
         stageName: coach.stage_name,
@@ -2375,6 +2407,38 @@ app.delete('/api/admin/coaches/:coachNo', authMiddleware, requireBackendPermissi
     operationLog.info(`删除助教: ${req.params.coachNo}`);
     res.json({ success: true });
   } catch (err) {
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+/**
+ * PUT /api/admin/coaches/:coachNo/shift
+ * 专用班次修改接口 - 只更新班次字段，不覆盖其他数据
+ */
+app.put('/api/admin/coaches/:coachNo/shift', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
+  try {
+    const { shift } = req.body;
+    
+    // 验证班次值
+    if (shift !== '早班' && shift !== '晚班') {
+      return res.status(400).json({ error: '班次必须是早班或晚班' });
+    }
+    
+    // 检查助教是否存在
+    const coach = await dbGet('SELECT coach_no, stage_name, shift FROM coaches WHERE coach_no = ?', [req.params.coachNo]);
+    if (!coach) {
+      return res.status(404).json({ error: '助教不存在' });
+    }
+    
+    const oldShift = coach.shift || '早班';
+    
+    // 只更新班次字段
+    await dbRun('UPDATE coaches SET shift = ?, updated_at = datetime("now", "localtime") WHERE coach_no = ?', [shift, req.params.coachNo]);
+    
+    operationLog.info(`修改班次: ${coach.stage_name}(${req.params.coachNo}) ${oldShift} → ${shift}`);
+    res.json({ success: true, coach_no: req.params.coachNo, old_shift: oldShift, new_shift: shift });
+  } catch (err) {
+    logger.error(`修改班次失败: ${err.message}`);
     res.status(500).json({ error: '服务器错误' });
   }
 });
