@@ -57,7 +57,6 @@
       border-radius: 50%; cursor: grab; transition: transform 0.2s, box-shadow 0.2s; user-select: none;
     }
     .coach-chip:hover { transform: scale(1.08); box-shadow: 0 0 15px rgba(212,175,55,0.3); }
-    .coach-chip.dragging { opacity: 0.5; transform: scale(0.95); }
     .coach-chip-avatar {
       width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
       border: 2px solid rgba(218,165,32,0.3); margin-bottom: 4px;
@@ -193,34 +192,10 @@
       </div>
     </div>
     
-    <p style="color:rgba(255,255,255,0.4);margin-bottom:16px;font-size:13px">💡 拖动助教卡片到不同状态区域可修改水牌状态；长按卡片可弹出状态选择菜单</p>
-    
     <div id="statusSections"></div>
   </div>
   
   <div class="toast" id="toast"></div>
-  
-  <!-- 桌号输入弹窗 -->
-  <div class="modal-overlay" id="tableNoModal">
-    <div class="modal-box">
-      <div class="modal-box-title">🎱 输入台桌号</div>
-      <div class="modal-box-form">
-        <label>助教信息</label>
-        <input type="text" id="modalCoachInfo" readonly style="opacity:0.6">
-        <label>上桌类型</label>
-        <select id="modalActionCategory">
-          <option value="普通课">普通课</option>
-          <option value="标签课">标签课</option>
-        </select>
-        <label>台桌号</label>
-        <input type="text" id="modalTableNo" placeholder="请输入台桌号，如：A01">
-      </div>
-      <div class="modal-box-actions">
-        <button class="btn btn-cancel" onclick="cancelTableNoModal()">取消</button>
-        <button class="btn btn-confirm" onclick="confirmTableNoModal()">确认上桌</button>
-      </div>
-    </div>
-  </div>
   
   <!-- 长按修改状态弹窗 -->
   <div class="modal-overlay" id="statusChangeModal">
@@ -335,8 +310,7 @@
       STATUS_LIST.forEach(status => {
         const coaches = groups[status] || [];
         html += `
-          <div class="status-section" data-status="${status}"
-               ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, '${status}')">
+          <div class="status-section" data-status="${status}">
             <div class="section-header" onclick="showSectionExpand('${status}')">
               <span class="section-title">${status}</span>
               <span class="section-expand-icon">⛶ ${coaches.length}</span>
@@ -348,8 +322,7 @@
                     const eid = c.employee_id || c.coach_no;
                     const avatar = (c.photos && c.photos.length > 0) ? c.photos[0] : '/static/avatar-default.png';
                     return `
-                    <div class="coach-chip" draggable="true" data-coach-no="${c.coach_no}"
-                         ondragstart="handleDragStart(event, '${c.coach_no}')" ondragend="handleDragEnd(event)"
+                    <div class="coach-chip" data-coach-no="${c.coach_no}"
                          ontouchstart="handleLongPressStart(event, '${c.coach_no}')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)"
                          onmousedown="handleLongPressStart(event, '${c.coach_no}')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)"
                          oncontextmenu="return false">
@@ -370,16 +343,8 @@
       container.innerHTML = html;
     }
     
-    // ===== 拖放 + 长按功能 =====
-    let draggedCoachNo = null;
-    
-    // 上桌弹窗相关变量
-    let pendingDropStatus = null;
-    let pendingDropCoach = null;
-    
-    // 长按/拖动冲突解决
+    // ===== 长按功能 =====
     let longPressTimer = null;
-    let longPressFired = false; // 标记长按是否已触发
     let startX, startY;
     const LONG_PRESS_DURATION = 500; // 500ms长按阈值
     const MOVE_THRESHOLD = 10; // 移动10px视为拖动
@@ -392,13 +357,9 @@
       
       startX = e.touches ? e.touches[0].clientX : e.clientX;
       startY = e.touches ? e.touches[0].clientY : e.clientY;
-      longPressFired = false;
       
       longPressTimer = setTimeout(() => {
-        longPressFired = true;
         showStatusChangeModal(coachNo);
-        // 长按触发后，取消拖动状态
-        draggedCoachNo = null;
       }, LONG_PRESS_DURATION);
     }
     
@@ -498,68 +459,6 @@
       }
     }
     
-    function handleDragStart(e, coachNo) {
-      // 如果长按已触发，不执行拖动
-      if (longPressFired) {
-        e.preventDefault();
-        return;
-      }
-      draggedCoachNo = coachNo;
-      e.target.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
-    }
-    
-    function handleDragEnd(e) {
-      e.target.classList.remove('dragging');
-      document.querySelectorAll('.status-section').forEach(s => s.classList.remove('drag-over'));
-      draggedCoachNo = null;
-      longPressFired = false;
-    }
-    
-    function handleDragOver(e) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'move';
-      e.currentTarget.classList.add('drag-over');
-    }
-    
-    function handleDragLeave(e) {
-      e.currentTarget.classList.remove('drag-over');
-    }
-    
-    async function handleDrop(e, newStatus) {
-      e.preventDefault();
-      e.currentTarget.classList.remove('drag-over');
-      
-      if (!draggedCoachNo) return;
-      
-      const coach = allData.find(d => d.coach_no === draggedCoachNo);
-      if (!coach || coach.status === newStatus) {
-        draggedCoachNo = null;
-        return;
-      }
-      
-      const oldStatus = coach.status;
-      
-      // 如果拖动到「上桌」状态，弹出桌号输入框
-      if (newStatus === '早班上桌' || newStatus === '晚班上桌') {
-        pendingDropStatus = newStatus;
-        pendingDropCoach = coach;
-        
-        document.getElementById('modalCoachInfo').value = `${coach.stage_name} (${coach.coach_no}号)`;
-        document.getElementById('modalTableNo').value = '';
-        document.getElementById('modalActionCategory').value = '普通课';
-        document.getElementById('tableNoModal').classList.add('show');
-        
-        draggedCoachNo = null;
-        // 聚焦输入框
-        setTimeout(() => document.getElementById('modalTableNo').focus(), 100);
-        return;
-      }
-      
-      // 非上桌状态：直接更新
-      await updateWaterBoardStatus(coach, oldStatus, newStatus, coach.table_no || null);
-    }
-    
     async function updateWaterBoardStatus(coach, oldStatus, newStatus, tableNo) {
       try {
         const res = await api(`/api/water-boards/${coach.coach_no}/status`, {
@@ -576,66 +475,6 @@
       } catch (err) {
         showToast('更新失败: ' + err.message);
       }
-    }
-    
-    function cancelTableNoModal() {
-      document.getElementById('tableNoModal').classList.remove('show');
-      pendingDropStatus = null;
-      pendingDropCoach = null;
-    }
-    
-    async function confirmTableNoModal() {
-      const tableNo = document.getElementById('modalTableNo').value.trim();
-      const actionCategory = document.getElementById('modalActionCategory').value;
-      
-      if (!tableNo) {
-        showToast('请输入台桌号');
-        document.getElementById('modalTableNo').focus();
-        return;
-      }
-      
-      const coach = pendingDropCoach;
-      if (!coach) return;
-      
-      const oldStatus = coach.status;
-      const newStatus = pendingDropStatus;
-      
-      document.getElementById('tableNoModal').classList.remove('show');
-      
-      // 先创建上下桌单记录
-      try {
-        const orderRes = await api('/api/table-action-orders', {
-          method: 'POST',
-          body: JSON.stringify({
-            coach_no: coach.coach_no,
-            stage_name: coach.stage_name,
-            table_no: tableNo,
-            order_type: '上桌单',
-            action_category: actionCategory,
-            status: '待处理'
-          })
-        });
-        
-        if (!orderRes.success) {
-          showToast('创建上桌单失败: ' + (orderRes.error || '未知错误'));
-          pendingDropStatus = null;
-          pendingDropCoach = null;
-          return;
-        }
-        
-        showToast(`上桌单已创建：${coach.stage_name} → ${tableNo}`);
-      } catch (err) {
-        showToast('创建上桌单失败: ' + err.message);
-        pendingDropStatus = null;
-        pendingDropCoach = null;
-        return;
-      }
-      
-      // 再更新水牌状态
-      await updateWaterBoardStatus(coach, oldStatus, newStatus, tableNo);
-      
-      pendingDropStatus = null;
-      pendingDropCoach = null;
     }
     
     function logout() {
