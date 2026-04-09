@@ -320,6 +320,32 @@
       return d.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
     }
 
+    // 检查时间是否在指定分钟数内
+    function isWithinMinutes(timeStr, minutes) {
+      if (!timeStr) return false;
+      const d = new Date(timeStr + ' UTC');
+      const now = new Date();
+      const diffMs = now - d;
+      return diffMs <= minutes * 60 * 1000;
+    }
+
+    // 检查订单是否超时（超过指定分钟数仍为待处理）
+    function isOrderTimeout(timeStr, minutes) {
+      if (!timeStr) return false;
+      const d = new Date(timeStr + ' UTC');
+      const now = new Date();
+      const diffMs = now - d;
+      return diffMs > minutes * 60 * 1000;
+    }
+
+    // 筛选函数：已完成/已取消只显示近2小时数据
+    function filterByTime(items, status) {
+      if (status === '已完成' || status === '已取消') {
+        return items.filter(o => isWithinMinutes(o.created_at, 120));
+      }
+      return items;
+    }
+
     function formatMoney(n) { return '¥' + (n || 0).toFixed(2); }
     
     function getStatusClass(status) {
@@ -446,11 +472,11 @@
         
         renderAll();
         
-        // 检查新订单（声音/警报）
-        const newPending = productOrders.filter(o => o.status === '待处理').length +
-                          serviceOrders.filter(o => o.status === '待处理').length +
-                          coachSessions.filter(o => o.status === '待处理').length;
-        if (newPending > 0 && alertEnabled) {
+        // 只对超时（超过15分钟）的待处理订单触发警报
+        const timedoutPending = productOrders.filter(o => o.status === '待处理' && isOrderTimeout(o.created_at, 15)).length +
+                          serviceOrders.filter(o => o.status === '待处理' && isOrderTimeout(o.created_at, 15)).length +
+                          coachSessions.filter(o => o.status === '待处理' && isOrderTimeout(o.created_at, 15)).length;
+        if (timedoutPending > 0 && alertEnabled) {
           playAlertSound();
         }
         
@@ -468,9 +494,9 @@
     }
 
     function updateCounts() {
-      const filteredProducts = productOrders.filter(o => o.status === filters.product);
-      const filteredServices = serviceOrders.filter(o => o.status === filters.service);
-      const filteredCoaches = coachSessions.filter(o => o.status === filters.coach);
+      const filteredProducts = filterByTime(productOrders.filter(o => o.status === filters.product), filters.product);
+      const filteredServices = filterByTime(serviceOrders.filter(o => o.status === filters.service), filters.service);
+      const filteredCoaches = filterByTime(coachSessions.filter(o => o.status === filters.coach), filters.coach);
       
       document.getElementById('productCount').textContent = filteredProducts.length + ' 单';
       document.getElementById('serviceCount').textContent = filteredServices.length + ' 单';
@@ -479,7 +505,7 @@
 
     function renderProductOrders() {
       const container = document.getElementById('productOrdersList');
-      const filtered = productOrders.filter(o => o.status === filters.product);
+      const filtered = filterByTime(productOrders.filter(o => o.status === filters.product), filters.product);
       
       if (filtered.length === 0) {
         container.innerHTML = '<div class="empty-state"><div class="icon">📦</div><div>暂无商品订单</div></div>';
@@ -488,7 +514,8 @@
       container.innerHTML = filtered.slice(0, 50).map(o => {
         const items = (o.items || []);
         const isPending = o.status === '待处理';
-        const alertClass = (isPending && alertEnabled) ? 'pending-alert' : '';
+        // 只对超时超过15分钟的待处理订单显示警报闪烁
+        const alertClass = (isPending && alertEnabled && isOrderTimeout(o.created_at, 15)) ? 'pending-alert' : '';
         return `
           <div class="product-order-card ${alertClass}">
             <div class="product-order-header">
@@ -521,7 +548,7 @@
 
     function renderServiceOrders() {
       const container = document.getElementById('serviceOrdersList');
-      const filtered = serviceOrders.filter(o => o.status === filters.service);
+      const filtered = filterByTime(serviceOrders.filter(o => o.status === filters.service), filters.service);
       
       if (filtered.length === 0) {
         container.innerHTML = '<div class="empty-state"><div class="icon">🎯</div><div>暂无服务订单</div></div>';
@@ -529,7 +556,8 @@
       }
       container.innerHTML = filtered.map(o => {
         const isPending = o.status === '待处理';
-        const alertClass = (isPending && alertEnabled) ? 'pending-alert' : '';
+        // 只对超时超过15分钟的待处理订单显示警报闪烁
+        const alertClass = (isPending && alertEnabled && isOrderTimeout(o.created_at, 15)) ? 'pending-alert' : '';
         return `
           <div class="service-order-card ${alertClass}">
             <div class="service-order-header">
@@ -550,7 +578,7 @@
 
     function renderCoachSessions() {
       const container = document.getElementById('coachSessionsList');
-      const filtered = coachSessions.filter(o => o.status === filters.coach);
+      const filtered = filterByTime(coachSessions.filter(o => o.status === filters.coach), filters.coach);
       
       if (filtered.length === 0) {
         container.innerHTML = '<div class="empty-state"><div class="icon">👩‍🏫</div><div>暂无上下桌单</div></div>';
@@ -558,7 +586,8 @@
       }
       container.innerHTML = filtered.map(s => {
         const isPending = s.status === '待处理';
-        const alertClass = (isPending && alertEnabled) ? 'pending-alert' : '';
+        // 只对超时超过15分钟的待处理订单显示警报闪烁
+        const alertClass = (isPending && alertEnabled && isOrderTimeout(s.created_at, 15)) ? 'pending-alert' : '';
         return `
           <div class="coach-session-card ${alertClass}">
             <div class="coach-session-header">

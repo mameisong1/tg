@@ -1,9 +1,9 @@
-// 后台导航控制脚本 v6
+// 后台导航控制脚本 v7
 // 根据用户角色过滤菜单和页面访问权限
 // 权限矩阵:
 //   管理员/店长/助教管理 → 全部菜单
 //   前厅管理 → 收银看板、商品管理、包房管理
-//   收银 → 收银看板、商品管理
+//   收银 → 收银看板
 //   教练 → 水牌管理(只读)
 //   服务员 → 禁止后台访问
 
@@ -75,7 +75,7 @@
         '店长': 'all',
         '助教管理': 'all',
         '前厅管理': ['cashier-dashboard.html', 'products.html', 'vip-rooms.html'],
-        '收银': ['cashier-dashboard.html', 'products.html'],
+        '收银': ['cashier-dashboard.html'],
         '教练': ['water-boards.html']
       };
       

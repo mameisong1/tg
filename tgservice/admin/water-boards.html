@@ -87,6 +87,19 @@
     .status-section[data-status="下班"] .section-title { color: #bdc3c7; }
 
     .empty-section { text-align: center; padding: 16px; color: rgba(255,255,255,0.15); font-size: 12px; }
+
+    /* 桌号输入弹窗 */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-overlay.show { display: flex; }
+    .modal-box { background: rgba(20,20,30,0.95); border-radius: 16px; padding: 24px; width: 90%; max-width: 380px; border: 1px solid rgba(218,165,32,0.3); }
+    .modal-box-title { font-size: 18px; color: #d4af37; margin-bottom: 16px; }
+    .modal-box-form { display: flex; flex-direction: column; gap: 12px; }
+    .modal-box-form label { font-size: 13px; color: rgba(255,255,255,0.6); }
+    .modal-box-form input, .modal-box-form select { padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; }
+    .modal-box-actions { display: flex; gap: 12px; margin-top: 20px; }
+    .modal-box-actions .btn { flex: 1; padding: 12px; border-radius: 8px; font-size: 14px; cursor: pointer; border: none; }
+    .btn-cancel { background: rgba(255,255,255,0.1); color: #fff; }
+    .btn-confirm { background: linear-gradient(135deg, #d4af37 0%, #ffd700 100%); color: #000; }
   </style>
 </head>
 <body>
@@ -166,6 +179,28 @@
   </div>
   
   <div class="toast" id="toast"></div>
+  
+  <!-- 桌号输入弹窗 -->
+  <div class="modal-overlay" id="tableNoModal">
+    <div class="modal-box">
+      <div class="modal-box-title">🎱 输入台桌号</div>
+      <div class="modal-box-form">
+        <label>助教信息</label>
+        <input type="text" id="modalCoachInfo" readonly style="opacity:0.6">
+        <label>上桌类型</label>
+        <select id="modalActionCategory">
+          <option value="普通课">普通课</option>
+          <option value="标签课">标签课</option>
+        </select>
+        <label>台桌号</label>
+        <input type="text" id="modalTableNo" placeholder="请输入台桌号，如：A01">
+      </div>
+      <div class="modal-box-actions">
+        <button class="btn btn-cancel" onclick="cancelTableNoModal()">取消</button>
+        <button class="btn btn-confirm" onclick="confirmTableNoModal()">确认上桌</button>
+      </div>
+    </div>
+  </div>
   
   <script>
     const token = localStorage.getItem('adminToken');
@@ -254,6 +289,10 @@
     // ===== 拖放功能 =====
     let draggedCoachNo = null;
     
+    // 上桌弹窗相关变量
+    let pendingDropStatus = null;
+    let pendingDropCoach = null;
+    
     function handleDragStart(e, coachNo) {
       draggedCoachNo = coachNo;
       e.target.classList.add('dragging');
@@ -289,24 +328,102 @@
       
       const oldStatus = coach.status;
       
+      // 如果拖动到「上桌」状态，弹出桌号输入框
+      if (newStatus === '早班上桌' || newStatus === '晚班上桌') {
+        pendingDropStatus = newStatus;
+        pendingDropCoach = coach;
+        
+        document.getElementById('modalCoachInfo').value = `${coach.stage_name} (${coach.coach_no}号)`;
+        document.getElementById('modalTableNo').value = '';
+        document.getElementById('modalActionCategory').value = '普通课';
+        document.getElementById('tableNoModal').classList.add('show');
+        
+        draggedCoachNo = null;
+        // 聚焦输入框
+        setTimeout(() => document.getElementById('modalTableNo').focus(), 100);
+        return;
+      }
+      
+      // 非上桌状态：直接更新
+      await updateWaterBoardStatus(coach, oldStatus, newStatus, coach.table_no || null);
+    }
+    
+    async function updateWaterBoardStatus(coach, oldStatus, newStatus, tableNo) {
       try {
-        const res = await api(`/api/water-boards/${draggedCoachNo}/status`, {
+        const res = await api(`/api/water-boards/${coach.coach_no}/status`, {
           method: 'PUT',
-          body: JSON.stringify({ status: newStatus, table_no: coach.table_no || null })
+          body: JSON.stringify({ status: newStatus, table_no: tableNo })
         });
         
         if (res.success) {
           showToast(`${coach.stage_name}: ${oldStatus} → ${newStatus}`);
-          draggedCoachNo = null;
           refreshData();
         } else {
           showToast(res.error || '更新失败');
-          draggedCoachNo = null;
         }
       } catch (err) {
         showToast('更新失败: ' + err.message);
-        draggedCoachNo = null;
       }
+    }
+    
+    function cancelTableNoModal() {
+      document.getElementById('tableNoModal').classList.remove('show');
+      pendingDropStatus = null;
+      pendingDropCoach = null;
+    }
+    
+    async function confirmTableNoModal() {
+      const tableNo = document.getElementById('modalTableNo').value.trim();
+      const actionCategory = document.getElementById('modalActionCategory').value;
+      
+      if (!tableNo) {
+        showToast('请输入台桌号');
+        document.getElementById('modalTableNo').focus();
+        return;
+      }
+      
+      const coach = pendingDropCoach;
+      if (!coach) return;
+      
+      const oldStatus = coach.status;
+      const newStatus = pendingDropStatus;
+      
+      document.getElementById('tableNoModal').classList.remove('show');
+      
+      // 先创建上下桌单记录
+      try {
+        const orderRes = await api('/api/table-action-orders', {
+          method: 'POST',
+          body: JSON.stringify({
+            coach_no: coach.coach_no,
+            stage_name: coach.stage_name,
+            table_no: tableNo,
+            order_type: '上桌单',
+            action_category: actionCategory,
+            status: '待处理'
+          })
+        });
+        
+        if (!orderRes.success) {
+          showToast('创建上桌单失败: ' + (orderRes.error || '未知错误'));
+          pendingDropStatus = null;
+          pendingDropCoach = null;
+          return;
+        }
+        
+        showToast(`上桌单已创建：${coach.stage_name} → ${tableNo}`);
+      } catch (err) {
+        showToast('创建上桌单失败: ' + err.message);
+        pendingDropStatus = null;
+        pendingDropCoach = null;
+        return;
+      }
+      
+      // 再更新水牌状态
+      await updateWaterBoardStatus(coach, oldStatus, newStatus, tableNo);
+      
+      pendingDropStatus = null;
+      pendingDropCoach = null;
     }
     
     function logout() {
