@@ -184,12 +184,9 @@
     <div id="batchShiftView" style="display:none">
       <div class="page-header">
         <div class="page-title">批量更新班次</div>
-        <div style="display:flex;gap:12px">
-          <button class="btn btn-sm" style="background:rgba(255,255,255,0.1);color:#fff" onclick="expandAllShifts()">全部展开</button>
-          <button class="btn btn-primary" onclick="saveAllShifts()">💾 全部保存</button>
-        </div>
+        <button class="btn btn-sm" style="background:rgba(255,255,255,0.1);color:#fff" onclick="expandAllShifts()">全部展开</button>
       </div>
-      <p style="color:rgba(255,255,255,0.5);margin-bottom:20px">为每位助教选择班次，修改后点击「全部保存」生效</p>
+      <p style="color:rgba(255,255,255,0.5);margin-bottom:20px">为每位助教选择班次，修改后自动保存</p>
       <div class="batch-shift-grid" id="batchShiftGrid"></div>
     </div>
 
@@ -459,7 +456,7 @@
     }
 
     // ===== 批量修改班次 =====
-    let shiftChanges = {};
+    const savingShifts = {}; // 记录正在保存中的教练号，防止重复提交
 
     function checkHash() {
       const hash = window.location.hash;
@@ -517,14 +514,59 @@
       }).join('');
     }
 
-    function onShiftChange(coachNo, newShift) {
-      shiftChanges[coachNo] = newShift;
+    async function onShiftChange(coachNo, newShift) {
       // 更新单选按钮的选中样式
       const group = document.querySelector(`.shift-radio-group[data-coach-no="${coachNo}"]`);
       if (group) {
         group.querySelectorAll('.shift-radio-label').forEach(label => {
           label.classList.toggle('selected', label.dataset.shift === newShift);
         });
+      }
+      // 防止重复提交
+      if (savingShifts[coachNo]) return;
+      savingShifts[coachNo] = true;
+      const indicator = document.getElementById(`save-indicator-${coachNo}`);
+      if (indicator) {
+        indicator.textContent = '⏳ 保存中...';
+        indicator.style.color = '#f1c40f';
+        indicator.classList.add('show');
+      }
+      try {
+        await api(`/api/admin/coaches/${coachNo}`, {
+          method: 'PUT',
+          body: JSON.stringify({ shift: newShift })
+        });
+        if (indicator) {
+          indicator.textContent = '✓ 已保存';
+          indicator.style.color = 'rgba(46,204,113,0.7)';
+          indicator.classList.add('show');
+          // 2秒后隐藏提示
+          setTimeout(() => indicator.classList.remove('show'), 2000);
+        }
+        showToast(`${newShift}已保存`);
+        // 更新本地数据
+        const coach = coaches.find(c => c.coach_no == coachNo);
+        if (coach) coach.shift = newShift;
+      } catch (err) {
+        if (indicator) {
+          indicator.textContent = '✗ 保存失败';
+          indicator.style.color = '#e74c3c';
+          indicator.classList.add('show');
+        }
+        showToast('保存失败，请重试');
+        // 恢复单选按钮到原值
+        const coach = coaches.find(c => c.coach_no == coachNo);
+        if (coach) {
+          const origShift = coach.shift || '早班';
+          group.querySelectorAll('input[type="radio"]').forEach(radio => {
+            radio.checked = radio.value === origShift;
+          });
+          group.querySelectorAll('.shift-radio-label').forEach(label => {
+            label.classList.toggle('selected', label.dataset.shift === origShift);
+          });
+        }
+      } finally {
+        savingShifts[coachNo] = false;
       }
     }
 
@@ -536,59 +578,9 @@
       }
     });
 
-    async function saveAllShifts() {
-      const keys = Object.keys(shiftChanges);
-      if (keys.length === 0) {
-        showToast('没有需要保存的修改');
-        return;
-      }
-      let successCount = 0;
-      let failCount = 0;
-      for (const coachNo of keys) {
-        try {
-          await api(`/api/admin/coaches/${coachNo}`, {
-            method: 'PUT',
-            body: JSON.stringify({ shift: shiftChanges[coachNo] })
-          });
-          successCount++;
-          const indicator = document.getElementById(`save-indicator-${coachNo}`);
-          if (indicator) {
-            indicator.textContent = '✓ 已保存';
-            indicator.classList.add('show');
-          }
-          // 恢复单选按钮样式
-          const group = document.querySelector(`.shift-radio-group[data-coach-no="${coachNo}"]`);
-          if (group) {
-            group.querySelectorAll('.shift-radio-label').forEach(label => {
-              // 保持选中项高亮，不重置
-            });
-          }
-        } catch (err) {
-          failCount++;
-          const indicator = document.getElementById(`save-indicator-${coachNo}`);
-          if (indicator) {
-            indicator.textContent = '✗ 失败';
-            indicator.style.color = '#e74c3c';
-            indicator.classList.add('show');
-          }
-        }
-      }
-      shiftChanges = {};
-      showToast(`保存完成：成功 ${successCount} 个，失败 ${failCount} 个`);
-      // 重新加载数据
-      await loadCoaches();
-      renderBatchShift();
-    }
-
     function expandAllShifts() {
-      // 滚动到第一个有修改的助教卡片
-      const modifiedKeys = Object.keys(shiftChanges);
-      if (modifiedKeys.length > 0) {
-        const firstCard = document.querySelector(`.batch-shift-card[data-coach-no="${modifiedKeys[0]}"]`);
-        if (firstCard) {
-          firstCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }
+      // 滚动到顶部
+      document.getElementById('batchShiftGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     // 监听 hash 变化
