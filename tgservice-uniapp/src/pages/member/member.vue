@@ -808,7 +808,6 @@ const CHECK_COOLDOWN = 10 * 60 * 1000 // 10分钟
 const checkAutoLogin = async () => {
   const now = Date.now()
   if (now - lastCheckTime < CHECK_COOLDOWN) return // 冷却期内跳过
-  lastCheckTime = now
 
   const token = uni.getStorageSync('memberToken')
   if (token) {
@@ -816,6 +815,9 @@ const checkAutoLogin = async () => {
     try {
       const profile = await api.getMemberProfile()
       memberInfo.value = profile
+      
+      // ✅ 自动登录成功才设置冷却时间
+      lastCheckTime = Date.now()
       
       // 如果匹配后台用户，自动实现内部员工登录
       if (profile.adminInfo) {
@@ -845,7 +847,7 @@ const checkAutoLogin = async () => {
         // 自动填充上次手机号
         autoFillPhone()
       }
-      // 其他错误：静默忽略，保留用户状态
+      // 其他错误：静默忽略，不设置冷却时间，下次立即重试
     }
   } else {
     // 无token，先清空会员和教练信息
