@@ -13,7 +13,7 @@
     <view class="form-section">
       <view class="form-item">
         <text class="form-label">备注</text>
-        <textarea class="textarea" v-model="form.remark" placeholder="如通宵加班后申请公休" maxlength="200"></textarea>
+        <input class="input" v-model="form.remark" placeholder="如通宵加班后申请公休" maxlength="200" />
       </view>
       <view class="form-item">
         <text class="form-label">加班截图证明</text>
@@ -27,6 +27,9 @@
       </view>
       <view class="submit-btn" :class="{ disabled: !canSubmit }" @click="submitApply"><text>提交公休申请</text></view>
     </view>
+
+    <!-- 成功弹窗 -->
+    <SuccessModal :visible="showSuccess" title="提交成功" content="公休申请已提交，请等待审批" @confirm="handleSuccessConfirm" />
   </view>
 </template>
 
@@ -34,9 +37,11 @@
 import { ref, computed, onMounted } from 'vue'
 import api from '@/utils/api-v2.js'
 import apiCommon from '@/utils/api.js'
+import SuccessModal from '@/components/SuccessModal.vue'
 
 const statusBarHeight = ref(0)
 const coachInfo = ref({})
+const showSuccess = ref(false)
 const form = ref({ remark: '', proof_image_url: '' })
 
 onMounted(() => {
@@ -53,7 +58,6 @@ const uploadImage = async () => {
       success: async (res) => {
         uni.showLoading({ title: '上传中...' })
         try {
-          // 使用后端代理上传接口（解决OSS PUT方法不兼容问题）
           const uploadRes = await apiCommon.uploadImageToOSS(res.tempFilePaths[0], 'image')
           if (uploadRes && uploadRes.url) {
             form.value.proof_image_url = uploadRes.url
@@ -80,9 +84,15 @@ const submitApply = async () => {
     uni.showLoading({ title: '提交中...' })
     await api.applications.create({ applicant_phone: phone, application_type: '公休申请', remark: form.value.remark, proof_image_url: form.value.proof_image_url })
     uni.hideLoading()
-    uni.showToast({ title: '申请已提交', icon: 'success' })
-    form.value.remark = ''; form.value.proof_image_url = ''
+    form.value.remark = ''
+    form.value.proof_image_url = ''
+    showSuccess.value = true
   } catch (e) { uni.hideLoading(); uni.showToast({ title: e.error || '提交失败', icon: 'none' }) }
+}
+
+const handleSuccessConfirm = () => {
+  showSuccess.value = false
+  uni.switchTab({ url: '/pages/member/member' })
 }
 
 const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { uni.navigateBack() } else { uni.switchTab({ url: '/pages/member/member' }) } }
@@ -101,7 +111,7 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .form-section { margin: 16px; }
 .form-item { margin-bottom: 24px; }
 .form-label { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 8px; display: block; }
-.textarea { width: 100%; min-height: 80px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 12px; font-size: 14px; color: #fff; box-sizing: border-box; }
+.input { width: 100%; height: 48px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 0 12px; font-size: 14px; color: #fff; box-sizing: border-box; }
 .upload-area { width: 120px; height: 120px; background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .upload-img { width: 100%; height: 100%; }
 .upload-placeholder { text-align: center; }

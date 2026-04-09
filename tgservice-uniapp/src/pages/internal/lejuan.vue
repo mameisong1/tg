@@ -31,19 +31,24 @@
       </view>
       <view class="form-item">
         <text class="form-label">备注</text>
-        <textarea class="textarea" v-model="form.remark" placeholder="请输入备注（如和客人外出）" maxlength="200"></textarea>
+        <input class="input" v-model="form.remark" placeholder="请输入备注（如和客人外出）" maxlength="200" />
       </view>
       <view class="submit-btn" :class="{ disabled: !canSubmit }" @click="submitLejuan"><text>提交乐捐报备</text></view>
     </view>
+
+    <!-- 成功弹窗 -->
+    <SuccessModal :visible="showSuccess" title="提交成功" content="乐捐报备已提交" @confirm="handleSuccessConfirm" />
   </view>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import api from '@/utils/api-v2.js'
+import SuccessModal from '@/components/SuccessModal.vue'
 
 const statusBarHeight = ref(0)
 const coachInfo = ref({})
+const showSuccess = ref(false)
 const hourOptions = [1, 2, 3, 4, 5, 6, 7, 8]
 
 const today = new Date().toISOString().split('T')[0]
@@ -72,13 +77,18 @@ const submitLejuan = async () => {
       extra_data: { date: form.value.date, hours: form.value.hours }
     })
     uni.hideLoading()
-    uni.showToast({ title: '报备成功', icon: 'success' })
     form.value.remark = ''
     form.value.hours = null
+    showSuccess.value = true
   } catch (e) {
     uni.hideLoading()
     uni.showToast({ title: e.error || '提交失败', icon: 'none' })
   }
+}
+
+const handleSuccessConfirm = () => {
+  showSuccess.value = false
+  uni.switchTab({ url: '/pages/member/member' })
 }
 
 const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { uni.navigateBack() } else { uni.switchTab({ url: '/pages/member/member' }) } }
@@ -101,7 +111,7 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .picker-value { display: flex; justify-content: space-between; align-items: center; height: 48px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 0 16px; }
 .picker-value .placeholder { color: rgba(255,255,255,0.3); }
 .arrow { font-size: 18px; color: rgba(255,255,255,0.3); }
-.textarea { width: 100%; min-height: 80px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 12px; font-size: 14px; color: #fff; box-sizing: border-box; }
+.input { width: 100%; height: 48px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 0 12px; font-size: 14px; color: #fff; box-sizing: border-box; }
 
 .submit-btn { height: 50px; background: linear-gradient(135deg, #d4af37, #ffd700); border-radius: 25px; display: flex; align-items: center; justify-content: center; margin-top: 30px; }
 .submit-btn text { font-size: 16px; font-weight: 600; color: #000; }
