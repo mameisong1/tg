@@ -38,32 +38,35 @@
     .toast.show { display: block; }
 
     /* 状态分段 */
-    .status-section { margin-bottom: 24px; border: 2px solid rgba(218,165,32,0.15); border-radius: 16px; padding: 16px; min-height: 80px; transition: border-color 0.3s, background 0.3s; }
+    .status-section { display: flex; gap: 12px; margin-bottom: 12px; border: 2px solid rgba(218,165,32,0.15); border-radius: 12px; padding: 10px; min-height: 60px; transition: border-color 0.3s, background 0.3s; }
     .status-section.drag-over { border-color: #d4af37; background: rgba(212,175,55,0.08); }
-    .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); }
-    .section-title { font-size: 16px; font-weight: 600; color: #d4af37; cursor: pointer; }
+    .section-header { display: flex; flex-direction: column; justify-content: center; align-items: center; min-width: 70px; padding-right: 12px; border-right: 1px solid rgba(255,255,255,0.1); gap: 4px; }
+    .section-title { font-size: 13px; font-weight: 600; color: #d4af37; cursor: pointer; white-space: nowrap; }
     .section-title:hover { text-decoration: underline; }
-    .section-count { font-size: 13px; color: rgba(255,255,255,0.4); }
+    .section-expand-icon { font-size: 11px; color: rgba(255,255,255,0.3); cursor: pointer; }
+    .section-expand-icon:hover { color: #d4af37; }
+    .section-count { font-size: 11px; color: rgba(255,255,255,0.4); }
+    .section-content { flex: 1; }
 
     /* 助教圆形卡片 */
-    .coach-chips { display: flex; flex-wrap: wrap; gap: 10px; max-height: 120px; overflow: hidden; }
+    .coach-chips { display: flex; flex-wrap: wrap; gap: 10px; max-height: 65px; overflow: hidden; align-items: flex-start; }
     /* 早班空闲和晚班空闲显示两行 */
     .status-section[data-status="早班空闲"] .coach-chips,
-    .status-section[data-status="晚班空闲"] .coach-chips { max-height: 250px; }
+    .status-section[data-status="晚班空闲"] .coach-chips { max-height: 145px; }
     .coach-chip {
-      display: flex; flex-direction: column; align-items: center; width: 100px; padding: 10px 6px;
+      display: flex; flex-direction: column; align-items: center; width: 70px; padding: 6px 4px;
       background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.15);
       border-radius: 50%; cursor: grab; transition: transform 0.2s, box-shadow 0.2s; user-select: none;
     }
     .coach-chip:hover { transform: scale(1.08); box-shadow: 0 0 15px rgba(212,175,55,0.3); }
     .coach-chip.dragging { opacity: 0.5; transform: scale(0.95); }
     .coach-chip-avatar {
-      width: 56px; height: 56px; border-radius: 50%; object-fit: cover;
-      border: 2px solid rgba(218,165,32,0.3); margin-bottom: 6px;
+      width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
+      border: 2px solid rgba(218,165,32,0.3); margin-bottom: 4px;
     }
-    .coach-chip-id { font-size: 11px; color: #d4af37; font-weight: 600; }
-    .coach-chip-name { font-size: 11px; color: rgba(255,255,255,0.7); text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90px; }
-    .coach-chip-table { font-size: 10px; color: rgba(255,255,255,0.3); }
+    .coach-chip-id { font-size: 9px; color: #d4af37; font-weight: 600; }
+    .coach-chip-name { font-size: 9px; color: rgba(255,255,255,0.7); text-align: center; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 65px; }
+    .coach-chip-table { font-size: 8px; color: rgba(255,255,255,0.3); }
 
     /* 状态颜色 */
     .status-section[data-status="早班上桌"] { border-color: rgba(52,152,219,0.3); }
@@ -123,6 +126,11 @@
     .section-expand-title { font-size: 18px; font-weight: 600; }
     .section-expand-count { font-size: 13px; color: rgba(255,255,255,0.4); }
     .section-expand-box .coach-chips { max-height: none; }
+    .section-expand-box .coach-chip { width: 100px; padding: 10px 6px; }
+    .section-expand-box .coach-chip-avatar { width: 56px; height: 56px; margin-bottom: 6px; }
+    .section-expand-box .coach-chip-id { font-size: 11px; }
+    .section-expand-box .coach-chip-name { font-size: 11px; max-width: 90px; }
+    .section-expand-box .coach-chip-table { font-size: 10px; }
   </style>
 </head>
 <body>
@@ -334,27 +342,30 @@
                ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event, '${status}')">
             <div class="section-header">
               <span class="section-title">${status}</span>
-              <span class="section-count">${coaches.length}人</span>
+              <span class="section-expand-icon">⛶</span>
+              <span class="section-count">${coaches.length}</span>
             </div>
-            <div class="coach-chips">
-              ${coaches.length === 0 ? '<div class="empty-section">暂无</div>' :
-                coaches.map(c => {
-                  const eid = c.employee_id || c.coach_no;
-                  const avatar = (c.photos && c.photos.length > 0) ? c.photos[0] : '/static/avatar-default.png';
-                  return `
-                  <div class="coach-chip" draggable="true" data-coach-no="${c.coach_no}"
-                       ondragstart="handleDragStart(event, '${c.coach_no}')" ondragend="handleDragEnd(event)"
-                       ontouchstart="handleLongPressStart(event, '${c.coach_no}')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)"
-                       onmousedown="handleLongPressStart(event, '${c.coach_no}')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)"
-                       oncontextmenu="return false">
-                    <img class="coach-chip-avatar" src="${avatar}" 
-                         onerror="this.src='/static/avatar-default.png'">
-                    <span class="coach-chip-id">工号${eid}</span>
-                    <span class="coach-chip-name">${c.stage_name}</span>
-                    ${c.table_no ? `<span class="coach-chip-table">${c.table_no}</span>` : ''}
-                  </div>
-                `}).join('')
-              }
+            <div class="section-content">
+              <div class="coach-chips">
+                ${coaches.length === 0 ? '<div class="empty-section">暂无</div>' :
+                  coaches.map(c => {
+                    const eid = c.employee_id || c.coach_no;
+                    const avatar = (c.photos && c.photos.length > 0) ? c.photos[0] : '/static/avatar-default.png';
+                    return `
+                    <div class="coach-chip" draggable="true" data-coach-no="${c.coach_no}"
+                         ondragstart="handleDragStart(event, '${c.coach_no}')" ondragend="handleDragEnd(event)"
+                         ontouchstart="handleLongPressStart(event, '${c.coach_no}')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)"
+                         onmousedown="handleLongPressStart(event, '${c.coach_no}')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)"
+                         oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="${avatar}" 
+                           onerror="this.src='/static/avatar-default.png'">
+                      <span class="coach-chip-id">工号${eid}</span>
+                      <span class="coach-chip-name">${c.stage_name}</span>
+                      ${c.table_no ? `<span class="coach-chip-table">${c.table_no}</span>` : ''}
+                    </div>
+                  `}).join('')
+                }
+              </div>
             </div>
           </div>
         `;
