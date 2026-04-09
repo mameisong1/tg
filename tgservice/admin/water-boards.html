@@ -392,19 +392,43 @@
     }
     
     // ===== 状态修改弹窗 =====
+    // 简化状态按钮列表（上桌/空闲/加班根据班次自动判断）
+    const SIMPLE_STATUS_LIST = ['上桌', '空闲', '加班', '休息', '公休', '请假', '乐捐', '下班'];
+    
+    // 根据班次和简化状态获取实际状态
+    function getActualStatus(simpleStatus, shift) {
+      const shiftPrefix = shift === '晚班' ? '晚班' : '早班';
+      switch (simpleStatus) {
+        case '上桌': return shiftPrefix + '上桌';
+        case '空闲': return shiftPrefix + '空闲';
+        case '加班': return shiftPrefix === '早班' ? '早加班' : '晚加班';
+        default: return simpleStatus;
+      }
+    }
+    
+    // 获取当前助教的简化状态显示名
+    function getSimpleStatusDisplay(actualStatus) {
+      if (actualStatus === '早班上桌' || actualStatus === '晚班上桌') return '上桌';
+      if (actualStatus === '早班空闲' || actualStatus === '晚班空闲') return '空闲';
+      if (actualStatus === '早加班' || actualStatus === '晚加班') return '加班';
+      return actualStatus;
+    }
+    
     function showStatusChangeModal(coachNo) {
       currentCoachNo = coachNo;
       const coach = allData.find(c => c.coach_no === coachNo);
       if (!coach) return;
       
       const eid = coach.employee_id || coach.coach_no;
+      const shift = coach.shift || '早班';
       document.getElementById('statusChangeCoachInfo').textContent = 
-        `工号${eid} - ${coach.stage_name}`;
+        `工号${eid} - ${coach.stage_name} (${shift})`;
       
-      // 生成状态按钮
+      // 生成简化状态按钮
+      const currentSimpleStatus = getSimpleStatusDisplay(coach.status);
       const grid = document.getElementById('statusChangeGrid');
-      grid.innerHTML = STATUS_LIST.map(status => `
-        <button class="status-modal-btn ${coach.status === status ? 'current' : ''}"
+      grid.innerHTML = SIMPLE_STATUS_LIST.map(status => `
+        <button class="status-modal-btn ${currentSimpleStatus === status ? 'current' : ''}"
                 onclick="changeStatus('${status}')">${status}</button>
       `).join('');
       
@@ -416,20 +440,23 @@
       currentCoachNo = null;
     }
     
-    async function changeStatus(newStatus) {
+    async function changeStatus(simpleStatus) {
       if (!currentCoachNo) return;
       
       const coach = allData.find(c => c.coach_no === currentCoachNo);
       if (!coach) return;
       
+      // 根据班次获取实际状态
+      const actualStatus = getActualStatus(simpleStatus, coach.shift);
+      
       try {
         const res = await api(`/api/water-boards/${currentCoachNo}/status`, {
           method: 'PUT',
-          body: JSON.stringify({ status: newStatus, table_no: coach.table_no || null })
+          body: JSON.stringify({ status: actualStatus, table_no: coach.table_no || null })
         });
         
         if (res.success) {
-          showToast(`${coach.stage_name}: ${coach.status} → ${newStatus}`);
+          showToast(`${coach.stage_name}: ${coach.status} → ${actualStatus}`);
           closeStatusChangeModal();
           refreshData();
         } else {
