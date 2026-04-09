@@ -137,6 +137,41 @@ export default {
   // OSS签名
   getOSSSignature: (type = 'image', ext = 'jpg') => request({ url: `/oss/sts?type=${type}&ext=${ext}` }),
   
+  // 上传图片到OSS（通过后端代理，解决PUT方法不兼容问题）
+  uploadImageToOSS: (filePath, fileType = 'image') => {
+    return new Promise((resolve, reject) => {
+      const token = uni.getStorageSync('coachToken') || uni.getStorageSync('memberToken')
+      uni.uploadFile({
+        url: BASE_URL + '/oss/upload',
+        filePath: filePath,
+        name: 'file',
+        formData: { type: fileType },
+        header: {
+          'Authorization': token ? `Bearer ${token}` : ''
+        },
+        success: (res) => {
+          if (res.statusCode === 200) {
+            try {
+              const data = JSON.parse(res.data)
+              resolve(data)
+            } catch (e) {
+              reject({ error: '解析响应失败' })
+            }
+          } else {
+            try {
+              reject(JSON.parse(res.data))
+            } catch (e) {
+              reject({ error: '上传失败' })
+            }
+          }
+        },
+        fail: (err) => {
+          reject({ error: '网络请求失败' })
+        }
+      })
+    })
+  },
+  
   // 设备统计
   recordDeviceVisit: () => {
     const fp = getDeviceFingerprint()

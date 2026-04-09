@@ -89,24 +89,28 @@ const canSubmit = computed(() => form.value.invitation_image_url)
 
 const uploadImage = async () => {
   try {
-    const sigRes = await apiCommon.getOSSSignature('image', 'jpg')
-    if (!sigRes?.uploadUrl) return uni.showToast({ title: '获取上传地址失败', icon: 'none' })
     uni.chooseImage({
       count: 1, sizeType: ['compressed'], sourceType: ['album', 'camera'],
       success: async (res) => {
         uni.showLoading({ title: '上传中...' })
-        uni.uploadFile({
-          url: sigRes.uploadUrl, filePath: res.tempFilePaths[0], name: 'file',
-          success: () => {
-            form.value.invitation_image_url = sigRes.fileUrl
+        try {
+          // 使用后端代理上传接口（解决OSS PUT方法不兼容问题）
+          const uploadRes = await apiCommon.uploadImageToOSS(res.tempFilePaths[0], 'image')
+          if (uploadRes && uploadRes.url) {
+            form.value.invitation_image_url = uploadRes.url
             uni.hideLoading()
             uni.showToast({ title: '上传成功', icon: 'success' })
-          },
-          fail: () => { uni.hideLoading(); uni.showToast({ title: '上传失败', icon: 'none' }) }
-        })
+          } else {
+            uni.hideLoading()
+            uni.showToast({ title: uploadRes?.error || '上传失败', icon: 'none' })
+          }
+        } catch (e) {
+          uni.hideLoading()
+          uni.showToast({ title: e?.error || '上传失败', icon: 'none' })
+        }
       }
     })
-  } catch (e) { uni.showToast({ title: '获取上传地址失败', icon: 'none' }) }
+  } catch (e) { uni.showToast({ title: '选择图片失败', icon: 'none' }) }
 }
 
 const submitInvitation = async () => {

@@ -47,9 +47,29 @@ const run = (sql, params = []) => {
 
 /**
  * 开始事务
+ * 如果当前已有活跃事务（可能是前一个请求异常退出未清理），先回滚再开始新事务
  */
 const beginTransaction = async () => {
-  await run('BEGIN TRANSACTION');
+  // 尝试开始事务，如果失败说明可能有未清理的旧事务
+  try {
+    await run('BEGIN IMMEDIATE TRANSACTION');
+  } catch (err) {
+    if (err.message && err.message.includes('cannot start a transaction within a transaction')) {
+      // 有未清理的旧事务，先强制回滚
+      console.warn('检测到未清理的旧事务，尝试回滚...');
+      try {
+        await run('ROLLBACK');
+      } catch (rollbackErr) {
+        // 回滚失败也继续尝试开始新事务
+        console.warn('回滚旧事务失败:', rollbackErr.message);
+      }
+      // 重试开始事务
+      await run('BEGIN IMMEDIATE TRANSACTION');
+    } else {
+      throw err;
+    }
+  }
+  
   return {
     run: (sql, params = []) => {
       return new Promise((resolve, reject) => {
