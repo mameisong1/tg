@@ -2,7 +2,7 @@
   <view class="table-selector-mask" v-if="visible" @click="handleCancel">
     <view class="table-selector" @click.stop>
       <view class="selector-header">
-        <text class="selector-title">选择台桌</text>
+        <text class="selector-title">🎱 选择台桌</text>
         <text class="selector-close" @click="handleCancel">✕</text>
       </view>
       
@@ -21,17 +21,39 @@
       
       <!-- 台桌网格 -->
       <scroll-view class="table-grid-scroll" scroll-y>
-        <view class="table-grid">
-          <view
-            v-for="table in filteredTables"
-            :key="table.name"
-            class="table-btn"
-            :class="{ selected: selectedTable === table.name, unavailable: table.status === '占用' }"
-            @click="table.status !== '占用' && (selectedTable = table.name)"
-          >
-            <text>{{ table.name }}</text>
+        <!-- 分段显示（仅大厅区） -->
+        <template v-if="currentArea === '大厅' || currentArea === '普台区'">
+          <view v-for="(segment, idx) in hallSegments" :key="idx" class="segment-section">
+            <text class="segment-title">{{ segment.label }}</text>
+            <view class="table-grid">
+              <view
+                v-for="table in segment.tables"
+                :key="table.name"
+                class="table-btn"
+                :class="{ unavailable: table.status === '占用' }"
+                @click="selectTable(table)"
+              >
+                <text>{{ table.name }}</text>
+              </view>
+            </view>
           </view>
-        </view>
+        </template>
+        
+        <!-- 其他区域正常显示 -->
+        <template v-else>
+          <view class="table-grid">
+            <view
+              v-for="table in filteredTables"
+              :key="table.name"
+              class="table-btn"
+              :class="{ unavailable: table.status === '占用' }"
+              @click="selectTable(table)"
+            >
+              <text>{{ table.name }}</text>
+            </view>
+          </view>
+        </template>
+        
         <!-- 空状态 -->
         <view v-if="filteredTables.length === 0 && !loading" class="empty-state">
           <text>该区域暂无台桌</text>
@@ -42,13 +64,9 @@
         </view>
       </scroll-view>
       
-      <!-- 底部操作 -->
+      <!-- 底部提示 -->
       <view class="selector-footer">
-        <text class="selected-info">当前选中：{{ selectedTable || '未选择' }}</text>
-        <view class="footer-btns">
-          <view class="footer-btn cancel-btn" @click="handleCancel">取消</view>
-          <view class="footer-btn confirm-btn" :class="{ disabled: !selectedTable }" @click="handleConfirm">确认</view>
-        </view>
+        <text class="footer-hint">点击台桌号直接选择</text>
       </view>
     </view>
   </view>
@@ -59,13 +77,11 @@ import { ref, computed, watch } from 'vue'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
-  // 默认选中的台桌号（已上桌助教）
   defaultTable: { type: String, default: '' }
 })
 
 const emit = defineEmits(['confirm', 'cancel'])
 
-// 从数据库获取的台桌数据
 const allTables = ref([])
 const loading = ref(false)
 
@@ -75,11 +91,10 @@ const areas = computed(() => {
 })
 
 const currentArea = ref('')
-const selectedTable = ref(props.defaultTable || '')
 
 // 获取台桌列表
 async function fetchTables() {
-  if (allTables.value.length > 0) return // 已加载过则不重复请求
+  if (allTables.value.length > 0) return
   loading.value = true
   try {
     const baseUrl = import.meta.env.VITE_API_URL || 'https://tg.tiangong.club/api'
@@ -89,7 +104,6 @@ async function fetchTables() {
     })
     if (res.statusCode === 200 && Array.isArray(res.data)) {
       allTables.value = res.data
-      // 默认选中第一个区域
       if (areas.value.length > 0 && !currentArea.value) {
         currentArea.value = areas.value[0].value
       }
@@ -103,19 +117,14 @@ async function fetchTables() {
 
 watch(() => props.visible, (val) => {
   if (val) {
-    selectedTable.value = props.defaultTable || ''
     fetchTables()
-    // 如果有默认台桌，自动选中对应区域
     if (props.defaultTable && allTables.value.length > 0) {
       const found = allTables.value.find(t => t.name === props.defaultTable)
-      if (found) {
-        currentArea.value = found.area
-      }
+      if (found) currentArea.value = found.area
     }
   }
 })
 
-// 监听 areas 变化，自动设置当前区域
 watch(areas, (newAreas) => {
   if (newAreas.length > 0 && !currentArea.value) {
     currentArea.value = newAreas[0].value
@@ -123,12 +132,40 @@ watch(areas, (newAreas) => {
 }, { immediate: true })
 
 const filteredTables = computed(() => {
-  return allTables.value.filter(t => t.area === currentArea.value)
+  let tables = allTables.value.filter(t => t.area === currentArea.value)
+  // 按数字排序
+  return tables.sort((a, b) => {
+    const numA = parseInt(a.name.replace(/\D/g, '')) || 0
+    const numB = parseInt(b.name.replace(/\D/g, '')) || 0
+    return numA - numB
+  })
 })
 
-const handleConfirm = () => {
-  if (!selectedTable.value) return
-  emit('confirm', selectedTable.value)
+// 大厅区分段显示
+const hallSegments = computed(() => {
+  if (currentArea.value !== '大厅' && currentArea.value !== '普台区') return []
+  
+  const tables = filteredTables.value
+  const seg1 = [], seg2 = [], seg3 = []
+  
+  tables.forEach(t => {
+    const num = parseInt(t.name.replace(/\D/g, '')) || 0
+    if (num <= 11) seg1.push(t)
+    else if (num <= 21) seg2.push(t)
+    else seg3.push(t)
+  })
+  
+  const segments = []
+  if (seg1.length) segments.push({ label: '普台 1-11', tables: seg1 })
+  if (seg2.length) segments.push({ label: '普台 11-21', tables: seg2 })
+  if (seg3.length) segments.push({ label: '普台 21+', tables: seg3 })
+  return segments
+})
+
+// 选中台桌后立即关闭提交
+const selectTable = (table) => {
+  if (table.status === '占用') return
+  emit('confirm', table.name)
 }
 
 const handleCancel = () => {
@@ -143,7 +180,7 @@ const handleCancel = () => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.8);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -151,12 +188,13 @@ const handleCancel = () => {
 }
 
 .table-selector {
-  width: 90%;
+  width: 92%;
   max-width: 500px;
-  height: 70vh;
-  background: #1a1a24;
-  border-radius: 16px;
-  padding-bottom: env(safe-area-inset-bottom);
+  height: 75vh;
+  background: linear-gradient(180deg, #1a1a24 0%, #0d0d12 100%);
+  border: 2px solid #d4af37;
+  border-radius: 20px;
+  box-shadow: 0 0 40px rgba(212, 175, 55, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -166,44 +204,50 @@ const handleCancel = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 18px 24px;
+  background: linear-gradient(90deg, rgba(212, 175, 55, 0.15) 0%, rgba(212, 175, 55, 0.05) 100%);
+  border-bottom: 1px solid rgba(212, 175, 55, 0.3);
 }
 
 .selector-title {
-  font-size: 17px;
-  font-weight: 600;
+  font-size: 18px;
+  font-weight: 700;
   color: #d4af37;
+  letter-spacing: 2px;
 }
 
 .selector-close {
-  font-size: 20px;
+  font-size: 22px;
   color: rgba(255, 255, 255, 0.5);
-  padding: 4px 8px;
+  padding: 4px 10px;
 }
 
 /* 区域筛选 */
 .area-tabs {
   display: flex;
-  gap: 8px;
-  padding: 12px 20px;
+  gap: 10px;
+  padding: 14px 20px;
   overflow-x: auto;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 .area-tab {
-  padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 20px;
+  padding: 10px 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 25px;
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.6);
   white-space: nowrap;
+  transition: all 0.3s;
 }
 
 .area-tab.active {
-  background: rgba(212, 175, 55, 0.2);
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.3) 0%, rgba(255, 215, 0, 0.2) 100%);
   border-color: #d4af37;
   color: #d4af37;
+  font-weight: 600;
+  box-shadow: 0 2px 12px rgba(212, 175, 55, 0.2);
 }
 
 /* 台桌网格 */
@@ -213,88 +257,76 @@ const handleCancel = () => {
   padding: 0 20px;
 }
 
+.segment-section {
+  margin-bottom: 16px;
+}
+
+.segment-title {
+  font-size: 13px;
+  color: #d4af37;
+  font-weight: 600;
+  margin: 16px 0 10px;
+  display: block;
+  padding-left: 4px;
+  border-left: 3px solid #d4af37;
+  padding-left: 10px;
+}
+
 .table-grid {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  padding: 8px 0 16px;
+  padding: 4px 0 12px;
 }
 
 .table-btn {
   width: calc(25% - 8px);
-  min-width: 70px;
-  height: 44px;
-  background: rgba(255, 255, 255, 0.05);
+  min-width: 65px;
+  height: 48px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 14px;
   color: #fff;
+  transition: all 0.2s;
 }
 
-.table-btn.selected {
-  background: rgba(212, 175, 55, 0.3);
+.table-btn:active {
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.4) 0%, rgba(212, 175, 55, 0.2) 100%);
   border-color: #d4af37;
   color: #d4af37;
-  font-weight: 600;
+  transform: scale(0.95);
+  box-shadow: 0 0 15px rgba(212, 175, 55, 0.3);
 }
 
 .table-btn.unavailable {
-  opacity: 0.3;
-  background: rgba(255, 0, 0, 0.1);
-  border-color: rgba(255, 0, 0, 0.2);
+  opacity: 0.35;
+  background: rgba(231, 76, 60, 0.1);
+  border-color: rgba(231, 76, 60, 0.2);
+  color: rgba(255, 255, 255, 0.3);
 }
 
 .empty-state,
 .loading-state {
   text-align: center;
-  padding: 40px 20px;
+  padding: 50px 20px;
   color: rgba(255, 255, 255, 0.4);
   font-size: 14px;
 }
 
-/* 底部操作 */
+/* 底部提示 */
 .selector-footer {
-  padding: 12px 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 14px 20px;
+  background: rgba(0, 0, 0, 0.3);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  text-align: center;
 }
 
-.selected-info {
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.5);
-  margin-bottom: 12px;
-  display: block;
-}
-
-.footer-btns {
-  display: flex;
-  gap: 12px;
-}
-
-.footer-btn {
-  flex: 1;
-  height: 44px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 15px;
-}
-
-.cancel-btn {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
-
-.confirm-btn {
-  background: linear-gradient(135deg, #d4af37, #ffd700);
-  color: #000;
-  font-weight: 600;
-}
-
-.confirm-btn.disabled {
-  opacity: 0.5;
+.footer-hint {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
 }
 </style>
