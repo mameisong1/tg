@@ -95,8 +95,27 @@
     .batch-shift-card .coach-info { flex: 1; }
     .batch-shift-card .coach-name { font-size: 14px; font-weight: 500; }
     .batch-shift-card .coach-id { font-size: 11px; color: rgba(255,255,255,0.4); }
-    .batch-shift-card select { padding: 6px 10px; background: #1a1a24; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-size: 13px; margin-top: 6px; }
-    .batch-shift-card select option { background: #1a1a24; color: #fff; }
+    /* 批量班次 - 单选按钮样式 */
+    .shift-radio-group { display: flex; gap: 8px; margin-top: 6px; }
+    .shift-radio-group label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px;
+      color: rgba(255,255,255,0.6);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .shift-radio-group label.selected {
+      background: rgba(212,175,55,0.2);
+      border-color: #d4af37;
+      color: #d4af37;
+    }
+    .shift-radio-group input[type="radio"] { display: none; }
     .batch-shift-card .save-indicator { font-size: 11px; color: rgba(46,204,113,0.7); margin-top: 4px; display: none; }
     .batch-shift-card .save-indicator.show { display: block; }
 
@@ -275,6 +294,10 @@
       });
       renderLevelFilter();
       renderCoaches();
+      // 数据加载完成后，如果当前在批量班次视图，重新渲染
+      if (window.location.hash === '#batch-shift') {
+        renderBatchShift();
+      }
     }
     
     function renderLevelFilter() {
@@ -477,10 +500,16 @@
             <div class="batch-shift-info">
               <div class="batch-shift-name">${c.stage_name || '-'} (${c.employee_id || '-'}号)</div>
               <div class="batch-shift-id">编号: ${c.coach_no} | 等级: ${c.level || '初级'}</div>
-              <select class="batch-shift-select" data-coach-no="${c.coach_no}" onchange="onShiftChange(this)">
-                <option value="早班" ${currentShift === '早班' ? 'selected' : ''}>早班</option>
-                <option value="晚班" ${currentShift === '晚班' ? 'selected' : ''}>晚班</option>
-              </select>
+              <div class="shift-radio-group" data-coach-no="${c.coach_no}">
+                <label class="shift-radio-label ${currentShift === '早班' ? 'selected' : ''}" data-coach-no="${c.coach_no}" data-shift="早班">
+                  <input type="radio" name="shift-${c.coach_no}" value="早班" ${currentShift === '早班' ? 'checked' : ''}>
+                  ☀️ 早班
+                </label>
+                <label class="shift-radio-label ${currentShift === '晚班' ? 'selected' : ''}" data-coach-no="${c.coach_no}" data-shift="晚班">
+                  <input type="radio" name="shift-${c.coach_no}" value="晚班" ${currentShift === '晚班' ? 'checked' : ''}>
+                  🌙 晚班
+                </label>
+              </div>
               <div class="batch-shift-save" id="save-indicator-${c.coach_no}">✓ 已保存</div>
             </div>
           </div>
@@ -488,13 +517,24 @@
       }).join('');
     }
 
-    function onShiftChange(select) {
-      const coachNo = select.dataset.coachNo;
-      const newShift = select.value;
+    function onShiftChange(coachNo, newShift) {
       shiftChanges[coachNo] = newShift;
-      // 显示已修改标记
-      select.style.borderColor = '#d4af37';
+      // 更新单选按钮的选中样式
+      const group = document.querySelector(`.shift-radio-group[data-coach-no="${coachNo}"]`);
+      if (group) {
+        group.querySelectorAll('.shift-radio-label').forEach(label => {
+          label.classList.toggle('selected', label.dataset.shift === newShift);
+        });
+      }
     }
+
+    // 为单选按钮绑定事件（事件委托）
+    document.addEventListener('change', function(e) {
+      if (e.target.type === 'radio' && e.target.name && e.target.name.startsWith('shift-')) {
+        const coachNo = e.target.name.replace('shift-', '');
+        onShiftChange(coachNo, e.target.value);
+      }
+    });
 
     async function saveAllShifts() {
       const keys = Object.keys(shiftChanges);
@@ -516,8 +556,13 @@
             indicator.textContent = '✓ 已保存';
             indicator.classList.add('show');
           }
-          const select = document.querySelector(`.batch-shift-select[data-coach-no="${coachNo}"]`);
-          if (select) select.style.borderColor = 'rgba(255,255,255,0.15)';
+          // 恢复单选按钮样式
+          const group = document.querySelector(`.shift-radio-group[data-coach-no="${coachNo}"]`);
+          if (group) {
+            group.querySelectorAll('.shift-radio-label').forEach(label => {
+              // 保持选中项高亮，不重置
+            });
+          }
         } catch (err) {
           failCount++;
           const indicator = document.getElementById(`save-indicator-${coachNo}`);
@@ -536,10 +581,13 @@
     }
 
     function expandAllShifts() {
-      // 滚动到第一个需要修改的
-      const modified = document.querySelectorAll('.batch-shift-select[style*="border-color: rgb(212, 175, 55)"], .batch-shift-select[style*="border-color: #d4af37"]');
-      if (modified.length > 0) {
-        modified[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // 滚动到第一个有修改的助教卡片
+      const modifiedKeys = Object.keys(shiftChanges);
+      if (modifiedKeys.length > 0) {
+        const firstCard = document.querySelector(`.batch-shift-card[data-coach-no="${modifiedKeys[0]}"]`);
+        if (firstCard) {
+          firstCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       }
     }
 
