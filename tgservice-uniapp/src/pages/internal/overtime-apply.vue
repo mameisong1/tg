@@ -42,6 +42,11 @@ import apiCommon from '@/utils/api.js'
 const statusBarHeight = ref(0)
 const coachInfo = ref({})
 
+// 判断是否为测试环境
+const isTestEnv = import.meta.env.VITE_API_BASE_URL?.includes('tg.tiangong.club') || 
+                   import.meta.env.VITE_API_BASE_URL?.includes('localhost') ||
+                   window.location.hostname === 'tg.tiangong.club'
+
 const form = ref({ remark: '', proof_image_url: '' })
 
 onMounted(() => {
@@ -51,7 +56,11 @@ onMounted(() => {
 })
 
 const applicationType = computed(() => {
-  // 简化：根据当前时间判断早/晚加班
+  // 测试环境下从助教信息读取班次
+  if (isTestEnv && coachInfo.value.shift) {
+    return coachInfo.value.shift === '早班' ? '早加班申请' : '晚加班申请'
+  }
+  // 非测试环境根据时间判断
   const hour = new Date().getHours()
   return hour < 18 ? '早加班申请' : '晚加班申请'
 })
