@@ -60,7 +60,7 @@ const canSubmit = computed(() => form.value.date && form.value.hours)
 const submitLejuan = async () => {
   if (!canSubmit.value) return uni.showToast({ title: '请填写完整信息', icon: 'none' })
 
-  let phone = coachInfo.value.phone || coachInfo.value.employee_id
+  let phone = coachInfo.value.phone || coachInfo.value.employeeId
   if (!phone) return uni.showToast({ title: '未获取到手机号', icon: 'none' })
 
   try {

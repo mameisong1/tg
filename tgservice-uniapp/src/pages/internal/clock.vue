@@ -15,8 +15,8 @@
 
     <!-- 助教信息 -->
     <view class="coach-info-section">
-      <text class="coach-name">{{ coachInfo.stage_name }}</text>
-      <text class="coach-no">工号: {{ coachInfo.coach_no }}</text>
+      <text class="coach-name">{{ coachInfo.stageName }}</text>
+      <text class="coach-no">工号: {{ coachInfo.coachNo }}</text>
       <text class="coach-shift" v-if="waterBoard">当前班次: {{ waterBoard.shift }}</text>
     </view>
 
@@ -67,7 +67,7 @@ onMounted(() => {
 
 const loadWaterBoard = async () => {
   try {
-    const res = await api.waterBoards.getOne(coachInfo.value.coach_no)
+    const res = await api.waterBoards.getOne(coachInfo.value.coachNo)
     waterBoard.value = res.data
   } catch (e) {
     uni.showToast({ title: '获取状态失败', icon: 'none' })
@@ -97,7 +97,7 @@ const handleClockIn = async () => {
   if (!canClockIn.value) return
   try {
     uni.showLoading({ title: '上班中...' })
-    await api.coachesV2.clockIn(coachInfo.value.coach_no)
+    await api.coachesV2.clockIn(coachInfo.value.coachNo)
     uni.hideLoading()
     uni.showToast({ title: '上班成功', icon: 'success' })
     await loadWaterBoard()
@@ -116,7 +116,7 @@ const handleClockOut = async () => {
       if (res.confirm) {
         try {
           uni.showLoading({ title: '下班中...' })
-          await api.coachesV2.clockOut(coachInfo.value.coach_no)
+          await api.coachesV2.clockOut(coachInfo.value.coachNo)
           uni.hideLoading()
           uni.showToast({ title: '下班成功', icon: 'success' })
           await loadWaterBoard()

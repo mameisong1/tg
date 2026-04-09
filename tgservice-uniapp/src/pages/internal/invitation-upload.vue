@@ -118,7 +118,7 @@ const submitInvitation = async () => {
   try {
     uni.showLoading({ title: '提交中...' })
     await api.guestInvitations.create({
-      coach_no: coachInfo.value.coach_no,
+      coach_no: coachInfo.value.coachNo,
       date: today.value,
       shift: form.value.shift,
       invitation_image_url: form.value.invitation_image_url

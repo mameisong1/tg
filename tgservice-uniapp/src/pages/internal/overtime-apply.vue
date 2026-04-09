@@ -104,7 +104,7 @@ const submitApply = async () => {
   if (!canSubmit.value) return uni.showToast({ title: '请完成所有必填项', icon: 'none' })
 
   // 获取手机号
-  let phone = coachInfo.value.phone || coachInfo.value.employee_id
+  let phone = coachInfo.value.phone || coachInfo.value.employeeId
   if (!phone) return uni.showToast({ title: '未获取到手机号信息', icon: 'none' })
 
   try {

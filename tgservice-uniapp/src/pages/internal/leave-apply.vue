@@ -74,7 +74,7 @@ const uploadImage = async () => {
 
 const submitApply = async () => {
   if (!canSubmit.value) return uni.showToast({ title: '请完成所有必填项', icon: 'none' })
-  let phone = coachInfo.value.phone || coachInfo.value.employee_id
+  let phone = coachInfo.value.phone || coachInfo.value.employeeId
   if (!phone) return uni.showToast({ title: '未获取到手机号', icon: 'none' })
   try {
     uni.showLoading({ title: '提交中...' })

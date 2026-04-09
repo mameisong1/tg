@@ -101,7 +101,7 @@ onMounted(() => {
 
 const loadWaterBoard = async () => {
   try {
-    const res = await api.waterBoards.getOne(coachInfo.value.coach_no)
+    const res = await api.waterBoards.getOne(coachInfo.value.coachNo)
     waterBoard.value = res.data
   } catch (e) {}
 }
@@ -123,10 +123,10 @@ const submitTableIn = async () => {
     uni.showLoading({ title: '提交中...' })
     await api.tableActionOrders.create({
       table_no: form.value.table_no,
-      coach_no: coachInfo.value.coach_no,
+      coach_no: coachInfo.value.coachNo,
       order_type: '上桌单',
       action_category: form.value.action_category,
-      stage_name: coachInfo.value.stage_name
+      stage_name: coachInfo.value.stageName
     })
     uni.hideLoading()
     uni.showToast({ title: '上桌单已提交', icon: 'success' })
@@ -143,9 +143,9 @@ const submitTableOut = async () => {
     uni.showLoading({ title: '提交中...' })
     await api.tableActionOrders.create({
       table_no: waterBoard.value.table_no,
-      coach_no: coachInfo.value.coach_no,
+      coach_no: coachInfo.value.coachNo,
       order_type: '下桌单',
-      stage_name: coachInfo.value.stage_name
+      stage_name: coachInfo.value.stageName
     })
     uni.hideLoading()
     uni.showToast({ title: '下桌单已提交', icon: 'success' })
@@ -162,9 +162,9 @@ const submitTableCancel = async () => {
     uni.showLoading({ title: '提交中...' })
     await api.tableActionOrders.create({
       table_no: waterBoard.value.table_no,
-      coach_no: coachInfo.value.coach_no,
+      coach_no: coachInfo.value.coachNo,
       order_type: '取消单',
-      stage_name: coachInfo.value.stage_name
+      stage_name: coachInfo.value.stageName
     })
     uni.hideLoading()
     uni.showToast({ title: '取消单已提交', icon: 'success' })
