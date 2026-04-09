@@ -152,15 +152,111 @@
       </view>
     </view>
     
-    <!-- V2.0 内部专用入口 -->
-    <view class="internal-section" v-if="memberInfo.memberNo">
+    <!-- V2.0 内部专用（直接显示在「我的」页面，不再跳转内部首页） -->
+    <!-- 助教专用按钮 -->
+    <view class="internal-section" v-if="memberInfo.memberNo && isCoach">
+      <view class="section-header">
+        <text class="section-title">🔧 助教专用</text>
+      </view>
+      <view class="internal-btns">
+        <view class="internal-btn" @click="goCoachProfile">
+          <text class="internal-btn-icon">👤</text>
+          <text class="internal-btn-text">个人中心</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/clock')">
+          <text class="internal-btn-icon">⏰</text>
+          <text class="internal-btn-text">上下班</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/table-action')">
+          <text class="internal-btn-icon">🎱</text>
+          <text class="internal-btn-text">上桌/下桌</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/service-order')">
+          <text class="internal-btn-icon">🔔</text>
+          <text class="internal-btn-text">服务下单</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/overtime-apply')">
+          <text class="internal-btn-icon">📋</text>
+          <text class="internal-btn-text">加班申请</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/leave-apply')">
+          <text class="internal-btn-icon">🏖️</text>
+          <text class="internal-btn-text">公休申请</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/lejuan')">
+          <text class="internal-btn-icon">💰</text>
+          <text class="internal-btn-text">乐捐报备</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-upload')">
+          <text class="internal-btn-icon">📸</text>
+          <text class="internal-btn-text">约客上传</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 管理功能按钮 -->
+    <view class="internal-section" v-if="memberInfo.memberNo && isManager">
+      <view class="section-header">
+        <text class="section-title">🔧 管理功能</text>
+      </view>
+      <view class="internal-btns">
+        <view class="internal-btn" @click="navigateTo('/pages/internal/water-board')">
+          <text class="internal-btn-icon">📋</text>
+          <text class="internal-btn-text">水牌管理</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/overtime-approval')">
+          <text class="internal-btn-icon">✅</text>
+          <text class="internal-btn-text">加班审批</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/leave-approval')">
+          <text class="internal-btn-icon">🏖️</text>
+          <text class="internal-btn-text">公休审批</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/lejuan-list')">
+          <text class="internal-btn-icon">💰</text>
+          <text class="internal-btn-text">乐捐一览</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-review?shift=早班')">
+          <text class="internal-btn-icon">🌅</text>
+          <text class="internal-btn-text">早班约客</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-review?shift=晚班')">
+          <text class="internal-btn-icon">🌙</text>
+          <text class="internal-btn-text">晚班约客</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-stats?shift=早班')">
+          <text class="internal-btn-icon">📊</text>
+          <text class="internal-btn-text">早班统计</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-stats?shift=晚班')">
+          <text class="internal-btn-icon">📊</text>
+          <text class="internal-btn-text">晚班统计</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 教练只读水牌 -->
+    <view class="internal-section" v-if="memberInfo.memberNo && isCoachViewer">
+      <view class="section-header">
+        <text class="section-title">🔧 查看</text>
+      </view>
+      <view class="internal-btns">
+        <view class="internal-btn" @click="navigateTo('/pages/internal/water-board-view')">
+          <text class="internal-btn-icon">📋</text>
+          <text class="internal-btn-text">水牌查看</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 其他后台用户：常用功能 -->
+    <view class="internal-section" v-if="memberInfo.memberNo && isOtherAdmin">
       <view class="section-header">
         <text class="section-title">🔧 内部专用</text>
       </view>
       <view class="internal-btns">
-        <view class="internal-btn" @click="goInternalHome">
-          <text class="internal-btn-icon">🏠</text>
-          <text class="internal-btn-text">内部首页</text>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/service-order')">
+          <text class="internal-btn-icon">🔔</text>
+          <text class="internal-btn-text">服务下单</text>
         </view>
       </view>
     </view>
@@ -892,10 +988,49 @@ const goCoachProfile = () => {
   uni.navigateTo({ url: '/pages/coach-profile/coach-profile' })
 }
 
-// V2.0 内部专用导航（手机号登录时已自动匹配后台用户/助教，实现内部登录）
-const goInternalHome = () => {
-  uni.navigateTo({ url: '/pages/internal/internal-home' })
+// V2.0 内部专用功能（直接显示在「我的」页面）
+const hasInternalAccess = computed(() => {
+  const adminInfo = uni.getStorageSync('adminInfo')
+  const coachInfo = uni.getStorageSync('coachInfo')
+  return !!(adminInfo || coachInfo)
+})
+
+const isManager = computed(() => {
+  const adminInfo = uni.getStorageSync('adminInfo')
+  return adminInfo && ['店长', '助教管理'].includes(adminInfo.role)
+})
+
+const isCoach = computed(() => {
+  const coachInfo = uni.getStorageSync('coachInfo')
+  return !!coachInfo
+})
+
+const isCoachViewer = computed(() => {
+  const adminInfo = uni.getStorageSync('adminInfo')
+  return adminInfo && adminInfo.role === '教练'
+})
+
+const isOtherAdmin = computed(() => {
+  const adminInfo = uni.getStorageSync('adminInfo')
+  const coachInfo = uni.getStorageSync('coachInfo')
+  if (!adminInfo && !coachInfo) return false
+  if (adminInfo && ['店长', '助教管理'].includes(adminInfo.role)) return false
+  if (adminInfo && adminInfo.role === '教练') return false
+  if (coachInfo && !adminInfo) return false
+  return true
+})
+
+// 安全的返回方法：如果没有上一页，返回「我的」tab
+const goBackOrTab = () => {
+  const pages = getCurrentPages()
+  if (pages.length > 1) {
+    uni.navigateBack()
+  } else {
+    uni.switchTab({ url: '/pages/member/member' })
+  }
 }
+
+const navigateTo = (url) => uni.navigateTo({ url })
 
 const getCoachPhoto = (coach) => {
   const photo = coach.photos && coach.photos[0]
@@ -1174,10 +1309,9 @@ onShow(() => {
 
 /* V2.0 内部专用入口 */
 .internal-section { margin: 0 16px 16px; }
-.internal-btns { display: flex; gap: 10px; margin-top: 12px; }
+.internal-btns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
 .internal-btn {
-  flex: 1;
-  padding: 14px 8px;
+  padding: 14px 6px;
   background: rgba(20,20,30,0.6);
   border: 1px solid rgba(218,165,32,0.1);
   border-radius: 12px;

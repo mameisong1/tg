@@ -68,7 +68,7 @@ const handleLogin = async () => {
 }
 
 const showForgotTip = () => uni.showToast({ title: '请联系管理员重置密码', icon: 'none' })
-const goBack = () => uni.navigateBack()
+const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { uni.navigateBack() } else { uni.switchTab({ url: '/pages/member/member' }) } }
 </script>
 
 <style scoped>

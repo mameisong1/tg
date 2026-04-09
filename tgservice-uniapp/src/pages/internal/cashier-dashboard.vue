@@ -141,7 +141,7 @@ const updateTableOrder = async (id, status) => {
   } catch (e) { uni.showToast({ title: e.error || '操作失败', icon: 'none' }) }
 }
 
-const goBack = () => uni.navigateBack()
+const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { uni.navigateBack() } else { uni.switchTab({ url: '/pages/member/member' }) } }
 </script>
 
 <style scoped>

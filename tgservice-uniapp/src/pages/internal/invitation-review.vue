@@ -1,51 +1,89 @@
 <template>
   <view class="page">
+    <!-- 固定标题栏 -->
     <view class="fixed-header">
       <view class="status-bar-bg" :style="{ height: statusBarHeight + 'px' }"></view>
       <view class="header-content">
         <view class="back-btn" @click="goBack"><text class="back-icon">‹</text></view>
         <text class="header-title">约客审查-{{ shiftLabel }}</text>
-        <view class="back-placeholder"></view>
+        <view class="refresh-btn" @click="loadData"><text class="refresh-icon">🔄</text></view>
       </view>
     </view>
     <view class="header-placeholder" :style="{ height: (statusBarHeight + 44) + 'px' }"></view>
 
-    <!-- 筛选 -->
-    <view class="filter-bar">
-      <view class="filter-item" :class="{ active: filterResult === '' }" @click="filterResult = ''; loadData()">
-        <text>全部</text>
-      </view>
-      <view class="filter-item" :class="{ active: filterResult === '待审查' }" @click="filterResult = '待审查'; loadData()">
-        <text>待审查</text>
-      </view>
-      <view class="filter-item" :class="{ active: filterResult === '约客有效' }" @click="filterResult = '约客有效'; loadData()">
-        <text>有效</text>
-      </view>
-      <view class="filter-item" :class="{ active: filterResult === '约客无效' }" @click="filterResult = '约客无效'; loadData()">
-        <text>无效</text>
-      </view>
+    <!-- 统计卡片 -->
+    <view class="stats-row">
+      <view class="stat-item"><text class="stat-value">{{ stats.total }}</text><text class="stat-label">总数</text></view>
+      <view class="stat-item"><text class="stat-value" style="color:#f1c40f">{{ stats.pending }}</text><text class="stat-label">待审查</text></view>
+      <view class="stat-item"><text class="stat-value" style="color:#2ecc71">{{ stats.approved }}</text><text class="stat-label">有效</text></view>
+      <view class="stat-item"><text class="stat-value" style="color:#e74c3c">{{ stats.rejected }}</text><text class="stat-label">无效</text></view>
     </view>
 
-    <view class="list-section" v-if="invitations.length > 0">
-      <view class="inv-card" v-for="inv in invitations" :key="inv.id">
-        <view class="inv-header">
-          <text class="inv-name">{{ inv.stage_name }} ({{ inv.coach_no }})</text>
-          <text class="inv-result" :class="'result-' + inv.result">{{ inv.result }}</text>
+    <!-- 筛选 -->
+    <scroll-view class="filter-bar" scroll-x>
+      <view class="filter-item" :class="{ active: filterResult === '' }" @click="filterResult = ''; loadData()"><text>全部</text></view>
+      <view class="filter-item" :class="{ active: filterResult === '待审查' }" @click="filterResult = '待审查'; loadData()"><text>待审查</text></view>
+      <view class="filter-item" :class="{ active: filterResult === '约客有效' }" @click="filterResult = '约客有效'; loadData()"><text>有效</text></view>
+      <view class="filter-item" :class="{ active: filterResult === '约客无效' }" @click="filterResult = '约客无效'; loadData()"><text>无效</text></view>
+    </scroll-view>
+
+    <!-- 待审查卡片 -->
+    <view class="section-title"><text>📋 待审查</text><text class="count">{{ pendingList.length }}条</text></view>
+    <view class="cards-grid" v-if="pendingList.length > 0">
+      <view class="card" v-for="(inv, idx) in pendingList" :key="inv.id" @click="openReview(idx)">
+        <image v-if="inv.invitation_image_url" :src="inv.invitation_image_url" mode="aspectFill" class="card-image" />
+        <view class="card-placeholder" v-else><text>暂无截图</text></view>
+        <view class="card-info">
+          <text class="card-name">{{ inv.stage_name }}</text>
+          <text class="card-meta">{{ inv.coach_no }}号 · {{ formatTime(inv.created_at) }}</text>
+          <view class="card-badge badge-pending"><text>待审查</text></view>
         </view>
-        <image v-if="inv.invitation_image_url" :src="inv.invitation_image_url" mode="widthFix" class="inv-image" @click="previewImage(inv.invitation_image_url)" />
-        <view class="inv-actions" v-if="inv.result === '待审查'">
-          <view class="action-btn reject" @click="review(inv.id, '约客无效')"><text>无效</text></view>
-          <view class="action-btn approve" @click="review(inv.id, '约客有效')"><text>有效</text></view>
-        </view>
-        <text class="inv-time" v-if="inv.reviewed_at">审查时间: {{ inv.reviewed_at }}</text>
       </view>
     </view>
-    <view class="empty" v-else><text>暂无约客记录</text></view>
+    <view class="empty" v-else><text>✅ 暂无待审查</text></view>
+
+    <!-- 已审查列表 -->
+    <view class="section-title" style="margin-top:20px"><text>📊 已审查</text></view>
+    <view class="reviewed-list" v-if="reviewedList.length > 0">
+      <view class="reviewed-item" v-for="inv in reviewedList" :key="inv.id">
+        <image v-if="inv.invitation_image_url" :src="inv.invitation_image_url" mode="aspectFill" class="reviewed-thumb" @click="previewImage(inv.invitation_image_url)" />
+        <view class="reviewed-info">
+          <text class="reviewed-name">{{ inv.stage_name }} ({{ inv.coach_no }}号)</text>
+          <text class="reviewed-time">{{ formatTime(inv.created_at) }}</text>
+        </view>
+        <view class="reviewed-badge" :class="inv.result === '约客有效' ? 'badge-approved' : 'badge-rejected'"><text>{{ inv.result }}</text></view>
+      </view>
+    </view>
+    <view class="empty" v-else><text>暂无已审查记录</text></view>
+
+    <!-- 全屏审查弹窗 -->
+    <view class="review-overlay" v-if="showReview" @click="closeReview">
+      <view class="review-box" @click.stop>
+        <view class="review-header">
+          <text class="review-counter">{{ reviewIndex + 1 }} / {{ pendingList.length }}</text>
+          <view class="review-close" @click="closeReview"><text>✕</text></view>
+        </view>
+        <image v-if="currentReview?.invitation_image_url" :src="currentReview.invitation_image_url" mode="aspectFit" class="review-image" />
+        <view class="review-placeholder" v-else><text>暂无截图</text></view>
+        <view class="review-info">
+          <text class="review-name">{{ currentReview?.stage_name }} ({{ currentReview?.coach_no }}号)</text>
+          <text class="review-meta">{{ formatTime(currentReview?.created_at) }} · {{ shiftLabel }}</text>
+        </view>
+        <view class="review-actions">
+          <view class="review-btn btn-invalid" @click="submitReview('约客无效')"><text>❌ 无效</text></view>
+          <view class="review-btn btn-valid" @click="submitReview('约客有效')"><text>✅ 有效</text></view>
+        </view>
+        <view class="review-nav" v-if="pendingList.length > 1">
+          <view class="nav-arrow" @click="navigateReview(-1)"><text>‹</text></view>
+          <view class="nav-arrow" @click="navigateReview(1)"><text>›</text></view>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import api from '@/utils/api-v2.js'
 
 const statusBarHeight = ref(0)
@@ -53,6 +91,8 @@ const shiftLabel = ref('早班')
 const shift = ref('早班')
 const filterResult = ref('')
 const invitations = ref([])
+const showReview = ref(false)
+const reviewIndex = ref(0)
 
 onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
@@ -66,6 +106,23 @@ onMounted(() => {
   loadData()
 })
 
+const pendingList = computed(() => invitations.value.filter(i => i.result === '待审查'))
+const reviewedList = computed(() => invitations.value.filter(i => i.result !== '待审查'))
+const currentReview = computed(() => pendingList.value[reviewIndex.value] || null)
+
+const stats = computed(() => ({
+  total: invitations.value.length,
+  pending: invitations.value.filter(i => i.result === '待审查').length,
+  approved: invitations.value.filter(i => i.result === '约客有效').length,
+  rejected: invitations.value.filter(i => i.result === '约客无效').length
+}))
+
+const formatTime = (t) => {
+  if (!t) return '-'
+  const d = new Date(t.replace(' ', 'T'))
+  return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+}
+
 const loadData = async () => {
   const today = new Date().toISOString().split('T')[0]
   const params = { date: today, shift: shift.value }
@@ -77,6 +134,13 @@ const loadData = async () => {
 }
 
 const previewImage = (url) => uni.previewImage({ urls: [url] })
+
+const openReview = (idx) => { reviewIndex.value = idx; showReview.value = true }
+const closeReview = () => { showReview.value = false }
+const navigateReview = (dir) => {
+  if (pendingList.value.length === 0) return
+  reviewIndex.value = (reviewIndex.value + dir + pendingList.value.length) % pendingList.value.length
+}
 
 const review = async (id, result) => {
   uni.showModal({ title: `确认${result}`, content: `确定标记为${result}？`,
@@ -93,7 +157,23 @@ const review = async (id, result) => {
   })
 }
 
-const goBack = () => uni.navigateBack()
+const submitReview = async (result) => {
+  if (!currentReview.value) return
+  try {
+    const adminInfo = uni.getStorageSync('adminInfo') || {}
+    await api.guestInvitations.review(currentReview.value.id, { result, reviewer_phone: adminInfo.username })
+    uni.showToast({ title: result === '约客有效' ? '✅ 已标记有效' : '❌ 已标记无效', icon: 'success' })
+    if (pendingList.value.length <= 1) {
+      closeReview()
+      reviewIndex.value = 0
+    } else if (reviewIndex.value >= pendingList.value.length - 1) {
+      reviewIndex.value = Math.max(0, pendingList.value.length - 2)
+    }
+    loadData()
+  } catch (e) { uni.showToast({ title: e.error || '操作失败', icon: 'none' }) }
+}
+
+const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { uni.navigateBack() } else { uni.switchTab({ url: '/pages/member/member' }) } }
 </script>
 
 <style scoped>
@@ -101,29 +181,64 @@ const goBack = () => uni.navigateBack()
 .fixed-header { position: fixed; top: 0; left: 0; right: 0; z-index: 999; background: #0a0a0f; }
 .status-bar-bg { background: #0a0a0f; }
 .header-content { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; }
-.back-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
+.back-btn, .refresh-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
 .back-icon { font-size: 28px; color: #d4af37; }
-.back-placeholder { width: 32px; }
+.refresh-icon { font-size: 18px; }
 .header-title { font-size: 17px; font-weight: 600; color: #d4af37; letter-spacing: 2px; }
 .header-placeholder { background: #0a0a0f; }
 
-.filter-bar { display: flex; padding: 8px 16px; gap: 8px; }
-.filter-item { padding: 6px 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; font-size: 13px; color: rgba(255,255,255,0.6); }
+/* 统计卡片 */
+.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 12px; }
+.stat-item { background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.1); border-radius: 10px; padding: 12px 8px; text-align: center; }
+.stat-value { font-size: 20px; color: #d4af37; display: block; }
+.stat-label { font-size: 11px; color: rgba(255,255,255,0.5); display: block; margin-top: 4px; }
+
+.filter-bar { white-space: nowrap; padding: 4px 12px 8px; }
+.filter-item { display: inline-block; padding: 6px 14px; margin-right: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; font-size: 13px; color: rgba(255,255,255,0.6); }
 .filter-item.active { background: rgba(212,175,55,0.2); border-color: #d4af37; color: #d4af37; }
 
-.list-section { padding: 12px 16px; }
-.inv-card { background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.1); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
-.inv-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.inv-name { font-size: 15px; font-weight: 600; color: #d4af37; }
-.inv-result { font-size: 12px; padding: 4px 10px; border-radius: 12px; }
-.result-待审查 { background: rgba(241,196,15,0.2); color: #f1c40f; }
-.result-约客有效 { background: rgba(46,204,113,0.2); color: #2ecc71; }
-.result-约客无效 { background: rgba(231,76,60,0.2); color: #e74c3c; }
-.inv-image { border-radius: 8px; max-width: 100%; margin-bottom: 8px; }
-.inv-actions { display: flex; gap: 12px; margin-bottom: 8px; }
-.action-btn { flex: 1; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; }
-.action-btn.reject { background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3); color: #e74c3c; }
-.action-btn.approve { background: rgba(46,204,113,0.15); border: 1px solid rgba(46,204,113,0.3); color: #2ecc71; }
-.inv-time { font-size: 11px; color: rgba(255,255,255,0.3); }
-.empty { text-align: center; padding: 60px 20px; color: rgba(255,255,255,0.3); }
+.section-title { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; font-size: 15px; color: rgba(255,255,255,0.8); }
+.section-title .count { font-size: 12px; color: rgba(255,255,255,0.4); }
+
+/* 卡片网格 */
+.cards-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 0 12px 12px; }
+.card { background: rgba(20,20,30,0.8); border: 1px solid rgba(218,165,32,0.1); border-radius: 10px; overflow: hidden; }
+.card-image { width: 100%; height: 120px; }
+.card-placeholder { width: 100%; height: 120px; background: #1a1a2a; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.3); font-size: 12px; }
+.card-info { padding: 8px; }
+.card-name { font-size: 13px; color: #d4af37; font-weight: 500; display: block; }
+.card-meta { font-size: 10px; color: rgba(255,255,255,0.5); display: block; margin-top: 2px; }
+.card-badge { display: inline-block; padding: 2px 6px; border-radius: 6px; font-size: 10px; margin-top: 4px; }
+.badge-pending { background: rgba(241,196,15,0.2); color: #f1c40f; }
+.badge-approved { background: rgba(46,204,113,0.2); color: #2ecc71; }
+.badge-rejected { background: rgba(231,76,60,0.2); color: #e74c3c; }
+
+/* 已审查列表 */
+.reviewed-list { padding: 0 12px; }
+.reviewed-item { display: flex; align-items: center; gap: 10px; background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.1); border-radius: 10px; padding: 10px; margin-bottom: 8px; }
+.reviewed-thumb { width: 50px; height: 50px; border-radius: 8px; flex-shrink: 0; }
+.reviewed-info { flex: 1; }
+.reviewed-name { font-size: 13px; color: #fff; display: block; }
+.reviewed-time { font-size: 10px; color: rgba(255,255,255,0.4); display: block; margin-top: 2px; }
+.reviewed-badge { padding: 3px 8px; border-radius: 8px; font-size: 10px; flex-shrink: 0; }
+
+.empty { text-align: center; padding: 40px 20px; color: rgba(255,255,255,0.3); font-size: 14px; }
+
+/* 全屏审查弹窗 */
+.review-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.review-box { width: 90%; max-width: 400px; display: flex; flex-direction: column; align-items: center; }
+.review-header { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.review-counter { font-size: 13px; color: #d4af37; background: rgba(20,20,30,0.8); padding: 6px 14px; border-radius: 14px; }
+.review-close { width: 32px; height: 32px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px; }
+.review-image { width: 100%; max-height: 50vh; border-radius: 10px; }
+.review-placeholder { width: 100%; height: 200px; background: #1a1a2a; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.3); font-size: 14px; }
+.review-info { text-align: center; margin-top: 12px; }
+.review-name { font-size: 18px; color: #d4af37; font-weight: 600; display: block; }
+.review-meta { font-size: 12px; color: rgba(255,255,255,0.5); display: block; margin-top: 4px; }
+.review-actions { display: flex; gap: 12px; margin-top: 16px; width: 100%; }
+.review-btn { flex: 1; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; }
+.btn-invalid { background: rgba(231,76,60,0.2); border: 1px solid rgba(231,76,60,0.3); color: #e74c3c; }
+.btn-valid { background: linear-gradient(135deg, #d4af37, #ffd700); color: #000; }
+.review-nav { display: flex; justify-content: space-between; width: 100%; margin-top: 12px; }
+.nav-arrow { width: 40px; height: 40px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; }
 </style>
