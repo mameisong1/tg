@@ -476,8 +476,6 @@
               <select class="batch-shift-select" data-coach-no="${c.coach_no}" onchange="onShiftChange(this)">
                 <option value="早班" ${currentShift === '早班' ? 'selected' : ''}>早班</option>
                 <option value="晚班" ${currentShift === '晚班' ? 'selected' : ''}>晚班</option>
-                <option value="全天" ${currentShift === '全天' ? 'selected' : ''}>全天</option>
-                <option value="休息" ${currentShift === '休息' ? 'selected' : ''}>休息</option>
               </select>
               <div class="batch-shift-save" id="save-indicator-${c.coach_no}">✓ 已保存</div>
             </div>

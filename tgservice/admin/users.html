@@ -31,10 +31,15 @@
     .data-table td { font-size: 14px; }
     
     .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; }
-    .badge-admin { background: rgba(212,175,55,0.2); color: #d4af37; }
-    .badge-cashier { background: rgba(52,152,219,0.2); color: #3498db; }
+    .badge-admin { background: rgba(231,76,60,0.2); color: #e74c3c; }
+    .badge-store-manager { background: rgba(155,89,182,0.2); color: #9b59b6; }
+    .badge-coach-manager { background: rgba(230,126,34,0.2); color: #e67e22; }
+    .badge-coach { background: rgba(0,188,212,0.2); color: #00bcd4; }
+    .badge-lobby-manager { background: rgba(33,150,243,0.2); color: #2196f3; }
+    .badge-cashier { background: rgba(76,175,80,0.2); color: #4caf50; }
+    .badge-waiter { background: rgba(158,158,158,0.2); color: #9e9e9e; }
     .badge-system { background: rgba(231,76,60,0.2); color: #e74c3c; }
-    .badge-owner { background: rgba(46,204,113,0.2); color: #2ecc71; }
+    .badge-owner { background: rgba(76,175,80,0.2); color: #4caf50; }
     
     .perm-tags { display: flex; flex-wrap: wrap; gap: 4px; }
     .perm-tag { font-size: 11px; padding: 2px 8px; background: rgba(255,255,255,0.05); border-radius: 4px; color: rgba(255,255,255,0.5); }
@@ -163,7 +168,12 @@
         <label class="form-label">角色</label>
         <select class="form-input" id="formRole">
           <option value="admin">管理员</option>
-          <option value="cashier">收银员</option>
+          <option value="store_manager">店长</option>
+          <option value="coach_manager">助教管理</option>
+          <option value="coach">教练</option>
+          <option value="lobby_manager">前厅管理</option>
+          <option value="cashier">收银</option>
+          <option value="waiter">服务员</option>
         </select>
       </div>
       <div style="display:flex;gap:12px;margin-top:20px">
@@ -211,15 +221,24 @@
         // 角色显示：使用 role 字段的实际值
         let roleText = u.role || '管理员';
         let roleClass = 'badge-admin';
-        if (u.role === 'cashier') {
-          roleText = '收银员';
-          roleClass = 'badge-cashier';
-        } else if (u.role === 'superadmin' || u.username === 'tgadmin') {
+        const roleMap = {
+          'admin': ['管理员', 'badge-admin'],
+          'store_manager': ['店长', 'badge-store-manager'],
+          'coach_manager': ['助教管理', 'badge-coach-manager'],
+          'coach': ['教练', 'badge-coach'],
+          'lobby_manager': ['前厅管理', 'badge-lobby-manager'],
+          'cashier': ['收银', 'badge-cashier'],
+          'waiter': ['服务员', 'badge-waiter'],
+          'superadmin': ['超级管理员', 'badge-system'],
+          'owner': ['所有者', 'badge-owner'],
+        };
+        if (roleMap[u.role]) {
+          roleText = roleMap[u.role][0];
+          roleClass = roleMap[u.role][1];
+        }
+        if (u.username === 'tgadmin' && u.role === 'admin') {
           roleText = '超级管理员';
           roleClass = 'badge-system';
-        } else if (u.role === 'owner') {
-          roleText = '所有者';
-          roleClass = 'badge-owner';
         }
         
         // 权限标签
