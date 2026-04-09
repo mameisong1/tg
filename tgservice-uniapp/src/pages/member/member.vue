@@ -1021,9 +1021,13 @@ const isManager = computed(() => {
   return adminInfo && ['店长', '助教管理'].includes(adminInfo.role)
 })
 
+// 助教在职且未离职
 const isCoach = computed(() => {
   const coachInfo = uni.getStorageSync('coachInfo')
-  return !!coachInfo
+  if (!coachInfo) return false
+  // 离职助教不能看到内部专用版块
+  if (coachInfo.status === '离职') return false
+  return true
 })
 
 const isCoachViewer = computed(() => {
@@ -1031,6 +1035,7 @@ const isCoachViewer = computed(() => {
   return adminInfo && adminInfo.role === '教练'
 })
 
+// 其他后台用户（收银、前厅管理等）
 const isOtherAdmin = computed(() => {
   const adminInfo = uni.getStorageSync('adminInfo')
   const coachInfo = uni.getStorageSync('coachInfo')
@@ -1039,6 +1044,16 @@ const isOtherAdmin = computed(() => {
   if (adminInfo && adminInfo.role === '教练') return false
   if (coachInfo && !adminInfo) return false
   return true
+})
+
+// 是否显示常用功能板块（所有后台用户）
+const showCommonFeatures = computed(() => {
+  const adminInfo = uni.getStorageSync('adminInfo')
+  const coachInfo = uni.getStorageSync('coachInfo')
+  // 有后台用户信息或助教信息（非离职）
+  if (adminInfo) return true
+  if (coachInfo && coachInfo.status !== '离职') return true
+  return false
 })
 
 // 安全的返回方法：如果没有上一页，返回「我的」tab

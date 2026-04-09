@@ -1322,7 +1322,7 @@ app.post('/api/member/login-sms', async (req, res) => {
       } : null
     });
   } catch (err) {
-    logger.error(`短信登录失败: ${err.message});
+    logger.error(`短信登录失败: ${err.message}`);
     res.status(500).json({ error: '服务器错误' });
   }
 });
