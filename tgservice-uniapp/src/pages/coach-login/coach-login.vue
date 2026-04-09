@@ -66,6 +66,13 @@ const handleLogin = async () => {
     if (data.success) {
       uni.setStorageSync('coachToken', data.token)
       uni.setStorageSync('coachInfo', data.coach)
+      // 如果助教同时是后台用户，保存 adminToken 和 adminInfo
+      if (data.adminInfo) {
+        uni.setStorageSync('adminInfo', data.adminInfo)
+      }
+      if (data.adminToken) {
+        uni.setStorageSync('adminToken', data.adminToken)
+      }
       uni.showToast({ title: '登录成功', icon: 'success' })
       setTimeout(() => uni.redirectTo({ url: '/pages/coach-profile/coach-profile' }), 1000)
     }

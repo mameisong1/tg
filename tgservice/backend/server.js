@@ -923,6 +923,21 @@ app.post('/api/coach/login', async (req, res) => {
     // 生成简单token
     const token = Buffer.from(`${coach.coach_no}:${Date.now()}`).toString('base64');
     
+    // 检查助教是否同时是后台用户（通过手机号匹配）
+    let adminInfo = null;
+    let adminToken = null;
+    if (coach.phone) {
+      const adminUser = await dbGet('SELECT username, role, name FROM admin_users WHERE username = ?', [coach.phone]);
+      if (adminUser) {
+        adminInfo = {
+          username: adminUser.username,
+          name: adminUser.name || '',
+          role: adminUser.role
+        };
+        adminToken = jwt.sign({ username: adminUser.username, role: adminUser.role }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
+      }
+    }
+    
     operationLog.info(`助教登录: ${coach.stage_name} (${coach.coach_no})`);
     res.json({ 
       success: true, 
@@ -931,7 +946,9 @@ app.post('/api/coach/login', async (req, res) => {
         coachNo: coach.coach_no,
         stageName: coach.stage_name,
         level: coach.level
-      }
+      },
+      adminInfo: adminInfo,
+      adminToken: adminToken
     });
   } catch (err) {
     logger.error(`助教登录失败: ${err.message}`);
@@ -1274,6 +1291,12 @@ app.post('/api/member/login-sms', async (req, res) => {
     // 检查是否匹配后台用户（自动实现内部员工登录）
     const adminUser = await dbGet('SELECT username, role, name FROM admin_users WHERE username = ?', [phone]);
     
+    // 如果是后台用户，生成 adminToken
+    let adminToken = null;
+    if (adminUser) {
+      adminToken = jwt.sign({ username: adminUser.username, role: adminUser.role }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
+    }
+    
     operationLog.info(`会员登录(H5): ${phone}`);
     res.json({ 
       success: true, 
@@ -1289,6 +1312,7 @@ app.post('/api/member/login-sms', async (req, res) => {
         name: adminUser.name || '',
         role: adminUser.role
       } : null,
+      adminToken: adminToken,
       coachInfo: coach ? {
         coachNo: coach.coach_no,
         stageName: coach.stage_name,
@@ -1381,6 +1405,12 @@ app.post('/api/member/login', async (req, res) => {
     // 6. 检查是否匹配后台用户（自动实现内部员工登录）
     const adminUser = await dbGet('SELECT username, role, name FROM admin_users WHERE username = ?', [phone]);
     
+    // 如果是后台用户，生成 adminToken
+    let adminToken = null;
+    if (adminUser) {
+      adminToken = jwt.sign({ username: adminUser.username, role: adminUser.role }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
+    }
+    
     res.json({ 
       success: true, 
       token: memberToken,
@@ -1395,6 +1425,7 @@ app.post('/api/member/login', async (req, res) => {
         name: adminUser.name || '',
         role: adminUser.role
       } : null,
+      adminToken: adminToken,
       coachInfo: coach ? {
         coachNo: coach.coach_no,
         stageName: coach.stage_name,
@@ -1457,6 +1488,12 @@ app.post('/api/member/auto-login', async (req, res) => {
     // 检查是否匹配后台用户
     const adminUser = await dbGet('SELECT username, role, name FROM admin_users WHERE username = ?', [member.phone]);
     
+    // 如果是后台用户，生成 adminToken
+    let adminToken = null;
+    if (adminUser) {
+      adminToken = jwt.sign({ username: adminUser.username, role: adminUser.role }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
+    }
+    
     res.json({ 
       success: true, 
       registered: true,
@@ -1472,6 +1509,7 @@ app.post('/api/member/auto-login', async (req, res) => {
         name: adminUser.name || '',
         role: adminUser.role
       } : null,
+      adminToken: adminToken,
       coachInfo: coach ? {
         coachNo: coach.coach_no,
         stageName: coach.stage_name,
@@ -1505,6 +1543,12 @@ app.get('/api/member/profile', async (req, res) => {
     // 检查是否匹配后台用户
     const adminUser = await dbGet('SELECT username, role, name FROM admin_users WHERE username = ?', [member.phone]);
     
+    // 如果是后台用户，生成 adminToken
+    let adminToken = null;
+    if (adminUser) {
+      adminToken = jwt.sign({ username: adminUser.username, role: adminUser.role }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
+    }
+    
     res.json({
       memberNo: member.member_no,
       phone: member.phone,
@@ -1517,6 +1561,7 @@ app.get('/api/member/profile', async (req, res) => {
         name: adminUser.name || '',
         role: adminUser.role
       } : null,
+      adminToken: adminToken,
       coachInfo: coach ? {
         coachNo: coach.coach_no,
         stageName: coach.stage_name,

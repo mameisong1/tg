@@ -725,6 +725,11 @@ const loginBySms = async () => {
         uni.setStorageSync('adminInfo', data.adminInfo)
         console.log('自动内部登录:', data.adminInfo.role, data.adminInfo.name)
       }
+      // ⚠️ 保存 adminToken（内部页面 api-v2.js 认证必需）
+      if (data.adminToken) {
+        uni.setStorageSync('adminToken', data.adminToken)
+        console.log('已保存 adminToken')
+      }
       
       // 如果同时是教练，自动登录教练
       if (data.coachInfo) {
@@ -785,6 +790,10 @@ const onGetPhoneNumber = async (e) => {
         uni.setStorageSync('adminInfo', data.adminInfo)
         console.log('自动内部登录:', data.adminInfo.role, data.adminInfo.name)
       }
+      // ⚠️ 保存 adminToken（内部页面 api-v2.js 认证必需）
+      if (data.adminToken) {
+        uni.setStorageSync('adminToken', data.adminToken)
+      }
       
       // 如果同时是教练，自动登录教练
       if (data.coachInfo) {
@@ -814,6 +823,10 @@ const checkAutoLogin = async () => {
       // 如果匹配后台用户，自动实现内部员工登录
       if (profile.adminInfo) {
         uni.setStorageSync('adminInfo', profile.adminInfo)
+      }
+      // ⚠️ 保存 adminToken（内部页面 api-v2.js 认证必需）
+      if (profile.adminToken) {
+        uni.setStorageSync('adminToken', profile.adminToken)
       }
       
       // 如果同时是教练，设置教练信息
@@ -871,6 +884,14 @@ const tryAutoLogin = async () => {
     if (data.success && data.registered) {
       uni.setStorageSync('memberToken', data.token)
       memberInfo.value = data.member
+      
+      // 如果匹配后台用户，自动实现内部员工登录
+      if (data.adminInfo) {
+        uni.setStorageSync('adminInfo', data.adminInfo)
+      }
+      if (data.adminToken) {
+        uni.setStorageSync('adminToken', data.adminToken)
+      }
       
       // 如果同时是教练，自动登录教练
       if (data.coachInfo) {
