@@ -1544,7 +1544,7 @@ app.get('/api/member/profile', async (req, res) => {
     }
     
     // 检查是否同时是助教
-    const coach = await dbGet('SELECT coach_no, stage_name, level FROM coaches WHERE phone = ? AND status != ?', [member.phone, '离职']);
+    const coach = await dbGet('SELECT coach_no, employee_id, stage_name, phone, level, shift, status FROM coaches WHERE phone = ? AND status != ?', [member.phone, '离职']);
     
     // 检查是否匹配后台用户
     const adminUser = await dbGet('SELECT username, role, name FROM admin_users WHERE username = ?', [member.phone]);
@@ -1570,8 +1570,11 @@ app.get('/api/member/profile', async (req, res) => {
       adminToken: adminToken,
       coachInfo: coach ? {
         coachNo: coach.coach_no,
+        employeeId: coach.employee_id,
         stageName: coach.stage_name,
+        phone: coach.phone || member.phone,
         level: coach.level,
+        shift: coach.shift || '晚班',
         status: coach.status
       } : null
     });

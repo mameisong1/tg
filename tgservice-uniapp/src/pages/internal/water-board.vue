@@ -14,9 +14,9 @@
     <!-- 按状态分组显示 -->
     <scroll-view class="board-list" scroll-y>
       <view class="status-section" v-for="group in groupedBoards" :key="group.status" :data-status="group.status">
-        <view class="section-header">
+        <view class="section-header" @click="showSectionExpand(group.status, group.coaches)">
           <text class="section-title">{{ group.status }}</text>
-          <text class="section-count">{{ group.coaches.length }}人</text>
+          <text class="section-count">{{ group.coaches.length }}人 ⛶</text>
         </view>
         <view class="coach-chips">
           <view class="coach-chip" v-for="coach in group.coaches" :key="coach.coach_no" @longpress="showStatusChange(coach)">
@@ -31,11 +31,31 @@
       <view class="empty" v-if="groupedBoards.length === 0"><text>暂无数据</text></view>
     </scroll-view>
 
+    <!-- 分段放大弹窗 -->
+    <view class="expand-overlay" v-if="showExpand" @click="closeExpand">
+      <view class="expand-box" @click.stop>
+        <view class="expand-header">
+          <text class="expand-title" :style="{ color: expandColor }">{{ expandStatus }}</text>
+          <text class="expand-count">{{ expandCoaches.length }}人</text>
+        </view>
+        <scroll-view class="expand-content" scroll-y>
+          <view class="expand-chips">
+            <view class="expand-chip" v-for="coach in expandCoaches" :key="coach.coach_no" @longpress="showStatusChange(coach)">
+              <image class="expand-avatar" :src="getCoachPhoto(coach)" mode="aspectFill" />
+              <text class="expand-id">{{ coach.employee_id || coach.coach_no }}</text>
+              <text class="expand-name">{{ coach.stage_name }}</text>
+              <text class="expand-table" v-if="coach.table_no">{{ coach.table_no }}</text>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+    </view>
+
     <!-- 修改状态弹窗 -->
     <view class="modal-overlay" v-if="showModal" @click="closeModal">
       <view class="modal-box" @click.stop>
         <text class="modal-title">🔄 修改水牌状态</text>
-        <text class="modal-coach-info" v-if="selectedCoach">{{ selectedCoach.coach_no }}号 - {{ selectedCoach.stage_name }}</text>
+        <text class="modal-coach-info" v-if="selectedCoach">{{ selectedCoach.employee_id || selectedCoach.coach_no }}号 - {{ selectedCoach.stage_name }}</text>
         <view class="status-grid">
           <view class="status-btn" v-for="s in simpleStatusList" :key="s"
                 :class="{ current: getSimpleStatus(selectedCoach?.status) === s }"
@@ -58,6 +78,10 @@ const waterBoards = ref([])
 const isEditable = ref(false)
 const showModal = ref(false)
 const selectedCoach = ref(null)
+const showExpand = ref(false)
+const expandStatus = ref('')
+const expandCoaches = ref([])
+const expandColor = ref('#d4af37')
 
 const statusList = ['早班上桌', '早班空闲', '晚班上桌', '晚班空闲', '早加班', '晚加班', '休息', '公休', '请假', '乐捐', '下班']
 const simpleStatusList = ['上桌', '空闲', '加班', '休息', '公休', '请假', '乐捐', '下班']
@@ -129,6 +153,19 @@ const closeModal = () => {
   selectedCoach.value = null
 }
 
+const showSectionExpand = (status, coaches) => {
+  expandStatus.value = status
+  expandCoaches.value = coaches
+  expandColor.value = statusColors[status] || '#d4af37'
+  showExpand.value = true
+}
+
+const closeExpand = (e) => {
+  if (e.target.classList?.contains('expand-overlay') || e.target === e.currentTarget) {
+    showExpand.value = false
+  }
+}
+
 const changeStatus = async (simpleStatus) => {
   if (!selectedCoach.value) return
   const actualStatus = getActualStatus(simpleStatus)
@@ -197,6 +234,20 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .coach-chip-name { font-size: 10px; color: rgba(255,255,255,0.7); text-align: center; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 58px; }
 .coach-chip-table { font-size: 8px; color: rgba(255,255,255,0.3); }
 .empty-chip { text-align: center; padding: 16px; color: rgba(255,255,255,0.15); font-size: 12px; }
+
+/* 分段放大弹窗 */
+.expand-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 999; display: flex; align-items: center; justify-content: center; }
+.expand-box { background: rgba(20,20,30,0.95); border-radius: 16px; padding: 20px; width: 90%; max-width: 600px; max-height: 80vh; border: 2px solid rgba(218,165,32,0.3); }
+.expand-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.expand-title { font-size: 18px; font-weight: 600; }
+.expand-count { font-size: 13px; color: rgba(255,255,255,0.4); }
+.expand-content { max-height: 60vh; }
+.expand-chips { display: flex; flex-wrap: wrap; gap: 12px; padding-bottom: 10px; }
+.expand-chip { display: flex; flex-direction: column; align-items: center; width: 90px; padding: 10px 6px; background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.15); border-radius: 50%; }
+.expand-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(218,165,32,0.3); margin-bottom: 6px; }
+.expand-id { font-size: 11px; color: #d4af37; font-weight: 600; }
+.expand-name { font-size: 11px; color: rgba(255,255,255,0.7); text-align: center; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80px; }
+.expand-table { font-size: 10px; color: rgba(255,255,255,0.4); }
 
 /* 修改状态弹窗 */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; align-items: center; justify-content: center; }

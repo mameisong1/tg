@@ -71,11 +71,16 @@ onMounted(() => {
   statusBarHeight.value = systemInfo.statusBarHeight || 20
   coachInfo.value = uni.getStorageSync('coachInfo') || {}
   
-  // 设置班次：测试环境下从助教信息读取，生产环境根据时间判断
-  if (isTestEnv && coachInfo.value.shift) {
+  console.log('[约客上传] coachInfo:', JSON.stringify(coachInfo.value))
+  console.log('[约客上传] shift from storage:', coachInfo.value.shift)
+  
+  // 设置班次：优先从助教信息读取，如果没有则根据时间判断
+  if (coachInfo.value.shift) {
     form.value.shift = coachInfo.value.shift
+    console.log('[约客上传] 使用助教班次:', coachInfo.value.shift)
   } else {
     form.value.shift = new Date().getHours() < 18 ? '早班' : '晚班'
+    console.log('[约客上传] 无助教班次，使用时间判断:', form.value.shift)
   }
 })
 
