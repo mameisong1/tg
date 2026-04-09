@@ -19,7 +19,7 @@ router.get('/', auth.required, requireBackendPermission(['waterBoardManagement']
     const { status, shift } = req.query;
     
     let sql = `
-      SELECT wb.coach_no, wb.stage_name, wb.status, wb.table_no, wb.updated_at, c.shift
+      SELECT wb.coach_no, wb.stage_name, wb.status, wb.table_no, wb.updated_at, c.shift, c.photos, c.employee_id
       FROM water_boards wb
       LEFT JOIN coaches c ON wb.coach_no = c.coach_no
       WHERE 1=1
@@ -62,7 +62,7 @@ router.get('/:coach_no', auth.required, requireBackendPermission(['waterBoardMan
     const { coach_no } = req.params;
     
     const waterBoard = await db.get(`
-      SELECT wb.coach_no, wb.stage_name, wb.status, wb.table_no, wb.updated_at, c.shift
+      SELECT wb.coach_no, wb.stage_name, wb.status, wb.table_no, wb.updated_at, c.shift, c.photos, c.employee_id
       FROM water_boards wb
       LEFT JOIN coaches c ON wb.coach_no = c.coach_no
       WHERE wb.coach_no = ?

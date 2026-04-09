@@ -47,19 +47,19 @@
     /* 助教圆形卡片 */
     .coach-chips { display: flex; flex-wrap: wrap; gap: 10px; }
     .coach-chip {
-      display: flex; flex-direction: column; align-items: center; width: 80px; padding: 8px 4px;
+      display: flex; flex-direction: column; align-items: center; width: 100px; padding: 10px 6px;
       background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.15);
       border-radius: 50%; cursor: grab; transition: transform 0.2s, box-shadow 0.2s; user-select: none;
     }
-    .coach-chip:hover { transform: scale(1.05); box-shadow: 0 0 12px rgba(212,175,55,0.3); }
+    .coach-chip:hover { transform: scale(1.08); box-shadow: 0 0 15px rgba(212,175,55,0.3); }
     .coach-chip.dragging { opacity: 0.5; transform: scale(0.95); }
     .coach-chip-avatar {
-      width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
-      border: 2px solid rgba(218,165,32,0.3); margin-bottom: 4px;
+      width: 56px; height: 56px; border-radius: 50%; object-fit: cover;
+      border: 2px solid rgba(218,165,32,0.3); margin-bottom: 6px;
     }
-    .coach-chip-id { font-size: 10px; color: #d4af37; font-weight: 600; }
-    .coach-chip-name { font-size: 10px; color: rgba(255,255,255,0.7); text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70px; }
-    .coach-chip-table { font-size: 9px; color: rgba(255,255,255,0.3); }
+    .coach-chip-id { font-size: 11px; color: #d4af37; font-weight: 600; }
+    .coach-chip-name { font-size: 11px; color: rgba(255,255,255,0.7); text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90px; }
+    .coach-chip-table { font-size: 10px; color: rgba(255,255,255,0.3); }
 
     /* 状态颜色 */
     .status-section[data-status="早班上桌"] { border-color: rgba(52,152,219,0.3); }
@@ -100,6 +100,12 @@
     .modal-box-actions .btn { flex: 1; padding: 12px; border-radius: 8px; font-size: 14px; cursor: pointer; border: none; }
     .btn-cancel { background: rgba(255,255,255,0.1); color: #fff; }
     .btn-confirm { background: linear-gradient(135deg, #d4af37 0%, #ffd700 100%); color: #000; }
+
+    /* 长按修改状态弹窗 */
+    .status-modal-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+    .status-modal-btn { padding: 10px 8px; border-radius: 8px; font-size: 12px; cursor: pointer; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); color: #fff; transition: all 0.2s; }
+    .status-modal-btn:hover { background: rgba(212,175,55,0.2); border-color: #d4af37; }
+    .status-modal-btn.current { background: rgba(212,175,55,0.3); border-color: #d4af37; color: #d4af37; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -113,54 +119,45 @@
     </div>
     
     <a href="index.html" class="nav-item"><span class="nav-icon">📊</span> 数据概览</a>
-    <a href="cashier-dashboard.html" class="nav-item"><span class="nav-icon">💰</span> 收银看板</a>
-    <a href="products.html" class="nav-item"><span class="nav-icon">📦</span> 商品管理</a>
-    <a href="vip-rooms.html" class="nav-item"><span class="nav-icon">🛋️</span> 包房管理</a>
-    <a href="tables.html" class="nav-item"><span class="nav-icon">🎱</span> 台桌管理</a>
-    <a href="categories.html" class="nav-item"><span class="nav-icon">🏷️</span> 商品分类</a>
-    
-    <!-- 助教管理 -->
+
     <div class="nav-group">
       <div class="nav-group-title" onclick="toggleGroup(this)">
-        <span class="group-icon">👩‍🏫</span>
-        <span class="group-text">助教管理</span>
-        <span class="arrow">▼</span>
+        <span class="group-icon">🏠</span><span class="group-text">前厅</span><span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="cashier-dashboard.html" class="nav-item"><span class="nav-icon">💰</span> 收银看板</a>
+        <a href="products.html" class="nav-item"><span class="nav-icon">📦</span> 商品管理</a>
+        <a href="vip-rooms.html" class="nav-item"><span class="nav-icon">🛋️</span> 包房管理</a>
+        <a href="tables.html" class="nav-item"><span class="nav-icon">🎱</span> 台桌管理</a>
+        <a href="categories.html" class="nav-item"><span class="nav-icon">🏷️</span> 商品分类</a>
+      </div>
+    </div>
+
+    <div class="nav-group open">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">👩‍🏫</span><span class="group-text">助教管理</span><span class="arrow">▼</span>
       </div>
       <div class="nav-submenu">
         <a href="coaches.html" class="nav-item"><span class="nav-icon">👩</span> 助教列表</a>
         <a href="coaches.html#batch-shift" class="nav-item"><span class="nav-icon">🔄</span> 批量更新班次</a>
+        <a href="water-boards.html" class="nav-item active"><span class="nav-icon">📋</span> 水牌管理</a>
+        <a href="invitation-review.html?shift=early" class="nav-item"><span class="nav-icon">☀️</span> 早班约课</a>
+        <a href="invitation-review.html?shift=late" class="nav-item"><span class="nav-icon">🌙</span> 晚班约课</a>
       </div>
     </div>
-    
-    <a href="water-boards.html" class="nav-item active"><span class="nav-icon">📋</span> 水牌管理</a>
-    
-    <!-- 约客审查 -->
-    <div class="nav-group">
-      <div class="nav-group-title" onclick="toggleGroup(this)">
-        <span class="group-icon">📝</span>
-        <span class="group-text">约客审查</span>
-        <span class="arrow">▼</span>
-      </div>
-      <div class="nav-submenu">
-        <a href="invitation-review.html?shift=early" class="nav-item"><span class="nav-icon">☀️</span> 早班约客</a>
-        <a href="invitation-review.html?shift=late" class="nav-item"><span class="nav-icon">🌙</span> 晚班约客</a>
-      </div>
-    </div>
-    
+
     <a href="operation-logs.html" class="nav-item"><span class="nav-icon">📜</span> 操作日志</a>
     
-    <!-- 配置 -->
     <div class="nav-group">
       <div class="nav-group-title" onclick="toggleGroup(this)">
-        <span class="group-icon">⚙️</span>
-        <span class="group-text">配置</span>
-        <span class="arrow">▼</span>
+        <span class="group-icon">⚙️</span><span class="group-text">配置</span><span class="arrow">▼</span>
       </div>
       <div class="nav-submenu">
         <a href="home.html" class="nav-item"><span class="nav-icon">🏠</span> 首页配置</a>
         <a href="users.html" class="nav-item"><span class="nav-icon">👥</span> 用户管理</a>
         <a href="settings.html" class="nav-item"><span class="nav-icon">🛡️</span> 系统配置</a>
       </div>
+    </div>
     </div>
   </div>
   
@@ -198,6 +195,18 @@
       <div class="modal-box-actions">
         <button class="btn btn-cancel" onclick="cancelTableNoModal()">取消</button>
         <button class="btn btn-confirm" onclick="confirmTableNoModal()">确认上桌</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 长按修改状态弹窗 -->
+  <div class="modal-overlay" id="statusChangeModal">
+    <div class="modal-box">
+      <div class="modal-box-title">🔄 修改水牌状态</div>
+      <div id="statusChangeCoachInfo" style="font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:8px"></div>
+      <div class="status-modal-grid" id="statusChangeGrid"></div>
+      <div class="modal-box-actions" style="margin-top:16px">
+        <button class="btn btn-cancel" onclick="closeStatusChangeModal()">取消</button>
       </div>
     </div>
   </div>
@@ -267,16 +276,21 @@
             </div>
             <div class="coach-chips">
               ${coaches.length === 0 ? '<div class="empty-section">暂无</div>' :
-                coaches.map(c => `
+                coaches.map(c => {
+                  const eid = c.employee_id || c.coach_no;
+                  const avatar = (c.photos && c.photos.length > 0) ? c.photos[0] : '/static/avatar-default.png';
+                  return `
                   <div class="coach-chip" draggable="true" data-coach-no="${c.coach_no}"
-                       ondragstart="handleDragStart(event, '${c.coach_no}')" ondragend="handleDragEnd(event)">
-                    <img class="coach-chip-avatar" src="${c.photos?.[0] || '/static/avatar-default.png'}" 
+                       ondragstart="handleDragStart(event, '${c.coach_no}')" ondragend="handleDragEnd(event)"
+                       ontouchstart="handleLongPressStart(event, '${c.coach_no}')" ontouchend="handleLongPressEnd(event)"
+                       onmousedown="handleLongPressStart(event, '${c.coach_no}')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)">
+                    <img class="coach-chip-avatar" src="${avatar}" 
                          onerror="this.src='/static/avatar-default.png'">
-                    <span class="coach-chip-id">${c.employee_id || c.coach_no}号</span>
+                    <span class="coach-chip-id">工号${eid}</span>
                     <span class="coach-chip-name">${c.stage_name}</span>
                     ${c.table_no ? `<span class="coach-chip-table">${c.table_no}</span>` : ''}
                   </div>
-                `).join('')
+                `}).join('')
               }
             </div>
           </div>

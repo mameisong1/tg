@@ -1,8 +1,8 @@
-// 后台导航控制脚本 v7
+// 后台导航控制脚本 v8
 // 根据用户角色过滤菜单和页面访问权限
 // 权限矩阵:
 //   管理员/店长/助教管理 → 全部菜单
-//   前厅管理 → 收银看板、商品管理、包房管理
+//   前厅管理 → 收银看板、商品管理、包房管理、台桌管理、商品分类
 //   收银 → 收银看板
 //   教练 → 水牌管理(只读)
 //   服务员 → 禁止后台访问
@@ -69,12 +69,12 @@
         return;
       }
       
-      // 角色菜单权限映射
+      // 角色菜单权限映射（更新：前厅管理可访问前厅目录下所有页面）
       const roleAllowedPages = {
         '管理员': 'all',
         '店长': 'all',
         '助教管理': 'all',
-        '前厅管理': ['cashier-dashboard.html', 'products.html', 'vip-rooms.html'],
+        '前厅管理': ['cashier-dashboard.html', 'products.html', 'vip-rooms.html', 'tables.html', 'categories.html'],
         '收银': ['cashier-dashboard.html'],
         '教练': ['water-boards.html']
       };
@@ -107,7 +107,9 @@
           let allHidden = true;
           subItems.forEach(item => {
             const href = item.getAttribute('href');
-            if (href && allowed.includes(href)) {
+            // 去除hash部分再比较
+            const hrefPath = (href || '').split('#')[0];
+            if (hrefPath && allowed.includes(hrefPath)) {
               allHidden = false;
             }
           });

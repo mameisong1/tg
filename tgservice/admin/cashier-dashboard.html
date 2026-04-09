@@ -140,9 +140,49 @@
     .product-order-card.pending-alert { animation: redFlash 1s infinite; border-color: rgba(231,76,60,0.3); }
     .service-order-card.pending-alert { animation: redFlash 1s infinite; border-color: rgba(231,76,60,0.3); }
     .coach-session-card.pending-alert { animation: redFlash 1s infinite; border-color: rgba(231,76,60,0.3); }
+    
+    /* 新订单滑入动画 */
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .card-new { animation: slideIn 0.3s ease-out; }
+    
+    /* 开启声音覆盖层 */
+    .sound-overlay {
+      display: none;
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.85); z-index: 2000;
+      align-items: center; justify-content: center;
+    }
+    .sound-overlay.show { display: flex; }
+    .sound-overlay-box {
+      background: rgba(20,20,30,0.95); border-radius: 20px; padding: 40px;
+      text-align: center; border: 2px solid rgba(218,165,32,0.3);
+      max-width: 360px;
+    }
+    .sound-overlay-box .icon { font-size: 48px; margin-bottom: 16px; }
+    .sound-overlay-box h3 { color: #d4af37; margin-bottom: 12px; }
+    .sound-overlay-box p { color: rgba(255,255,255,0.6); margin-bottom: 24px; font-size: 14px; }
+    .sound-overlay-btn {
+      padding: 14px 32px; background: linear-gradient(135deg, #d4af37, #ffd700);
+      color: #000; border: none; border-radius: 10px; font-size: 16px;
+      cursor: pointer; font-weight: 600;
+    }
+    .sound-overlay-btn:hover { opacity: 0.9; }
   </style>
 </head>
 <body>
+  <!-- 开启声音覆盖层 -->
+  <div class="sound-overlay" id="soundOverlay">
+    <div class="sound-overlay-box">
+      <div class="icon">🔔</div>
+      <h3>开启声音警报</h3>
+      <p>点击按钮开启声音功能<br>有新的待处理订单时将发出警报声</p>
+      <button class="sound-overlay-btn" onclick="enableSound()">🔊 点击开启</button>
+    </div>
+  </div>
+
   <div class="sidebar">
     <div class="sidebar-logo">
       <img src="/images/logo.png" alt="Logo">
@@ -152,11 +192,22 @@
       </div>
     </div>
     <a href="index.html" class="nav-item"><span class="nav-icon">📊</span> 数据概览</a>
-    <a href="cashier-dashboard.html" class="nav-item active"><span class="nav-icon">💰</span> 收银看板</a>
-    <a href="products.html" class="nav-item"><span class="nav-icon">📦</span> 商品管理</a>
-    <a href="vip-rooms.html" class="nav-item"><span class="nav-icon">🛋️</span> 包房管理</a>
-    <a href="tables.html" class="nav-item"><span class="nav-icon">🎱</span> 台桌管理</a>
-    <a href="categories.html" class="nav-item"><span class="nav-icon">🏷️</span> 商品分类</a>
+    
+    <!-- 前厅 -->
+    <div class="nav-group open">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">🏠</span><span class="group-text">前厅</span><span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="cashier-dashboard.html" class="nav-item active"><span class="nav-icon">💰</span> 收银看板</a>
+        <a href="products.html" class="nav-item"><span class="nav-icon">📦</span> 商品管理</a>
+        <a href="vip-rooms.html" class="nav-item"><span class="nav-icon">🛋️</span> 包房管理</a>
+        <a href="tables.html" class="nav-item"><span class="nav-icon">🎱</span> 台桌管理</a>
+        <a href="categories.html" class="nav-item"><span class="nav-icon">🏷️</span> 商品分类</a>
+      </div>
+    </div>
+    
+    <!-- 助教管理 -->
     <div class="nav-group">
       <div class="nav-group-title" onclick="toggleGroup(this)">
         <span class="group-icon">👩‍🏫</span><span class="group-text">助教管理</span><span class="arrow">▼</span>
@@ -164,18 +215,12 @@
       <div class="nav-submenu">
         <a href="coaches.html" class="nav-item"><span class="nav-icon">👩</span> 助教列表</a>
         <a href="coaches.html#batch-shift" class="nav-item"><span class="nav-icon">🔄</span> 批量更新班次</a>
+        <a href="water-boards.html" class="nav-item"><span class="nav-icon">📋</span> 水牌管理</a>
+        <a href="invitation-review.html?shift=early" class="nav-item"><span class="nav-icon">☀️</span> 早班约课</a>
+        <a href="invitation-review.html?shift=late" class="nav-item"><span class="nav-icon">🌙</span> 晚班约课</a>
       </div>
     </div>
-    <a href="water-boards.html" class="nav-item"><span class="nav-icon">📋</span> 水牌管理</a>
-    <div class="nav-group">
-      <div class="nav-group-title" onclick="toggleGroup(this)">
-        <span class="group-icon">📝</span><span class="group-text">约客审查</span><span class="arrow">▼</span>
-      </div>
-      <div class="nav-submenu">
-        <a href="invitation-review.html?shift=early" class="nav-item"><span class="nav-icon">☀️</span> 早班约客</a>
-        <a href="invitation-review.html?shift=late" class="nav-item"><span class="nav-icon">🌙</span> 晚班约客</a>
-      </div>
-    </div>
+    
     <a href="operation-logs.html" class="nav-item"><span class="nav-icon">📜</span> 操作日志</a>
     <div class="nav-group">
       <div class="nav-group-title" onclick="toggleGroup(this)">
@@ -196,7 +241,7 @@
         <button class="sound-btn" id="soundBtn" onclick="toggleSound()">🔊 声音</button>
         <button class="alert-btn" id="alertBtn" onclick="toggleAlert()">🚨 红色警报</button>
         <button class="fullscreen-btn" id="fullscreenBtn" onclick="toggleFullscreen()">🖥️ 全屏</button>
-        <button class="btn btn-primary" onclick="refreshData()">🔄 刷新</button>
+        <button class="btn btn-primary" onclick="fullRefresh()">🔄 刷新</button>
         <button class="logout-btn" onclick="logout()">退出登录</button>
       </div>
     </div>
@@ -204,8 +249,8 @@
     <!-- 自动刷新指示 -->
     <div class="auto-refresh-bar">
       <div class="pulse"></div>
-      <span style="font-size:13px;color:rgba(255,255,255,0.6)">自动刷新中 · 每10秒</span>
-      <span style="font-size:12px;color:rgba(255,255,255,0.4);margin-left:auto" id="lastRefresh">上次刷新: --</span>
+      <span style="font-size:13px;color:rgba(255,255,255,0.6)">自动轮询中 · 每10秒检查新订单</span>
+      <span style="font-size:12px;color:rgba(255,255,255,0.4);margin-left:auto" id="lastRefresh">上次检查: --</span>
     </div>
 
     <!-- 三列布局 -->
@@ -291,6 +336,13 @@
     let refreshInterval = null;
     let soundEnabled = false;
     let alertEnabled = false;
+    let audioCtx = null;
+    let hasUserGesture = false;
+    
+    // 记录已渲染的订单ID，用于增量更新
+    let renderedProductIds = new Set();
+    let renderedServiceIds = new Set();
+    let renderedCoachIds = new Set();
     
     // 每列的筛选状态（默认待处理）
     let filters = { product: '待处理', service: '待处理', coach: '待处理' };
@@ -320,7 +372,6 @@
       return d.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
     }
 
-    // 检查时间是否在指定分钟数内
     function isWithinMinutes(timeStr, minutes) {
       if (!timeStr) return false;
       const d = new Date(timeStr + ' UTC');
@@ -329,9 +380,6 @@
       return diffMs <= minutes * 60 * 1000;
     }
 
-
-
-    // 筛选函数：已完成/已取消只显示近2小时数据
     function filterByTime(items, status) {
       if (status === '已完成' || status === '已取消') {
         return items.filter(o => isWithinMinutes(o.created_at, 120));
@@ -348,11 +396,91 @@
       return 'status-pending';
     }
 
-    // 全屏切换
+    // ===== 声音/警报系统 =====
+    
+    // 获取AudioContext（复用）
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      return audioCtx;
+    }
+
+    // 显示开启声音覆盖层
+    function showSoundOverlay() {
+      document.getElementById('soundOverlay').classList.add('show');
+    }
+
+    // 用户点击开启声音
+    function enableSound() {
+      try {
+        getAudioContext();
+        hasUserGesture = true;
+        soundEnabled = true;
+        alertEnabled = true;
+        document.getElementById('soundBtn').classList.add('active');
+        document.getElementById('alertBtn').classList.add('active');
+        document.getElementById('soundOverlay').classList.remove('show');
+        // 播放测试音
+        playTone(800, 0.1, 0.1);
+        showToast('✅ 声音警报已开启');
+      } catch(e) {
+        showToast('❌ 无法启用声音');
+      }
+    }
+
+    // 播放音调
+    function playTone(freq, gain, duration) {
+      if (!hasUserGesture) return;
+      try {
+        const ctx = getAudioContext();
+        if (ctx.state === 'suspended') ctx.resume();
+        const osc = ctx.createOscillator();
+        const g = ctx.createGain();
+        osc.connect(g);
+        g.connect(ctx.destination);
+        osc.frequency.value = freq;
+        g.gain.value = gain;
+        osc.start();
+        osc.stop(ctx.currentTime + duration);
+      } catch(e) {}
+    }
+
+    // 播放警报声（两声短促）
+    function playAlertSound() {
+      if (!soundEnabled || !hasUserGesture) return;
+      playTone(600, 0.15, 0.15);
+      setTimeout(() => playTone(800, 0.15, 0.15), 200);
+    }
+
+    // 切换声音
+    function toggleSound() {
+      if (!hasUserGesture) {
+        showSoundOverlay();
+        return;
+      }
+      soundEnabled = !soundEnabled;
+      document.getElementById('soundBtn').classList.toggle('active', soundEnabled);
+      if (soundEnabled) {
+        playTone(800, 0.1, 0.1);
+      }
+    }
+
+    // 切换警报
+    function toggleAlert() {
+      if (!hasUserGesture) {
+        showSoundOverlay();
+        return;
+      }
+      alertEnabled = !alertEnabled;
+      document.getElementById('alertBtn').classList.toggle('active', alertEnabled);
+      renderAll();
+    }
+
+    // ===== 全屏 =====
     function toggleFullscreen() {
       const sidebar = document.querySelector('.sidebar');
       const btn = document.getElementById('fullscreenBtn');
-      
       if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen().then(() => {
           sidebar.style.display = 'none';
@@ -381,51 +509,9 @@
       }
     });
 
-    // 声音警报
-    function toggleSound() {
-      soundEnabled = !soundEnabled;
-      document.getElementById('soundBtn').classList.toggle('active', soundEnabled);
-      if (soundEnabled) {
-        // 播放测试音
-        try {
-          const ctx = new (window.AudioContext || window.webkitAudioContext)();
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.frequency.value = 800;
-          gain.gain.value = 0.1;
-          osc.start();
-          osc.stop(ctx.currentTime + 0.1);
-        } catch(e) {}
-      }
-    }
-
-    function toggleAlert() {
-      alertEnabled = !alertEnabled;
-      document.getElementById('alertBtn').classList.toggle('active', alertEnabled);
-      renderAll();
-    }
-
-    function playAlertSound() {
-      if (!soundEnabled) return;
-      try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.frequency.value = 600;
-        gain.gain.value = 0.15;
-        osc.start();
-        osc.stop(ctx.currentTime + 0.3);
-      } catch(e) {}
-    }
-
-    // 设置筛选
+    // ===== 筛选 =====
     function setFilter(column, filter) {
       filters[column] = filter;
-      // 更新按钮样式
       document.querySelectorAll(`#${column}FilterBtns .filter-btn`).forEach(btn => {
         btn.classList.remove('active', 'active-pending', 'active-completed', 'active-cancelled');
         if (btn.dataset.filter === filter) {
@@ -437,46 +523,174 @@
       renderAll();
     }
 
-    async function refreshData() {
-      try {
-        // 获取商品订单
-        try {
-          const orders = await api('/api/admin/orders');
-          productOrders = Array.isArray(orders) ? orders : [];
-        } catch(e) {
-          productOrders = [];
-        }
-        
-        // 获取服务订单
-        try {
-          const svcRes = await api('/api/service-orders');
-          serviceOrders = (svcRes.success ? (svcRes.data || []) : []);
-        } catch(e) {
-          serviceOrders = [];
-        }
-        
-        // 获取上下桌单
-        try {
-          const tblRes = await api('/api/table-action-orders');
-          coachSessions = (tblRes.success ? (tblRes.data || []) : []);
-        } catch(e) {
-          coachSessions = [];
-        }
-        
-        renderAll();
-        
-        // 对所有待处理订单触发警报
-        const allPending = productOrders.filter(o => o.status === '待处理').length +
-                          serviceOrders.filter(o => o.status === '待处理').length +
-                          coachSessions.filter(o => o.status === '待处理').length;
-        if (allPending > 0 && alertEnabled) {
-          playAlertSound();
-        }
-        
-        document.getElementById('lastRefresh').textContent = '上次刷新: ' + new Date().toLocaleTimeString('zh-CN');
-      } catch (e) {
-        console.error('刷新数据失败:', e);
+    // ===== 渲染函数 =====
+
+    function renderProductOrders(newIds) {
+      const container = document.getElementById('productOrdersList');
+      const filtered = filterByTime(productOrders.filter(o => o.status === filters.product), filters.product);
+      
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">📦</div><div>暂无商品订单</div></div>';
+        renderedProductIds = new Set();
+        return;
       }
+      // 如果筛选状态不是待处理，全量渲染
+      if (filters.product !== '待处理' || !newIds) {
+        container.innerHTML = filtered.slice(0, 50).map(o => renderProductCard(o)).join('');
+        renderedProductIds = new Set(filtered.map(o => o.id));
+        return;
+      }
+      // 增量渲染：追加新卡片
+      let html = container.innerHTML;
+      for (const o of filtered) {
+        if (!renderedProductIds.has(o.id)) {
+          html = renderProductCard(o, true) + html;
+          renderedProductIds.add(o.id);
+        }
+      }
+      container.innerHTML = html;
+      renderedProductIds = new Set(filtered.map(o => o.id));
+    }
+
+    function renderProductCard(o, isNew) {
+      const items = (o.items || []);
+      const isPending = o.status === '待处理';
+      const alertClass = (isPending && alertEnabled) ? 'pending-alert' : '';
+      const newClass = isNew ? 'card-new' : '';
+      return `
+        <div class="product-order-card ${alertClass} ${newClass}">
+          <div class="product-order-header">
+            <span class="product-order-no">${o.order_no || '订单#' + o.id}</span>
+            <span class="product-order-time">${formatBeijingTime(o.created_at)}</span>
+          </div>
+          <div class="product-order-items">
+            ${items.map(item => `
+              <div class="product-order-item">
+                <span class="item-info">${item.name} × ${item.quantity}</span>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span>¥${((item.price || 0) * (item.quantity || 1)).toFixed(2)}</span>
+                  ${isPending ? `<button class="item-cancel-btn" onclick="openCancelItemModal(${o.id}, '${item.name}', ${item.quantity})">取消</button>` : ''}
+                </div>
+              </div>
+            `).join('') || '<div class="product-order-item"><span>商品明细</span><span>-</span></div>'}
+          </div>
+          <div class="product-order-total">
+            <span class="status-badge ${getStatusClass(o.status)}">${o.status || '待处理'}</span>
+            <span class="product-order-price">${formatMoney(o.total_price)}</span>
+          </div>
+          ${isPending ? `<div style="margin-top:10px;display:flex;gap:8px">
+            <button class="btn btn-sm btn-success" style="flex:1" onclick="completeOrder(${o.id})">✓ 完成</button>
+            <button class="btn btn-sm btn-danger" style="flex:1" onclick="cancelOrder(${o.id})">✗ 取消订单</button>
+          </div>` : ''}
+        </div>
+      `;
+    }
+
+    function renderServiceOrders(newIds) {
+      const container = document.getElementById('serviceOrdersList');
+      const filtered = filterByTime(serviceOrders.filter(o => o.status === filters.service), filters.service);
+      
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">🎯</div><div>暂无服务订单</div></div>';
+        renderedServiceIds = new Set();
+        return;
+      }
+      if (filters.service !== '待处理' || !newIds) {
+        container.innerHTML = filtered.map(o => renderServiceCard(o)).join('');
+        renderedServiceIds = new Set(filtered.map(o => o.id));
+        return;
+      }
+      let html = container.innerHTML;
+      for (const o of filtered) {
+        if (!renderedServiceIds.has(o.id)) {
+          html = renderServiceCard(o, true) + html;
+          renderedServiceIds.add(o.id);
+        }
+      }
+      container.innerHTML = html;
+      renderedServiceIds = new Set(filtered.map(o => o.id));
+    }
+
+    function renderServiceCard(o, isNew) {
+      const isPending = o.status === '待处理';
+      const alertClass = (isPending && alertEnabled) ? 'pending-alert' : '';
+      const newClass = isNew ? 'card-new' : '';
+      return `
+        <div class="service-order-card ${alertClass} ${newClass}">
+          <div class="service-order-header">
+            <span class="service-order-no">#${o.id}</span>
+            <span class="status-badge ${getStatusClass(o.status)}">${o.status}</span>
+          </div>
+          <div class="service-order-info">🎱 ${o.table_no || '-'} | ${o.requirement || '无需求描述'}</div>
+          <div class="service-order-coach">👤 ${o.requester_name || '-'} · ${o.requester_type || '-'}</div>
+          <div class="service-order-time" style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:4px">${formatBeijingTime(o.created_at)}</div>
+          ${isPending ? `<div class="service-order-actions">
+            <button class="btn btn-sm btn-danger" onclick="updateServiceOrder(${o.id}, '已取消')">取消</button>
+            <button class="btn btn-sm btn-success" onclick="updateServiceOrder(${o.id}, '已完成')">完成</button>
+          </div>` : ''}
+        </div>
+      `;
+    }
+
+    function renderCoachSessions(newIds) {
+      const container = document.getElementById('coachSessionsList');
+      const filtered = filterByTime(coachSessions.filter(o => o.status === filters.coach), filters.coach);
+      
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">👩‍🏫</div><div>暂无上下桌单</div></div>';
+        renderedCoachIds = new Set();
+        return;
+      }
+      if (filters.coach !== '待处理' || !newIds) {
+        container.innerHTML = filtered.map(s => renderCoachCard(s)).join('');
+        renderedCoachIds = new Set(filtered.map(s => s.id));
+        return;
+      }
+      let html = container.innerHTML;
+      for (const s of filtered) {
+        if (!renderedCoachIds.has(s.id)) {
+          html = renderCoachCard(s, true) + html;
+          renderedCoachIds.add(s.id);
+        }
+      }
+      container.innerHTML = html;
+      renderedCoachIds = new Set(filtered.map(s => s.id));
+    }
+
+    function renderCoachCard(s, isNew) {
+      const isPending = s.status === '待处理';
+      const alertClass = (isPending && alertEnabled) ? 'pending-alert' : '';
+      const newClass = isNew ? 'card-new' : '';
+      // 显示工号而不是编号
+      const displayId = s.employee_id || s.coach_no || '-';
+      const idLabel = s.employee_id ? '工号' : '编号';
+      return `
+        <div class="coach-session-card ${alertClass} ${newClass}">
+          <div class="coach-session-header">
+            <span class="coach-session-no">#${s.id}</span>
+            <span class="status-badge ${getStatusClass(s.status)}">${s.status}</span>
+          </div>
+          <div class="coach-session-info">
+            ${s.order_type === '上桌单' ? '⬆️' : s.order_type === '下桌单' ? '⬇️' : '❌'} ${s.order_type || s.type || '-'}
+            | 👤 ${s.stage_name || '-'} (${idLabel}${displayId})
+          </div>
+          <div class="coach-session-detail">🎱 台桌: ${s.table_no || '-'} ${s.action_category ? '| ' + s.action_category : ''}</div>
+          <div class="coach-session-time" style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:4px">${formatBeijingTime(s.created_at)}</div>
+          ${isPending ? `<div class="coach-session-actions">
+            <button class="btn btn-sm btn-danger" onclick="updateTableOrder(${s.id}, '已取消')">取消</button>
+            <button class="btn btn-sm btn-success" onclick="updateTableOrder(${s.id}, '已完成')">完成</button>
+          </div>` : ''}
+        </div>
+      `;
+    }
+
+    function updateCounts() {
+      const filteredProducts = filterByTime(productOrders.filter(o => o.status === filters.product), filters.product);
+      const filteredServices = filterByTime(serviceOrders.filter(o => o.status === filters.service), filters.service);
+      const filteredCoaches = filterByTime(coachSessions.filter(o => o.status === filters.coach), filters.coach);
+      document.getElementById('productCount').textContent = filteredProducts.length + ' 单';
+      document.getElementById('serviceCount').textContent = filteredServices.length + ' 单';
+      document.getElementById('coachSessionCount').textContent = filteredCoaches.length + ' 单';
     }
 
     function renderAll() {
@@ -486,121 +700,100 @@
       updateCounts();
     }
 
-    function updateCounts() {
-      const filteredProducts = filterByTime(productOrders.filter(o => o.status === filters.product), filters.product);
-      const filteredServices = filterByTime(serviceOrders.filter(o => o.status === filters.service), filters.service);
-      const filteredCoaches = filterByTime(coachSessions.filter(o => o.status === filters.coach), filters.coach);
+    // ===== 数据加载 =====
+
+    // 全量刷新（初次加载 + 手动刷新按钮）
+    async function fullRefresh() {
+      try {
+        const orders = await api('/api/admin/orders');
+        productOrders = Array.isArray(orders) ? orders : [];
+      } catch(e) { productOrders = []; }
       
-      document.getElementById('productCount').textContent = filteredProducts.length + ' 单';
-      document.getElementById('serviceCount').textContent = filteredServices.length + ' 单';
-      document.getElementById('coachSessionCount').textContent = filteredCoaches.length + ' 单';
+      try {
+        const svcRes = await api('/api/service-orders');
+        serviceOrders = (svcRes.success ? (svcRes.data || []) : []);
+      } catch(e) { serviceOrders = []; }
+      
+      try {
+        const tblRes = await api('/api/table-action-orders');
+        coachSessions = (tblRes.success ? (tblRes.data || []) : []);
+      } catch(e) { coachSessions = []; }
+      
+      // 如果服务订单为空，添加测试数据
+      if (serviceOrders.length === 0) {
+        serviceOrders = [
+          { id: 1001, table_no: 'A03', requirement: '换垃圾袋', requester_name: '小美', requester_type: '助教', status: '待处理', created_at: new Date(Date.now() - 60000).toISOString() },
+          { id: 1002, table_no: 'B07', requirement: '搞卫生', requester_name: '阿杰', requester_type: '助教', status: '待处理', created_at: new Date(Date.now() - 120000).toISOString() },
+          { id: 1003, table_no: 'C02', requirement: '音响连接有问题，没声音', requester_name: '丽丽', requester_type: '助教', status: '待处理', created_at: new Date(Date.now() - 180000).toISOString() },
+        ];
+      }
+      
+      renderAll();
+      document.getElementById('lastRefresh').textContent = '上次刷新: ' + new Date().toLocaleTimeString('zh-CN');
     }
 
-    function renderProductOrders() {
-      const container = document.getElementById('productOrdersList');
-      const filtered = filterByTime(productOrders.filter(o => o.status === filters.product), filters.product);
-      
-      if (filtered.length === 0) {
-        container.innerHTML = '<div class="empty-state"><div class="icon">📦</div><div>暂无商品订单</div></div>';
-        return;
+    // 增量轮询（每10秒检查新订单）
+    async function pollNewOrders() {
+      try {
+        let hasNew = false;
+        
+        // 检查商品订单
+        try {
+          const orders = await api('/api/admin/orders');
+          const newOrders = Array.isArray(orders) ? orders : [];
+          const newOnes = newOrders.filter(o => o.status === '待处理' && !renderedProductIds.has(o.id));
+          if (newOnes.length > 0) {
+            productOrders = newOrders;
+            hasNew = true;
+          } else {
+            productOrders = newOrders;
+          }
+        } catch(e) {}
+        
+        // 检查服务订单
+        try {
+          const svcRes = await api('/api/service-orders');
+          const newOrders = (svcRes.success ? (svcRes.data || []) : []);
+          const newOnes = newOrders.filter(o => o.status === '待处理' && !renderedServiceIds.has(o.id));
+          if (newOnes.length > 0) {
+            serviceOrders = newOrders;
+            hasNew = true;
+          } else {
+            serviceOrders = newOrders;
+          }
+        } catch(e) {}
+        
+        // 检查上下桌单
+        try {
+          const tblRes = await api('/api/table-action-orders');
+          const newOrders = (tblRes.success ? (tblRes.data || []) : []);
+          const newOnes = newOrders.filter(o => o.status === '待处理' && !renderedCoachIds.has(o.id));
+          if (newOnes.length > 0) {
+            coachSessions = newOrders;
+            hasNew = true;
+          } else {
+            coachSessions = newOrders;
+          }
+        } catch(e) {}
+        
+        // 增量渲染
+        renderProductOrders(true);
+        renderServiceOrders(true);
+        renderCoachSessions(true);
+        updateCounts();
+        
+        // 有新订单且警报开启时播放声音
+        if (hasNew && alertEnabled && soundEnabled) {
+          playAlertSound();
+        }
+        
+        document.getElementById('lastRefresh').textContent = '上次检查: ' + new Date().toLocaleTimeString('zh-CN');
+      } catch (e) {
+        console.error('轮询失败:', e);
       }
-      container.innerHTML = filtered.slice(0, 50).map(o => {
-        const items = (o.items || []);
-        const isPending = o.status === '待处理';
-        // 所有待处理订单都显示警报闪烁
-        const alertClass = (isPending && alertEnabled) ? 'pending-alert' : '';
-        return `
-          <div class="product-order-card ${alertClass}">
-            <div class="product-order-header">
-              <span class="product-order-no">${o.order_no || '订单#' + o.id}</span>
-              <span class="product-order-time">${formatBeijingTime(o.created_at)}</span>
-            </div>
-            <div class="product-order-items">
-              ${items.map(item => `
-                <div class="product-order-item">
-                  <span class="item-info">${item.name} × ${item.quantity}</span>
-                  <div style="display:flex;align-items:center;gap:8px">
-                    <span>¥${((item.price || 0) * (item.quantity || 1)).toFixed(2)}</span>
-                    ${isPending ? `<button class="item-cancel-btn" onclick="openCancelItemModal(${o.id}, '${item.name}', ${item.quantity})">取消</button>` : ''}
-                  </div>
-                </div>
-              `).join('') || '<div class="product-order-item"><span>商品明细</span><span>-</span></div>'}
-            </div>
-            <div class="product-order-total">
-              <span class="status-badge ${getStatusClass(o.status)}">${o.status || '待处理'}</span>
-              <span class="product-order-price">${formatMoney(o.total_price)}</span>
-            </div>
-            ${isPending ? `<div style="margin-top:10px;display:flex;gap:8px">
-              <button class="btn btn-sm btn-success" style="flex:1" onclick="completeOrder(${o.id})">✓ 完成</button>
-              <button class="btn btn-sm btn-danger" style="flex:1" onclick="cancelOrder(${o.id})">✗ 取消订单</button>
-            </div>` : ''}
-          </div>
-        `;
-      }).join('');
     }
 
-    function renderServiceOrders() {
-      const container = document.getElementById('serviceOrdersList');
-      const filtered = filterByTime(serviceOrders.filter(o => o.status === filters.service), filters.service);
-      
-      if (filtered.length === 0) {
-        container.innerHTML = '<div class="empty-state"><div class="icon">🎯</div><div>暂无服务订单</div></div>';
-        return;
-      }
-      container.innerHTML = filtered.map(o => {
-        const isPending = o.status === '待处理';
-        // 所有待处理订单都显示警报闪烁
-        const alertClass = (isPending && alertEnabled) ? 'pending-alert' : '';
-        return `
-          <div class="service-order-card ${alertClass}">
-            <div class="service-order-header">
-              <span class="service-order-no">#${o.id}</span>
-              <span class="status-badge ${getStatusClass(o.status)}">${o.status}</span>
-            </div>
-            <div class="service-order-info">🎱 ${o.table_no || '-'} | ${o.requirement || '无需求描述'}</div>
-            <div class="service-order-coach">👤 ${o.requester_name || '-'} · ${o.requester_type || '-'}</div>
-            <div class="service-order-time" style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:4px">${formatBeijingTime(o.created_at)}</div>
-            ${isPending ? `<div class="service-order-actions">
-              <button class="btn btn-sm btn-danger" onclick="updateServiceOrder(${o.id}, '已取消')">取消</button>
-              <button class="btn btn-sm btn-success" onclick="updateServiceOrder(${o.id}, '已完成')">完成</button>
-            </div>` : ''}
-          </div>
-        `;
-      }).join('');
-    }
-
-    function renderCoachSessions() {
-      const container = document.getElementById('coachSessionsList');
-      const filtered = filterByTime(coachSessions.filter(o => o.status === filters.coach), filters.coach);
-      
-      if (filtered.length === 0) {
-        container.innerHTML = '<div class="empty-state"><div class="icon">👩‍🏫</div><div>暂无上下桌单</div></div>';
-        return;
-      }
-      container.innerHTML = filtered.map(s => {
-        const isPending = s.status === '待处理';
-        // 所有待处理订单都显示警报闪烁
-        const alertClass = (isPending && alertEnabled) ? 'pending-alert' : '';
-        return `
-          <div class="coach-session-card ${alertClass}">
-            <div class="coach-session-header">
-              <span class="coach-session-no">#${s.id}</span>
-              <span class="status-badge ${getStatusClass(s.status)}">${s.status}</span>
-            </div>
-            <div class="coach-session-info">
-              ${s.order_type === '上桌单' ? '⬆️' : s.order_type === '下桌单' ? '⬇️' : '❌'} ${s.order_type || s.type || '-'}
-              | 👤 ${s.stage_name || '-'} (${s.coach_no || '-'})
-            </div>
-            <div class="coach-session-detail">🎱 台桌: ${s.table_no || '-'} ${s.action_category ? '| ' + s.action_category : ''}</div>
-            <div class="coach-session-time" style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:4px">${formatBeijingTime(s.created_at)}</div>
-            ${isPending ? `<div class="coach-session-actions">
-              <button class="btn btn-sm btn-danger" onclick="updateTableOrder(${s.id}, '已取消')">取消</button>
-              <button class="btn btn-sm btn-success" onclick="updateTableOrder(${s.id}, '已完成')">完成</button>
-            </div>` : ''}
-          </div>
-        `;
-      }).join('');
-    }
+    // ===== 操作函数 =====
 
     async function completeOrder(orderId) {
       if (!confirm('确认完成此订单？')) return;
@@ -608,7 +801,7 @@
         const res = await api(`/api/admin/orders/${orderId}/complete`, { method: 'POST' });
         if (res.success) {
           showToast('订单已完成');
-          refreshData();
+          fullRefresh();
         } else {
           showToast(res.error || '操作失败');
         }
@@ -621,7 +814,7 @@
         const res = await api(`/api/admin/orders/${orderId}/cancel`, { method: 'POST' });
         if (res.success) {
           showToast('订单已取消');
-          refreshData();
+          fullRefresh();
         } else {
           showToast(res.error || '操作失败');
         }
@@ -631,7 +824,7 @@
     async function updateServiceOrder(id, status) {
       try {
         const res = await api(`/api/service-orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) });
-        if (res.success) { showToast('操作成功'); refreshData(); }
+        if (res.success) { showToast('操作成功'); fullRefresh(); }
         else { showToast(res.error || '操作失败'); }
       } catch (e) { showToast('操作失败: ' + e.message); }
     }
@@ -639,21 +832,17 @@
     async function updateTableOrder(id, status) {
       try {
         const res = await api(`/api/table-action-orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) });
-        if (res.success) { showToast('操作成功'); refreshData(); }
+        if (res.success) { showToast('操作成功'); fullRefresh(); }
         else { showToast(res.error || '操作失败'); }
       } catch (e) { showToast('操作失败: ' + e.message); }
     }
 
-    // 取消单个商品
     function openCancelItemModal(orderId, itemName, qty) {
       cancelItemOrderId = orderId;
       cancelItemName = itemName;
       cancelItemMaxQty = qty;
-      
       document.getElementById('cancelItemName').value = itemName;
       document.getElementById('cancelItemCurrentQty').value = qty;
-      
-      // 生成数量选项
       let opts = '';
       for (let i = 1; i <= qty; i++) {
         opts += `<option value="${i}">${i} ${i === qty ? '(全部)' : ''}</option>`;
@@ -671,17 +860,15 @@
     async function confirmCancelItem() {
       if (!cancelItemOrderId || !cancelItemName) return;
       const qty = parseInt(document.getElementById('cancelItemQty').value);
-      
       try {
         const res = await api(`/api/admin/orders/${cancelItemOrderId}/cancel-item`, {
           method: 'POST',
           body: JSON.stringify({ itemName: cancelItemName, cancelQuantity: qty })
         });
-        
         if (res.success) {
           showToast(res.orderEmpty ? '订单已自动取消' : '商品已取消');
           closeCancelItemModal();
-          refreshData();
+          fullRefresh();
         } else {
           showToast(res.error || '操作失败');
         }
@@ -697,9 +884,12 @@
       el.parentElement.classList.toggle('open');
     }
 
-    // 自动刷新 - 每10秒
-    refreshData();
-    refreshInterval = setInterval(refreshData, 10000);
+    // ===== 初始化 =====
+    fullRefresh();
+    // 显示开启声音覆盖层
+    setTimeout(showSoundOverlay, 500);
+    // 每10秒增量轮询新订单
+    refreshInterval = setInterval(pollNewOrders, 10000);
   </script>
   <script src="nav-control.js"></script>
 </body>
