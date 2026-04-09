@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>水牌管理 - 天宫国际</title>
+  <title>水牌 - 天宫国际</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #0a0a0f; font-family: 'PingFang SC', sans-serif; color: #fff; display: flex; min-height: 100vh; }
@@ -163,7 +163,7 @@
       <div class="nav-submenu">
         <a href="coaches.html" class="nav-item"><span class="nav-icon">👩</span> 助教列表</a>
         <a href="coaches.html#batch-shift" class="nav-item"><span class="nav-icon">🔄</span> 批量更新班次</a>
-        <a href="water-boards.html" class="nav-item active"><span class="nav-icon">📋</span> 水牌管理</a>
+        <a href="water-boards.html" class="nav-item active"><span class="nav-icon">📋</span> 水牌</a>
         <a href="invitation-review.html?shift=early" class="nav-item"><span class="nav-icon">☀️</span> 早班约客</a>
         <a href="invitation-review.html?shift=late" class="nav-item"><span class="nav-icon">🌙</span> 晚班约客</a>
       </div>
@@ -186,11 +186,10 @@
   
   <div class="main">
     <div class="page-header">
-      <div class="page-title">📋 水牌管理</div>
+      <div class="page-title">📋 水牌</div>
       <div style="display:flex;gap:12px;align-items:center;">
         <button class="fullscreen-btn" id="fullscreenBtn" onclick="toggleFullscreen()">🖥️ 全屏</button>
-        <button class="btn btn-sm" style="background:rgba(255,255,255,0.1);color:#fff" onclick="refreshData()">🔄 刷新</button>
-        <button class="btn btn-sm" style="background:rgba(255,255,255,0.1);color:#fff" onclick="logout()">退出</button>
+        <button class="fullscreen-btn" onclick="refreshData()">🔄 刷新</button>
       </div>
     </div>
     
