@@ -251,7 +251,7 @@
     async function refreshData() {
       const shift = shiftMap[currentShift];
       try {
-        const res = await api('/api/guest-invitations?shift=' + shift);
+        const res = await api('/api/guest-invitations?shift=' + encodeURIComponent(shift));
         allRecords = res.success ? (res.data || []) : [];
         applyFilter();
       } catch (e) {

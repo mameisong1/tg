@@ -85,14 +85,14 @@ export const applications = {
 export const guestInvitations = {
   // 提交约客记录
   create: (data) => request({ url: '/guest-invitations', method: 'POST', data }),
-  // 获取约客记录列表
+  // 获取约客记录列表（params 会自动处理 URL 编码）
   getList: (params) => request({ url: '/guest-invitations', data: params }),
   // 审查约客记录
   review: (id, data) => request({ url: `/guest-invitations/${id}/review`, method: 'PUT', data }),
   // 生成约客统计
   generateStats: (data) => request({ url: '/guest-invitations/statistics', method: 'POST', data }),
   // 获取约客统计结果
-  getStats: (date, shift) => request({ url: `/guest-invitations/statistics/${date}/${shift}` })
+  getStats: (date, shift) => request({ url: `/guest-invitations/statistics/${date}/${encodeURIComponent(shift)}` })
 }
 
 // ========== 助教管理（V2） ==========
