@@ -18,7 +18,11 @@
     <view class="form-section">
       <view class="form-item">
         <text class="form-label">班次</text>
-        <view class="shift-btns">
+        <!-- 测试环境下显示当前班次（不可选），生产环境可选择 -->
+        <view v-if="isTestEnv" class="shift-display">
+          <text class="shift-value">{{ form.shift === '早班' ? '🌅 早班' : '🌙 晚班' }}</text>
+        </view>
+        <view v-else class="shift-btns">
           <view class="shift-btn" :class="{ active: form.shift === '早班' }" @click="form.shift = '早班'">
             <text>🌅 早班</text>
           </view>
@@ -53,14 +57,26 @@ const statusBarHeight = ref(0)
 const coachInfo = ref({})
 
 const form = ref({
-  shift: new Date().getHours() < 18 ? '早班' : '晚班',
+  shift: '',
   invitation_image_url: ''
 })
+
+// 判断是否为测试环境
+const isTestEnv = import.meta.env.VITE_API_BASE_URL?.includes('tg.tiangong.club') || 
+                   import.meta.env.VITE_API_BASE_URL?.includes('localhost') ||
+                   window.location.hostname === 'tg.tiangong.club'
 
 onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 20
   coachInfo.value = uni.getStorageSync('coachInfo') || {}
+  
+  // 设置班次：测试环境下从助教信息读取，生产环境根据时间判断
+  if (isTestEnv && coachInfo.value.shift) {
+    form.value.shift = coachInfo.value.shift
+  } else {
+    form.value.shift = new Date().getHours() < 18 ? '早班' : '晚班'
+  }
 })
 
 const today = computed(() => new Date().toISOString().split('T')[0])
@@ -130,6 +146,8 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .shift-btns { display: flex; gap: 12px; }
 .shift-btn { flex: 1; height: 44px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: rgba(255,255,255,0.6); }
 .shift-btn.active { background: rgba(212,175,55,0.2); border-color: #d4af37; color: #d4af37; }
+.shift-display { height: 44px; background: rgba(212,175,55,0.1); border: 1px solid rgba(212,175,55,0.3); border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+.shift-value { font-size: 15px; color: #d4af37; font-weight: 500; }
 
 .upload-area { width: 140px; height: 140px; background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
 .upload-img { width: 100%; height: 100%; }

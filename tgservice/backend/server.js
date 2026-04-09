@@ -945,7 +945,8 @@ app.post('/api/coach/login', async (req, res) => {
       coach: {
         coachNo: coach.coach_no,
         stageName: coach.stage_name,
-        level: coach.level
+        level: coach.level,
+        shift: coach.shift || '晚班'
       },
       adminInfo: adminInfo,
       adminToken: adminToken
@@ -1316,11 +1317,12 @@ app.post('/api/member/login-sms', async (req, res) => {
       coachInfo: coach ? {
         coachNo: coach.coach_no,
         stageName: coach.stage_name,
-        level: coach.level
+        level: coach.level,
+        status: coach.status
       } : null
     });
   } catch (err) {
-    logger.error(`短信登录失败: ${err.message}`);
+    logger.error(`短信登录失败: ${err.message});
     res.status(500).json({ error: '服务器错误' });
   }
 });
@@ -1429,7 +1431,8 @@ app.post('/api/member/login', async (req, res) => {
       coachInfo: coach ? {
         coachNo: coach.coach_no,
         stageName: coach.stage_name,
-        level: coach.level
+        level: coach.level,
+        status: coach.status
       } : null
     });
   } catch (err) {
@@ -1513,7 +1516,8 @@ app.post('/api/member/auto-login', async (req, res) => {
       coachInfo: coach ? {
         coachNo: coach.coach_no,
         stageName: coach.stage_name,
-        level: coach.level
+        level: coach.level,
+        status: coach.status
       } : null
     });
   } catch (err) {
@@ -1565,7 +1569,8 @@ app.get('/api/member/profile', async (req, res) => {
       coachInfo: coach ? {
         coachNo: coach.coach_no,
         stageName: coach.stage_name,
-        level: coach.level
+        level: coach.level,
+        status: coach.status
       } : null
     });
   } catch (err) {
@@ -3343,9 +3348,8 @@ app.get('/api/oss/sts', async (req, res) => {
       
       res.json({
         success: true,
-        signedUrl,
-        objectKey,
-        accessUrl,
+        uploadUrl: signedUrl,
+        fileUrl: accessUrl,
         expires: 3600
       });
     }

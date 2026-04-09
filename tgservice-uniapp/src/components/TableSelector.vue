@@ -24,13 +24,21 @@
         <view class="table-grid">
           <view
             v-for="table in filteredTables"
-            :key="table"
+            :key="table.name"
             class="table-btn"
-            :class="{ selected: selectedTable === table }"
-            @click="selectedTable = table"
+            :class="{ selected: selectedTable === table.name, unavailable: table.status === '占用' }"
+            @click="table.status !== '占用' && (selectedTable = table.name)"
           >
-            <text>{{ table }}</text>
+            <text>{{ table.name }}</text>
           </view>
+        </view>
+        <!-- 空状态 -->
+        <view v-if="filteredTables.length === 0 && !loading" class="empty-state">
+          <text>该区域暂无台桌</text>
+        </view>
+        <!-- 加载中 -->
+        <view v-if="loading" class="loading-state">
+          <text>加载中...</text>
         </view>
       </scroll-view>
       
@@ -52,48 +60,70 @@ import { ref, computed, watch } from 'vue'
 const props = defineProps({
   visible: { type: Boolean, default: false },
   // 默认选中的台桌号（已上桌助教）
-  defaultTable: { type: String, default: '' },
-  // 自定义台桌数据（可选，不提供则使用默认）
-  tables: { type: Object, default: null }
+  defaultTable: { type: String, default: '' }
 })
 
 const emit = defineEmits(['confirm', 'cancel'])
 
-// 默认台桌配置
-const defaultTables = {
-  '大厅': ['普台 1', '普台 2', '普台 3', '普台 4', '普台 5', '普台 6', '普台 7', '普台 8', '普台 9', '普台 10'],
-  '包房': ['V1', 'V2', 'V3', 'V4', 'V5', 'V6'],
-  '斯诺克': ['斯台 1', '斯台 2', '斯台 3', '斯台 4'],
-  '其他': ['其他 1', '其他 2']
-}
+// 从数据库获取的台桌数据
+const allTables = ref([])
+const loading = ref(false)
 
-const tableData = computed(() => props.tables || defaultTables)
+const areas = computed(() => {
+  const areaSet = new Set(allTables.value.map(t => t.area))
+  return Array.from(areaSet).map(area => ({ label: area, value: area }))
+})
 
-const areas = computed(() => Object.keys(tableData.value).map(key => ({
-  label: key,
-  value: key
-})))
-
-const currentArea = ref(areas.value[0]?.value || '')
+const currentArea = ref('')
 const selectedTable = ref(props.defaultTable || '')
+
+// 获取台桌列表
+async function fetchTables() {
+  if (allTables.value.length > 0) return // 已加载过则不重复请求
+  loading.value = true
+  try {
+    const baseUrl = import.meta.env.VITE_API_URL || 'https://tg.tiangong.club/api'
+    const res = await uni.request({
+      url: `${baseUrl}/tables`,
+      method: 'GET'
+    })
+    if (res.statusCode === 200 && Array.isArray(res.data)) {
+      allTables.value = res.data
+      // 默认选中第一个区域
+      if (areas.value.length > 0 && !currentArea.value) {
+        currentArea.value = areas.value[0].value
+      }
+    }
+  } catch (e) {
+    console.error('获取台桌列表失败:', e)
+  } finally {
+    loading.value = false
+  }
+}
 
 watch(() => props.visible, (val) => {
   if (val) {
     selectedTable.value = props.defaultTable || ''
+    fetchTables()
     // 如果有默认台桌，自动选中对应区域
-    if (props.defaultTable) {
-      for (const area of areas.value) {
-        if (tableData.value[area.value]?.includes(props.defaultTable)) {
-          currentArea.value = area.value
-          break
-        }
+    if (props.defaultTable && allTables.value.length > 0) {
+      const found = allTables.value.find(t => t.name === props.defaultTable)
+      if (found) {
+        currentArea.value = found.area
       }
     }
   }
 })
 
+// 监听 areas 变化，自动设置当前区域
+watch(areas, (newAreas) => {
+  if (newAreas.length > 0 && !currentArea.value) {
+    currentArea.value = newAreas[0].value
+  }
+}, { immediate: true })
+
 const filteredTables = computed(() => {
-  return tableData.value[currentArea.value] || []
+  return allTables.value.filter(t => t.area === currentArea.value)
 })
 
 const handleConfirm = () => {
@@ -115,20 +145,21 @@ const handleCancel = () => {
   bottom: 0;
   background: rgba(0, 0, 0, 0.7);
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
   z-index: 1000;
 }
 
 .table-selector {
-  width: 100%;
+  width: 90%;
   max-width: 500px;
+  height: 70vh;
   background: #1a1a24;
-  border-radius: 20px 20px 0 0;
+  border-radius: 16px;
   padding-bottom: env(safe-area-inset-bottom);
-  max-height: 80vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .selector-header {
@@ -208,6 +239,20 @@ const handleCancel = () => {
   border-color: #d4af37;
   color: #d4af37;
   font-weight: 600;
+}
+
+.table-btn.unavailable {
+  opacity: 0.3;
+  background: rgba(255, 0, 0, 0.1);
+  border-color: rgba(255, 0, 0, 0.2);
+}
+
+.empty-state,
+.loading-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 14px;
 }
 
 /* 底部操作 */

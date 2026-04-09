@@ -154,7 +154,9 @@ router.get('/', auth.required, requireBackendPermission(['invitationReview']), a
     } = req.query;
     
     let sql = `
-      SELECT * FROM guest_invitation_results
+      SELECT gir.*, c.employee_id
+      FROM guest_invitation_results gir
+      LEFT JOIN coaches c ON gir.coach_no = c.coach_no
       WHERE 1=1
     `;
     const params = [];
@@ -183,9 +185,15 @@ router.get('/', auth.required, requireBackendPermission(['invitationReview']), a
     
     const invitations = await db.all(sql, params);
     
+    // 将 coach_no 替换为 employee_id 用于前端显示
+    const formattedData = invitations.map(inv => ({
+      ...inv,
+      coach_no: inv.employee_id || inv.coach_no // 优先显示工号，无工号则显示编号
+    }));
+    
     res.json({
       success: true,
-      data: invitations
+      data: formattedData
     });
   } catch (error) {
     console.error('获取约客记录列表失败:', error);
