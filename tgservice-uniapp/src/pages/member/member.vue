@@ -541,7 +541,6 @@ const detectDevice = () => {
                navigator.standalone === true
   }
 }
-// #endif
 
 // H5全屏切换
 const toggleFullscreen = () => {
@@ -571,7 +570,6 @@ const toggleFullscreen = () => {
   // #endif
 }
 
-// #ifdef H5
 // PWA安装相关
 let deferredPrompt = null
 
