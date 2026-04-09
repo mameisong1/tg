@@ -86,6 +86,22 @@
     .nav-submenu { display: none; background: rgba(0,0,0,0.2); }
     .nav-group.open .nav-submenu { display: block; }
     .nav-submenu .nav-item { padding-left: 48px; font-size: 13px; }
+
+    /* 批量修改班次 */
+    .batch-shift-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+    .batch-shift-card { background: rgba(20,20,30,0.6); border-radius: 10px; padding: 12px; border: 1px solid rgba(218,165,32,0.1); display: flex; gap: 12px; align-items: center; }
+    .batch-shift-card .coach-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; background: rgba(30,30,40,0.5); flex-shrink: 0; }
+    .batch-shift-card .coach-info { flex: 1; }
+    .batch-shift-card .coach-name { font-size: 14px; font-weight: 500; }
+    .batch-shift-card .coach-id { font-size: 11px; color: rgba(255,255,255,0.4); }
+    .batch-shift-card select { padding: 6px 10px; background: #1a1a24; border: 1px solid rgba(255,255,255,0.15); border-radius: 6px; color: #fff; font-size: 13px; margin-top: 6px; }
+    .batch-shift-card select option { background: #1a1a24; color: #fff; }
+    .batch-shift-card .save-indicator { font-size: 11px; color: rgba(46,204,113,0.7); margin-top: 4px; display: none; }
+    .batch-shift-card .save-indicator.show { display: block; }
+
+    /* 批量班次视图 - 搜索筛选 */
+    .batch-search { margin-bottom: 16px; }
+    .batch-search input { padding: 10px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; width: 100%; max-width: 400px; }
 </style>
 </head>
 <body>
@@ -151,22 +167,38 @@
   
   
   <div class="main">
-    <div class="page-header">
-      <div class="page-title">助教管理</div>
-      <button class="btn btn-primary" onclick="showModal()">+ 添加助教</button>
-    </div>
-    
-    <div class="toolbar">
-      <div class="level-filter" id="levelFilter"></div>
-      <div class="status-filter" id="statusFilter">
-        <button class="status-btn active" data-status="全部">全部</button>
-        <button class="status-btn" data-status="全职">全职</button>
-        <button class="status-btn" data-status="兼职">兼职</button>
-        <button class="status-btn" data-status="离职">离职</button>
+    <!-- 批量修改班次视图 -->
+    <div id="batchShiftView" style="display:none">
+      <div class="page-header">
+        <div class="page-title">批量更新班次</div>
+        <div style="display:flex;gap:12px">
+          <button class="btn btn-sm" style="background:rgba(255,255,255,0.1);color:#fff" onclick="expandAllShifts()">全部展开</button>
+          <button class="btn btn-primary" onclick="saveAllShifts()">💾 全部保存</button>
+        </div>
       </div>
+      <p style="color:rgba(255,255,255,0.5);margin-bottom:20px">为每位助教选择班次，修改后点击「全部保存」生效</p>
+      <div class="batch-shift-grid" id="batchShiftGrid"></div>
     </div>
-    
-    <div class="coach-grid" id="coachGrid"></div>
+
+    <!-- 助教列表视图 -->
+    <div id="mainView">
+      <div class="page-header">
+        <div class="page-title">助教管理</div>
+        <button class="btn btn-primary" onclick="showModal()">+ 添加助教</button>
+      </div>
+      
+      <div class="toolbar">
+        <div class="level-filter" id="levelFilter"></div>
+        <div class="status-filter" id="statusFilter">
+          <button class="status-btn active" data-status="全部">全部</button>
+          <button class="status-btn" data-status="全职">全职</button>
+          <button class="status-btn" data-status="兼职">兼职</button>
+          <button class="status-btn" data-status="离职">离职</button>
+        </div>
+      </div>
+      
+      <div class="coach-grid" id="coachGrid"></div>
+    </div>
   </div>
   
   <div class="modal" id="modal">
@@ -398,6 +430,121 @@
     function toggleGroup(el) {
       el.parentElement.classList.toggle('open');
     }
+
+    // ===== 批量修改班次 =====
+    let shiftChanges = {};
+
+    function checkHash() {
+      const hash = window.location.hash;
+      if (hash === '#batch-shift') {
+        document.getElementById('batchShiftView').style.display = 'block';
+        document.getElementById('mainView').style.display = 'none';
+        // 更新侧边栏激活状态
+        document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(item => {
+          if (item.getAttribute('href') === 'coaches.html#batch-shift') {
+            item.classList.add('active');
+          }
+        });
+        // 展开助教管理菜单
+        document.querySelectorAll('.nav-group').forEach(g => {
+          if (g.querySelector('a[href="coaches.html#batch-shift"]')) {
+            g.classList.add('open');
+          }
+        });
+        renderBatchShift();
+      } else {
+        document.getElementById('batchShiftView').style.display = 'none';
+        document.getElementById('mainView').style.display = 'block';
+      }
+    }
+
+    function renderBatchShift() {
+      const grid = document.getElementById('batchShiftGrid');
+      if (coaches.length === 0) {
+        grid.innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.3)">暂无助教数据</div>';
+        return;
+      }
+      grid.innerHTML = coaches.map(c => {
+        const currentShift = c.shift || '早班';
+        return `
+          <div class="batch-shift-card" data-coach-no="${c.coach_no}">
+            <img class="batch-shift-avatar" src="${c.photos?.[0] || '/static/avatar-default.png'}" onerror="this.src='/static/avatar-default.png'">
+            <div class="batch-shift-info">
+              <div class="batch-shift-name">${c.stage_name || '-'} (${c.employee_id || '-'}号)</div>
+              <div class="batch-shift-id">编号: ${c.coach_no} | 等级: ${c.level || '初级'}</div>
+              <select class="batch-shift-select" data-coach-no="${c.coach_no}" onchange="onShiftChange(this)">
+                <option value="早班" ${currentShift === '早班' ? 'selected' : ''}>早班</option>
+                <option value="晚班" ${currentShift === '晚班' ? 'selected' : ''}>晚班</option>
+                <option value="全天" ${currentShift === '全天' ? 'selected' : ''}>全天</option>
+                <option value="休息" ${currentShift === '休息' ? 'selected' : ''}>休息</option>
+              </select>
+              <div class="batch-shift-save" id="save-indicator-${c.coach_no}">✓ 已保存</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function onShiftChange(select) {
+      const coachNo = select.dataset.coachNo;
+      const newShift = select.value;
+      shiftChanges[coachNo] = newShift;
+      // 显示已修改标记
+      select.style.borderColor = '#d4af37';
+    }
+
+    async function saveAllShifts() {
+      const keys = Object.keys(shiftChanges);
+      if (keys.length === 0) {
+        showToast('没有需要保存的修改');
+        return;
+      }
+      let successCount = 0;
+      let failCount = 0;
+      for (const coachNo of keys) {
+        try {
+          await api(`/api/admin/coaches/${coachNo}`, {
+            method: 'PUT',
+            body: JSON.stringify({ shift: shiftChanges[coachNo] })
+          });
+          successCount++;
+          const indicator = document.getElementById(`save-indicator-${coachNo}`);
+          if (indicator) {
+            indicator.textContent = '✓ 已保存';
+            indicator.classList.add('show');
+          }
+          const select = document.querySelector(`.batch-shift-select[data-coach-no="${coachNo}"]`);
+          if (select) select.style.borderColor = 'rgba(255,255,255,0.15)';
+        } catch (err) {
+          failCount++;
+          const indicator = document.getElementById(`save-indicator-${coachNo}`);
+          if (indicator) {
+            indicator.textContent = '✗ 失败';
+            indicator.style.color = '#e74c3c';
+            indicator.classList.add('show');
+          }
+        }
+      }
+      shiftChanges = {};
+      showToast(`保存完成：成功 ${successCount} 个，失败 ${failCount} 个`);
+      // 重新加载数据
+      await loadCoaches();
+      renderBatchShift();
+    }
+
+    function expandAllShifts() {
+      // 滚动到第一个需要修改的
+      const modified = document.querySelectorAll('.batch-shift-select[style*="border-color: rgb(212, 175, 55)"], .batch-shift-select[style*="border-color: #d4af37"]');
+      if (modified.length > 0) {
+        modified[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    // 监听 hash 变化
+    window.addEventListener('hashchange', checkHash);
+    // 页面加载时检查 hash
+    checkHash();
 </script>
 </body>
 </html>

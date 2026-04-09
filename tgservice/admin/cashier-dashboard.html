@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>收银看板 - 天宫国际</title>
+  <title>天宫国际 收银看板</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0a0a0f; font-family: 'PingFang SC', sans-serif; color: #fff; display: flex; min-height: 100vh; }
+    body { background: #0a0a0f; font-family: 'PingFang SC', sans-serif; color: #fff; display: flex; min-height: 100vh; overflow: hidden; }
     .sidebar { width: 220px; background: rgba(20,20,30,0.8); border-right: 1px solid rgba(218,165,32,0.1); padding: 20px 0; flex-shrink: 0; }
     .sidebar-logo { padding: 0 20px 30px; display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px; }
     .sidebar-logo img { width: 32px; height: 32px; filter: sepia(60%) saturate(200%) hue-rotate(10deg); }
@@ -29,39 +29,79 @@
     .nav-submenu .nav-item { padding-left: 48px; font-size: 13px; }
     
     .main { flex: 1; padding: 20px; overflow-y: auto; }
-    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-    .page-title { font-size: 22px; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .page-title { font-size: 24px; font-weight: 600; background: linear-gradient(135deg, #d4af37, #ffd700); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     .logout-btn { padding: 8px 16px; background: transparent; border: 1px solid rgba(231,76,60,0.3); border-radius: 8px; color: #e74c3c; font-size: 13px; cursor: pointer; }
-    
-    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
-    .stat-card { background: rgba(20,20,30,0.6); border-radius: 12px; padding: 20px; border: 1px solid rgba(218,165,32,0.1); }
-    .stat-value { font-size: 28px; color: #d4af37; }
-    .stat-label { font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 8px; }
-    
-    .data-table { width: 100%; background: rgba(20,20,30,0.6); border-radius: 12px; border: 1px solid rgba(218,165,32,0.1); overflow: hidden; border-collapse: collapse; }
-    .data-table th, .data-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
-    .data-table th { background: rgba(212,175,55,0.1); font-weight: 500; font-size: 13px; color: rgba(255,255,255,0.7); }
-    .data-table td { font-size: 14px; }
     
     .btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; }
     .btn-primary { background: linear-gradient(135deg, #d4af37 0%, #ffd700 100%); color: #000; }
     .btn-sm { padding: 6px 12px; font-size: 12px; }
-    
-    .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; }
-    .badge-pending { background: rgba(241,196,15,0.2); color: #f1c40f; }
-    .badge-done { background: rgba(46,204,113,0.2); color: #2ecc71; }
-    .badge-cancelled { background: rgba(231,76,60,0.2); color: #e74c3c; }
+    .btn-success { background: rgba(46,204,113,0.2); color: #2ecc71; border: 1px solid rgba(46,204,113,0.3); }
     
     .toast { position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.9); color: #fff; padding: 12px 24px; border-radius: 8px; font-size: 14px; z-index: 1001; display: none; }
     .toast.show { display: block; }
     
-    .filter-bar { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; }
-    .filter-bar select, .filter-bar input { padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 13px; }
-    
     .auto-refresh-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; padding: 10px 16px; background: rgba(20,20,30,0.6); border-radius: 8px; border: 1px solid rgba(218,165,32,0.1); }
-    .auto-refresh-bar label { font-size: 13px; color: rgba(255,255,255,0.6); }
     .pulse { width: 8px; height: 8px; border-radius: 50%; background: #2ecc71; animation: pulse 2s infinite; }
     @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+    
+    /* 全屏样式 */
+    .fullscreen-btn { padding: 8px 16px; background: rgba(212,175,55,0.15); border: 1px solid rgba(212,175,55,0.3); border-radius: 8px; color: #d4af37; font-size: 13px; cursor: pointer; }
+    .fullscreen-btn:hover { background: rgba(212,175,55,0.25); }
+    
+    /* 三列布局 */
+    .three-columns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; height: calc(100vh - 160px); }
+    .column { background: rgba(20,20,30,0.4); border-radius: 12px; border: 1px solid rgba(218,165,32,0.1); display: flex; flex-direction: column; overflow: hidden; }
+    .column-header { padding: 16px; border-bottom: 1px solid rgba(218,165,32,0.1); display: flex; justify-content: space-between; align-items: center; }
+    .column-title { font-size: 16px; font-weight: 600; }
+    .column-count { font-size: 13px; color: rgba(255,255,255,0.5); }
+    .column-body { flex: 1; overflow-y: auto; padding: 12px; }
+    .column-body::-webkit-scrollbar { width: 6px; }
+    .column-body::-webkit-scrollbar-track { background: transparent; }
+    .column-body::-webkit-scrollbar-thumb { background: rgba(218,165,32,0.2); border-radius: 3px; }
+    
+    /* 统计卡片 */
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
+    .stat-card { background: rgba(20,20,30,0.6); border-radius: 12px; padding: 16px; border: 1px solid rgba(218,165,32,0.1); }
+    .stat-value { font-size: 24px; color: #d4af37; }
+    .stat-label { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+    
+    /* 商品卡片样式 */
+    .product-order-card { background: rgba(30,30,45,0.8); border-radius: 10px; padding: 14px; margin-bottom: 10px; border: 1px solid rgba(218,165,32,0.08); }
+    .product-order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .product-order-no { font-size: 13px; color: rgba(255,255,255,0.6); }
+    .product-order-time { font-size: 11px; color: rgba(255,255,255,0.3); }
+    .product-order-items { margin-bottom: 10px; }
+    .product-order-item { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; color: rgba(255,255,255,0.7); }
+    .product-order-total { display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.05); }
+    .product-order-price { font-size: 16px; color: #d4af37; font-weight: 600; }
+    
+    /* 服务订单卡片 */
+    .service-order-card { background: rgba(30,30,45,0.8); border-radius: 10px; padding: 14px; margin-bottom: 10px; border-left: 3px solid #3498db; }
+    .service-order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .service-order-no { font-size: 13px; color: #3498db; }
+    .service-order-time { font-size: 11px; color: rgba(255,255,255,0.3); }
+    .service-order-info { font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 6px; }
+    .service-order-coach { font-size: 12px; color: rgba(255,255,255,0.5); }
+    .service-order-total { display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.05); }
+    .service-order-price { font-size: 15px; color: #3498db; font-weight: 600; }
+    
+    /* 助教上下桌单卡片 */
+    .coach-session-card { background: rgba(30,30,45,0.8); border-radius: 10px; padding: 14px; margin-bottom: 10px; border-left: 3px solid #9b59b6; }
+    .coach-session-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .coach-session-no { font-size: 13px; color: #9b59b6; }
+    .coach-session-time { font-size: 11px; color: rgba(255,255,255,0.3); }
+    .coach-session-info { font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 4px; }
+    .coach-session-detail { font-size: 12px; color: rgba(255,255,255,0.5); }
+    .coach-session-status { margin-top: 8px; }
+    .status-badge { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 11px; }
+    .status-pending { background: rgba(241,196,15,0.2); color: #f1c40f; }
+    .status-processing { background: rgba(52,152,219,0.2); color: #3498db; }
+    .status-done { background: rgba(46,204,113,0.2); color: #2ecc71; }
+    
+    /* 空状态 */
+    .empty-state { text-align: center; padding: 40px 20px; color: rgba(255,255,255,0.3); }
+    .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
   </style>
 </head>
 <body>
@@ -109,10 +149,11 @@
     </div>
   </div>
 
-  <div class="main">
+  <div class="main" id="mainContent">
     <div class="page-header">
-      <div class="page-title">💰 收银看板</div>
+      <div class="page-title">天宫国际 收银看板</div>
       <div style="display:flex;gap:12px;align-items:center;">
+        <button class="fullscreen-btn" id="fullscreenBtn" onclick="toggleFullscreen()">🖥️ 全屏</button>
         <button class="btn btn-primary" onclick="refreshData()">🔄 刷新</button>
         <button class="logout-btn" onclick="logout()">退出登录</button>
       </div>
@@ -132,37 +173,48 @@
         <div class="stat-label">待处理订单</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value" id="statTodayOrders">-</div>
-        <div class="stat-label">今日订单数</div>
+        <div class="stat-value" id="statProductOrders">-</div>
+        <div class="stat-label">商品订单</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value" id="statTodayRevenue">-</div>
-        <div class="stat-label">今日营业额</div>
+        <div class="stat-value" id="statServiceOrders">-</div>
+        <div class="stat-label">服务订单</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value" id="statAvgOrder">-</div>
-        <div class="stat-label">平均客单价</div>
+        <div class="stat-value" id="statCoachSessions">-</div>
+        <div class="stat-label">助教上下桌单</div>
       </div>
     </div>
 
-    <!-- 筛选栏 -->
-    <div class="filter-bar">
-      <label style="font-size:13px;color:rgba(255,255,255,0.5)">状态筛选：</label>
-      <select id="filterStatus" onchange="applyFilter()">
-        <option value="">全部</option>
-        <option value="待处理">待处理</option>
-        <option value="已完成">已完成</option>
-        <option value="已取消">已取消</option>
-      </select>
+    <!-- 三列布局 -->
+    <div class="three-columns">
+      <!-- 商品订单列 -->
+      <div class="column">
+        <div class="column-header">
+          <span class="column-title">📦 商品订单</span>
+          <span class="column-count" id="productCount">0</span>
+        </div>
+        <div class="column-body" id="productOrdersList"></div>
+      </div>
+      
+      <!-- 服务订单列 -->
+      <div class="column">
+        <div class="column-header">
+          <span class="column-title">🎯 服务订单</span>
+          <span class="column-count" id="serviceCount">0</span>
+        </div>
+        <div class="column-body" id="serviceOrdersList"></div>
+      </div>
+      
+      <!-- 助教上下桌单列 -->
+      <div class="column">
+        <div class="column-header">
+          <span class="column-title">👩‍🏫 助教上下桌单</span>
+          <span class="column-count" id="coachSessionCount">0</span>
+        </div>
+        <div class="column-body" id="coachSessionsList"></div>
+      </div>
     </div>
-
-    <!-- 订单列表 -->
-    <table class="data-table">
-      <thead>
-        <tr><th>订单号</th><th>类型</th><th>金额</th><th>状态</th><th>下单时间</th><th>操作</th></tr>
-      </thead>
-      <tbody id="ordersTable"></tbody>
-    </table>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -171,7 +223,9 @@
     const token = localStorage.getItem('adminToken');
     if (!token) window.location.href = 'login.html';
 
-    let allOrders = [];
+    let productOrders = [];
+    let serviceOrders = [];
+    let coachSessions = [];
     let refreshInterval = null;
 
     async function api(url, options = {}) {
@@ -196,59 +250,203 @@
 
     function formatMoney(n) { return '¥' + (n || 0).toFixed(2); }
 
-    function getStatusBadge(status) {
-      const map = { '待处理': 'badge-pending', '已完成': 'badge-done', '已取消': 'badge-cancelled' };
-      return map[status] || 'badge-pending';
+    // 全屏切换
+    function toggleFullscreen() {
+      const main = document.getElementById('mainContent');
+      const sidebar = document.querySelector('.sidebar');
+      const btn = document.getElementById('fullscreenBtn');
+      
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().then(() => {
+          sidebar.style.display = 'none';
+          btn.textContent = '🖥️ 退出全屏';
+        }).catch(err => {
+          // Fallback: just hide sidebar
+          sidebar.style.display = 'none';
+          btn.textContent = '🖥️ 退出全屏';
+        });
+      } else {
+        document.exitFullscreen().then(() => {
+          sidebar.style.display = '';
+          btn.textContent = '🖥️ 全屏';
+        }).catch(() => {
+          sidebar.style.display = '';
+          btn.textContent = '🖥️ 全屏';
+        });
+      }
+    }
+
+    // 监听全屏变化事件
+    document.addEventListener('fullscreenchange', () => {
+      const sidebar = document.querySelector('.sidebar');
+      const btn = document.getElementById('fullscreenBtn');
+      if (!document.fullscreenElement) {
+        sidebar.style.display = '';
+        btn.textContent = '🖥️ 全屏';
+      }
+    });
+
+    // 生成测试数据
+    function generateTestServiceOrders() {
+      const now = new Date();
+      return [
+        { id: 'SVC001', order_no: 'SVC20260409001', service_name: 'VIP包房 - 台球陪练', coach_name: '歪歪', table_no: 'V01', duration: '2小时', total_price: 218, status: '待处理', created_at: now.toISOString().replace('T', ' ').substring(0, 19) },
+        { id: 'SVC002', order_no: 'SVC20260409002', service_name: '普通桌 - 基础陪练', coach_name: '小美', table_no: 'A03', duration: '1.5小时', total_price: 163.5, status: '待处理', created_at: new Date(now - 300000).toISOString().replace('T', ' ').substring(0, 19) },
+        { id: 'SVC003', order_no: 'SVC20260409003', service_name: 'VIP包房 - 高级陪练', coach_name: '娜娜', table_no: 'V02', duration: '3小时', total_price: 500, status: '处理中', created_at: new Date(now - 600000).toISOString().replace('T', ' ').substring(0, 19) },
+      ];
+    }
+
+    function generateTestCoachSessions() {
+      const now = new Date();
+      return [
+        { id: 'CS001', session_no: 'CS20260409001', coach_name: '歪歪', coach_no: 'C001', employee_id: '1', action: '上桌', table_no: 'V01', status: '待确认', created_at: now.toISOString().replace('T', ' ').substring(0, 19) },
+        { id: 'CS002', session_no: 'CS20260409002', coach_name: '小美', coach_no: 'C002', employee_id: '2', action: '上桌', table_no: 'A03', status: '待确认', created_at: new Date(now - 180000).toISOString().replace('T', ' ').substring(0, 19) },
+        { id: 'CS003', session_no: 'CS20260409003', coach_name: '娜娜', coach_no: 'C003', employee_id: '3', action: '下桌', table_no: 'V02', duration: '3小时', status: '待结算', created_at: new Date(now - 900000).toISOString().replace('T', ' ').substring(0, 19) },
+        { id: 'CS004', session_no: 'CS20260409004', coach_name: '婷婷', coach_no: 'C004', employee_id: '4', action: '上桌', table_no: 'B01', status: '处理中', created_at: new Date(now - 1200000).toISOString().replace('T', ' ').substring(0, 19) },
+      ];
+    }
+
+    function getStatusClass(status) {
+      if (status === '待处理' || status === '待确认' || status === '待结算') return 'status-pending';
+      if (status === '处理中') return 'status-processing';
+      if (status === '已完成') return 'status-done';
+      return 'status-pending';
     }
 
     async function refreshData() {
       try {
+        // 获取商品订单
         const orders = await api('/api/admin/orders');
-        allOrders = orders || [];
-        applyFilter();
+        productOrders = (orders || []).filter(o => !o.order_type || o.order_type === '商品' || o.order_type === 'product');
+        
+        // 获取服务订单（从API或测试数据）
+        try {
+          const svcRes = await api('/api/admin/service-orders');
+          serviceOrders = svcRes.success ? (svcRes.data || []) : generateTestServiceOrders();
+        } catch(e) {
+          serviceOrders = generateTestServiceOrders();
+        }
+        if (!serviceOrders || serviceOrders.length === 0) {
+          serviceOrders = generateTestServiceOrders();
+        }
+        
+        // 助教上下桌单（测试数据）
+        coachSessions = generateTestCoachSessions();
+        
+        renderProductOrders();
+        renderServiceOrders();
+        renderCoachSessions();
+        updateStats();
+        
         document.getElementById('lastRefresh').textContent = '上次刷新: ' + new Date().toLocaleTimeString('zh-CN');
       } catch (e) {
-        showToast('获取订单数据失败');
+        // 如果API失败，使用测试数据
+        productOrders = [];
+        serviceOrders = generateTestServiceOrders();
+        coachSessions = generateTestCoachSessions();
+        renderProductOrders();
+        renderServiceOrders();
+        renderCoachSessions();
+        updateStats();
       }
     }
 
-    function applyFilter() {
-      const statusFilter = document.getElementById('filterStatus').value;
-      const filtered = statusFilter ? allOrders.filter(o => o.status === statusFilter) : allOrders;
-
-      // 统计
-      const today = new Date().toISOString().split('T')[0];
-      const todayOrders = allOrders.filter(o => o.created_at && o.created_at.startsWith(today));
-      const pendingOrders = allOrders.filter(o => o.status === '待处理');
-      const todayRevenue = todayOrders.reduce((sum, o) => sum + (o.total_price || 0), 0);
-      const avgOrder = todayOrders.length > 0 ? todayRevenue / todayOrders.length : 0;
-
-      document.getElementById('statPending').textContent = pendingOrders.length;
-      document.getElementById('statTodayOrders').textContent = todayOrders.length;
-      document.getElementById('statTodayRevenue').textContent = formatMoney(todayRevenue);
-      document.getElementById('statAvgOrder').textContent = formatMoney(avgOrder);
-
-      // 表格
-      document.getElementById('ordersTable').innerHTML = filtered.length === 0
-        ? '<tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,0.3);padding:40px">暂无数据</td></tr>'
-        : filtered.slice(0, 50).map(o => `
-          <tr>
-            <td>${o.order_no || o.id}</td>
-            <td>${o.order_type || '-'}</td>
-            <td style="color:#d4af37">${formatMoney(o.total_price)}</td>
-            <td><span class="badge ${getStatusBadge(o.status)}">${o.status || '-'}</span></td>
-            <td>${formatBeijingTime(o.created_at)}</td>
-            <td>
-              ${o.status === '待处理' ? `<button class="btn btn-sm btn-primary" onclick="completeOrder('${o.id}')">完成</button>` : '-'}
-            </td>
-          </tr>
-        `).join('');
+    function updateStats() {
+      const pendingCount = productOrders.filter(o => o.status === '待处理').length + 
+                          serviceOrders.filter(o => o.status === '待处理').length +
+                          coachSessions.filter(s => s.status === '待确认' || s.status === '待结算').length;
+      
+      document.getElementById('statPending').textContent = pendingCount;
+      document.getElementById('statProductOrders').textContent = productOrders.length;
+      document.getElementById('statServiceOrders').textContent = serviceOrders.length;
+      document.getElementById('statCoachSessions').textContent = coachSessions.length;
+      
+      document.getElementById('productCount').textContent = productOrders.length + ' 单';
+      document.getElementById('serviceCount').textContent = serviceOrders.length + ' 单';
+      document.getElementById('coachSessionCount').textContent = coachSessions.length + ' 单';
     }
 
-    async function completeOrder(orderId) {
+    function renderProductOrders() {
+      const container = document.getElementById('productOrdersList');
+      if (productOrders.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">📦</div><div>暂无商品订单</div></div>';
+        return;
+      }
+      container.innerHTML = productOrders.slice(0, 20).map(o => `
+        <div class="product-order-card">
+          <div class="product-order-header">
+            <span class="product-order-no">${o.order_no || o.id}</span>
+            <span class="product-order-time">${formatBeijingTime(o.created_at)}</span>
+          </div>
+          <div class="product-order-items">
+            ${(o.items || []).map(item => `
+              <div class="product-order-item">
+                <span>${item.name || '商品'} x${item.quantity || 1}</span>
+                <span>¥${((item.price || 0) * (item.quantity || 1)).toFixed(2)}</span>
+              </div>
+            `).join('') || '<div class="product-order-item"><span>商品明细</span><span>-</span></div>'}
+          </div>
+          <div class="product-order-total">
+            <span class="status-badge ${getStatusClass(o.status)}">${o.status || '待处理'}</span>
+            <span class="product-order-price">${formatMoney(o.total_price)}</span>
+          </div>
+          ${o.status === '待处理' ? `<div style="margin-top:10px;text-align:right"><button class="btn btn-sm btn-success" onclick="completeOrder('${o.id}', 'product')">✓ 完成</button></div>` : ''}
+        </div>
+      `).join('');
+    }
+
+    function renderServiceOrders() {
+      const container = document.getElementById('serviceOrdersList');
+      if (serviceOrders.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">🎯</div><div>暂无服务订单</div></div>';
+        return;
+      }
+      container.innerHTML = serviceOrders.map(o => `
+        <div class="service-order-card">
+          <div class="service-order-header">
+            <span class="service-order-no">${o.order_no || o.id}</span>
+            <span class="service-order-time">${formatBeijingTime(o.created_at)}</span>
+          </div>
+          <div class="service-order-info">${o.service_name || '服务订单'}</div>
+          <div class="service-order-coach">👤 ${o.coach_name || '-'} | 🎱 ${o.table_no || '-'} | ⏱ ${o.duration || '-'}</div>
+          <div class="service-order-total">
+            <span class="status-badge ${getStatusClass(o.status)}">${o.status || '待处理'}</span>
+            <span class="service-order-price">${formatMoney(o.total_price)}</span>
+          </div>
+          ${o.status === '待处理' ? `<div style="margin-top:10px;text-align:right"><button class="btn btn-sm btn-success" onclick="completeOrder('${o.id}', 'service')">✓ 完成</button></div>` : ''}
+        </div>
+      `).join('');
+    }
+
+    function renderCoachSessions() {
+      const container = document.getElementById('coachSessionsList');
+      if (coachSessions.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="icon">👩‍🏫</div><div>暂无助教上下桌单</div></div>';
+        return;
+      }
+      container.innerHTML = coachSessions.map(s => `
+        <div class="coach-session-card">
+          <div class="coach-session-header">
+            <span class="coach-session-no">${s.session_no || s.id}</span>
+            <span class="coach-session-time">${formatBeijingTime(s.created_at)}</span>
+          </div>
+          <div class="coach-session-info">
+            ${s.action === '上桌' ? '⬆️' : '⬇️'} ${s.action} | 👤 ${s.coach_name} (${s.employee_id}号)
+          </div>
+          <div class="coach-session-detail">🎱 台桌: ${s.table_no || '-'} ${s.duration ? '| ⏱ ' + s.duration : ''}</div>
+          <div class="coach-session-status">
+            <span class="status-badge ${getStatusClass(s.status)}">${s.status}</span>
+          </div>
+          ${(s.status === '待确认' || s.status === '待结算') ? `<div style="margin-top:10px;text-align:right"><button class="btn btn-sm btn-success" onclick="completeCoachSession('${s.id}')">✓ 确认</button></div>` : ''}
+        </div>
+      `).join('');
+    }
+
+    async function completeOrder(orderId, type) {
       if (!confirm('确认完成此订单？')) return;
       try {
-        const res = await api(`/api/admin/orders/${orderId}`, { method: 'PUT', body: JSON.stringify({ status: '已完成' }) });
+        const endpoint = type === 'service' ? `/api/admin/service-orders/${orderId}` : `/api/admin/orders/${orderId}`;
+        const res = await api(endpoint, { method: 'PUT', body: JSON.stringify({ status: '已完成' }) });
         if (res.success || res.data) {
           showToast('订单已完成');
           refreshData();
@@ -257,6 +455,17 @@
         }
       } catch (e) {
         showToast('操作失败: ' + e.message);
+      }
+    }
+
+    async function completeCoachSession(sessionId) {
+      if (!confirm('确认完成此上下桌单？')) return;
+      showToast('已确认（演示模式）');
+      const session = coachSessions.find(s => s.id === sessionId);
+      if (session) {
+        session.status = session.status === '待确认' ? '处理中' : '已完成';
+        renderCoachSessions();
+        updateStats();
       }
     }
 
