@@ -110,10 +110,8 @@ const showSectionExpand = (status, coaches) => {
   showExpand.value = true
 }
 
-const closeExpand = (e) => {
-  if (e.target.classList?.contains('expand-overlay') || e.target === e.currentTarget) {
-    showExpand.value = false
-  }
+const closeExpand = () => {
+  showExpand.value = false
 }
 </script>
 
