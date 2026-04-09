@@ -11,8 +11,9 @@
     <view class="header-placeholder" :style="{ height: (statusBarHeight + 44) + 'px' }"></view>
 
     <view class="info-section">
-      <text class="info-text">早班上传截止时间：16:00</text>
-      <text class="info-text">晚班上传截止时间：20:00</text>
+      <text class="info-text">早班上传时间：14:00 - 18:00</text>
+      <text class="info-text">晚班上传时间：18:00 - 22:00</text>
+      <text class="info-hint">（仅限时间段内可提交）</text>
     </view>
 
     <view class="form-section">
@@ -165,6 +166,7 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 
 .info-section { margin: 16px; padding: 12px 16px; background: rgba(241,196,15,0.1); border: 1px solid rgba(241,196,15,0.2); border-radius: 10px; }
 .info-text { font-size: 13px; color: #f1c40f; display: block; margin-bottom: 4px; }
+.info-hint { font-size: 12px; color: rgba(241,196,15,0.6); display: block; margin-top: 8px; }
 
 .form-section { margin: 16px; }
 .form-item { margin-bottom: 24px; }
