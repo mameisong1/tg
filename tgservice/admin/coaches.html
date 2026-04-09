@@ -46,6 +46,7 @@
     .coach-status.full-time { background: rgba(46,204,113,0.2); color: #2ecc71; }
     .coach-status.part-time { background: rgba(241,196,15,0.2); color: #f1c40f; }
     .coach-status.resigned { background: rgba(231,76,60,0.2); color: #e74c3c; }
+    .coach-shift-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; background: rgba(52,152,219,0.2); color: #3498db; margin-left: 6px; }
     .coach-meta { font-size: 12px; color: rgba(255,255,255,0.4); }
     .coach-actions { margin-top: 12px; display: flex; gap: 8px; }
     
@@ -118,6 +119,8 @@
     <a href="cashier-dashboard.html" class="nav-item"><span class="nav-icon">💰</span> 收银看板</a>
     <a href="products.html" class="nav-item"><span class="nav-icon">📦</span> 商品管理</a>
     <a href="vip-rooms.html" class="nav-item"><span class="nav-icon">🛋️</span> 包房管理</a>
+    <a href="tables.html" class="nav-item"><span class="nav-icon">🎱</span> 台桌管理</a>
+    <a href="categories.html" class="nav-item"><span class="nav-icon">🏷️</span> 商品分类</a>
     
     <!-- 助教管理 -->
     <div class="nav-group">
@@ -228,6 +231,12 @@
           <div class="form-row" style="flex:1"><label>陪打价(元/小时，最低70元)</label><input type="number" id="formPrice" step="1" value="109" min="70"></div>
         </div>
         <div style="display:flex;gap:12px">
+          <div class="form-row" style="flex:1"><label>班次</label>
+            <select id="formShift">
+              <option value="早班">早班</option>
+              <option value="晚班">晚班</option>
+            </select>
+          </div>
           <div class="form-row" style="flex:1"><label>状态</label>
             <select id="formStatus">
               <option value="全职">全职</option>
@@ -336,6 +345,7 @@
             <div class="coach-name">${c.stage_name || '-'} (${c.employee_id || '-'}号)</div>
             <span class="coach-level">${c.level || '初级'}</span>
             <span class="coach-status ${getStatusClass(c.status)}">${c.status || '全职'}</span>
+            <span class="coach-shift-badge">${c.shift || '早班'}</span>
             <div class="coach-meta">
               编号: ${c.coach_no} | 陪打价: ¥${c.price || 109}/小时 | 人气: <span style="color:#d4af37;font-weight:600">${c.popularity || 0}</span>
             </div>
@@ -359,6 +369,7 @@
       document.getElementById('formPhone').value = '';
       document.getElementById('formLevel').value = '初级';
       document.getElementById('formPrice').value = '109';
+      document.getElementById('formShift').value = '早班';
       document.getElementById('formStatus').value = '全职';
       document.getElementById('modal').classList.add('show');
     }
@@ -375,6 +386,7 @@
       document.getElementById('formPhone').value = c.phone || '';
       document.getElementById('formLevel').value = c.level || '初级';
       document.getElementById('formPrice').value = c.price || 109;
+      document.getElementById('formShift').value = c.shift || '早班';
       document.getElementById('formStatus').value = c.status || '全职';
       // 保存原有照片数据
       editingPhotos = c.photos || [];
@@ -388,6 +400,7 @@
         phone: document.getElementById('formPhone').value || null,
         level: document.getElementById('formLevel').value,
         price: parseFloat(document.getElementById('formPrice').value) || 109,
+        shift: document.getElementById('formShift').value,
         status: document.getElementById('formStatus').value,
         photos: editingPhotos // 保留原有照片
       };

@@ -7,7 +7,7 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #0a0a0f; font-family: 'PingFang SC', sans-serif; color: #fff; display: flex; min-height: 100vh; }
-    .sidebar { width: 220px; background: rgba(20,20,30,0.8); border-right: 1px solid rgba(218,165,32,0.1); padding: 20px 0; flex-shrink: 0; }
+    .sidebar { width: 220px; background: rgba(20,20,30,0.8); border-right: 1px solid rgba(218,165,32,0.1); padding: 20px 0; flex-shrink: 0; overflow-y: auto; }
     .sidebar-logo { padding: 0 20px 30px; display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px; }
     .sidebar-logo img { width: 32px; height: 32px; filter: sepia(60%) saturate(200%) hue-rotate(10deg); }
     .sidebar-title { font-size: 16px; color: #d4af37; }
@@ -33,7 +33,7 @@
     .page-title { font-size: 22px; }
     .logout-btn { padding: 8px 16px; background: transparent; border: 1px solid rgba(231,76,60,0.3); border-radius: 8px; color: #e74c3c; font-size: 13px; cursor: pointer; }
 
-    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
     .stat-card { background: rgba(20,20,30,0.6); border-radius: 12px; padding: 20px; border: 1px solid rgba(218,165,32,0.1); }
     .stat-value { font-size: 28px; color: #d4af37; }
     .stat-label { font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 8px; }
@@ -45,8 +45,8 @@
 
     .btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; cursor: pointer; border: none; }
     .btn-primary { background: linear-gradient(135deg, #d4af37 0%, #ffd700 100%); color: #000; }
-    .btn-success { background: rgba(46,204,113,0.2); color: #2ecc71; }
-    .btn-danger { background: rgba(231,76,60,0.2); color: #e74c3c; }
+    .btn-success { background: rgba(46,204,113,0.2); color: #2ecc71; border: 1px solid rgba(46,204,113,0.3); }
+    .btn-danger { background: rgba(231,76,60,0.2); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); }
     .btn-sm { padding: 6px 12px; font-size: 12px; }
 
     .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; }
@@ -80,6 +80,8 @@
     <a href="cashier-dashboard.html" class="nav-item"><span class="nav-icon">💰</span> 收银看板</a>
     <a href="products.html" class="nav-item"><span class="nav-icon">📦</span> 商品管理</a>
     <a href="vip-rooms.html" class="nav-item"><span class="nav-icon">🛋️</span> 包房管理</a>
+    <a href="tables.html" class="nav-item"><span class="nav-icon">🎱</span> 台桌管理</a>
+    <a href="categories.html" class="nav-item"><span class="nav-icon">🏷️</span> 商品分类</a>
     <div class="nav-group">
       <div class="nav-group-title" onclick="toggleGroup(this)">
         <span class="group-icon">👩‍🏫</span><span class="group-text">助教管理</span><span class="arrow">▼</span>
@@ -139,7 +141,11 @@
       </div>
       <div class="stat-card">
         <div class="stat-value" id="statApproved">-</div>
-        <div class="stat-label">已通过</div>
+        <div class="stat-label">约客有效</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statRejected">-</div>
+        <div class="stat-label">约客无效</div>
       </div>
     </div>
 
@@ -149,8 +155,8 @@
       <select id="filterStatus" onchange="applyFilter()">
         <option value="">全部</option>
         <option value="待审查">待审查</option>
-        <option value="已通过">已通过</option>
-        <option value="已驳回">已驳回</option>
+        <option value="约客有效">约客有效</option>
+        <option value="约客无效">约客无效</option>
       </select>
       <input type="text" id="searchName" placeholder="搜索助教姓名/编号" oninput="applyFilter()">
     </div>
@@ -158,25 +164,26 @@
     <!-- 记录列表 -->
     <table class="data-table">
       <thead>
-        <tr><th>助教编号</th><th>助教姓名</th><th>班次</th><th>约客数</th><th>状态</th><th>提交时间</th><th>审查人</th><th>操作</th></tr>
+        <tr><th>助教编号</th><th>助教姓名</th><th>班次</th><th>约客截图</th><th>状态</th><th>提交时间</th><th>审查人</th><th>操作</th></tr>
       </thead>
       <tbody id="recordsTable"></tbody>
     </table>
   </div>
 
   <!-- 审查弹窗 -->
-  <div class="modal" id="reviewModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center;">
+  <div id="reviewModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center;">
     <div style="background:rgba(20,20,30,0.95);border-radius:16px;padding:24px;width:90%;max-width:500px;border:1px solid rgba(218,165,32,0.2);">
       <h3 style="font-size:18px;margin-bottom:20px;">审查约客记录</h3>
       <div id="reviewInfo" style="margin-bottom:16px;font-size:14px;color:rgba(255,255,255,0.7);"></div>
+      <div id="reviewImageContainer" style="margin-bottom:16px;text-align:center;"></div>
       <div style="margin-bottom:16px;">
         <label style="display:block;font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:8px;">审查备注（选填）</label>
         <textarea id="reviewNote" style="width:100%;padding:12px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#fff;font-size:14px;min-height:80px;resize:vertical;"></textarea>
       </div>
       <div style="display:flex;gap:12px;">
         <button class="btn" style="flex:1;background:rgba(255,255,255,0.1);color:#fff;" onclick="closeReviewModal()">取消</button>
-        <button class="btn" style="flex:1;background:rgba(231,76,60,0.2);color:#e74c3c;" onclick="submitReview('rejected')">驳回</button>
-        <button class="btn" style="flex:1;background:linear-gradient(135deg,#d4af37,#ffd700);color:#000;" onclick="submitReview('approved')">通过</button>
+        <button class="btn" style="flex:1;background:rgba(231,76,60,0.2);color:#e74c3c;" onclick="submitReview('约客无效')">约客无效</button>
+        <button class="btn" style="flex:1;background:linear-gradient(135deg,#d4af37,#ffd700);color:#000;" onclick="submitReview('约客有效')">约客有效</button>
       </div>
     </div>
   </div>
@@ -190,6 +197,9 @@
     let currentShift = 'early';
     let allRecords = [];
     let reviewingId = null;
+
+    // 班次映射
+    const shiftMap = { early: '早班', late: '晚班' };
 
     // 解析URL参数
     function parseShiftFromURL() {
@@ -218,7 +228,7 @@
     }
 
     function getStatusBadge(status) {
-      const map = { '待审查': 'badge-pending', '已通过': 'badge-approved', '已驳回': 'badge-rejected' };
+      const map = { '待审查': 'badge-pending', '约客有效': 'badge-approved', '约客无效': 'badge-rejected' };
       return map[status] || 'badge-pending';
     }
 
@@ -227,32 +237,31 @@
       document.querySelectorAll('.shift-tab').forEach(tab => {
         tab.classList.toggle('active', tab.dataset.shift === shift);
       });
-      // 更新导航高亮
       document.getElementById('navEarly').classList.toggle('active', shift === 'early');
       document.getElementById('navLate').classList.toggle('active', shift === 'late');
-      // 更新URL
       window.history.replaceState({}, '', '?shift=' + shift);
       refreshData();
     }
 
     async function refreshData() {
+      const shift = shiftMap[currentShift];
       try {
-        // 尝试获取约客数据
-        const res = await api('/api/invitations?shift=' + currentShift);
-        allRecords = res.success ? (res.data || []) : (Array.isArray(res) ? res : []);
+        const res = await api('/api/guest-invitations?shift=' + shift);
+        allRecords = res.success ? (res.data || []) : [];
         applyFilter();
       } catch (e) {
-        // 如果API不存在，显示空状态
+        console.error('获取约客数据失败:', e);
         allRecords = [];
-        document.getElementById('recordsTable').innerHTML = '<tr><td colspan="8" style="text-align:center;color:rgba(255,255,255,0.3);padding:40px">暂无约客数据（API尚未启用）</td></tr>';
+        document.getElementById('recordsTable').innerHTML = '<tr><td colspan="8" style="text-align:center;color:rgba(255,255,255,0.3);padding:40px">暂无约客数据</td></tr>';
         updateStats();
       }
     }
 
     function updateStats() {
       document.getElementById('statTotal').textContent = allRecords.length;
-      document.getElementById('statPending').textContent = allRecords.filter(r => r.status === '待审查').length;
-      document.getElementById('statApproved').textContent = allRecords.filter(r => r.status === '已通过').length;
+      document.getElementById('statPending').textContent = allRecords.filter(r => r.result === '待审查').length;
+      document.getElementById('statApproved').textContent = allRecords.filter(r => r.result === '约客有效').length;
+      document.getElementById('statRejected').textContent = allRecords.filter(r => r.result === '约客无效').length;
     }
 
     function applyFilter() {
@@ -260,9 +269,9 @@
       const searchText = document.getElementById('searchName').value.trim().toLowerCase();
 
       let filtered = allRecords;
-      if (statusFilter) filtered = filtered.filter(r => r.status === statusFilter);
+      if (statusFilter) filtered = filtered.filter(r => r.result === statusFilter);
       if (searchText) filtered = filtered.filter(r =>
-        (r.coach_name || '').toLowerCase().includes(searchText) ||
+        (r.stage_name || '').toLowerCase().includes(searchText) ||
         (r.coach_no || '').toLowerCase().includes(searchText)
       );
 
@@ -273,14 +282,14 @@
         : filtered.slice(0, 50).map(r => `
           <tr>
             <td>${r.coach_no || '-'}</td>
-            <td>${r.coach_name || '-'}</td>
-            <td>${r.shift || currentShift === 'early' ? '早班' : '晚班'}</td>
-            <td>${r.invitation_count || 0}</td>
-            <td><span class="badge ${getStatusBadge(r.status)}">${r.status || '待审查'}</span></td>
+            <td>${r.stage_name || '-'}</td>
+            <td>${r.shift || shiftMap[currentShift]}</td>
+            <td>${r.invitation_image_url ? '<a href="' + r.invitation_image_url + '" target="_blank" style="color:#d4af37">查看截图</a>' : '-'}</td>
+            <td><span class="badge ${getStatusBadge(r.result)}">${r.result || '待审查'}</span></td>
             <td>${formatBeijingTime(r.created_at)}</td>
-            <td>${r.reviewer || '-'}</td>
+            <td>${r.reviewer_phone || '-'}</td>
             <td>
-              ${r.status === '待审查' || !r.status ? `<button class="btn btn-sm btn-primary" onclick="openReviewModal('${r.id}')">审查</button>` : '-'}
+              ${r.result === '待审查' ? `<button class="btn btn-sm btn-primary" onclick="openReviewModal(${r.id})">审查</button>` : '-'}
             </td>
           </tr>
         `).join('');
@@ -291,10 +300,17 @@
       const record = allRecords.find(r => r.id === id);
       if (record) {
         document.getElementById('reviewInfo').innerHTML = `
-          <p>助教：${record.coach_no}号 ${record.coach_name}</p>
-          <p>约客数：${record.invitation_count || 0}</p>
-          <p>班次：${record.shift || currentShift === 'early' ? '早班' : '晚班'}</p>
+          <p>助教：${record.coach_no}号 ${record.stage_name}</p>
+          <p>班次：${record.shift}</p>
+          <p>提交时间：${formatBeijingTime(record.created_at)}</p>
         `;
+        if (record.invitation_image_url) {
+          document.getElementById('reviewImageContainer').innerHTML = `
+            <img src="${record.invitation_image_url}" style="max-width:100%;max-height:300px;border-radius:8px;" onerror="this.style.display='none'">
+          `;
+        } else {
+          document.getElementById('reviewImageContainer').innerHTML = '<p style="color:rgba(255,255,255,0.3)">暂无截图</p>';
+        }
       }
       document.getElementById('reviewNote').value = '';
       document.getElementById('reviewModal').style.display = 'flex';
@@ -305,17 +321,15 @@
       reviewingId = null;
     }
 
-    async function submitReview(action) {
+    async function submitReview(result) {
       if (!reviewingId) return;
-      const note = document.getElementById('reviewNote').value.trim();
-      const status = action === 'approved' ? '已通过' : '已驳回';
       try {
-        const res = await api(`/api/invitations/${reviewingId}/review`, {
+        const res = await api(`/api/guest-invitations/${reviewingId}/review`, {
           method: 'PUT',
-          body: JSON.stringify({ status, note })
+          body: JSON.stringify({ result, reviewer_phone: null })
         });
-        if (res.success || res.data) {
-          showToast(status === '已通过' ? '审查通过' : '已驳回');
+        if (res.success) {
+          showToast(result === '约客有效' ? '审查通过' : '已驳回');
           closeReviewModal();
           refreshData();
         } else {

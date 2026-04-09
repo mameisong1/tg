@@ -91,6 +91,8 @@
     <a href="cashier-dashboard.html" class="nav-item"><span class="nav-icon">💰</span> 收银看板</a>
     <a href="products.html" class="nav-item"><span class="nav-icon">📦</span> 商品管理</a>
     <a href="vip-rooms.html" class="nav-item"><span class="nav-icon">🛋️</span> 包房管理</a>
+    <a href="tables.html" class="nav-item"><span class="nav-icon">🎱</span> 台桌管理</a>
+    <a href="categories.html" class="nav-item"><span class="nav-icon">🏷️</span> 商品分类</a>
     
     <!-- 助教管理 -->
     <div class="nav-group">
@@ -167,13 +169,13 @@
       <div class="form-group">
         <label class="form-label">角色</label>
         <select class="form-input" id="formRole">
-          <option value="admin">管理员</option>
-          <option value="store_manager">店长</option>
-          <option value="coach_manager">助教管理</option>
-          <option value="coach">教练</option>
-          <option value="lobby_manager">前厅管理</option>
-          <option value="cashier">收银</option>
-          <option value="waiter">服务员</option>
+          <option value="管理员">管理员</option>
+          <option value="店长">店长</option>
+          <option value="助教管理">助教管理</option>
+          <option value="教练">教练</option>
+          <option value="前厅管理">前厅管理</option>
+          <option value="收银">收银</option>
+          <option value="服务员">服务员</option>
         </select>
       </div>
       <div style="display:flex;gap:12px;margin-top:20px">
@@ -222,21 +224,19 @@
         let roleText = u.role || '管理员';
         let roleClass = 'badge-admin';
         const roleMap = {
-          'admin': ['管理员', 'badge-admin'],
-          'store_manager': ['店长', 'badge-store-manager'],
-          'coach_manager': ['助教管理', 'badge-coach-manager'],
-          'coach': ['教练', 'badge-coach'],
-          'lobby_manager': ['前厅管理', 'badge-lobby-manager'],
-          'cashier': ['收银', 'badge-cashier'],
-          'waiter': ['服务员', 'badge-waiter'],
-          'superadmin': ['超级管理员', 'badge-system'],
-          'owner': ['所有者', 'badge-owner'],
+          '管理员': ['管理员', 'badge-admin'],
+          '店长': ['店长', 'badge-store-manager'],
+          '助教管理': ['助教管理', 'badge-coach-manager'],
+          '教练': ['教练', 'badge-coach'],
+          '前厅管理': ['前厅管理', 'badge-lobby-manager'],
+          '收银': ['收银', 'badge-cashier'],
+          '服务员': ['服务员', 'badge-waiter'],
         };
         if (roleMap[u.role]) {
           roleText = roleMap[u.role][0];
           roleClass = roleMap[u.role][1];
         }
-        if (u.username === 'tgadmin' && u.role === 'admin') {
+        if (u.username === 'tgadmin' && u.role === '管理员') {
           roleText = '超级管理员';
           roleClass = 'badge-system';
         }
