@@ -4,11 +4,17 @@
       <view class="status-bar-bg" :style="{ height: statusBarHeight + 'px' }"></view>
       <view class="header-content">
         <view class="back-btn" @click="goBack"><text class="back-icon">‹</text></view>
-        <text class="header-title">上桌/下桌</text>
+        <text class="header-title">上下桌单</text>
         <view class="back-placeholder"></view>
       </view>
     </view>
     <view class="header-placeholder" :style="{ height: (statusBarHeight + 44) + 'px' }"></view>
+
+    <!-- 助教信息 -->
+    <view class="coach-info-section" v-if="coachInfo.coachNo">
+      <text class="coach-name">{{ coachInfo.stageName }}</text>
+      <text class="coach-no">工号: {{ coachInfo.coachNo }}</text>
+    </view>
 
     <!-- 当前状态 -->
     <view class="status-section" v-if="waterBoard">
@@ -188,6 +194,10 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .back-placeholder { width: 32px; }
 .header-title { font-size: 17px; font-weight: 600; color: #d4af37; letter-spacing: 2px; }
 .header-placeholder { background: #0a0a0f; }
+
+.coach-info-section { margin: 16px; padding: 16px; background: rgba(212,175,55,0.1); border: 1px solid rgba(218,165,32,0.3); border-radius: 12px; text-align: center; }
+.coach-name { font-size: 18px; font-weight: 600; color: #d4af37; display: block; margin-bottom: 4px; }
+.coach-no { font-size: 13px; color: rgba(255,255,255,0.6); display: block; }
 
 .status-section { margin: 16px; padding: 16px; background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.1); border-radius: 12px; text-align: center; }
 .status-label { font-size: 13px; color: rgba(255,255,255,0.5); display: block; margin-bottom: 8px; }
