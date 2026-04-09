@@ -16,6 +16,14 @@
         <text class="apply-type">{{ applicationType }}</text>
       </view>
       <view class="form-item">
+        <text class="form-label">加班时长</text>
+        <view class="quick-hours">
+          <view class="hour-btn" v-for="h in [1,2,3,4,5,6,7,8,9,10]" :key="h" @click="setHours(h)">
+            <text>{{ h }}小时</text>
+          </view>
+        </view>
+      </view>
+      <view class="form-item">
         <text class="form-label">备注</text>
         <textarea class="textarea" v-model="form.remark" placeholder="请输入备注（如通宵加班后申请公休）" maxlength="200"></textarea>
       </view>
@@ -100,6 +108,10 @@ const uploadImage = async () => {
   }
 }
 
+const setHours = (hours) => {
+  form.value.remark = `加班${hours}小时`
+}
+
 const submitApply = async () => {
   if (!canSubmit.value) return uni.showToast({ title: '请完成所有必填项', icon: 'none' })
 
@@ -143,6 +155,13 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .form-item { margin-bottom: 24px; }
 .form-label { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 8px; display: block; }
 .apply-type { font-size: 16px; font-weight: 600; color: #d4af37; }
+
+.quick-hours { display: flex; flex-wrap: wrap; gap: 8px; }
+.hour-btn { width: 18%; height: 36px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.hour-btn text { font-size: 13px; color: rgba(255,255,255,0.8); }
+.hour-btn:active { background: rgba(212,175,55,0.2); border-color: #d4af37; }
+.hour-btn:active text { color: #d4af37; }
+
 .textarea { width: 100%; min-height: 80px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 12px; font-size: 14px; color: #fff; box-sizing: border-box; }
 
 .upload-area { width: 120px; height: 120px; background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
