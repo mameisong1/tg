@@ -12,9 +12,9 @@ const operationLogService = require('../services/operation-log');
 
 /**
  * POST /api/coaches/:coach_no/clock-in
- * 助教上班
+ * 助教上班（助教只能打自己的卡）
  */
-router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coachManagement']), async (req, res) => {
+router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coachManagement'], { coachSelfOnly: true }), async (req, res) => {
   const transaction = await db.beginTransaction();
   
   try {
@@ -107,9 +107,9 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
 
 /**
  * POST /api/coaches/:coach_no/clock-out
- * 助教下班
+ * 助教下班（助教只能打自己的卡）
  */
-router.post('/:coach_no/clock-out', auth.required, requireBackendPermission(['coachManagement']), async (req, res) => {
+router.post('/:coach_no/clock-out', auth.required, requireBackendPermission(['coachManagement'], { coachSelfOnly: true }), async (req, res) => {
   const transaction = await db.beginTransaction();
   
   try {

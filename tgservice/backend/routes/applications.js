@@ -11,15 +11,14 @@ const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const operationLogService = require('../services/operation-log');
 
-// 权限中间件：所有申请事项需要助教管理或以上权限
+// 权限中间件：需要登录
 router.use(auth.required);
-router.use(requireBackendPermission(['all']));
 
 /**
  * POST /api/applications
- * 提交申请（加班/公休/乐捐/约客记录）
+ * 提交申请（加班/公休/乐捐/约客记录）- 助教可提交
  */
-router.post('/', auth.required, async (req, res) => {
+router.post('/', requireBackendPermission(['all']), async (req, res) => {
   const transaction = await db.beginTransaction();
   
   try {
@@ -170,7 +169,7 @@ router.post('/', auth.required, async (req, res) => {
  * GET /api/applications
  * 获取申请列表
  */
-router.get('/', auth.required, async (req, res) => {
+router.get('/', requireBackendPermission(['all']), async (req, res) => {
   try {
     const {
       application_type,
@@ -230,7 +229,7 @@ router.get('/', auth.required, async (req, res) => {
  * GET /api/applications/lejuan
  * 获取乐捐报备一览
  */
-router.get('/lejuan', auth.required, async (req, res) => {
+router.get('/lejuan', requireBackendPermission(['all']), async (req, res) => {
   try {
     const { days = 10 } = req.query;
     
@@ -273,7 +272,7 @@ router.get('/lejuan', auth.required, async (req, res) => {
  * PUT /api/applications/:id/approve
  * 审批申请
  */
-router.put('/:id/approve', auth.required, async (req, res) => {
+router.put('/:id/approve', requireBackendPermission(['coachManagement']), async (req, res) => {
   const transaction = await db.beginTransaction();
   
   try {

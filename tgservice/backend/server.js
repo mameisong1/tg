@@ -1727,18 +1727,33 @@ app.post('/api/admin/login', async (req, res) => {
   }
 });
 
-// 后台认证中间件
+// 后台认证中间件 - 支持 JWT 和 base64 两种 token
 const authMiddleware = (req, res, next) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
     return res.status(401).json({ error: '未登录' });
   }
   
+  // 先尝试 JWT 解析
   try {
     const decoded = jwt.verify(token, config.jwt.secret);
     req.user = decoded;
-    next();
+    return next();
   } catch (err) {
+    // JWT 解析失败，尝试 base64 解析（助教 token）
+    try {
+      const decodedStr = Buffer.from(token, 'base64').toString('utf8');
+      // 格式: "coachNo:timestamp"
+      const [coachNo, timestamp] = decodedStr.split(':');
+      if (coachNo && timestamp) {
+        req.user = {
+          userType: 'coach',
+          coachNo: coachNo,
+          role: '助教'
+        };
+        return next();
+      }
+    } catch (e) {}
     return res.status(401).json({ error: 'token无效' });
   }
 };

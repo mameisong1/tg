@@ -102,7 +102,7 @@ async function required(req, res, next) {
       req.user = {
         username: coach.phone || coach.coach_no,
         name: coach.stage_name,
-        role: coach.level || '助教',
+        role: '助教',  // 固定为助教角色（原来是 coach.level）
         userType: 'coach',
         coachNo: coach.coach_no,
         employeeId: coach.employee_id,

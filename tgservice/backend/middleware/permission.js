@@ -297,27 +297,51 @@ function hasPagePermission(role, page) {
   return false;
 }
 
+// 助教可访问的后台权限列表
+const COACH_ALLOWED_PERMISSIONS = [
+  'cashierDashboard',    // 上下桌单、服务单
+  'serviceOrder',        // 服务单查看
+  'coachManagement',     // 打卡（需配合 coachSelfOnly 检查）
+  'invitationReview',    // 约客提交
+  'all'                  // 申请（加班、请假、乐捐）
+];
+
 /**
  * 权限校验中间件 - 后台
  * @param {string|string[]} requiredPermissions - 需要的权限列表
+ * @param {object} options - 附加选项
+ *   - coachSelfOnly: boolean - 助教只能操作自己的数据（如打卡）
  * @returns {function} - Express 中间件
  */
-function requireBackendPermission(requiredPermissions) {
+function requireBackendPermission(requiredPermissions, options = {}) {
   return (req, res, next) => {
     const user = req.user;
     if (!user || !user.role) {
       return res.status(403).json({ error: '未授权' });
     }
     
-    // 助教用户：检查前台权限
+    // 助教用户：检查是否有权限访问
     if (user.userType === 'coach') {
-      // 助教可以创建服务单
-      if (requiredPermissions.includes('cashierDashboard') && 
-          (requiredPermissions.includes('serviceOrder') || requiredPermissions.length === 1)) {
-        // service-orders API 只需要 cashierDashboard 权限，助教应该可以访问
-        return next();
+      // 检查请求的权限是否在助教允许列表中
+      const hasCoachPermission = requiredPermissions.some(perm => 
+        COACH_ALLOWED_PERMISSIONS.includes(perm)
+      );
+      
+      if (!hasCoachPermission) {
+        return res.status(403).json({ error: '权限不足' });
       }
-      return res.status(403).json({ error: '权限不足' });
+      
+      // 如果设置了 coachSelfOnly，检查是否操作自己的数据
+      if (options.coachSelfOnly) {
+        // 从 params 或 body 获取 coach_no
+        const targetCoachNo = req.params.coach_no || req.body.coach_no;
+        // 类型转换后再比较（SQLite 返回数字，params 是字符串）
+        if (targetCoachNo && String(targetCoachNo) !== String(user.coachNo)) {
+          return res.status(403).json({ error: '只能操作自己的数据' });
+        }
+      }
+      
+      return next();
     }
     
     const permissions = getUserPermissions(user.role);
