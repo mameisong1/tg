@@ -141,8 +141,8 @@ export default {
   // 上传图片到OSS（使用签名URL直传）
   uploadImageToOSS: async (filePath, fileType = 'image') => {
     try {
-      // 1. 获取签名URL
-      const signRes = await this.getOSSSignature(fileType, 'jpg')
+      // 1. 获取签名URL（注意：不能用 this，ES模块箭头函数this为undefined）
+      const signRes = await request({ url: `/oss/sts?type=${fileType}&ext=jpg` })
       if (!signRes.success || !signRes.uploadUrl) {
         return { error: '获取签名失败' }
       }

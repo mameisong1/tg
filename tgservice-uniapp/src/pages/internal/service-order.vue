@@ -102,6 +102,8 @@ const loadDefaultTable = async () => {
 const onTableSelected = (tableNo) => {
   form.value.table_no = tableNo
   showTableSelector.value = false
+  // 同步到 localStorage，让商品页/购物车的台桌号也更新
+  uni.setStorageSync('tableName', tableNo)
 }
 
 // 点击快捷需求，直接填入需求内容
