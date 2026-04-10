@@ -463,9 +463,23 @@
 
     // 播放警报声（两声短促）
     function playAlertSound() {
-      if (!soundEnabled || !hasUserGesture) return;
-      playTone(600, 0.15, 0.15);
-      setTimeout(() => playTone(800, 0.15, 0.15), 200);
+      console.log('🔊 playAlertSound 被调用, soundEnabled:', soundEnabled, ', hasUserGesture:', hasUserGesture);
+      if (!soundEnabled || !hasUserGesture) {
+        console.log('❌ 声音播放被阻止: soundEnabled=' + soundEnabled + ', hasUserGesture=' + hasUserGesture);
+        return;
+      }
+      try {
+        const ctx = getAudioContext();
+        if (ctx.state === 'suspended') {
+          console.log('🔧 AudioContext 被暂停，尝试恢复...');
+          ctx.resume();
+        }
+        console.log('🔊 正在播放声音... AudioContext state:', ctx.state);
+        playTone(600, 0.15, 0.15);
+        setTimeout(() => playTone(800, 0.15, 0.15), 200);
+      } catch(e) {
+        console.error('❌ 播放声音失败:', e);
+      }
     }
 
     // 切换声音
@@ -555,16 +569,22 @@
         renderedProductIds = new Set(filtered.map(o => o.id));
         return;
       }
-      // 增量渲染：追加新卡片
-      let html = container.innerHTML;
+      // 增量渲染：只插入新卡片（不重新渲染已有卡片）
+      const newCards = [];
       for (const o of filtered) {
         if (!renderedProductIds.has(o.id)) {
-          html = renderProductCard(o, true) + html;
+          newCards.push({ order: o, html: renderProductCard(o, true) });
           renderedProductIds.add(o.id);
         }
       }
-      container.innerHTML = html;
-      renderedProductIds = new Set(filtered.map(o => o.id));
+      // 使用 insertAdjacentHTML 在顶部插入新卡片（避免闪烁）
+      if (newCards.length > 0) {
+        // 按创建时间排序，最新的在前面
+        const sorted = newCards.sort((a, b) => new Date(b.order.created_at) - new Date(a.order.created_at));
+        for (const card of sorted) {
+          container.insertAdjacentHTML('afterbegin', card.html);
+        }
+      }
     }
 
     function renderProductCard(o, isNew) {
@@ -615,15 +635,20 @@
         renderedServiceIds = new Set(filtered.map(o => o.id));
         return;
       }
-      let html = container.innerHTML;
+      // 增量渲染：只插入新卡片
+      const newCards = [];
       for (const o of filtered) {
         if (!renderedServiceIds.has(o.id)) {
-          html = renderServiceCard(o, true) + html;
+          newCards.push({ order: o, html: renderServiceCard(o, true) });
           renderedServiceIds.add(o.id);
         }
       }
-      container.innerHTML = html;
-      renderedServiceIds = new Set(filtered.map(o => o.id));
+      if (newCards.length > 0) {
+        const sorted = newCards.sort((a, b) => new Date(b.order.created_at) - new Date(a.order.created_at));
+        for (const card of sorted) {
+          container.insertAdjacentHTML('afterbegin', card.html);
+        }
+      }
     }
 
     function renderServiceCard(o, isNew) {
@@ -661,15 +686,20 @@
         renderedCoachIds = new Set(filtered.map(s => s.id));
         return;
       }
-      let html = container.innerHTML;
+      // 增量渲染：只插入新卡片
+      const newCards = [];
       for (const s of filtered) {
         if (!renderedCoachIds.has(s.id)) {
-          html = renderCoachCard(s, true) + html;
+          newCards.push({ order: s, html: renderCoachCard(s, true) });
           renderedCoachIds.add(s.id);
         }
       }
-      container.innerHTML = html;
-      renderedCoachIds = new Set(filtered.map(s => s.id));
+      if (newCards.length > 0) {
+        const sorted = newCards.sort((a, b) => new Date(b.order.created_at) - new Date(a.order.created_at));
+        for (const card of sorted) {
+          container.insertAdjacentHTML('afterbegin', card.html);
+        }
+      }
     }
 
     function renderCoachCard(s, isNew) {
@@ -740,16 +770,25 @@
     // 增量轮询（每10秒检查新订单）
     async function pollNewOrders() {
       try {
-        let hasNew = false;
+        let hasNewPending = false;
+        
+        // 记录之前的待处理订单数量
+        const prevPendingCount = {
+          product: productOrders.filter(o => o.status === '待处理').length,
+          service: serviceOrders.filter(o => o.status === '待处理').length,
+          coach: coachSessions.filter(o => o.status === '待处理').length
+        };
         
         // 检查商品订单
         try {
           const orders = await api('/api/admin/orders');
           const newOrders = Array.isArray(orders) ? orders : [];
+          // 新订单 = 不在已渲染列表中的待处理订单
           const newOnes = newOrders.filter(o => o.status === '待处理' && !renderedProductIds.has(o.id));
           if (newOnes.length > 0) {
             productOrders = newOrders;
-            hasNew = true;
+            hasNewPending = true;
+            console.log('📦 发现新商品订单:', newOnes.length, '个');
           } else {
             productOrders = newOrders;
           }
@@ -762,7 +801,8 @@
           const newOnes = newOrders.filter(o => o.status === '待处理' && !renderedServiceIds.has(o.id));
           if (newOnes.length > 0) {
             serviceOrders = newOrders;
-            hasNew = true;
+            hasNewPending = true;
+            console.log('🎯 发现新服务订单:', newOnes.length, '个');
           } else {
             serviceOrders = newOrders;
           }
@@ -775,7 +815,8 @@
           const newOnes = newOrders.filter(o => o.status === '待处理' && !renderedCoachIds.has(o.id));
           if (newOnes.length > 0) {
             coachSessions = newOrders;
-            hasNew = true;
+            hasNewPending = true;
+            console.log('👩‍🏫 发现新上下桌单:', newOnes.length, '个');
           } else {
             coachSessions = newOrders;
           }
@@ -787,8 +828,22 @@
         renderCoachSessions(true);
         updateCounts();
         
-        // 只在有新订单时播放声音（而不是每次轮询都检测待处理订单）
-        if (hasNew && alertEnabled && soundEnabled) {
+        // 检查待处理订单数量是否增加
+        const currPendingCount = {
+          product: productOrders.filter(o => o.status === '待处理').length,
+          service: serviceOrders.filter(o => o.status === '待处理').length,
+          coach: coachSessions.filter(o => o.status === '待处理').length
+        };
+        
+        const countIncreased = (
+          currPendingCount.product > prevPendingCount.product ||
+          currPendingCount.service > prevPendingCount.service ||
+          currPendingCount.coach > prevPendingCount.coach
+        );
+        
+        // 发声条件：有新订单 或 待处理订单数量增加
+        if ((hasNewPending || countIncreased) && alertEnabled && soundEnabled) {
+          console.log('🔔 满足发声条件, hasNewPending:', hasNewPending, ', countIncreased:', countIncreased);
           playAlertSound();
         }
         
