@@ -324,6 +324,18 @@
     </div>
   </div>
 
+  <!-- 通用确认弹窗 -->
+  <div class="modal" id="confirmModal">
+    <div class="modal-content" style="max-width:320px;text-align:center">
+      <div class="modal-title" id="confirmTitle">确认</div>
+      <p id="confirmMessage" style="color:rgba(255,255,255,0.7);margin-bottom:20px;font-size:14px"></p>
+      <div class="modal-actions" style="justify-content:center">
+        <button class="btn" style="background:rgba(255,255,255,0.1);color:#fff" onclick="closeConfirmModal()">取消</button>
+        <button class="btn btn-danger" id="confirmBtn" onclick="executeConfirm()">确认</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <script>
@@ -351,6 +363,9 @@
     let cancelItemOrderId = null;
     let cancelItemName = null;
     let cancelItemMaxQty = 1;
+    
+    // 通用确认弹窗相关
+    let confirmCallback = null;
 
     async function api(url, options = {}) {
       options.headers = { ...options.headers, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
@@ -718,32 +733,6 @@
         coachSessions = (tblRes.success ? (tblRes.data || []) : []);
       } catch(e) { coachSessions = []; }
       
-      // 如果商品订单为空，添加测试数据
-      if (productOrders.length === 0) {
-        productOrders = [
-          { id: 9001, order_no: 'CS20260409001', status: '待处理', total_price: 128.00, created_at: new Date(Date.now() - 120000).toISOString(), items: [{ name: '百威啤酒', quantity: 2, price: 39.00 }, { name: '薯条', quantity: 1, price: 50.00 }] },
-          { id: 9002, order_no: 'CS20260409002', status: '待处理', total_price: 88.00, created_at: new Date(Date.now() - 300000).toISOString(), items: [{ name: '轩尼诗VS', quantity: 1, price: 88.00 }] },
-        ];
-      }
-      
-      // 如果服务订单为空，添加测试数据
-      if (serviceOrders.length === 0) {
-        serviceOrders = [
-          { id: 1001, table_no: 'A03', requirement: '换垃圾袋', requester_name: '小美', requester_type: '助教', status: '待处理', created_at: new Date(Date.now() - 60000).toISOString() },
-          { id: 1002, table_no: 'B07', requirement: '搞卫生', requester_name: '阿杰', requester_type: '助教', status: '待处理', created_at: new Date(Date.now() - 120000).toISOString() },
-          { id: 1003, table_no: 'C02', requirement: '音响连接有问题，没声音', requester_name: '丽丽', requester_type: '助教', status: '待处理', created_at: new Date(Date.now() - 180000).toISOString() },
-        ];
-      }
-      
-      // 如果上下桌单为空，添加测试数据
-      if (coachSessions.length === 0) {
-        coachSessions = [
-          { id: 2001, table_no: 'A01', coach_no: 'C001', employee_id: '1', stage_name: '小美', order_type: '上桌单', action_category: '普通课', status: '待处理', created_at: new Date(Date.now() - 90000).toISOString() },
-          { id: 2002, table_no: 'B03', coach_no: 'C005', employee_id: '5', stage_name: '阿杰', order_type: '下桌单', action_category: null, status: '待处理', created_at: new Date(Date.now() - 150000).toISOString() },
-          { id: 2003, table_no: 'C05', coach_no: 'C003', employee_id: '3', stage_name: '丽丽', order_type: '上桌单', action_category: '标签课', status: '待处理', created_at: new Date(Date.now() - 240000).toISOString() },
-        ];
-      }
-      
       renderAll();
       document.getElementById('lastRefresh').textContent = '上次刷新: ' + new Date().toLocaleTimeString('zh-CN');
     }
@@ -798,11 +787,8 @@
         renderCoachSessions(true);
         updateCounts();
         
-        // 有待处理订单时播放声音（不再只检测新订单，而是检测是否有待处理订单）
-        const hasPendingOrders = (productOrders.some(o => o.status === '待处理') ||
-                                   serviceOrders.some(o => o.status === '待处理') ||
-                                   coachSessions.some(o => o.status === '待处理'));
-        if (hasPendingOrders && alertEnabled && soundEnabled) {
+        // 只在有新订单时播放声音（而不是每次轮询都检测待处理订单）
+        if (hasNew && alertEnabled && soundEnabled) {
           playAlertSound();
         }
         
@@ -814,30 +800,52 @@
 
     // ===== 操作函数 =====
 
+    // 显示确认弹窗
+    function showConfirmModal(title, message, onConfirm, isDanger) {
+      document.getElementById('confirmTitle').textContent = title;
+      document.getElementById('confirmMessage').textContent = message;
+      document.getElementById('confirmBtn').className = isDanger ? 'btn btn-danger' : 'btn btn-success';
+      document.getElementById('confirmBtn').textContent = isDanger ? '确认取消' : '确认';
+      confirmCallback = onConfirm;
+      document.getElementById('confirmModal').classList.add('show');
+    }
+    
+    function closeConfirmModal() {
+      document.getElementById('confirmModal').classList.remove('show');
+      confirmCallback = null;
+    }
+    
+    function executeConfirm() {
+      closeConfirmModal();
+      if (confirmCallback) confirmCallback();
+    }
+
     async function completeOrder(orderId) {
-      if (!confirm('确认完成此订单？')) return;
-      try {
-        const res = await api(`/api/admin/orders/${orderId}/complete`, { method: 'POST' });
-        if (res.success) {
-          showToast('订单已完成');
-          fullRefresh();
-        } else {
-          showToast(res.error || '操作失败');
-        }
-      } catch (e) { showToast('操作失败: ' + e.message); }
+      showConfirmModal('✓ 完成订单', '确认完成此订单？', async () => {
+        try {
+          const res = await api(`/api/admin/orders/${orderId}/complete`, { method: 'POST' });
+          if (res.success) {
+            showToast('订单已完成');
+            fullRefresh();
+          } else {
+            showToast(res.error || '操作失败');
+          }
+        } catch (e) { showToast('操作失败: ' + e.message); }
+      }, false);
     }
 
     async function cancelOrder(orderId) {
-      if (!confirm('确认取消此订单？')) return;
-      try {
-        const res = await api(`/api/admin/orders/${orderId}/cancel`, { method: 'POST' });
-        if (res.success) {
-          showToast('订单已取消');
-          fullRefresh();
-        } else {
-          showToast(res.error || '操作失败');
-        }
-      } catch (e) { showToast('操作失败: ' + e.message); }
+      showConfirmModal('✗ 取消订单', '确认取消此订单？', async () => {
+        try {
+          const res = await api(`/api/admin/orders/${orderId}/cancel`, { method: 'POST' });
+          if (res.success) {
+            showToast('订单已取消');
+            fullRefresh();
+          } else {
+            showToast(res.error || '操作失败');
+          }
+        } catch (e) { showToast('操作失败: ' + e.message); }
+      }, true);
     }
 
     async function updateServiceOrder(id, status) {
