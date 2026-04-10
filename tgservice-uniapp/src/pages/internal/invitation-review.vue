@@ -5,18 +5,42 @@
       <view class="status-bar-bg" :style="{ height: statusBarHeight + 'px' }"></view>
       <view class="header-content">
         <view class="back-btn" @click="goBack"><text class="back-icon">‹</text></view>
-        <text class="header-title">约客审查-{{ shiftLabel }}</text>
-        <view class="refresh-btn" @click="loadData"><text class="refresh-icon">🔄</text></view>
+        <text class="header-title">今日约客审查-{{ shiftLabel }}</text>
+        <view class="refresh-btn" @click="loadAll"><text class="refresh-icon">🔄</text></view>
       </view>
     </view>
     <view class="header-placeholder" :style="{ height: (statusBarHeight + 44) + 'px' }"></view>
 
+    <!-- 时间提示 -->
+    <view class="time-tip">
+      <text class="tip-icon">⏰</text>
+      <text class="tip-text">{{ shift === '早班' ? '早班约客审查需在16:00后开始' : '晚班约客审查需在20:00后开始' }}</text>
+    </view>
+
+    <!-- 开始审查按钮 -->
+    <view class="start-section">
+      <view v-if="!isLocked" class="start-btn" @click="startReview">
+        <text class="start-text">🔓 开始审查</text>
+      </view>
+      <view v-else class="locked-tip">
+        <text>✅ 已锁定 {{ lockedCount }} 名应约客人员</text>
+      </view>
+    </view>
+
     <!-- 统计卡片 -->
     <view class="stats-row">
-      <view class="stat-item"><text class="stat-value">{{ stats.total }}</text><text class="stat-label">总数</text></view>
+      <view class="stat-item"><text class="stat-value">{{ reviewStats.should_invite_count || 0 }}</text><text class="stat-label">应约客</text></view>
+      <view class="stat-item highlight"><text class="stat-value">{{ reviewStats.invited_count || 0 }}</text><text class="stat-label">已约客</text></view>
       <view class="stat-item"><text class="stat-value" style="color:#f1c40f">{{ stats.pending }}</text><text class="stat-label">待审查</text></view>
-      <view class="stat-item"><text class="stat-value" style="color:#2ecc71">{{ stats.approved }}</text><text class="stat-label">有效</text></view>
       <view class="stat-item"><text class="stat-value" style="color:#e74c3c">{{ stats.rejected }}</text><text class="stat-label">无效</text></view>
+    </view>
+
+    <!-- 未约客/无效列表 -->
+    <view class="list-section" v-if="reviewStats.missing_list?.length || reviewStats.invalid_list?.length">
+      <view class="list-title" v-if="reviewStats.missing_list?.length">⚠️ 未约客助教（{{ reviewStats.missing_list.length }}人）</view>
+      <view class="list-item warn" v-for="item in reviewStats.missing_list" :key="'m'+item.coach_no"><text>{{ item.stage_name }}（{{ item.coach_no }}号）</text></view>
+      <view class="list-title" v-if="reviewStats.invalid_list?.length" style="margin-top:12px">❌ 无效约客（{{ reviewStats.invalid_list.length }}人）</view>
+      <view class="list-item danger" v-for="item in reviewStats.invalid_list" :key="'i'+item.coach_no"><text>{{ item.stage_name }}（{{ item.coach_no }}号）</text></view>
     </view>
 
     <!-- 筛选 -->
@@ -94,6 +118,18 @@ const invitations = ref([])
 const showReview = ref(false)
 const reviewIndex = ref(0)
 
+// 审查锁定状态
+const isLocked = ref(false)
+const lockedCount = ref(0)
+
+// 统计数据
+const reviewStats = ref({
+  should_invite_count: 0,
+  invited_count: 0,
+  missing_list: [],
+  invalid_list: []
+})
+
 onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 20
@@ -103,7 +139,7 @@ onMounted(() => {
     shift.value = currentPage.options.shift
     shiftLabel.value = shift.value
   }
-  loadData()
+  loadAll()
 })
 
 const pendingList = computed(() => invitations.value.filter(i => i.result === '待审查'))
@@ -123,6 +159,13 @@ const formatTime = (t) => {
   return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
 }
 
+// 加载所有数据
+const loadAll = async () => {
+  await loadData()
+  await loadReviewStats()
+  await checkLocked()
+}
+
 const loadData = async () => {
   const today = new Date().toISOString().split('T')[0]
   const params = { date: today, shift: shift.value }
@@ -133,6 +176,54 @@ const loadData = async () => {
   } catch (e) { uni.showToast({ title: '加载失败', icon: 'none' }) }
 }
 
+// 加载统计数据
+const loadReviewStats = async () => {
+  const today = new Date().toISOString().split('T')[0]
+  try {
+    const res = await api.guestInvitations.getStats(today, shift.value)
+    if (res.data) {
+      reviewStats.value = res.data
+    }
+  } catch (e) {
+    // 统计可能还没生成，忽略
+  }
+}
+
+// 检查是否已锁定
+const checkLocked = async () => {
+  const today = new Date().toISOString().split('T')[0]
+  try {
+    const res = await api.guestInvitations.getShouldInvite({ date: today, shift: shift.value })
+    if (res.data && res.data.length > 0) {
+      isLocked.value = true
+      lockedCount.value = res.data.length
+    }
+  } catch (e) {
+    // 忽略
+  }
+}
+
+// 开始审查（锁定应约客人员）
+const startReview = async () => {
+  const today = new Date().toISOString().split('T')[0]
+  try {
+    uni.showLoading({ title: '锁定中...' })
+    const res = await api.guestInvitations.lockShouldInvite({ date: today, shift: shift.value })
+    uni.hideLoading()
+    if (res.success) {
+      isLocked.value = true
+      lockedCount.value = res.data.locked_count || 0
+      uni.showToast({ title: `已锁定${lockedCount.value}名应约客人员`, icon: 'success' })
+      loadAll()
+    } else {
+      uni.showToast({ title: res.error || '锁定失败', icon: 'none' })
+    }
+  } catch (e) {
+    uni.hideLoading()
+    uni.showToast({ title: e.error || '锁定失败', icon: 'none' })
+  }
+}
+
 const previewImage = (url) => uni.previewImage({ urls: [url] })
 
 const openReview = (idx) => { reviewIndex.value = idx; showReview.value = true }
@@ -140,21 +231,6 @@ const closeReview = () => { showReview.value = false }
 const navigateReview = (dir) => {
   if (pendingList.value.length === 0) return
   reviewIndex.value = (reviewIndex.value + dir + pendingList.value.length) % pendingList.value.length
-}
-
-const review = async (id, result) => {
-  uni.showModal({ title: `确认${result}`, content: `确定标记为${result}？`,
-    success: async (res) => {
-      if (res.confirm) {
-        try {
-          const adminInfo = uni.getStorageSync('adminInfo') || {}
-          await api.guestInvitations.review(id, { result, reviewer_phone: adminInfo.username })
-          uni.showToast({ title: '操作成功', icon: 'success' })
-          loadData()
-        } catch (e) { uni.showToast({ title: e.error || '操作失败', icon: 'none' }) }
-      }
-    }
-  })
 }
 
 const submitReview = async (result) => {
@@ -169,7 +245,7 @@ const submitReview = async (result) => {
     } else if (reviewIndex.value >= pendingList.value.length - 1) {
       reviewIndex.value = Math.max(0, pendingList.value.length - 2)
     }
-    loadData()
+    loadAll()
   } catch (e) { uni.showToast({ title: e.error || '操作失败', icon: 'none' }) }
 }
 
@@ -187,11 +263,31 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .header-title { font-size: 17px; font-weight: 600; color: #d4af37; letter-spacing: 2px; }
 .header-placeholder { background: #0a0a0f; }
 
+/* 时间提示 */
+.time-tip { margin: 12px; padding: 10px 16px; background: rgba(241,196,15,0.1); border: 1px solid rgba(241,196,15,0.2); border-radius: 10px; display: flex; align-items: center; }
+.tip-icon { font-size: 16px; margin-right: 8px; }
+.tip-text { font-size: 13px; color: #f1c40f; }
+
+/* 开始审查按钮 */
+.start-section { padding: 0 12px 8px; }
+.start-btn { height: 44px; background: linear-gradient(135deg, #d4af37, #ffd700); border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+.start-text { font-size: 15px; font-weight: 600; color: #000; }
+.locked-tip { height: 44px; background: rgba(46,204,113,0.1); border: 1px solid rgba(46,204,113,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+.locked-tip text { font-size: 13px; color: #2ecc71; }
+
 /* 统计卡片 */
 .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 12px; }
 .stat-item { background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.1); border-radius: 10px; padding: 12px 8px; text-align: center; }
+.stat-item.highlight { background: rgba(212,175,55,0.1); border-color: rgba(212,175,55,0.3); }
 .stat-value { font-size: 20px; color: #d4af37; display: block; }
 .stat-label { font-size: 11px; color: rgba(255,255,255,0.5); display: block; margin-top: 4px; }
+
+/* 列表区域 */
+.list-section { padding: 0 12px 8px; }
+.list-title { font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 6px; }
+.list-item { padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 8px; margin-bottom: 4px; font-size: 13px; color: #fff; }
+.list-item.warn { background: rgba(241,196,15,0.05); border: 1px solid rgba(241,196,15,0.1); }
+.list-item.danger { background: rgba(231,76,60,0.05); border: 1px solid rgba(231,76,60,0.1); }
 
 .filter-bar { white-space: nowrap; padding: 4px 12px 8px; }
 .filter-item { display: inline-block; padding: 6px 14px; margin-right: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; font-size: 13px; color: rgba(255,255,255,0.6); }

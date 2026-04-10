@@ -86,14 +86,6 @@
           <text class="btn-icon">🌙</text>
           <text class="btn-label">晚班约客审查</text>
         </view>
-        <view class="action-btn" @click="navigate('/pages/internal/invitation-stats?shift=早班')">
-          <text class="btn-icon">📊</text>
-          <text class="btn-label">早班约客统计</text>
-        </view>
-        <view class="action-btn" @click="navigate('/pages/internal/invitation-stats?shift=晚班')">
-          <text class="btn-icon">📊</text>
-          <text class="btn-label">晚班约客统计</text>
-        </view>
       </view>
     </view>
 
