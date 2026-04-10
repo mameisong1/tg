@@ -182,7 +182,7 @@ const uploadFile = async (filePath, type) => {
   const reportError = async (info) => {
     try {
       await uni.request({
-        url: 'https://tiangong.club/api/upload-error',
+        url: '/api/upload-error',
         method: 'POST',
         data: { time: new Date().toISOString(), type, ...info },
         header: { 'Content-Type': 'application/json' }
@@ -275,7 +275,7 @@ const uploadFile = async (filePath, type) => {
     await reportError({ stage: '开始上传', filePath: filePath?.substring(0, 50) })
     
     const uploadTask = uni.uploadFile({
-      url: 'https://tiangong.club/api/oss/upload',
+      url: '/api/oss/upload',
       filePath: filePath,
       name: 'file',
       formData: { type: type },
@@ -342,7 +342,7 @@ const uploadFile = async (filePath, type) => {
 const reportUploadError = async (errorInfo) => {
   try {
     await uni.request({
-      url: 'https://tiangong.club/api/upload-error',
+      url: '/api/upload-error',
       method: 'POST',
       data: errorInfo,
       header: { 'Content-Type': 'application/json' }
