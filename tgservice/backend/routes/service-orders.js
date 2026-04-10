@@ -12,9 +12,9 @@ const operationLogService = require('../services/operation-log');
 
 /**
  * POST /api/service-orders
- * 创建服务单
+ * 创建服务单（助教和所有后台用户均可提交）
  */
-router.post('/', auth.required, requireBackendPermission(['cashierDashboard']), async (req, res) => {
+router.post('/', auth.required, async (req, res) => {
   let transaction = null;
   try {
     const { table_no, requirement, requester_name, requester_type } = req.body;
