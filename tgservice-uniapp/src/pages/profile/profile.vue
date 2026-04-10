@@ -168,6 +168,8 @@ const logout = async () => {
         uni.removeStorageSync('memberToken')
         uni.removeStorageSync('coachToken')
         uni.removeStorageSync('coachInfo')
+        uni.removeStorageSync('adminToken')
+        uni.removeStorageSync('adminInfo')
         
         // 使用 reLaunch 强制刷新会员中心页面，让用户立即看到退出状态
         uni.reLaunch({ url: '/pages/member/member' })
