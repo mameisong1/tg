@@ -76,7 +76,7 @@
         '助教管理': 'all',
         '前厅管理': ['cashier-dashboard.html', 'products.html', 'vip-rooms.html', 'tables.html', 'categories.html'],
         '收银': ['cashier-dashboard.html'],
-        '教练': ['water-boards.html']
+        '教练': [] // 教练不再允许访问后台
       };
       
       const allowed = roleAllowedPages[role];
