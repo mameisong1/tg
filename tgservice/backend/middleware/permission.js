@@ -302,6 +302,7 @@ const COACH_ALLOWED_PERMISSIONS = [
   'cashierDashboard',    // 上下桌单、服务单
   'serviceOrder',        // 服务单查看
   'coachManagement',     // 打卡（需配合 coachSelfOnly 检查）
+  'waterBoardManagement', // 水牌状态查看
   'invitationReview',    // 约客提交
   'all'                  // 申请（加班、请假、乐捐）
 ];
