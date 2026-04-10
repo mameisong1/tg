@@ -368,11 +368,64 @@
     let confirmCallback = null;
 
     async function api(url, options = {}) {
-      options.headers = { ...options.headers, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
-      const res = await fetch(url, options);
-      if (res.status === 401) { localStorage.removeItem('adminToken'); window.location.href = 'login.html'; }
-      return res.json();
+      try {
+        options.headers = { ...options.headers, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+        const res = await fetch(url, options);
+        if (res.status === 401) { localStorage.removeItem('adminToken'); window.location.href = 'login.html'; }
+        if (!res.ok) {
+          const errText = await res.text();
+          reportFrontendError('API Error', { url, status: res.status, response: errText });
+        }
+        return res.json();
+      } catch (e) {
+        reportFrontendError('API Fetch Error', { url, error: e.message, stack: e.stack });
+        throw e;
+      }
     }
+
+    // ===== 前端错误上报系统 =====
+    async function reportFrontendError(action, details = {}) {
+      try {
+        const errorData = {
+          action,
+          ...details,
+          timestamp: new Date().toISOString(),
+          url: window.location.href,
+          userAgent: navigator.userAgent,
+          userToken: token ? 'present' : 'missing',
+          state: {
+            filters,
+            soundEnabled,
+            alertEnabled,
+            hasUserGesture,
+            productOrdersCount: productOrders.length,
+            serviceOrdersCount: serviceOrders.length,
+            coachSessionsCount: coachSessions.length
+          }
+        };
+        console.error('🔴 Frontend Error:', action, details);
+        
+        await fetch('/api/admin/frontend-error-log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify(errorData)
+        });
+      } catch (e) {
+        console.error('❌ 无法上报错误:', e.message);
+      }
+    }
+
+    // 全局错误捕获
+    window.onerror = function(message, source, lineno, colno, error) {
+      reportFrontendError('Global JS Error', {
+        message,
+        source,
+        lineno,
+        colno,
+        stack: error?.stack
+      });
+      return false;
+    };
 
     function showToast(msg) {
       const t = document.getElementById('toast');
@@ -880,65 +933,108 @@
     
     function executeConfirm() {
       closeConfirmModal();
-      if (confirmCallback) confirmCallback();
+      if (confirmCallback) {
+        try {
+          confirmCallback();
+        } catch (e) {
+          reportFrontendError('Execute Confirm Error', {
+            error: e.message,
+            stack: e.stack,
+            confirmCallbackType: confirmCallback.name || 'anonymous'
+          });
+          showToast('操作失败: ' + e.message);
+        }
+      }
     }
 
     async function completeOrder(orderId) {
+      reportFrontendError('CompleteOrder Button Click', { orderId });
       showConfirmModal('✓ 完成订单', '确认完成此订单？', async () => {
         try {
+          reportFrontendError('CompleteOrder API Start', { orderId });
           const res = await api(`/api/admin/orders/${orderId}/complete`, { method: 'POST' });
           if (res.success) {
             showToast('订单已完成');
             fullRefresh();
           } else {
+            reportFrontendError('CompleteOrder API Failed', { orderId, response: res });
             showToast(res.error || '操作失败');
           }
-        } catch (e) { showToast('操作失败: ' + e.message); }
+        } catch (e) {
+          reportFrontendError('CompleteOrder Exception', { orderId, error: e.message, stack: e.stack });
+          showToast('操作失败: ' + e.message);
+        }
       }, false);
     }
 
     async function cancelOrder(orderId) {
+      reportFrontendError('CancelOrder Button Click', { orderId });
       showConfirmModal('✗ 取消订单', '确认取消此订单？', async () => {
         try {
+          reportFrontendError('CancelOrder API Start', { orderId });
           const res = await api(`/api/admin/orders/${orderId}/cancel`, { method: 'POST' });
           if (res.success) {
             showToast('订单已取消');
             fullRefresh();
           } else {
+            reportFrontendError('CancelOrder API Failed', { orderId, response: res });
             showToast(res.error || '操作失败');
           }
-        } catch (e) { showToast('操作失败: ' + e.message); }
+        } catch (e) {
+          reportFrontendError('CancelOrder Exception', { orderId, error: e.message, stack: e.stack });
+          showToast('操作失败: ' + e.message);
+        }
       }, true);
     }
 
     async function updateServiceOrder(id, status) {
+      reportFrontendError('UpdateServiceOrder Button Click', { id, status });
       try {
         const res = await api(`/api/service-orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) });
         if (res.success) { showToast('操作成功'); fullRefresh(); }
-        else { showToast(res.error || '操作失败'); }
-      } catch (e) { showToast('操作失败: ' + e.message); }
+        else {
+          reportFrontendError('UpdateServiceOrder API Failed', { id, status, response: res });
+          showToast(res.error || '操作失败');
+        }
+      } catch (e) {
+        reportFrontendError('UpdateServiceOrder Exception', { id, status, error: e.message, stack: e.stack });
+        showToast('操作失败: ' + e.message);
+      }
     }
 
     async function updateTableOrder(id, status) {
+      reportFrontendError('UpdateTableOrder Button Click', { id, status });
       try {
         const res = await api(`/api/table-action-orders/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) });
         if (res.success) { showToast('操作成功'); fullRefresh(); }
-        else { showToast(res.error || '操作失败'); }
-      } catch (e) { showToast('操作失败: ' + e.message); }
+        else {
+          reportFrontendError('UpdateTableOrder API Failed', { id, status, response: res });
+          showToast(res.error || '操作失败');
+        }
+      } catch (e) {
+        reportFrontendError('UpdateTableOrder Exception', { id, status, error: e.message, stack: e.stack });
+        showToast('操作失败: ' + e.message);
+      }
     }
 
     function openCancelItemModal(orderId, itemName, qty) {
-      cancelItemOrderId = orderId;
-      cancelItemName = itemName;
-      cancelItemMaxQty = qty;
-      document.getElementById('cancelItemName').value = itemName;
-      document.getElementById('cancelItemCurrentQty').value = qty;
-      let opts = '';
-      for (let i = 1; i <= qty; i++) {
-        opts += `<option value="${i}">${i} ${i === qty ? '(全部)' : ''}</option>`;
+      try {
+        reportFrontendError('OpenCancelItemModal', { orderId, itemName, qty });
+        cancelItemOrderId = orderId;
+        cancelItemName = itemName;
+        cancelItemMaxQty = qty;
+        document.getElementById('cancelItemName').value = itemName;
+        document.getElementById('cancelItemCurrentQty').value = qty;
+        let opts = '';
+        for (let i = 1; i <= qty; i++) {
+          opts += `<option value="${i}">${i} ${i === qty ? '(全部)' : ''}</option>`;
+        }
+        document.getElementById('cancelItemQty').innerHTML = opts;
+        document.getElementById('cancelItemModal').classList.add('show');
+      } catch (e) {
+        reportFrontendError('OpenCancelItemModal Error', { orderId, itemName, qty, error: e.message, stack: e.stack });
+        showToast('打开弹窗失败');
       }
-      document.getElementById('cancelItemQty').innerHTML = opts;
-      document.getElementById('cancelItemModal').classList.add('show');
     }
 
     function closeCancelItemModal() {
@@ -948,9 +1044,15 @@
     }
 
     async function confirmCancelItem() {
-      if (!cancelItemOrderId || !cancelItemName) return;
+      reportFrontendError('ConfirmCancelItem Button Click', { cancelItemOrderId, cancelItemName });
+      if (!cancelItemOrderId || !cancelItemName) {
+        reportFrontendError('ConfirmCancelItem Invalid State', { cancelItemOrderId, cancelItemName });
+        showToast('状态异常，请重试');
+        return;
+      }
       const qty = parseInt(document.getElementById('cancelItemQty').value);
       try {
+        reportFrontendError('ConfirmCancelItem API Start', { cancelItemOrderId, cancelItemName, qty });
         const res = await api(`/api/admin/orders/${cancelItemOrderId}/cancel-item`, {
           method: 'POST',
           body: JSON.stringify({ itemName: cancelItemName, cancelQuantity: qty })
@@ -960,9 +1062,13 @@
           closeCancelItemModal();
           fullRefresh();
         } else {
+          reportFrontendError('ConfirmCancelItem API Failed', { cancelItemOrderId, cancelItemName, qty, response: res });
           showToast(res.error || '操作失败');
         }
-      } catch (e) { showToast('操作失败: ' + e.message); }
+      } catch (e) {
+        reportFrontendError('ConfirmCancelItem Exception', { cancelItemOrderId, cancelItemName, qty, error: e.message, stack: e.stack });
+        showToast('操作失败: ' + e.message);
+      }
     }
 
     function logout() {

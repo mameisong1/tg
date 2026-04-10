@@ -3941,6 +3941,38 @@ app.post('/api/admin/sound-failure-log', authMiddleware, requireBackendPermissio
   }
 });
 
+// 前端错误日志 API（收银看板按钮操作错误捕获）
+app.post('/api/admin/frontend-error-log', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
+  try {
+    const { action, timestamp, url, userAgent, userToken, state, ...details } = req.body;
+    const user = req.user?.username || 'unknown';
+    
+    const logEntry = {
+      timestamp: timestamp || new Date().toISOString(),
+      user,
+      action,
+      url,
+      userAgent,
+      userToken,
+      state,
+      details
+    };
+    
+    // 写入前端错误日志文件
+    const frontendErrorLogPath = path.join(__dirname, '../logs/frontend-error.log');
+    const logLine = JSON.stringify(logEntry) + '\n';
+    fs.appendFileSync(frontendErrorLogPath, logLine);
+    
+    // 同时输出到控制台
+    logger.error(`🔴 前端错误: ${action} | 用户: ${user} | 详情: ${JSON.stringify(details)}`);
+    
+    res.json({ success: true, message: '日志已记录' });
+  } catch (err) {
+    logger.error(`记录前端错误日志失败: ${err.message}`);
+    res.status(500).json({ error: '记录失败' });
+  }
+});
+
 // 前端页面路由
 app.get('/', (req, res) => {
   res.redirect('/frontend/index.html');
