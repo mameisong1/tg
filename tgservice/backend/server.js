@@ -1257,7 +1257,7 @@ app.post('/api/member/login-sms', async (req, res) => {
       return res.status(400).json({ error: '请输入手机号和验证码' });
     }
     
-    // 测试环境：针对测试用户允许使用 8888 验证码登录
+    // 测试环境：针对测试用户允许使用 888888 验证码登录
     const testUsers = ['18600000001', '18600000002', '18600000003'];
     const isTestEnv = process.env.TGSERVICE_ENV === 'test';
     const isTestUser = testUsers.includes(phone);
@@ -1265,10 +1265,9 @@ app.post('/api/member/login-sms', async (req, res) => {
     if (isTestEnv && isTestUser && code === '888888') {
       // 直接允许登录，不验证缓存中的验证码
       operationLog.info(`测试用户登录: ${phone}, 验证码: 888888`);
-      // 继续执行登录逻辑（跳过验证码校验）
+      // 跳过验证码校验，直接进入会员查询/创建流程
     } else {
       // 正常验证码验证流程
-      // 验证验证码
       const codeData = smsCodeCache.get(phone);
       if (!codeData) {
         return res.status(400).json({ error: '验证码已过期，请重新获取' });
@@ -1295,27 +1294,6 @@ app.post('/api/member/login-sms', async (req, res) => {
       // 验证成功，删除验证码
       smsCodeCache.delete(phone);
     }
-    
-    // 检查尝试次数
-    if (codeData.attempts >= 5) {
-      smsCodeCache.delete(phone);
-      return res.status(400).json({ error: '验证码错误次数过多，请重新获取' });
-    }
-    
-    // 检查过期
-    if (Date.now() - codeData.timestamp > SMS_CODE_EXPIRE_MS) {
-      smsCodeCache.delete(phone);
-      return res.status(400).json({ error: '验证码已过期，请重新获取' });
-    }
-    
-    // 验证码校验
-    if (codeData.code !== code) {
-      codeData.attempts++;
-      return res.status(400).json({ error: '验证码错误' });
-    }
-    
-    // 验证成功，删除验证码
-    smsCodeCache.delete(phone);
     
     // 查询或创建会员
     let member = await dbGet('SELECT * FROM members WHERE phone = ?', [phone]);
