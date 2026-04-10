@@ -55,7 +55,7 @@
         <view class="reviewed-item" v-for="item in notInvitedList" :key="item.coach_no">
           <image v-if="item.invitation_image_url" :src="item.invitation_image_url" mode="aspectFill" class="reviewed-thumb" @click="previewImage(item.invitation_image_url)" />
           <view class="reviewed-info">
-            <text class="reviewed-name">{{ item.stage_name }} ({{ item.coach_no }}号)</text>
+            <text class="reviewed-name">{{ item.stage_name }} ({{ item.employee_id || item.coach_no }}号)</text>
             <text class="reviewed-time">{{ formatTime(item.created_at) }}</text>
           </view>
           <view class="reviewed-badge badge-not-invited"><text>未约客</text></view>
@@ -71,7 +71,7 @@
         <view class="reviewed-item" v-for="inv in filterList" :key="inv.id">
           <image v-if="inv.invitation_image_url" :src="inv.invitation_image_url" mode="aspectFill" class="reviewed-thumb" @click="previewImage(inv.invitation_image_url)" />
           <view class="reviewed-info">
-            <text class="reviewed-name">{{ inv.stage_name }} ({{ inv.coach_no }}号)</text>
+            <text class="reviewed-name">{{ inv.stage_name }} ({{ inv.employee_id || inv.coach_no }}号)</text>
             <text class="reviewed-time">{{ formatTime(inv.created_at) }}</text>
           </view>
           <view class="reviewed-badge" :class="inv.result === '约客有效' ? 'badge-approved' : 'badge-rejected'"><text>{{ inv.result }}</text></view>
@@ -89,7 +89,7 @@
           <view class="card-placeholder" v-else><text>暂无截图</text></view>
           <view class="card-info">
             <text class="card-name">{{ inv.stage_name }}</text>
-            <text class="card-meta">{{ inv.coach_no }}号 · {{ formatTime(inv.created_at) }}</text>
+            <text class="card-meta">{{ inv.employee_id || inv.coach_no }}号 · {{ formatTime(inv.created_at) }}</text>
             <view class="card-badge badge-pending"><text>待审查</text></view>
           </view>
         </view>
@@ -107,7 +107,7 @@
         <image v-if="currentReview?.invitation_image_url" :src="currentReview.invitation_image_url" mode="aspectFit" class="review-image" />
         <view class="review-placeholder" v-else><text>暂无截图</text></view>
         <view class="review-info">
-          <text class="review-name">{{ currentReview?.stage_name }} ({{ currentReview?.coach_no }}号)</text>
+          <text class="review-name">{{ currentReview?.stage_name }} ({{ currentReview?.employee_id || currentReview?.coach_no }}号)</text>
           <text class="review-meta">{{ formatTime(currentReview?.created_at) }} · {{ shiftLabel }}</text>
         </view>
         <view class="review-actions">

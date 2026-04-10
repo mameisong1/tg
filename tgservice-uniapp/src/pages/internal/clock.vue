@@ -16,7 +16,7 @@
     <!-- 助教信息 -->
     <view class="coach-info-section">
       <text class="coach-name">{{ coachInfo.stageName }}</text>
-      <text class="coach-no">工号: {{ coachInfo.coachNo }}</text>
+      <text class="coach-no">工号: {{ coachInfo.employeeId }}</text>
       <text class="coach-shift" v-if="waterBoard">当前班次: {{ waterBoard.shift }}</text>
     </view>
 

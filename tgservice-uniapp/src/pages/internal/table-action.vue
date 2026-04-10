@@ -13,7 +13,7 @@
     <!-- 助教信息 -->
     <view class="coach-info-section" v-if="coachInfo.coachNo">
       <text class="coach-name">{{ coachInfo.stageName }}</text>
-      <text class="coach-no">工号: {{ coachInfo.coachNo }}</text>
+      <text class="coach-no">工号: {{ coachInfo.employeeId }}</text>
     </view>
 
     <!-- 当前状态 -->

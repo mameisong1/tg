@@ -20,7 +20,7 @@
         <image class="profile-avatar" :src="mainPhoto" mode="aspectFill"></image>
         <view class="profile-name">{{ coachInfo.stageName || '未命名' }}</view>
         <view class="profile-level">{{ coachInfo.level || '教练' }}</view>
-        <view class="profile-no">No.{{ coachInfo.coachNo }}</view>
+        <view class="profile-no">工号: {{ coachInfo.employeeId }}</view>
       </view>
       
       <view class="section">
