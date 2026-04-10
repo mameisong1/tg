@@ -124,16 +124,6 @@ async function required(req, res, next) {
     });
   }
 }
-    
-    next();
-  } catch (error) {
-    console.error('认证中间件错误:', error);
-    res.status(500).json({
-      success: false,
-      error: '认证失败'
-    });
-  }
-}
 
 /**
  * 可选认证：如果提供了 token 则验证，否则继续
