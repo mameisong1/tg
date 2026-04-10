@@ -101,14 +101,17 @@ router.post('/lock-should-invite', auth.required, requireBackendPermission(['inv
     `, [...shouldInviteStatus, shift]);
     
     // 写入应约客记录（result='应约客'，无截图）
+    // 只插入没有约客记录的助教（避免覆盖已上传截图的记录）
     let insertedCount = 0;
     for (const coach of shouldInviteCoaches) {
-      // 检查是否已有记录（可能已提交截图）
+      // 检查是否已有任何约客记录（包括：应约客、待审查、约客有效、约客无效）
+      // 如果已有记录，说明助教已上传截图或已被标记，不应覆盖
       const existing = await transaction.get(
         'SELECT id, result FROM guest_invitation_results WHERE date = ? AND shift = ? AND coach_no = ?',
         [date, shift, coach.coach_no]
       );
       
+      // 只在完全没有记录时才插入（确保不覆盖已上传的约客记录）
       if (!existing) {
         // 新增应约客记录
         await transaction.run(`
@@ -118,6 +121,11 @@ router.post('/lock-should-invite', auth.required, requireBackendPermission(['inv
         `, [date, shift, coach.coach_no, coach.stage_name]);
         insertedCount++;
       }
+      // 如果已有记录（无论是什么状态），都不覆盖
+      // - result='待审查'：助教已上传截图，等待审查
+      // - result='约客有效'：已审查通过
+      // - result='约客无效'：已审查拒绝
+      // - result='应约客'：之前已锁定但未上传截图
     }
     
     // 记录操作日志

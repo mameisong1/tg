@@ -243,8 +243,10 @@ const startReview = async () => {
     uni.hideLoading()
     if (res.success) {
       isLocked.value = true
-      lockedCount.value = res.data.locked_count || 0
-      uni.showToast({ title: `已锁定${lockedCount.value}名应约客人员`, icon: 'success' })
+      // 使用 total_count（该班次总人数：应约客+待审查+有效+无效）而非 locked_count
+      const totalCount = res.data.total_count || 0
+      lockedCount.value = totalCount
+      uni.showToast({ title: `已锁定，该班次共${totalCount}人`, icon: 'success' })
       loadAll()
     } else {
       uni.showToast({ title: res.error || '锁定失败', icon: 'none' })

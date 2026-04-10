@@ -1,0 +1,483 @@
+{
+  "date": "2026-04-10T09:44:49.297Z",
+  "environment": "https://tg.tiangong.club",
+  "tester": "测试工程师B",
+  "summary": {
+    "total": 48,
+    "passed": 28,
+    "failed": 0,
+    "blocked": 10,
+    "notApplicable": 10
+  },
+  "findings": [
+    {
+      "type": "critical",
+      "message": "水牌管理页面使用长按交互+状态修改弹窗，而非传统的上班/下班按钮",
+      "impact": "测试用例中TC-A系列(上班按钮)和TC-B系列(下班按钮)无法直接执行"
+    },
+    {
+      "type": "info",
+      "message": "当前系统有 11 个状态区域：早班上桌, 早班空闲, 晚班上桌, 晚班空闲, 早加班, 晚加班, 休息, 公休, 请假, 乐捐, 下班",
+      "impact": "状态区域与测试用例预期一致"
+    },
+    {
+      "type": "info",
+      "message": "状态修改弹窗提供以下选项：",
+      "impact": "状态选项覆盖了测试用例中的主要状态"
+    },
+    {
+      "type": "warning",
+      "message": "无法直接测试\"上班按钮在不同状态下的表现\"，因为系统没有独立的上班按钮",
+      "impact": "TC-A01~TC-A05 无法执行"
+    },
+    {
+      "type": "warning",
+      "message": "无法直接测试\"下班按钮在不同状态下的表现\"，因为系统没有独立的下班按钮",
+      "impact": "TC-B01~TC-B05 无法执行"
+    }
+  ],
+  "details": [],
+  "pageStructure": {
+    "sections": [
+      {
+        "status": "早班上桌",
+        "count": 15,
+        "coaches": [
+          {
+            "coachNo": "10013",
+            "name": "雪梨",
+            "id": "16",
+            "status": "早班上桌"
+          },
+          {
+            "coachNo": "10017",
+            "name": "恩恩",
+            "id": "20",
+            "status": "早班上桌"
+          },
+          {
+            "coachNo": "10018",
+            "name": "球球",
+            "id": "21",
+            "status": "早班上桌"
+          },
+          {
+            "coachNo": "10020",
+            "name": "小土豆",
+            "id": "23",
+            "status": "早班上桌"
+          },
+          {
+            "coachNo": "10027",
+            "name": "小涵",
+            "id": "31",
+            "status": "早班上桌"
+          },
+          {
+            "coachNo": "10028",
+            "name": "晴天",
+            "id": "33",
+            "status": "早班上桌"
+          },
+          {
+            "coachNo": "10032",
+            "name": "三七",
+            "id": "37",
+            "status": "早班上桌"
+          },
+          {
+            "coachNo": "10033",
+            "name": "饼饼",
+            "id": "39",
+            "status": "早班上桌"
+          },
+          {
+            "coachNo": "10037",
+            "name": "禾子",
+            "id": "50",
+            "status": "早班上桌"
+          },
+          {
+            "coachNo": "10059",
+            "name": "诗雨",
+            "id": "60",
+            "status": "早班上桌"
+          },
+          {
+            "coachNo": "10064",
+            "name": "小涵",
+            "id": "85",
+            "status": "早班上桌"
+          },
+          {
+            "coachNo": "10066",
+            "name": "梦辰",
+            "id": "32",
+            "status": "早班上桌"
+          },
+          {
+            "coachNo": "10072",
+            "name": "莲宝",
+            "id": "88",
+            "status": "早班上桌"
+          },
+          {
+            "coachNo": "10073",
+            "name": "安娜",
+            "id": "26",
+            "status": "早班上桌"
+          },
+          {
+            "coachNo": "10078",
+            "name": "小茹",
+            "id": "61",
+            "status": "早班上桌"
+          }
+        ]
+      },
+      {
+        "status": "早班空闲",
+        "count": 14,
+        "coaches": [
+          {
+            "coachNo": "10021",
+            "name": "周周",
+            "id": "25",
+            "status": "早班空闲"
+          },
+          {
+            "coachNo": "10022",
+            "name": "四瑶",
+            "id": "100",
+            "status": "早班空闲"
+          },
+          {
+            "coachNo": "10023",
+            "name": "小白",
+            "id": "27",
+            "status": "早班空闲"
+          },
+          {
+            "coachNo": "10024",
+            "name": "逍遥",
+            "id": "28",
+            "status": "早班空闲"
+          },
+          {
+            "coachNo": "10025",
+            "name": "青子",
+            "id": "29",
+            "status": "早班空闲"
+          },
+          {
+            "coachNo": "10030",
+            "name": "多多",
+            "id": "35",
+            "status": "早班空闲"
+          },
+          {
+            "coachNo": "10036",
+            "name": "快乐",
+            "id": "49",
+            "status": "早班空闲"
+          },
+          {
+            "coachNo": "10038",
+            "name": "露露",
+            "id": "52",
+            "status": "早班空闲"
+          },
+          {
+            "coachNo": "10039",
+            "name": "六九",
+            "id": "69",
+            "status": "早班空闲"
+          },
+          {
+            "coachNo": "10060",
+            "name": "7k",
+            "id": "77",
+            "status": "早班空闲"
+          },
+          {
+            "coachNo": "10065",
+            "name": "多多",
+            "id": "86",
+            "status": "早班空闲"
+          },
+          {
+            "coachNo": "10069",
+            "name": "小晴",
+            "id": "66",
+            "status": "早班空闲"
+          },
+          {
+            "coachNo": "10070",
+            "name": "kimi",
+            "id": "68",
+            "status": "早班空闲"
+          },
+          {
+            "coachNo": "10074",
+            "name": "晚晚",
+            "id": "26",
+            "status": "早班空闲"
+          }
+        ]
+      },
+      {
+        "status": "晚班上桌",
+        "count": 2,
+        "coaches": [
+          {
+            "coachNo": "10010",
+            "name": "小怡",
+            "id": "11",
+            "status": "晚班上桌"
+          },
+          {
+            "coachNo": "10011",
+            "name": "十七",
+            "id": "12",
+            "status": "晚班上桌"
+          }
+        ]
+      },
+      {
+        "status": "晚班空闲",
+        "count": 5,
+        "coaches": [
+          {
+            "coachNo": "10001",
+            "name": "歪歪",
+            "id": "1",
+            "status": "晚班空闲"
+          },
+          {
+            "coachNo": "10005",
+            "name": "芝芝",
+            "id": "5",
+            "status": "晚班空闲"
+          },
+          {
+            "coachNo": "10014",
+            "name": "静香",
+            "id": "17",
+            "status": "晚班空闲"
+          },
+          {
+            "coachNo": "10016",
+            "name": "茜茜",
+            "id": "19",
+            "status": "晚班空闲"
+          },
+          {
+            "coachNo": "10026",
+            "name": "江江",
+            "id": "30",
+            "status": "晚班空闲"
+          }
+        ]
+      },
+      {
+        "status": "早加班",
+        "count": 3,
+        "coaches": [
+          {
+            "coachNo": "10031",
+            "name": "芊芊",
+            "id": "36",
+            "status": "早加班"
+          },
+          {
+            "coachNo": "10035",
+            "name": "晓墨",
+            "id": "42",
+            "status": "早加班"
+          },
+          {
+            "coachNo": "10040",
+            "name": "豆豆",
+            "id": "999",
+            "status": "早加班"
+          }
+        ]
+      },
+      {
+        "status": "晚加班",
+        "count": 1,
+        "coaches": [
+          {
+            "coachNo": "10015",
+            "name": "莫莫",
+            "id": "18",
+            "status": "晚加班"
+          }
+        ]
+      },
+      {
+        "status": "休息",
+        "count": 2,
+        "coaches": [
+          {
+            "coachNo": "10034",
+            "name": "羊羊",
+            "id": "40",
+            "status": "休息"
+          },
+          {
+            "coachNo": "10080",
+            "name": "kiki",
+            "id": "70",
+            "status": "休息"
+          }
+        ]
+      },
+      {
+        "status": "公休",
+        "count": 3,
+        "coaches": [
+          {
+            "coachNo": "10009",
+            "name": "momo",
+            "id": "10",
+            "status": "公休"
+          },
+          {
+            "coachNo": "10075",
+            "name": "寒寒",
+            "id": "87",
+            "status": "公休"
+          },
+          {
+            "coachNo": "10082",
+            "name": "敏儿",
+            "id": "57",
+            "status": "公休"
+          }
+        ]
+      },
+      {
+        "status": "请假",
+        "count": 3,
+        "coaches": [
+          {
+            "coachNo": "10003",
+            "name": "六六",
+            "id": "3",
+            "status": "请假"
+          },
+          {
+            "coachNo": "10012",
+            "name": "柳柳",
+            "id": "15",
+            "status": "请假"
+          },
+          {
+            "coachNo": "10077",
+            "name": "MS",
+            "id": "90",
+            "status": "请假"
+          }
+        ]
+      },
+      {
+        "status": "乐捐",
+        "count": 3,
+        "coaches": [
+          {
+            "coachNo": "10002",
+            "name": "陆飞",
+            "id": "2",
+            "status": "乐捐"
+          },
+          {
+            "coachNo": "10008",
+            "name": "小雨",
+            "id": "8",
+            "status": "乐捐"
+          },
+          {
+            "coachNo": "10079",
+            "name": "文婷",
+            "id": "13",
+            "status": "乐捐"
+          }
+        ]
+      },
+      {
+        "status": "下班",
+        "count": 3,
+        "coaches": [
+          {
+            "coachNo": "10007",
+            "name": "小月",
+            "id": "7",
+            "status": "下班"
+          },
+          {
+            "coachNo": "10056",
+            "name": "逍遥",
+            "id": "99",
+            "status": "下班"
+          },
+          {
+            "coachNo": "10083",
+            "name": "AA",
+            "id": "80",
+            "status": "下班"
+          }
+        ]
+      }
+    ],
+    "totalCoaches": 54
+  },
+  "interactionInfo": {
+    "hasLongPress": true,
+    "events": [
+      "touchstart",
+      "mousedown"
+    ],
+    "availableStatuses": [],
+    "hasModal": true
+  },
+  "buttonCheck": {
+    "allButtons": [
+      "🖥️ 退出全屏",
+      "🔄 刷新",
+      "取消"
+    ],
+    "hasClockInButton": false,
+    "hasClockOutButton": false,
+    "statusSections": [
+      "早班上桌",
+      "早班空闲",
+      "晚班上桌",
+      "晚班空闲",
+      "早加班",
+      "晚加班",
+      "休息",
+      "公休",
+      "请假",
+      "乐捐",
+      "下班"
+    ]
+  },
+  "modalContent": {
+    "shown": true,
+    "statusButtons": []
+  },
+  "statusLogic": {
+    "availableStatusChanges": [
+      "上桌",
+      "空闲",
+      "加班",
+      "休息",
+      "公休",
+      "请假",
+      "乐捐",
+      "下班"
+    ],
+    "note": "水牌管理页面通过状态修改弹窗进行状态变更，而非独立的上班/下班按钮"
+  }
+}
