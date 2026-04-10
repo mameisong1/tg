@@ -331,12 +331,16 @@ page {
 |------|------|
 | `sessionId` | 匿名会话ID（购物车关联） |
 | `memberToken` | 会员JWT Token |
-| `coachToken` | 助教JWT Token |
+| `adminToken` | 后台员工JWT Token（匹配admin_users时返回） |
+| `adminInfo` | 后台用户信息缓存 |
+| `coachToken` | 助教JWT Token（匹配coaches时返回） |
 | `coachInfo` | 助教信息缓存 |
-| `tablePinyin` | 当前台桌拼音 |
 | `tableName` | 当前台桌名称 |
-| `tableAuth` | 台桌授权信息（H5） |
+| `tableAuth` | 台桌授权信息（H5扫码） |
+| `tablePinyin` | 当前台桌拼音 |
 | `device_fp` | 设备指纹 |
+
+> **员工识别**：`adminToken` 或 `coachToken` 任意一个存在，即为登录员工，可享受免扫码下单特权。
 
 ### 台桌授权机制（H5）
 

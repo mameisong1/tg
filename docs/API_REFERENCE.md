@@ -391,6 +391,28 @@
   ```
 - **说明**: 获取助教详细信息
 
+### 助教查询自己的水牌状态
+
+- **路径**: `GET /api/coaches/:coachNo/water-status`
+- **参数**: 
+  | 参数 | 类型 | 必填 | 说明 |
+  |------|------|------|------|
+  | coachNo | string | 是 | 助教工号（URL路径参数） |
+- **返回**: 
+  ```json
+  {
+    "success": true,
+    "data": {
+      "coach_no": "10010",
+      "stage_name": "小怡",
+      "status": "晚班上桌",
+      "table_no": "A15",
+      "updated_at": "2026-04-10 20:00:00"
+    }
+  }
+  ```
+- **说明**: 助教查询自己的水牌状态（含当前台桌号），用于H5员工下单时默认选台
+
 ### 助教登录
 
 - **路径**: `POST /api/coach/login`
@@ -565,10 +587,17 @@
       "phone": "13800138000",
       "nickname": "会员昵称"
     },
-    "isNew": false
+    "isNew": false,
+    "adminInfo": { "username": "13800138000", "role": "admin" },
+    "adminToken": "jwt-token",
+    "coachInfo": { "coach_no": "26", "stage_name": "四瑶" },
+    "coachToken": "base64-token"
   }
   ```
-- **说明**: 使用手机号和验证码登录，新用户自动注册
+- **说明**: 使用手机号和验证码登录，新用户自动注册。
+  如果手机号匹配后台用户表（admin_users.username），返回 adminInfo 和 adminToken。
+  如果手机号匹配助教表（coaches.phone），返回 coachInfo 和 coachToken。
+  前端通过 adminToken 或 coachToken 判断是否为登录员工。
 
 ### 微信登录（获取手机号）
 

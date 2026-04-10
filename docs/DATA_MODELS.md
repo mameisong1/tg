@@ -82,6 +82,7 @@
 | employee_id | TEXT | | 员工编号 |
 | stage_name | TEXT | | 艺名（如"四瑶"） |
 | real_name | TEXT | | 真实姓名 |
+| phone | TEXT | UNIQUE | 手机号（用于H5登录识别员工身份） |
 | id_card_last6 | TEXT | | 身份证后6位（用于登录） |
 | level | TEXT | DEFAULT '初级' | 等级（女神/精英/初级） |
 | price | REAL | DEFAULT 2.3 | 助教价格（元/小时或固定费用） |
