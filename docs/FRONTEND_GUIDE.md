@@ -342,6 +342,32 @@ page {
 
 > **员工识别**：`adminToken` 或 `coachToken` 任意一个存在，即为登录员工，可享受免扫码下单特权。
 
+### 员工台桌管理（H5）
+
+员工登录后，购物车和商品页顶部显示台桌号，支持切换：
+
+```vue
+<!-- 员工模式：顶部台桌号 + 切换按钮 -->
+<view v-if="isEmployee" class="employee-table-bar">
+  <text class="table-label">台桌：</text>
+  <text class="table-value">{{ tableName || '未选择' }}</text>
+  <view class="switch-btn" @click="openTableSelector">
+    <text>切换台桌</text>
+  </view>
+</view>
+```
+
+切换台桌时：
+1. 保存 `tableName` 到 localStorage
+2. 调用 `PUT /api/cart/table` 更新购物车中所有商品的 `table_no`
+3. 刷新购物车列表
+
+**TableInfo 组件支持 `isEmployee` prop**：
+```vue
+<TableInfo :isEmployee="isEmployee" />
+```
+员工模式下，不显示「未扫码」「已过期」等扫码提示。
+
 ### 台桌授权机制（H5）
 
 ```javascript
