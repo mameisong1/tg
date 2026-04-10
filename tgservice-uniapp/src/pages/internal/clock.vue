@@ -52,6 +52,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import api from '@/utils/api-v2.js'
 
 const statusBarHeight = ref(0)
@@ -61,8 +62,14 @@ const waterBoard = ref(null)
 onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 20
+})
+
+// 每次页面显示时重新读取 coachInfo 和加载水牌
+onShow(() => {
   coachInfo.value = uni.getStorageSync('coachInfo') || {}
-  loadWaterBoard()
+  if (coachInfo.value.coachNo) {
+    loadWaterBoard()
+  }
 })
 
 const loadWaterBoard = async () => {
