@@ -770,15 +770,6 @@
     // 增量轮询（每10秒检查新订单）
     async function pollNewOrders() {
       try {
-        let hasNewPending = false;
-        
-        // 记录之前的待处理订单数量
-        const prevPendingCount = {
-          product: productOrders.filter(o => o.status === '待处理').length,
-          service: serviceOrders.filter(o => o.status === '待处理').length,
-          coach: coachSessions.filter(o => o.status === '待处理').length
-        };
-        
         // 检查商品订单
         try {
           const orders = await api('/api/admin/orders');
@@ -787,7 +778,6 @@
           const newOnes = newOrders.filter(o => o.status === '待处理' && !renderedProductIds.has(o.id));
           if (newOnes.length > 0) {
             productOrders = newOrders;
-            hasNewPending = true;
             console.log('📦 发现新商品订单:', newOnes.length, '个');
           } else {
             productOrders = newOrders;
@@ -801,7 +791,6 @@
           const newOnes = newOrders.filter(o => o.status === '待处理' && !renderedServiceIds.has(o.id));
           if (newOnes.length > 0) {
             serviceOrders = newOrders;
-            hasNewPending = true;
             console.log('🎯 发现新服务订单:', newOnes.length, '个');
           } else {
             serviceOrders = newOrders;
@@ -815,7 +804,6 @@
           const newOnes = newOrders.filter(o => o.status === '待处理' && !renderedCoachIds.has(o.id));
           if (newOnes.length > 0) {
             coachSessions = newOrders;
-            hasNewPending = true;
             console.log('👩‍🏫 发现新上下桌单:', newOnes.length, '个');
           } else {
             coachSessions = newOrders;
@@ -828,22 +816,14 @@
         renderCoachSessions(true);
         updateCounts();
         
-        // 检查待处理订单数量是否增加
-        const currPendingCount = {
-          product: productOrders.filter(o => o.status === '待处理').length,
-          service: serviceOrders.filter(o => o.status === '待处理').length,
-          coach: coachSessions.filter(o => o.status === '待处理').length
-        };
-        
-        const countIncreased = (
-          currPendingCount.product > prevPendingCount.product ||
-          currPendingCount.service > prevPendingCount.service ||
-          currPendingCount.coach > prevPendingCount.coach
+        // 只要有待处理订单就发声提醒（每10秒）
+        const hasPendingOrders = (
+          productOrders.some(o => o.status === '待处理') ||
+          serviceOrders.some(o => o.status === '待处理') ||
+          coachSessions.some(o => o.status === '待处理')
         );
-        
-        // 发声条件：有新订单 或 待处理订单数量增加
-        if ((hasNewPending || countIncreased) && alertEnabled && soundEnabled) {
-          console.log('🔔 满足发声条件, hasNewPending:', hasNewPending, ', countIncreased:', countIncreased);
+        if (hasPendingOrders && alertEnabled && soundEnabled) {
+          console.log('🔔 有待处理订单，播放声音提醒');
           playAlertSound();
         }
         
