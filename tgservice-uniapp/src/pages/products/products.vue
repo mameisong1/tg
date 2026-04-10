@@ -76,7 +76,7 @@
       </view>
       <!-- 台桌信息显示 -->
       <view class="table-info-wrapper">
-        <TableInfo ref="tableInfoRef" hideWhenValid />
+        <TableInfo ref="tableInfoRef" hideWhenValid :isEmployee="isEmployee" />
       </view>
     </view>
     <!-- #endif -->

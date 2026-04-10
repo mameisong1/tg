@@ -83,8 +83,8 @@ const sessionId = ref('')
 const cartItems = ref([])
 const totalPrice = ref(0)
 
-// 直接从 localStorage 读取台桌信息
-const tableName = computed(() => uni.getStorageSync('tableName') || '')
+// 台桌信息（用 ref 保证响应式，切换后手动更新）
+const tableName = ref(uni.getStorageSync('tableName') || '')
 const tableStatus = computed(() => {
   const name = tableName.value
   if (!name) return 'empty'
@@ -186,6 +186,8 @@ const onTableSelected = async (tableNo) => {
   showTableSelector.value = false
   // 保存台桌号到 localStorage
   uni.setStorageSync('tableName', tableNo)
+  // 同步更新 ref（让页面立即响应）
+  tableName.value = tableNo
   
   // 更新购物车中所有商品的 table_no
   try {
@@ -301,6 +303,8 @@ onMounted(() => {
 
 // 每次显示页面时重新读取台桌信息
 onShow(() => {
+  // 同步 ref（响应式）
+  tableName.value = uni.getStorageSync('tableName') || ''
   tableInfoRef.value?.loadTableInfo()
   loadCart()
 })
