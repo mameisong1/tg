@@ -349,7 +349,7 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .empty { text-align: center; padding: 40px 20px; color: rgba(255,255,255,0.3); font-size: 14px; }
 
 /* 全屏审查弹窗 */
-.review-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.review-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 998; display: flex; align-items: center; justify-content: center; }
 .review-box { width: 90%; max-width: 400px; display: flex; flex-direction: column; align-items: center; }
 .review-header { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
 .review-counter { font-size: 13px; color: #d4af37; background: rgba(20,20,30,0.8); padding: 6px 14px; border-radius: 14px; }
