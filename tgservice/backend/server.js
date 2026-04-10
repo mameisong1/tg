@@ -815,6 +815,23 @@ app.get('/api/coaches/:coachNo', async (req, res) => {
   }
 });
 
+// 助教查询自己的水牌状态（用于H5员工下单默认台桌号）
+app.get('/api/coaches/:coachNo/water-status', async (req, res) => {
+  try {
+    const waterBoard = await dbGet(
+      'SELECT coach_no, stage_name, status, table_no, updated_at FROM water_boards WHERE coach_no = ?',
+      [req.params.coachNo]
+    );
+    if (!waterBoard) {
+      return res.status(404).json({ error: '水牌不存在' });
+    }
+    res.json({ success: true, data: waterBoard });
+  } catch (err) {
+    logger.error(`查询水牌状态失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
 // =============== 台桌 API ===============
 
 // 通过拼音获取台桌信息
