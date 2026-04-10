@@ -46,10 +46,15 @@
     <!-- 筛选结果列表 -->
     <!-- 未约客列表 -->
     <view v-if="filterResult === '未约客'">
-      <view class="section-title"><text>⚠️ 未约客</text><text class="count">{{ notInvitedList.length }}人</text></view>
-      <view class="not-invited-list" v-if="notInvitedList.length > 0">
-        <view class="not-invited-item" v-for="item in notInvitedList" :key="item.coach_no">
-          <text class="not-invited-name">{{ item.stage_name }}（{{ item.coach_no }}号）</text>
+      <view class="section-title"><text>⚠️ 未约客</text><text class="count">{{ notInvitedList.length }}条</text></view>
+      <view class="reviewed-list" v-if="notInvitedList.length > 0">
+        <view class="reviewed-item" v-for="item in notInvitedList" :key="item.coach_no">
+          <image v-if="item.invitation_image_url" :src="item.invitation_image_url" mode="aspectFill" class="reviewed-thumb" @click="previewImage(item.invitation_image_url)" />
+          <view class="reviewed-info">
+            <text class="reviewed-name">{{ item.stage_name }} ({{ item.coach_no }}号)</text>
+            <text class="reviewed-time">{{ formatTime(item.created_at) }}</text>
+          </view>
+          <view class="reviewed-badge badge-not-invited"><text>未约客</text></view>
         </view>
       </view>
       <view class="empty" v-else><text>✅ 暂无未约客助教</text></view>
@@ -308,11 +313,6 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .stat-value { font-size: 20px; color: #d4af37; display: block; }
 .stat-label { font-size: 11px; color: rgba(255,255,255,0.5); display: block; margin-top: 4px; }
 
-/* 未约客列表 */
-.not-invited-list { padding: 0 12px; }
-.not-invited-item { padding: 10px 14px; background: rgba(241,196,15,0.05); border: 1px solid rgba(241,196,15,0.15); border-radius: 8px; margin-bottom: 6px; }
-.not-invited-name { font-size: 14px; color: #f1c40f; }
-
 /* 列表区域 */
 .list-section { padding: 0 12px 8px; }
 .list-title { font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 6px; }
@@ -339,6 +339,7 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .badge-pending { background: rgba(241,196,15,0.2); color: #f1c40f; }
 .badge-approved { background: rgba(46,204,113,0.2); color: #2ecc71; }
 .badge-rejected { background: rgba(231,76,60,0.2); color: #e74c3c; }
+.badge-not-invited { background: rgba(149,165,166,0.2); color: #95a5a6; }
 
 /* 已审查列表 */
 .reviewed-list { padding: 0 12px; }
