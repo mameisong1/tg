@@ -11,12 +11,12 @@
     <view class="header-placeholder" :style="{ height: (statusBarHeight + 44) + 'px' }"></view>
 
     <!-- 状态筛选按钮 -->
-    <scroll-view class="filter-bar" scroll-x>
+    <view class="filter-bar">
       <view class="filter-item" :class="{ active: activeFilter === '' }" @click="activeFilter = ''"><text>全部</text></view>
       <view class="filter-item" v-for="s in statusList" :key="s" :class="{ active: activeFilter === s }" @click="activeFilter = s">
         <text>{{ s }}</text>
       </view>
-    </scroll-view>
+    </view>
 
     <view class="board-list" v-if="filteredBoards.length > 0">
       <view class="status-section" v-for="group in filteredBoards" :key="group.status" :data-status="group.status">
@@ -139,8 +139,8 @@ const closeExpand = () => {
 .header-placeholder { background: #0a0a0f; }
 
 /* 状态筛选 */
-.filter-bar { white-space: nowrap; padding: 8px 12px; }
-.filter-item { display: inline-block; padding: 6px 12px; margin-right: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; font-size: 12px; color: rgba(255,255,255,0.6); }
+.filter-bar { display: flex; flex-wrap: wrap; padding: 8px 12px; gap: 6px; }
+.filter-item { padding: 6px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; font-size: 12px; color: rgba(255,255,255,0.6); }
 .filter-item.active { background: rgba(212,175,55,0.2); border-color: #d4af37; color: #d4af37; }
 
 .board-list { padding: 0 12px 12px; }
@@ -150,6 +150,8 @@ const closeExpand = () => {
   padding: 10px; 
   margin-bottom: 12px; 
   overflow: hidden;
+  box-sizing: border-box;
+  width: 100%;
 }
 .section-header { 
   display: flex; 

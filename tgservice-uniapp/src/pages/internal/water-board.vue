@@ -12,10 +12,10 @@
     <view class="header-placeholder" :style="{ height: (statusBarHeight + 44) + 'px' }"></view>
 
     <!-- 状态筛选按钮 -->
-    <scroll-view class="filter-bar" scroll-x>
+    <view class="filter-bar">
       <view class="filter-item" :class="{ active: activeFilter === '' }" @click="activeFilter = ''"><text>全部</text></view>
       <view class="filter-item" v-for="s in statusList" :key="s" :class="{ active: activeFilter === s }" @click="activeFilter = s"><text>{{ s }}</text></view>
-    </scroll-view>
+    </view>
 
     <!-- 按状态分组显示 -->
     <scroll-view class="board-list" scroll-y>
@@ -27,7 +27,7 @@
         <view class="coach-chips">
           <view class="coach-chip" v-for="coach in group.coaches" :key="coach.coach_no" @longpress="showStatusChange(coach)">
             <image class="coach-chip-avatar" :src="getCoachPhoto(coach)" mode="aspectFill" />
-            <text class="coach-chip-id">{{ coach.coach_no }}</text>
+            <text class="coach-chip-id">{{ coach.employee_id || coach.coach_no }}</text>
             <text class="coach-chip-name">{{ coach.stage_name }}</text>
             <text class="coach-chip-table" v-if="coach.table_no">{{ coach.table_no }}</text>
           </view>
@@ -236,14 +236,14 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .header-placeholder { background: #0a0a0f; }
 
 /* 状态筛选 */
-.filter-bar { white-space: nowrap; padding: 4px 12px 8px; }
-.filter-item { display: inline-block; padding: 6px 12px; margin-right: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; font-size: 12px; color: rgba(255,255,255,0.6); }
+.filter-bar { display: flex; flex-wrap: wrap; padding: 8px 12px; gap: 6px; }
+.filter-item { padding: 6px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; font-size: 12px; color: rgba(255,255,255,0.6); }
 .filter-item.active { background: rgba(212,175,55,0.2); border-color: #d4af37; color: #d4af37; }
 
 .board-list { flex: 1; min-height: 0; padding: 0 12px 12px; }
 
 /* 状态分段 */
-.status-section { border: 2px solid rgba(218,165,32,0.15); border-radius: 12px; padding: 10px; margin-bottom: 12px; min-height: 60px; overflow: hidden; box-sizing: border-box; }
+.status-section { border: 2px solid rgba(218,165,32,0.15); border-radius: 12px; padding: 10px; margin-bottom: 12px; min-height: 60px; overflow: hidden; box-sizing: border-box; width: 100%; }
 .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.05); }
 .section-title { font-size: 14px; font-weight: 600; color: #d4af37; }
 .section-count { font-size: 12px; color: rgba(255,255,255,0.4); }
