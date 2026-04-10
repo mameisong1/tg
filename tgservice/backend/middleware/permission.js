@@ -90,6 +90,21 @@ const PERMISSION_MATRIX = {
     invitationStats: false,
     operationLogs: false
   },
+  // 英文角色名映射（兼容数据库中的英文角色）
+  'cashier': {
+    menu: ['cashier-dashboard', 'products'],
+    cashierDashboard: true,
+    productManagement: true,
+    vipRoomManagement: false,
+    coachManagement: false,
+    waterBoardManagement: false,
+    invitationReview: false,
+    overtimeApproval: false,
+    leaveApproval: false,
+    lejuanList: false,
+    invitationStats: false,
+    operationLogs: false
+  },
   '服务员': {
     menu: [],
     cashierDashboard: false,
