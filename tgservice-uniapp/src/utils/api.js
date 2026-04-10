@@ -142,41 +142,59 @@ export default {
   uploadImageToOSS: async (filePath, fileType = 'image') => {
     try {
       // 1. 获取签名URL
-      const signRes = await exports.getOSSSignature(fileType, 'jpg')
+      const signRes = await this.getOSSSignature(fileType, 'jpg')
       if (!signRes.success || !signRes.uploadUrl) {
         return { error: '获取签名失败' }
       }
       
-      // 2. 读取文件内容
+      // #ifdef H5
+      // H5环境：fetch 获取 blob，XHR 直传 OSS（避免 uni.request PUT 的 CORS 和 base64 问题）
+      const response = await fetch(filePath)
+      const blob = await response.blob()
+      
+      return new Promise((resolve) => {
+        const xhr = new XMLHttpRequest()
+        xhr.open('PUT', signRes.uploadUrl, true)
+        xhr.setRequestHeader('Content-Type', 'image/jpeg')
+        xhr.onload = () => {
+          if (xhr.status === 200) {
+            resolve({ success: true, url: signRes.fileUrl })
+          } else {
+            resolve({ error: `上传失败: ${xhr.status}` })
+          }
+        }
+        xhr.onerror = () => resolve({ error: '网络错误，请检查网络连接' })
+        xhr.ontimeout = () => resolve({ error: '上传超时，请重试' })
+        xhr.timeout = 60000
+        xhr.send(blob)
+      })
+      // #endif
+      
+      // #ifndef H5
+      // 小程序环境：使用 uni.request + base64
       const fileInfo = await uni.getFileInfo({ filePath })
       const fileData = await uni.readFile({ filePath, encoding: 'base64' })
       
-      // 3. 用签名URL直接PUT上传
-      const uploadRes = await new Promise((resolve, reject) => {
+      return new Promise((resolve, reject) => {
         uni.request({
           url: signRes.uploadUrl,
           method: 'PUT',
           data: fileData.data,
-          header: {
-            'Content-Type': 'image/jpeg'
-          },
+          header: { 'Content-Type': 'image/jpeg' },
           success: (res) => {
             if (res.statusCode === 200) {
-              resolve({ success: true })
+              resolve({ success: true, url: signRes.fileUrl })
             } else {
               reject({ error: `上传失败: ${res.statusCode}` })
             }
           },
-          fail: (err) => {
-            reject({ error: '网络请求失败' })
-          }
+          fail: (err) => reject({ error: '网络请求失败' })
         })
       })
+      // #endif
       
-      // 4. 返回文件URL
-      return { success: true, url: signRes.fileUrl }
     } catch (e) {
-      return { error: e.error || '上传失败' }
+      return { error: e.message || e.error || '上传失败' }
     }
   },  
   // 设备统计
