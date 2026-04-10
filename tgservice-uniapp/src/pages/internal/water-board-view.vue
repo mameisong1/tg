@@ -10,20 +10,26 @@
     </view>
     <view class="header-placeholder" :style="{ height: (statusBarHeight + 44) + 'px' }"></view>
 
-    <view class="board-list" v-if="groupedBoards.length > 0">
-      <view class="status-section" v-for="group in groupedBoards" :key="group.status" :data-status="group.status">
+    <!-- 状态筛选按钮 -->
+    <scroll-view class="filter-bar" scroll-x>
+      <view class="filter-item" :class="{ active: activeFilter === '' }" @click="activeFilter = ''"><text>全部</text></view>
+      <view class="filter-item" v-for="s in statusList" :key="s" :class="{ active: activeFilter === s }" @click="activeFilter = s">
+        <text>{{ s }}</text>
+      </view>
+    </scroll-view>
+
+    <view class="board-list" v-if="filteredBoards.length > 0">
+      <view class="status-section" v-for="group in filteredBoards" :key="group.status" :data-status="group.status">
         <view class="section-header" @click="showSectionExpand(group.status, group.coaches)">
           <text class="section-title">{{ group.status }}</text>
           <text class="section-count">{{ group.coaches.length }}人 ⛶</text>
         </view>
-        <view class="section-content">
-          <view class="coach-chips">
-            <view class="coach-chip" v-for="coach in group.coaches" :key="coach.coach_no">
-              <image class="coach-avatar" :src="getAvatar(coach)" mode="aspectFill" />
-              <text class="coach-id">{{ coach.employee_id || coach.coach_no }}</text>
-              <text class="coach-name">{{ coach.stage_name }}</text>
-              <text class="coach-table" v-if="coach.table_no">{{ coach.table_no }}</text>
-            </view>
+        <view class="coach-chips">
+          <view class="coach-chip" v-for="coach in group.coaches" :key="coach.coach_no">
+            <image class="coach-avatar" :src="getAvatar(coach)" mode="aspectFill" />
+            <text class="coach-id">{{ coach.employee_id || coach.coach_no }}</text>
+            <text class="coach-name">{{ coach.stage_name }}</text>
+            <text class="coach-table" v-if="coach.table_no">{{ coach.table_no }}</text>
           </view>
         </view>
       </view>
@@ -63,6 +69,7 @@ const showExpand = ref(false)
 const expandStatus = ref('')
 const expandCoaches = ref([])
 const expandColor = ref('#d4af37')
+const activeFilter = ref('')
 
 const statusColors = {
   '早班上桌': '#3498db', '早班空闲': '#2ecc71', '晚班上桌': '#9b59b6', '晚班空闲': '#f1c40f',
@@ -85,11 +92,16 @@ const loadData = async () => {
 
 const groupedBoards = computed(() => {
   const groups = {}
+  statusList.forEach(s => { groups[s] = [] })
   waterBoards.value.forEach(b => {
-    if (!groups[b.status]) groups[b.status] = { status: b.status, coaches: [] }
-    groups[b.status].coaches.push(b)
+    if (groups[b.status] !== undefined) groups[b.status].push(b)
   })
-  return statusList.filter(s => groups[s]).map(s => groups[s])
+  return statusList.filter(s => groups[s].length > 0).map(s => ({ status: s, coaches: groups[s] }))
+})
+
+const filteredBoards = computed(() => {
+  if (!activeFilter.value) return groupedBoards.value
+  return groupedBoards.value.filter(g => g.status === activeFilter.value)
 })
 
 const getAvatar = (coach) => {
@@ -126,55 +138,53 @@ const closeExpand = () => {
 .header-title { font-size: 17px; font-weight: 600; color: #d4af37; letter-spacing: 2px; }
 .header-placeholder { background: #0a0a0f; }
 
-.board-list { padding: 12px; }
+/* 状态筛选 */
+.filter-bar { white-space: nowrap; padding: 8px 12px; }
+.filter-item { display: inline-block; padding: 6px 12px; margin-right: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; font-size: 12px; color: rgba(255,255,255,0.6); }
+.filter-item.active { background: rgba(212,175,55,0.2); border-color: #d4af37; color: #d4af37; }
+
+.board-list { padding: 0 12px 12px; }
 .status-section { 
-  display: flex; 
-  gap: 12px; 
-  margin-bottom: 12px; 
   border: 2px solid rgba(218,165,32,0.15); 
   border-radius: 12px; 
   padding: 10px; 
-  min-height: 60px; 
+  margin-bottom: 12px; 
+  overflow: hidden;
 }
 .section-header { 
   display: flex; 
-  flex-direction: column; 
-  justify-content: center; 
   align-items: center; 
-  min-width: 70px; 
-  padding-right: 12px; 
-  border-right: 1px solid rgba(255,255,255,0.1); 
-  gap: 2px; 
+  justify-content: space-between; 
+  margin-bottom: 8px; 
+  padding-bottom: 6px; 
+  border-bottom: 1px solid rgba(255,255,255,0.05); 
 }
 .section-title { font-size: 14px; font-weight: 600; color: #d4af37; white-space: nowrap; }
 .section-count { font-size: 12px; color: rgba(255,255,255,0.5); }
-.section-content { flex: 1; }
 
-.coach-chips { display: flex; flex-wrap: wrap; gap: 10px; max-height: 80px; overflow: hidden; align-items: flex-start; }
-.status-section[data-status="早班空闲"] .coach-chips,
-.status-section[data-status="晚班空闲"] .coach-chips { max-height: 170px; }
+.coach-chips { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
 
 .coach-chip { 
   display: flex; 
   flex-direction: column; 
   align-items: center; 
-  width: 70px; 
-  padding: 6px 4px;
+  width: 80px; 
+  padding: 8px 4px;
   background: rgba(20,20,30,0.6); 
   border: 1px solid rgba(218,165,32,0.15);
   border-radius: 50%; 
 }
 .coach-avatar { 
-  width: 40px; 
-  height: 40px; 
+  width: 48px; 
+  height: 48px; 
   border-radius: 50%; 
   object-fit: cover;
   border: 2px solid rgba(218,165,32,0.3); 
   margin-bottom: 4px; 
 }
-.coach-id { font-size: 11px; color: #d4af37; font-weight: 600; }
-.coach-name { font-size: 11px; color: rgba(255,255,255,0.7); text-align: center; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 65px; }
-.coach-table { font-size: 9px; color: rgba(255,255,255,0.4); }
+.coach-id { font-size: 12px; color: #d4af37; font-weight: 600; }
+.coach-name { font-size: 12px; color: rgba(255,255,255,0.8); text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 72px; }
+.coach-table { font-size: 10px; color: rgba(255,255,255,0.4); }
 
 /* 状态颜色 */
 .status-section[data-status="早班上桌"] { border-color: rgba(52,152,219,0.3); }
@@ -210,10 +220,10 @@ const closeExpand = () => {
 .expand-title { font-size: 18px; font-weight: 600; }
 .expand-count { font-size: 13px; color: rgba(255,255,255,0.4); }
 .expand-content { max-height: 60vh; }
-.expand-chips { display: flex; flex-wrap: wrap; gap: 12px; padding-bottom: 10px; }
-.expand-chip { display: flex; flex-direction: column; align-items: center; width: 90px; padding: 10px 6px; background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.15); border-radius: 50%; }
-.expand-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(218,165,32,0.3); margin-bottom: 6px; }
-.expand-id { font-size: 11px; color: #d4af37; font-weight: 600; }
-.expand-name { font-size: 11px; color: rgba(255,255,255,0.7); text-align: center; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80px; }
-.expand-table { font-size: 10px; color: rgba(255,255,255,0.4); }
+.expand-chips { display: flex; flex-wrap: wrap; gap: 14px; padding-bottom: 10px; }
+.expand-chip { display: flex; flex-direction: column; align-items: center; width: 100px; padding: 10px 6px; background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.15); border-radius: 50%; }
+.expand-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(218,165,32,0.3); margin-bottom: 6px; }
+.expand-id { font-size: 12px; color: #d4af37; font-weight: 600; }
+.expand-name { font-size: 12px; color: rgba(255,255,255,0.8); text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90px; }
+.expand-table { font-size: 11px; color: rgba(255,255,255,0.5); }
 </style>

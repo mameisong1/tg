@@ -11,9 +11,15 @@
     </view>
     <view class="header-placeholder" :style="{ height: (statusBarHeight + 44) + 'px' }"></view>
 
+    <!-- 状态筛选按钮 -->
+    <scroll-view class="filter-bar" scroll-x>
+      <view class="filter-item" :class="{ active: activeFilter === '' }" @click="activeFilter = ''"><text>全部</text></view>
+      <view class="filter-item" v-for="s in statusList" :key="s" :class="{ active: activeFilter === s }" @click="activeFilter = s"><text>{{ s }}</text></view>
+    </scroll-view>
+
     <!-- 按状态分组显示 -->
     <scroll-view class="board-list" scroll-y>
-      <view class="status-section" v-for="group in groupedBoards" :key="group.status" :data-status="group.status">
+      <view class="status-section" v-for="group in filteredBoards" :key="group.status" :data-status="group.status">
         <view class="section-header" @click="showSectionExpand(group.status, group.coaches)">
           <text class="section-title">{{ group.status }}</text>
           <text class="section-count">{{ group.coaches.length }}人 ⛶</text>
@@ -140,6 +146,8 @@ const loadData = async () => {
   }
 }
 
+const activeFilter = ref('')
+
 const groupedBoards = computed(() => {
   const groups = {}
   statusList.forEach(s => { groups[s] = [] })
@@ -147,6 +155,11 @@ const groupedBoards = computed(() => {
     if (groups[board.status]) groups[board.status].push(board)
   })
   return statusList.filter(s => groups[s].length > 0).map(s => ({ status: s, coaches: groups[s] }))
+})
+
+const filteredBoards = computed(() => {
+  if (!activeFilter.value) return groupedBoards.value
+  return groupedBoards.value.filter(g => g.status === activeFilter.value)
 })
 
 const getSimpleStatus = (actualStatus) => {
@@ -222,10 +235,15 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .header-title { font-size: 17px; font-weight: 600; color: #d4af37; letter-spacing: 2px; }
 .header-placeholder { background: #0a0a0f; }
 
-.board-list { flex: 1; min-height: 0; padding: 8px 12px; }
+/* 状态筛选 */
+.filter-bar { white-space: nowrap; padding: 4px 12px 8px; }
+.filter-item { display: inline-block; padding: 6px 12px; margin-right: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 16px; font-size: 12px; color: rgba(255,255,255,0.6); }
+.filter-item.active { background: rgba(212,175,55,0.2); border-color: #d4af37; color: #d4af37; }
+
+.board-list { flex: 1; min-height: 0; padding: 0 12px 12px; }
 
 /* 状态分段 */
-.status-section { border: 2px solid rgba(218,165,32,0.15); border-radius: 12px; padding: 10px; margin-bottom: 12px; min-height: 60px; }
+.status-section { border: 2px solid rgba(218,165,32,0.15); border-radius: 12px; padding: 10px; margin-bottom: 12px; min-height: 60px; overflow: hidden; box-sizing: border-box; }
 .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.05); }
 .section-title { font-size: 14px; font-weight: 600; color: #d4af37; }
 .section-count { font-size: 12px; color: rgba(255,255,255,0.4); }
@@ -257,11 +275,11 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 
 /* 助教圆形卡片 */
 .coach-chips { display: flex; flex-wrap: wrap; gap: 10px; }
-.coach-chip { display: flex; flex-direction: column; align-items: center; width: 64px; padding: 6px 4px; background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.15); border-radius: 50%; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
-.coach-chip-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(218,165,32,0.3); margin-bottom: 3px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; pointer-events: none; }
-.coach-chip-id { font-size: 10px; color: #d4af37; font-weight: 600; user-select: none; -webkit-user-select: none; pointer-events: none; }
-.coach-chip-name { font-size: 10px; color: rgba(255,255,255,0.7); text-align: center; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 58px; user-select: none; -webkit-user-select: none; pointer-events: none; }
-.coach-chip-table { font-size: 8px; color: rgba(255,255,255,0.3); user-select: none; -webkit-user-select: none; pointer-events: none; }
+.coach-chip { display: flex; flex-direction: column; align-items: center; width: 80px; padding: 8px 4px; background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.15); border-radius: 50%; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+.coach-chip-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(218,165,32,0.3); margin-bottom: 4px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; pointer-events: none; }
+.coach-chip-id { font-size: 12px; color: #d4af37; font-weight: 600; user-select: none; -webkit-user-select: none; pointer-events: none; }
+.coach-chip-name { font-size: 12px; color: rgba(255,255,255,0.8); text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 72px; user-select: none; -webkit-user-select: none; pointer-events: none; }
+.coach-chip-table { font-size: 10px; color: rgba(255,255,255,0.4); user-select: none; -webkit-user-select: none; pointer-events: none; }
 .empty-chip { text-align: center; padding: 16px; color: rgba(255,255,255,0.15); font-size: 12px; }
 
 /* 分段放大弹窗 */
@@ -272,11 +290,11 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .expand-count { font-size: 13px; color: rgba(255,255,255,0.4); }
 .expand-content { max-height: 60vh; }
 .expand-chips { display: flex; flex-wrap: wrap; gap: 12px; padding-bottom: 10px; }
-.expand-chip { display: flex; flex-direction: column; align-items: center; width: 90px; padding: 10px 6px; background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.15); border-radius: 50%; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
-.expand-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(218,165,32,0.3); margin-bottom: 6px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; pointer-events: none; }
-.expand-id { font-size: 11px; color: #d4af37; font-weight: 600; user-select: none; -webkit-user-select: none; pointer-events: none; }
-.expand-name { font-size: 11px; color: rgba(255,255,255,0.7); text-align: center; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80px; user-select: none; -webkit-user-select: none; pointer-events: none; }
-.expand-table { font-size: 10px; color: rgba(255,255,255,0.4); user-select: none; -webkit-user-select: none; pointer-events: none; }
+.expand-chip { display: flex; flex-direction: column; align-items: center; width: 100px; padding: 10px 6px; background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.15); border-radius: 50%; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+.expand-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(218,165,32,0.3); margin-bottom: 6px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; pointer-events: none; }
+.expand-id { font-size: 12px; color: #d4af37; font-weight: 600; user-select: none; -webkit-user-select: none; pointer-events: none; }
+.expand-name { font-size: 12px; color: rgba(255,255,255,0.8); text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90px; user-select: none; -webkit-user-select: none; pointer-events: none; }
+.expand-table { font-size: 11px; color: rgba(255,255,255,0.5); user-select: none; -webkit-user-select: none; pointer-events: none; }
 
 /* 修改状态弹窗 */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; align-items: center; justify-content: center; }
