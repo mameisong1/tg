@@ -49,13 +49,13 @@ const PERMISSION_MATRIX = {
     operationLogs: false
   },
   '教练': {
-    menu: ['water-boards'],
-    cashierDashboard: false,
+    menu: ['cashier-dashboard', 'water-boards'],
+    cashierDashboard: true,      // 上下桌单、服务单
     productManagement: false,
     vipRoomManagement: false,
-    coachManagement: false,
+    coachManagement: true,       // 打卡（自己）
     waterBoardManagement: 'readonly',
-    invitationReview: false,
+    invitationReview: true,      // 约客提交
     overtimeApproval: false,
     leaveApproval: false,
     lejuanList: false,
