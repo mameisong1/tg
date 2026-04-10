@@ -308,6 +308,16 @@ const db = new sqlite3.Database(dbPath, (err) => {
     logger.error(`数据库连接失败: ${err.message}`);
   } else {
     logger.info(`数据库已连接: ${dbPath}`);
+    // 开启 WAL 模式，减少读写冲突
+    db.run('PRAGMA journal_mode = WAL', (err) => {
+      if (err) logger.error(`WAL模式失败: ${err.message}`);
+      else logger.info('WAL 模式已启用');
+    });
+    // 写操作 busy_timeout 3秒，自动重试
+    db.run('PRAGMA busy_timeout = 3000', (err) => {
+      if (err) logger.error(`busy_timeout设置失败: ${err.message}`);
+      else logger.info('busy_timeout = 3000ms');
+    });
   }
 });
 

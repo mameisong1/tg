@@ -126,6 +126,11 @@
       confirmText="知道了"
       @confirm="showTipModal = false"
     />
+    
+    <!-- #ifdef H5 -->
+    <!-- 台桌选择器（员工使用） -->
+    <TableSelector :visible="showTableSelector" :defaultTable="defaultTableNo" @confirm="onTableSelected" @cancel="showTableSelector = false" />
+    <!-- #endif -->
 
     <!-- 回到顶部按钮 -->
     <view class="back-to-top" v-if="showBackToTop" :style="{ left: floatPosition === 'left' ? '20px' : 'auto', right: floatPosition === 'right' ? '20px' : 'auto' }" @click="scrollToTop">
@@ -140,6 +145,7 @@ import { onShow } from '@dcloudio/uni-app'
 import api from '@/utils/api.js'
 import BeautyModal from '@/components/BeautyModal.vue'
 import TableInfo from '@/components/TableInfo.vue'
+import TableSelector from '@/components/TableSelector.vue'
 
 // 状态栏高度
 const statusBarHeight = ref(0)
@@ -280,9 +286,42 @@ const isEmployee = computed(() => {
   return !!(uni.getStorageSync('adminToken') || uni.getStorageSync('coachToken'))
 })
 
+// 台桌选择器
+const showTableSelector = ref(false)
+const defaultTableNo = ref('')
+
+// 加载默认台桌号（已上桌助教）
+const loadDefaultTableNo = async () => {
+  if (tableName.value) {
+    defaultTableNo.value = tableName.value
+    return
+  }
+  const coachInfo = uni.getStorageSync('coachInfo')
+  if (coachInfo?.coachNo) {
+    try {
+      const res = await api.getCoachWaterStatus(coachInfo.coachNo)
+      if (res.data?.table_no) {
+        defaultTableNo.value = res.data.table_no
+      }
+    } catch (e) {}
+  }
+}
+
+// 台桌选择回调（商品页）
+const onTableSelected = (tableNo) => {
+  showTableSelector.value = false
+  uni.setStorageSync('tableName', tableNo)
+  tableInfoRef.value?.loadTableInfo()
+}
+
 const quickAdd = async (item) => {
-  // 员工：跳过扫码检查
+  // 员工：无台桌号时先选台桌
   if (isEmployee.value) {
+    if (!tableName.value) {
+      await loadDefaultTableNo()
+      showTableSelector.value = true
+      return
+    }
     try {
       await api.addCart({ sessionId: sessionId.value, tableNo: tableName.value, productName: item.name, quantity: 1 })
       uni.showToast({ title: '已加入购物车', icon: 'success' })

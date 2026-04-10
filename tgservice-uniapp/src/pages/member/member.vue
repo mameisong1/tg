@@ -249,7 +249,7 @@
       <view class="section-header">
         <text class="section-title">🎱 当前台桌</text>
       </view>
-      <TableInfo ref="tableInfoRef" />
+      <TableInfo ref="tableInfoRef" :isEmployee="isEmployee" />
     </view>
     
     <!-- 历史订单 -->
@@ -478,6 +478,11 @@ import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import api from '@/utils/api.js'
 import TableInfo from '@/components/TableInfo.vue'
+
+// 员工识别
+const isEmployee = computed(() => {
+  return !!(uni.getStorageSync('adminToken') || uni.getStorageSync('coachToken'))
+})
 
 const statusBarHeight = ref(0)
 const tableInfoRef = ref(null)

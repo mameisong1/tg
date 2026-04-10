@@ -732,7 +732,7 @@
       if (alertSoundInterval) return; // 已经在运行
       if (!audioInitialized) return; // 音频未初始化
       playAlertSound(); // 立即播放一次
-      alertSoundInterval = setInterval(playAlertSound, 10000); // 每10秒播放
+      alertSoundInterval = setInterval(playAlertSound, 40000); // 每40秒播放
       console.log('报警音已启动');
     }
     
@@ -752,8 +752,8 @@
     
     // 初始化
     loadOrders();
-    // 每60秒检测新订单
-    checkInterval = setInterval(checkNewOrders, 60000);
+    // 每40秒检测新订单
+    checkInterval = setInterval(checkNewOrders, 40000);
   </script>
   <script src="nav-control.js"></script>
   <script>

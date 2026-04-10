@@ -1,6 +1,13 @@
 <template>
-  <!-- 正常绑定且未过期时隐藏（hideWhenValid=true） -->
-  <view v-if="!hideWhenValid || tableStatus !== 'valid'" class="table-info" :class="statusClass">
+  <!-- 员工模式：始终显示台桌信息，不显示扫码提示 -->
+  <template v-if="isEmployee">
+    <view class="table-info employee-mode">
+      <text class="table-label">当前台桌：</text>
+      <text class="table-value">{{ tableName || '未选择' }}</text>
+    </view>
+  </template>
+  <!-- 非员工模式 -->
+  <view v-else-if="!hideWhenValid || tableStatus !== 'valid'" class="table-info" :class="statusClass">
     <!-- 正常状态 -->
     <template v-if="tableStatus === 'valid'">
       <text class="table-label">当前台桌：</text>
@@ -29,6 +36,10 @@ import api from '@/utils/api.js'
 // Props
 const props = defineProps({
   hideWhenValid: {
+    type: Boolean,
+    default: false
+  },
+  isEmployee: {
     type: Boolean,
     default: false
   }

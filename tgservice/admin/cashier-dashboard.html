@@ -82,7 +82,7 @@
     
     /* 商品卡片样式 */
     .product-order-card { background: rgba(30,30,45,0.8); border-radius: 10px; padding: 14px; margin-bottom: 10px; border: 1px solid rgba(218,165,32,0.08); }
-    .product-order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .product-order-header { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
     .product-order-no { font-size: 13px; color: rgba(255,255,255,0.6); }
     .product-order-time { font-size: 11px; color: rgba(255,255,255,0.3); }
     .product-order-items { margin-bottom: 10px; }
@@ -95,7 +95,7 @@
     
     /* 服务订单卡片 */
     .service-order-card { background: rgba(30,30,45,0.8); border-radius: 10px; padding: 14px; margin-bottom: 10px; border-left: 3px solid #3498db; }
-    .service-order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .service-order-header { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
     .service-order-no { font-size: 13px; color: #3498db; }
     .service-order-time { font-size: 11px; color: rgba(255,255,255,0.3); }
     .service-order-info { font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 6px; }
@@ -105,7 +105,7 @@
     
     /* 助教上下桌单卡片 */
     .coach-session-card { background: rgba(30,30,45,0.8); border-radius: 10px; padding: 14px; margin-bottom: 10px; border-left: 3px solid #9b59b6; }
-    .coach-session-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .coach-session-header { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
     .coach-session-no { font-size: 13px; color: #9b59b6; }
     .coach-session-time { font-size: 11px; color: rgba(255,255,255,0.3); }
     .coach-session-info { font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 4px; }
@@ -170,6 +170,19 @@
       cursor: pointer; font-weight: 600;
     }
     .sound-overlay-btn:hover { opacity: 0.9; }
+
+    /* 台桌号标签（醒目） */
+    .card-table-no {
+      display: inline-block;
+      background: linear-gradient(135deg, #d4af37, #c5a028);
+      color: #000;
+      font-size: 14px;
+      font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+      line-height: 1.4;
+    }
   </style>
 </head>
 <body>
@@ -666,10 +679,12 @@
       const isPending = o.status === '待处理';
       const alertClass = (isPending && alertEnabled) ? 'pending-alert' : '';
       const newClass = isNew ? 'card-new' : '';
+      const tableNo = o.table_no || '';
       return `
         <div class="product-order-card ${alertClass} ${newClass}">
           <div class="product-order-header">
             <span class="product-order-no">${o.order_no || '订单#' + o.id}</span>
+            ${tableNo ? `<span class="card-table-no">🎱 ${tableNo}</span>` : ''}
             <span class="product-order-time">${formatBeijingTime(o.created_at)}</span>
           </div>
           <div class="product-order-items">
@@ -729,13 +744,15 @@
       const isPending = o.status === '待处理';
       const alertClass = (isPending && alertEnabled) ? 'pending-alert' : '';
       const newClass = isNew ? 'card-new' : '';
+      const tableNo = o.table_no || '';
       return `
         <div class="service-order-card ${alertClass} ${newClass}">
           <div class="service-order-header">
             <span class="service-order-no">#${o.id}</span>
+            ${tableNo ? `<span class="card-table-no">🎱 ${tableNo}</span>` : ''}
             <span class="status-badge ${getStatusClass(o.status)}">${o.status}</span>
           </div>
-          <div class="service-order-info">🎱 ${o.table_no || '-'} | ${o.requirement || '无需求描述'}</div>
+          <div class="service-order-info">${o.requirement || '无需求描述'}</div>
           <div class="service-order-coach">👤 ${o.requester_name || '-'} · ${o.requester_type || '-'}</div>
           <div class="service-order-time" style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:4px">${formatBeijingTime(o.created_at)}</div>
           ${isPending ? `<div class="service-order-actions">
@@ -782,17 +799,19 @@
       const newClass = isNew ? 'card-new' : '';
       // 显示工号（employee_id）而非编号（coach_no）
       const displayId = s.employee_id || '-';
+      const tableNo = s.table_no || '';
       return `
         <div class="coach-session-card ${alertClass} ${newClass}">
           <div class="coach-session-header">
             <span class="coach-session-no">#${s.id}</span>
+            ${tableNo ? `<span class="card-table-no">🎱 ${tableNo}</span>` : ''}
             <span class="status-badge ${getStatusClass(s.status)}">${s.status}</span>
           </div>
           <div class="coach-session-info">
             ${s.order_type === '上桌单' ? '⬆️' : s.order_type === '下桌单' ? '⬇️' : '❌'} ${s.order_type || s.type || '-'}
             | 👤 ${s.stage_name || '-'} (工号${displayId})
           </div>
-          <div class="coach-session-detail">🎱 台桌: ${s.table_no || '-'} ${s.action_category ? '| ' + s.action_category : ''}</div>
+          <div class="coach-session-detail">${s.action_category || ''}</div>
           <div class="coach-session-time" style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:4px">${formatBeijingTime(s.created_at)}</div>
           ${isPending ? `<div class="coach-session-actions">
             <button class="btn btn-sm btn-danger" onclick="updateTableOrder(${s.id}, '已取消')">取消</button>

@@ -1,7 +1,21 @@
 <template>
   <view class="page">
-    <!-- 台桌信息（使用统一组件） -->
+    <!-- #ifdef H5 -->
+    <!-- 员工模式：顶部台桌号 + 切换按钮 -->
+    <view v-if="isEmployee" class="employee-table-bar">
+      <text class="table-label">台桌：</text>
+      <text class="table-value">{{ tableName || '未选择' }}</text>
+      <view class="switch-btn" @click="openTableSelector">
+        <text>切换台桌</text>
+      </view>
+    </view>
+    <!-- 非员工：使用统一台桌组件 -->
+    <TableInfo v-else ref="tableInfoRef" />
+    <!-- #endif -->
+    
+    <!-- #ifndef H5 -->
     <TableInfo ref="tableInfoRef" />
+    <!-- #endif -->
     
     <view class="cart-list" v-if="cartItems.length > 0">
       <view class="cart-item" v-for="(item, index) in cartItems" :key="index">
@@ -43,7 +57,7 @@
     />
     
     <!-- #ifdef H5 -->
-    <!-- 台桌选择器（员工免扫码使用，与 service-order 共用） -->
+    <!-- 台桌选择器（员工使用） -->
     <TableSelector :visible="showTableSelector" :defaultTable="defaultTableNo" @confirm="onTableSelected" @cancel="showTableSelector = false" />
     <!-- #endif -->
     
@@ -118,8 +132,7 @@ const getProductImage = (item) => {
   return 'http://47.238.80.12:8081' + url
 }
 
-// 直接读取保存的台桌名
-// 检查台桌授权
+// 检查台桌授权（仅非员工）
 const checkTableAuth = () => {
   // #ifdef H5
   const status = tableStatus.value
@@ -162,19 +175,39 @@ const deleteItem = async (item) => {
   catch (e) { uni.showToast({ title: '删除失败', icon: 'none' }) }
 }
 
+// 打开台桌选择器
+const openTableSelector = async () => {
+  await loadDefaultTableNo()
+  showTableSelector.value = true
+}
+
 // 台桌选择回调
-const onTableSelected = (tableNo) => {
+const onTableSelected = async (tableNo) => {
   showTableSelector.value = false
-  // 保存台桌号
+  // 保存台桌号到 localStorage
   uni.setStorageSync('tableName', tableNo)
-  // 写入 tableAuth 让 tableStatus 变为 valid
-  uni.setStorageSync('tableAuth', JSON.stringify({ tableNo, time: Date.now() }))
-  // 选择后自动提交订单
-  doSubmitOrder()
+  
+  // 更新购物车中所有商品的 table_no
+  try {
+    await api.updateCartTable({ sessionId: sessionId.value, tableNo })
+  } catch (e) {
+    console.log('更新购物车台桌号失败', e)
+  }
+  
+  // 刷新购物车
+  loadCart()
+  
+  uni.showToast({ title: `已切换到 ${tableNo}`, icon: 'success' })
 }
 
 // 加载默认台桌号（已上桌助教）
 const loadDefaultTableNo = async () => {
+  // 如果已经有台桌号，用它作为默认值
+  if (tableName.value) {
+    defaultTableNo.value = tableName.value
+    return
+  }
+  
   const coachInfo = uni.getStorageSync('coachInfo')
   if (coachInfo?.coachNo) {
     try {
@@ -188,6 +221,7 @@ const loadDefaultTableNo = async () => {
   }
 }
 
+// 下单
 const submitOrder = async () => {
   if (cartItems.value.length === 0) {
     resultTitle.value = '提示'
@@ -196,15 +230,14 @@ const submitOrder = async () => {
     return
   }
   
-  // 员工：跳过扫码检查，无台桌号时弹出台桌选择器
+  // 员工：检查是否已选台桌号
   if (isEmployee.value) {
     if (!tableName.value) {
-      // 弹出台桌选择器前加载默认台桌号
-      await loadDefaultTableNo()
-      showTableSelector.value = true
+      resultTitle.value = '提示'
+      resultContent.value = '请先选择台桌号'
+      showResultModal.value = true
       return
     }
-    // 有台桌号直接下单
     await doSubmitOrder()
     return
   }
@@ -221,7 +254,7 @@ const submitOrder = async () => {
   await doSubmitOrder()
 }
 
-// 实际下单逻辑（从 submitOrder 提取）
+// 实际下单逻辑
 const doSubmitOrder = async () => {
   try {
     uni.showLoading({ title: '提交中...' })
@@ -275,6 +308,41 @@ onShow(() => {
 
 <style scoped>
 .page { min-height: 100vh; background: #0a0a0f; padding: 16px; padding-bottom: 100px; }
+
+/* 员工模式：顶部台桌号 + 切换按钮 */
+.employee-table-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(212, 175, 55, 0.1);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 12px;
+  margin-bottom: 16px;
+}
+.employee-table-bar .table-label {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+}
+.employee-table-bar .table-value {
+  font-size: 16px;
+  color: #d4af37;
+  font-weight: 600;
+  min-width: 50px;
+}
+.employee-table-bar .switch-btn {
+  margin-left: auto;
+  padding: 6px 16px;
+  background: linear-gradient(135deg, #d4af37, #ffd700);
+  border-radius: 20px;
+  font-size: 12px;
+  color: #000;
+  font-weight: 600;
+}
+.employee-table-bar .switch-btn:active {
+  opacity: 0.8;
+}
+
 .cart-list { display: flex; flex-direction: column; gap: 12px; }
 .cart-item { background: rgba(20,20,30,0.6); border-radius: 12px; padding: 16px; display: flex; gap: 12px; border: 1px solid rgba(218,165,32,0.1); }
 .item-img { width: 80px; height: 80px; border-radius: 8px; background: rgba(30,30,40,0.5); }
