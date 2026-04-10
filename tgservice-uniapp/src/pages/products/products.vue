@@ -76,7 +76,13 @@
       </view>
       <!-- 台桌信息显示 -->
       <view class="table-info-wrapper">
-        <TableInfo ref="tableInfoRef" hideWhenValid :isEmployee="isEmployee" />
+        <!-- 员工模式 -->
+        <view v-if="isEmployee" class="table-info employee-mode">
+          <text class="table-label">当前台桌：</text>
+          <text class="table-value">{{ tableName || '未选择' }}</text>
+        </view>
+        <!-- 非员工模式 -->
+        <TableInfo v-else ref="tableInfoRef" hideWhenValid />
       </view>
     </view>
     <!-- #endif -->
@@ -311,6 +317,8 @@ const loadDefaultTableNo = async () => {
 const onTableSelected = (tableNo) => {
   showTableSelector.value = false
   uni.setStorageSync('tableName', tableNo)
+  // 当作扫码成功：同时写入 tableAuth
+  uni.setStorageSync('tableAuth', JSON.stringify({ table: tableNo, time: Date.now() }))
   tableInfoRef.value?.loadTableInfo()
 }
 
@@ -563,6 +571,26 @@ onShow(() => {
 /* 台桌信息容器 */
 .table-info-wrapper {
   padding: 12px 16px;
+}
+
+/* 员工模式台桌信息 */
+.table-info.employee-mode {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: rgba(212, 175, 55, 0.1);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 12px;
+}
+.table-info.employee-mode .table-label {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+}
+.table-info.employee-mode .table-value {
+  font-size: 16px;
+  color: #d4af37;
+  font-weight: 600;
 }
 /* #endif */
 

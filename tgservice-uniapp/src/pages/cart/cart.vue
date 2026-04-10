@@ -186,6 +186,8 @@ const onTableSelected = async (tableNo) => {
   showTableSelector.value = false
   // 保存台桌号到 localStorage
   uni.setStorageSync('tableName', tableNo)
+  // 当作扫码成功：同时写入 tableAuth
+  uni.setStorageSync('tableAuth', JSON.stringify({ table: tableNo, time: Date.now() }))
   // 同步更新 ref（让页面立即响应）
   tableName.value = tableNo
   

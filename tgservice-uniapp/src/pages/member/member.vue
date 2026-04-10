@@ -244,14 +244,6 @@
       </view>
     </view>
     
-    <!-- 台桌信息 -->
-    <view class="table-section">
-      <view class="section-header">
-        <text class="section-title">🎱 当前台桌</text>
-      </view>
-      <TableInfo ref="tableInfoRef" :isEmployee="isEmployee" />
-    </view>
-    
     <!-- 历史订单 -->
     <view class="order-section">
       <view class="section-header">
@@ -477,7 +469,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import api from '@/utils/api.js'
-import TableInfo from '@/components/TableInfo.vue'
+
 
 // 员工识别
 const isEmployee = computed(() => {
@@ -485,15 +477,12 @@ const isEmployee = computed(() => {
 })
 
 const statusBarHeight = ref(0)
-const tableInfoRef = ref(null)
 const pendingOrders = ref([])
 const coachInfo = ref({})
 const myPopularity = ref(0)
 const topCoaches = ref([])
 
 // 从组件获取台桌名
-const tableName = computed(() => tableInfoRef.value?.tableName || '')
-
 // 会员相关
 const memberInfo = ref({})
 const agreed = ref(false)
@@ -1132,7 +1121,6 @@ onMounted(() => {
 })
 
 onShow(() => {
-  tableInfoRef.value?.loadTableInfo()
   loadPendingOrders()
   checkCoachLogin()
   loadPopularity()
@@ -1294,9 +1282,6 @@ onShow(() => {
 }
 .section-title { font-size: 15px; font-weight: 500; }
 .section-hint { font-size: 12px; color: rgba(255,255,255,0.5); }
-
-/* 台桌信息 */
-.table-section { margin: 0 16px; }
 
 /* 订单区 */
 .order-section { margin-top: 24px; }
