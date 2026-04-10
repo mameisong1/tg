@@ -82,7 +82,7 @@ router.post('/', auth.required, async (req, res) => {
  * GET /api/service-orders
  * 获取服务单列表
  */
-router.get('/', auth.required, requireBackendPermission(['cashierDashboard']), async (req, res) => {
+router.get('/', auth.required, requireBackendPermission(['serviceOrder']), async (req, res) => {
   try {
     const { status, table_no, limit = 50 } = req.query;
     
@@ -121,7 +121,7 @@ router.get('/', auth.required, requireBackendPermission(['cashierDashboard']), a
  * GET /api/service-orders/:id
  * 获取单个服务单
  */
-router.get('/:id', auth.required, requireBackendPermission(['cashierDashboard']), async (req, res) => {
+router.get('/:id', auth.required, requireBackendPermission(['serviceOrder']), async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -154,7 +154,7 @@ router.get('/:id', auth.required, requireBackendPermission(['cashierDashboard'])
  * PUT /api/service-orders/:id/status
  * 更新服务单状态
  */
-router.put('/:id/status', auth.required, requireBackendPermission(['cashierDashboard']), async (req, res) => {
+router.put('/:id/status', auth.required, requireBackendPermission(['serviceOrder']), async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;

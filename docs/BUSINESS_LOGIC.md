@@ -50,6 +50,20 @@
 
 ⚠️ 商品页：员工添加商品到购物车前，如无台桌号会先弹出 TableSelector 供选择。
 
+#### 1.2.5 服务单权限
+
+助教、教练和所有后台用户都能下服务单。`POST /api/service-orders` 仅需 `auth.required` 认证，不需要特殊权限。
+
+#### 1.2.6 已知问题修复
+
+| 问题 | 原因 | 修复日期 |
+|------|------|----------|
+| 购物车切换台桌后台桌号不更新 | `tableName` 使用 `computed` 依赖 `getStorageSync`，不是响应式的 | 2026-04-10 |
+| 商品页员工仍显示扫码过期提示 | `TableInfo` 未传入 `isEmployee` prop | 2026-04-10 |
+| 服务单接口拒绝助教提交 | `POST /api/service-orders` 要求 `cashierDashboard` 权限 | 2026-04-10 |
+
+**响应式修复**：`tableName` 改用 `ref` 初始化，切换台桌时手动 `tableName.value = tableNo`，`onShow` 时从 localStorage 同步。
+
 ⚠️ **一般顾客必须先扫码后下单的逻辑不变**。
 
 ### 1.3 详细步骤说明

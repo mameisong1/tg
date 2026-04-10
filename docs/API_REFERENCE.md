@@ -256,6 +256,39 @@
 
 ---
 
+## 服务单接口
+
+### 创建服务单
+
+- **路径**: `POST /api/service-orders`
+- **认证**: 需要登录（助教/后台用户均可）
+- **参数**:
+  ```json
+  {
+    "table_no": "A05",
+    "requirement": "换垃圾袋",
+    "requester_name": "四瑶",
+    "requester_type": "助教"
+  }
+  ```
+- **返回**:
+  ```json
+  {
+    "success": true,
+    "data": { "id": 1, "status": "待处理" }
+  }
+  ```
+- **说明**: 助教和所有后台用户均可提交服务单。仅需 `auth.required` 认证。
+
+### 获取服务单列表
+
+- **路径**: `GET /api/service-orders`
+- **认证**: 需要后台权限（`cashierDashboard`）
+- **参数**: `?status=待处理&table_no=A05&limit=50`
+- **说明**: 收银台查看服务单列表
+
+---
+
 ## 订单接口
 
 ### 提交订单
