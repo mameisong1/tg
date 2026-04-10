@@ -1194,8 +1194,8 @@ app.post('/api/sms/send', async (req, res) => {
     
     if (isTestEnv && isTestUser) {
       // 不发送真实短信，直接返回成功（验证码固定为 8888）
-      smsCodeCache.set(phone, { code: '8888', timestamp: Date.now(), attempts: 0 });
-      operationLog.info(`测试用户短信验证码: ${phone}, 验证码: 8888 (跳过真实发送)`);
+      smsCodeCache.set(phone, { code: '888888', timestamp: Date.now(), attempts: 0 });
+      operationLog.info(`测试用户短信验证码: ${phone}, 验证码: 888888 (跳过真实发送)`);
       return res.json({ success: true, message: '验证码已发送' });
     }
     
@@ -1262,9 +1262,9 @@ app.post('/api/member/login-sms', async (req, res) => {
     const isTestEnv = process.env.TGSERVICE_ENV === 'test';
     const isTestUser = testUsers.includes(phone);
     
-    if (isTestEnv && isTestUser && code === '8888') {
+    if (isTestEnv && isTestUser && code === '888888') {
       // 直接允许登录，不验证缓存中的验证码
-      operationLog.info(`测试用户登录: ${phone}, 验证码: 8888`);
+      operationLog.info(`测试用户登录: ${phone}, 验证码: 888888`);
       // 继续执行登录逻辑（跳过验证码校验）
     } else {
       // 正常验证码验证流程
