@@ -29,56 +29,64 @@
 
     <!-- 统计卡片 -->
     <view class="stats-row">
-      <view class="stat-item"><text class="stat-value">{{ reviewStats.should_invite_count || 0 }}</text><text class="stat-label">应约客</text></view>
-      <view class="stat-item highlight"><text class="stat-value">{{ reviewStats.invited_count || 0 }}</text><text class="stat-label">已约客</text></view>
       <view class="stat-item"><text class="stat-value" style="color:#f1c40f">{{ stats.pending }}</text><text class="stat-label">待审查</text></view>
+      <view class="stat-item"><text class="stat-value" style="color:#f39c12">{{ stats.not_invited }}</text><text class="stat-label">未约客</text></view>
+      <view class="stat-item"><text class="stat-value" style="color:#2ecc71">{{ stats.approved }}</text><text class="stat-label">有效</text></view>
       <view class="stat-item"><text class="stat-value" style="color:#e74c3c">{{ stats.rejected }}</text><text class="stat-label">无效</text></view>
-    </view>
-
-    <!-- 未约客/无效列表 -->
-    <view class="list-section" v-if="reviewStats.missing_list?.length || reviewStats.invalid_list?.length">
-      <view class="list-title" v-if="reviewStats.missing_list?.length">⚠️ 未约客助教（{{ reviewStats.missing_list.length }}人）</view>
-      <view class="list-item warn" v-for="item in reviewStats.missing_list" :key="'m'+item.coach_no"><text>{{ item.stage_name }}（{{ item.coach_no }}号）</text></view>
-      <view class="list-title" v-if="reviewStats.invalid_list?.length" style="margin-top:12px">❌ 无效约客（{{ reviewStats.invalid_list.length }}人）</view>
-      <view class="list-item danger" v-for="item in reviewStats.invalid_list" :key="'i'+item.coach_no"><text>{{ item.stage_name }}（{{ item.coach_no }}号）</text></view>
     </view>
 
     <!-- 筛选 -->
     <scroll-view class="filter-bar" scroll-x>
-      <view class="filter-item" :class="{ active: filterResult === '' }" @click="filterResult = ''; loadData()"><text>全部</text></view>
       <view class="filter-item" :class="{ active: filterResult === '待审查' }" @click="filterResult = '待审查'; loadData()"><text>待审查</text></view>
+      <view class="filter-item" :class="{ active: filterResult === '未约客' }" @click="filterResult = '未约客'; loadData()"><text>未约客</text></view>
       <view class="filter-item" :class="{ active: filterResult === '约客有效' }" @click="filterResult = '约客有效'; loadData()"><text>有效</text></view>
       <view class="filter-item" :class="{ active: filterResult === '约客无效' }" @click="filterResult = '约客无效'; loadData()"><text>无效</text></view>
     </scroll-view>
 
-    <!-- 待审查卡片 -->
-    <view class="section-title"><text>📋 待审查</text><text class="count">{{ pendingList.length }}条</text></view>
-    <view class="cards-grid" v-if="pendingList.length > 0">
-      <view class="card" v-for="(inv, idx) in pendingList" :key="inv.id" @click="openReview(idx)">
-        <image v-if="inv.invitation_image_url" :src="inv.invitation_image_url" mode="aspectFill" class="card-image" />
-        <view class="card-placeholder" v-else><text>暂无截图</text></view>
-        <view class="card-info">
-          <text class="card-name">{{ inv.stage_name }}</text>
-          <text class="card-meta">{{ inv.coach_no }}号 · {{ formatTime(inv.created_at) }}</text>
-          <view class="card-badge badge-pending"><text>待审查</text></view>
+    <!-- 筛选结果列表 -->
+    <!-- 未约客列表 -->
+    <view v-if="filterResult === '未约客'">
+      <view class="section-title"><text>⚠️ 未约客</text><text class="count">{{ notInvitedList.length }}人</text></view>
+      <view class="not-invited-list" v-if="notInvitedList.length > 0">
+        <view class="not-invited-item" v-for="item in notInvitedList" :key="item.coach_no">
+          <text class="not-invited-name">{{ item.stage_name }}（{{ item.coach_no }}号）</text>
         </view>
       </view>
+      <view class="empty" v-else><text>✅ 暂无未约客助教</text></view>
     </view>
-    <view class="empty" v-else><text>✅ 暂无待审查</text></view>
 
-    <!-- 已审查列表 -->
-    <view class="section-title" style="margin-top:20px"><text>📊 已审查</text></view>
-    <view class="reviewed-list" v-if="reviewedList.length > 0">
-      <view class="reviewed-item" v-for="inv in reviewedList" :key="inv.id">
-        <image v-if="inv.invitation_image_url" :src="inv.invitation_image_url" mode="aspectFill" class="reviewed-thumb" @click="previewImage(inv.invitation_image_url)" />
-        <view class="reviewed-info">
-          <text class="reviewed-name">{{ inv.stage_name }} ({{ inv.coach_no }}号)</text>
-          <text class="reviewed-time">{{ formatTime(inv.created_at) }}</text>
+    <!-- 有效/无效列表 -->
+    <view v-else-if="filterResult === '约客有效' || filterResult === '约客无效'">
+      <view class="section-title"><text>📋 {{ filterResult === '约客有效' ? '有效' : '无效' }}</text><text class="count">{{ filterList.length }}条</text></view>
+      <view class="reviewed-list" v-if="filterList.length > 0">
+        <view class="reviewed-item" v-for="inv in filterList" :key="inv.id">
+          <image v-if="inv.invitation_image_url" :src="inv.invitation_image_url" mode="aspectFill" class="reviewed-thumb" @click="previewImage(inv.invitation_image_url)" />
+          <view class="reviewed-info">
+            <text class="reviewed-name">{{ inv.stage_name }} ({{ inv.coach_no }}号)</text>
+            <text class="reviewed-time">{{ formatTime(inv.created_at) }}</text>
+          </view>
+          <view class="reviewed-badge" :class="inv.result === '约客有效' ? 'badge-approved' : 'badge-rejected'"><text>{{ inv.result }}</text></view>
         </view>
-        <view class="reviewed-badge" :class="inv.result === '约客有效' ? 'badge-approved' : 'badge-rejected'"><text>{{ inv.result }}</text></view>
       </view>
+      <view class="empty" v-else><text>暂无{{ filterResult === '约客有效' ? '有效' : '无效' }}记录</text></view>
     </view>
-    <view class="empty" v-else><text>暂无已审查记录</text></view>
+
+    <!-- 待审查（默认）：卡片网格 -->
+    <view v-else>
+      <view class="section-title"><text>📋 待审查</text><text class="count">{{ pendingList.length }}条</text></view>
+      <view class="cards-grid" v-if="pendingList.length > 0">
+        <view class="card" v-for="(inv, idx) in pendingList" :key="inv.id" @click="openReview(idx)">
+          <image v-if="inv.invitation_image_url" :src="inv.invitation_image_url" mode="aspectFill" class="card-image" />
+          <view class="card-placeholder" v-else><text>暂无截图</text></view>
+          <view class="card-info">
+            <text class="card-name">{{ inv.stage_name }}</text>
+            <text class="card-meta">{{ inv.coach_no }}号 · {{ formatTime(inv.created_at) }}</text>
+            <view class="card-badge badge-pending"><text>待审查</text></view>
+          </view>
+        </view>
+      </view>
+      <view class="empty" v-else><text>✅ 暂无待审查</text></view>
+    </view>
 
     <!-- 全屏审查弹窗 -->
     <view class="review-overlay" v-if="showReview" @click="closeReview">
@@ -113,10 +121,11 @@ import api from '@/utils/api-v2.js'
 const statusBarHeight = ref(0)
 const shiftLabel = ref('早班')
 const shift = ref('早班')
-const filterResult = ref('')
+const filterResult = ref('待审查')
 const invitations = ref([])
 const showReview = ref(false)
 const reviewIndex = ref(0)
+const notInvitedList = ref([])
 
 // 审查锁定状态
 const isLocked = ref(false)
@@ -150,8 +159,14 @@ const stats = computed(() => ({
   total: invitations.value.length,
   pending: invitations.value.filter(i => i.result === '待审查').length,
   approved: invitations.value.filter(i => i.result === '约客有效').length,
-  rejected: invitations.value.filter(i => i.result === '约客无效').length
+  rejected: invitations.value.filter(i => i.result === '约客无效').length,
+  not_invited: notInvitedList.value.length
 }))
+
+const filterList = computed(() => {
+  if (filterResult.value === '未约客') return notInvitedList.value
+  return invitations.value.filter(i => i.result === filterResult.value)
+})
 
 const formatTime = (t) => {
   if (!t) return '-'
@@ -162,18 +177,29 @@ const formatTime = (t) => {
 // 加载所有数据
 const loadAll = async () => {
   await loadData()
+  await loadNotInvited()
   await loadReviewStats()
   await checkLocked()
 }
 
 const loadData = async () => {
   const today = new Date().toISOString().split('T')[0]
-  const params = { date: today, shift: shift.value }
-  if (filterResult.value) params.result = filterResult.value
+  // 始终加载全部数据，统计卡片不受筛选影响
   try {
-    const res = await api.guestInvitations.getList(params)
+    const res = await api.guestInvitations.getList({ date: today, shift: shift.value })
     invitations.value = res.data || []
   } catch (e) { uni.showToast({ title: '加载失败', icon: 'none' }) }
+}
+
+// 加载未约客列表（result = '应约客'）
+const loadNotInvited = async () => {
+  const today = new Date().toISOString().split('T')[0]
+  try {
+    const res = await api.guestInvitations.getList({ date: today, shift: shift.value, result: '应约客' })
+    notInvitedList.value = res.data || []
+  } catch (e) {
+    notInvitedList.value = []
+  }
 }
 
 // 加载统计数据
@@ -281,6 +307,11 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .stat-item.highlight { background: rgba(212,175,55,0.1); border-color: rgba(212,175,55,0.3); }
 .stat-value { font-size: 20px; color: #d4af37; display: block; }
 .stat-label { font-size: 11px; color: rgba(255,255,255,0.5); display: block; margin-top: 4px; }
+
+/* 未约客列表 */
+.not-invited-list { padding: 0 12px; }
+.not-invited-item { padding: 10px 14px; background: rgba(241,196,15,0.05); border: 1px solid rgba(241,196,15,0.15); border-radius: 8px; margin-bottom: 6px; }
+.not-invited-name { font-size: 14px; color: #f1c40f; }
 
 /* 列表区域 */
 .list-section { padding: 0 12px 8px; }
