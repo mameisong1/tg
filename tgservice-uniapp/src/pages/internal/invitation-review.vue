@@ -27,21 +27,25 @@
       </view>
     </view>
 
-    <!-- 统计卡片 -->
+    <!-- 统计卡片（可点击筛选） -->
     <view class="stats-row">
-      <view class="stat-item"><text class="stat-value" style="color:#f1c40f">{{ stats.pending }}</text><text class="stat-label">待审查</text></view>
-      <view class="stat-item"><text class="stat-value" style="color:#f39c12">{{ stats.not_invited }}</text><text class="stat-label">未约客</text></view>
-      <view class="stat-item"><text class="stat-value" style="color:#2ecc71">{{ stats.approved }}</text><text class="stat-label">有效</text></view>
-      <view class="stat-item"><text class="stat-value" style="color:#e74c3c">{{ stats.rejected }}</text><text class="stat-label">无效</text></view>
+      <view class="stat-item" :class="{ active: filterResult === '待审查' }" @click="filterResult = '待审查'; loadData()">
+        <text class="stat-value" style="color:#f1c40f">{{ stats.pending }}</text>
+        <text class="stat-label">待审查</text>
+      </view>
+      <view class="stat-item" :class="{ active: filterResult === '未约客' }" @click="filterResult = '未约客'; loadData()">
+        <text class="stat-value" style="color:#f39c12">{{ stats.not_invited }}</text>
+        <text class="stat-label">未约客</text>
+      </view>
+      <view class="stat-item" :class="{ active: filterResult === '约客有效' }" @click="filterResult = '约客有效'; loadData()">
+        <text class="stat-value" style="color:#2ecc71">{{ stats.approved }}</text>
+        <text class="stat-label">有效</text>
+      </view>
+      <view class="stat-item" :class="{ active: filterResult === '约客无效' }" @click="filterResult = '约客无效'; loadData()">
+        <text class="stat-value" style="color:#e74c3c">{{ stats.rejected }}</text>
+        <text class="stat-label">无效</text>
+      </view>
     </view>
-
-    <!-- 筛选 -->
-    <scroll-view class="filter-bar" scroll-x>
-      <view class="filter-item" :class="{ active: filterResult === '待审查' }" @click="filterResult = '待审查'; loadData()"><text>待审查</text></view>
-      <view class="filter-item" :class="{ active: filterResult === '未约客' }" @click="filterResult = '未约客'; loadData()"><text>未约客</text></view>
-      <view class="filter-item" :class="{ active: filterResult === '约客有效' }" @click="filterResult = '约客有效'; loadData()"><text>有效</text></view>
-      <view class="filter-item" :class="{ active: filterResult === '约客无效' }" @click="filterResult = '约客无效'; loadData()"><text>无效</text></view>
-    </scroll-view>
 
     <!-- 筛选结果列表 -->
     <!-- 未约客列表 -->
@@ -310,22 +314,12 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 
 /* 统计卡片 */
 .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 12px; }
-.stat-item { background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.1); border-radius: 10px; padding: 12px 8px; text-align: center; }
-.stat-item.highlight { background: rgba(212,175,55,0.1); border-color: rgba(212,175,55,0.3); }
+.stat-item { background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.1); border-radius: 10px; padding: 12px 8px; text-align: center; cursor: pointer; }
+.stat-item.active { background: rgba(212,175,55,0.2); border-color: #d4af37; }
 .stat-value { font-size: 20px; color: #d4af37; display: block; }
 .stat-label { font-size: 11px; color: rgba(255,255,255,0.5); display: block; margin-top: 4px; }
 
 /* 列表区域 */
-.list-section { padding: 0 12px 8px; }
-.list-title { font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 6px; }
-.list-item { padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 8px; margin-bottom: 4px; font-size: 13px; color: #fff; }
-.list-item.warn { background: rgba(241,196,15,0.05); border: 1px solid rgba(241,196,15,0.1); }
-.list-item.danger { background: rgba(231,76,60,0.05); border: 1px solid rgba(231,76,60,0.1); }
-
-.filter-bar { white-space: nowrap; padding: 4px 12px 8px; }
-.filter-item { display: inline-block; padding: 6px 14px; margin-right: 8px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; font-size: 13px; color: rgba(255,255,255,0.6); }
-.filter-item.active { background: rgba(212,175,55,0.2); border-color: #d4af37; color: #d4af37; }
-
 .section-title { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; font-size: 15px; color: rgba(255,255,255,0.8); }
 .section-title .count { font-size: 12px; color: rgba(255,255,255,0.4); }
 
