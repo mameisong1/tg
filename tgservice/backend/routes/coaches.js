@@ -57,7 +57,11 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
         error: '助教已在班状态，无需重复上班'
       });
     } else {
-      // 其他状态（如早班上桌等），根据班次决定
+      // 其他状态需要检查是否为上桌状态
+      if (waterBoard.status === '早班上桌' || waterBoard.status === '晚班上桌') {
+        return res.status(400).json({ error: '上桌状态不能点上班' });
+      }
+      // 其他状态，根据班次决定
       newStatus = coach.shift === '早班' ? '早班空闲' : '晚班空闲';
     }
     
@@ -126,10 +130,12 @@ router.post('/:coach_no/clock-out', auth.required, requireBackendPermission(['co
     const oldStatus = waterBoard.status;
     
     // 检查是否允许下班
+    // 上桌、空闲、乐捐状态允许下班（这些是工作状态）
+    // 加班、休息、公休、请假、下班是未上班状态，禁止下班
     const canClockOut = [
       '早班空闲', '晚班空闲',
       '早班上桌', '晚班上桌',
-      '早加班', '晚加班'
+      '乐捐'
     ].includes(waterBoard.status);
     
     if (!canClockOut) {
