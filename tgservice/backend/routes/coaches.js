@@ -434,4 +434,37 @@ router.put('/:coach_no/shift', auth.required, requireBackendPermission(['coachMa
   }
 });
 
+/**
+ * GET /api/coaches/:coach_no/water-status
+ * 助教查询自己的水牌状态（无需后台权限，只需助教认证）
+ */
+router.get('/:coach_no/water-status', async (req, res) => {
+  try {
+    const { coach_no } = req.params;
+    
+    const waterBoard = await db.get(`
+      SELECT coach_no, stage_name, status, table_no, updated_at
+      FROM water_boards WHERE coach_no = ?
+    `, [coach_no]);
+    
+    if (!waterBoard) {
+      return res.status(404).json({
+        success: false,
+        error: '水牌不存在'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: waterBoard
+    });
+  } catch (error) {
+    console.error('查询水牌状态失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '查询水牌状态失败'
+    });
+  }
+});
+
 module.exports = router;

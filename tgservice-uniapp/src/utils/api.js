@@ -125,6 +125,7 @@ export default {
   updateCoachProfile: (data) => request({ url: '/coach/profile', method: 'PUT', data, authType: 'coach' }),
   setCoachAvatar: (data) => request({ url: '/coach/avatar', method: 'PUT', data, authType: 'coach' }),
   getPopularityTop6: () => request({ url: '/coaches/popularity/top6' }),
+  getCoachWaterStatus: (coachNo) => request({ url: `/coaches/${coachNo}/water-status` }),
   
   // 台桌
   getTableByPinyin: (pinyin) => request({ url: `/table/${pinyin}` }),

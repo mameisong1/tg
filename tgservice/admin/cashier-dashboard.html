@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>天宫国际 收银看板</title>
+  <title>天宫国际 收银看板 v2.0.2</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #0a0a0f; font-family: 'PingFang SC', sans-serif; color: #fff; display: flex; min-height: 100vh; overflow: hidden; }
@@ -932,18 +932,23 @@
     }
     
     function executeConfirm() {
+      reportFrontendError('ExecuteConfirm Button Click', { hasCallback: !!confirmCallback });
+      // 先保存回调引用，再关闭弹窗，再执行回调
+      const callback = confirmCallback;
       closeConfirmModal();
-      if (confirmCallback) {
+      if (callback) {
+        reportFrontendError('ExecuteConfirm Executing Callback', {});
         try {
-          confirmCallback();
+          callback();
         } catch (e) {
           reportFrontendError('Execute Confirm Error', {
             error: e.message,
-            stack: e.stack,
-            confirmCallbackType: confirmCallback.name || 'anonymous'
+            stack: e.stack
           });
           showToast('操作失败: ' + e.message);
         }
+      } else {
+        reportFrontendError('ExecuteConfirm No Callback', {});
       }
     }
 

@@ -714,6 +714,8 @@ const loginBySms = async () => {
       
       // 如果同时是教练，自动登录教练
       if (data.coachInfo) {
+        const coachToken = btoa(`${data.coachInfo.coachNo}:${Date.now()}`)
+        uni.setStorageSync('coachToken', coachToken)
         uni.setStorageSync('coachInfo', data.coachInfo)
         coachInfo.value = data.coachInfo
       }

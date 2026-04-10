@@ -30,7 +30,7 @@
                 v-for="table in segment.tables"
                 :key="table.name"
                 class="table-btn"
-                :class="{ unavailable: table.status === '占用' }"
+                :class="{ unavailable: table.status === '占用', 'is-default': props.defaultTable === table.name }"
                 @click="selectTable(table)"
               >
                 <text>{{ table.name }}</text>
@@ -46,7 +46,7 @@
               v-for="table in filteredTables"
               :key="table.name"
               class="table-btn"
-              :class="{ unavailable: table.status === '占用' }"
+              :class="{ unavailable: table.status === '占用', 'is-default': props.defaultTable === table.name }"
               @click="selectTable(table)"
             >
               <text>{{ table.name }}</text>
@@ -312,6 +312,14 @@ const handleCancel = () => {
   background: rgba(231, 76, 60, 0.1);
   border-color: rgba(231, 76, 60, 0.2);
   color: rgba(255, 255, 255, 0.3);
+}
+
+.table-btn.is-default {
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.3) 0%, rgba(212, 175, 55, 0.15) 100%);
+  border-color: #d4af37;
+  color: #d4af37;
+  font-weight: 600;
+  box-shadow: 0 0 12px rgba(212, 175, 55, 0.2);
 }
 
 .empty-state,

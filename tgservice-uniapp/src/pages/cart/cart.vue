@@ -43,6 +43,11 @@
     />
     
     <!-- #ifdef H5 -->
+    <!-- 台桌选择器（员工免扫码使用，与 service-order 共用） -->
+    <TableSelector :visible="showTableSelector" :defaultTable="defaultTableNo" @confirm="onTableSelected" @cancel="showTableSelector = false" />
+    <!-- #endif -->
+    
+    <!-- #ifdef H5 -->
     <!-- 悬浮返回按钮 -->
     <view class="float-back-btn" :style="{ left: floatPosition === 'left' ? '20px' : 'auto', right: floatPosition === 'right' ? '20px' : 'auto' }" @click="goBack">
       <text class="float-back-icon">‹</text>
@@ -57,6 +62,7 @@ import { onShow } from '@dcloudio/uni-app'
 import api from '@/utils/api.js'
 import BeautyModal from '@/components/BeautyModal.vue'
 import TableInfo from '@/components/TableInfo.vue'
+import TableSelector from '@/components/TableSelector.vue'
 
 const tableInfoRef = ref(null)
 const sessionId = ref('')
@@ -95,6 +101,15 @@ const resultTitle = ref('')
 const resultContent = ref('')
 const orderSuccess = ref(false)
 const floatPosition = ref('left')
+
+// 员工识别：有 adminToken 或 coachToken 即为员工
+const isEmployee = computed(() => {
+  return !!(uni.getStorageSync('adminToken') || uni.getStorageSync('coachToken'))
+})
+
+// 台桌选择器
+const showTableSelector = ref(false)
+const defaultTableNo = ref('')
 
 const getProductImage = (item) => {
   const url = item.image_url
@@ -147,6 +162,32 @@ const deleteItem = async (item) => {
   catch (e) { uni.showToast({ title: '删除失败', icon: 'none' }) }
 }
 
+// 台桌选择回调
+const onTableSelected = (tableNo) => {
+  showTableSelector.value = false
+  // 保存台桌号
+  uni.setStorageSync('tableName', tableNo)
+  // 写入 tableAuth 让 tableStatus 变为 valid
+  uni.setStorageSync('tableAuth', JSON.stringify({ tableNo, time: Date.now() }))
+  // 选择后自动提交订单
+  doSubmitOrder()
+}
+
+// 加载默认台桌号（已上桌助教）
+const loadDefaultTableNo = async () => {
+  const coachInfo = uni.getStorageSync('coachInfo')
+  if (coachInfo?.coachNo) {
+    try {
+      const res = await api.getCoachWaterStatus(coachInfo.coachNo)
+      if (res.data?.table_no) {
+        defaultTableNo.value = res.data.table_no
+      }
+    } catch (e) {
+      console.log('获取水牌状态失败', e)
+    }
+  }
+}
+
 const submitOrder = async () => {
   if (cartItems.value.length === 0) {
     resultTitle.value = '提示'
@@ -155,10 +196,21 @@ const submitOrder = async () => {
     return
   }
   
-  // 检查台桌授权
-  if (!checkTableAuth()) return
+  // 员工：跳过扫码检查，无台桌号时弹出台桌选择器
+  if (isEmployee.value) {
+    if (!tableName.value) {
+      // 弹出台桌选择器前加载默认台桌号
+      await loadDefaultTableNo()
+      showTableSelector.value = true
+      return
+    }
+    // 有台桌号直接下单
+    await doSubmitOrder()
+    return
+  }
   
-  // 检查台桌名是否存在
+  // 非员工：走原有扫码检查逻辑
+  if (!checkTableAuth()) return
   if (!tableName.value) {
     resultTitle.value = '提示'
     resultContent.value = '请扫台桌码进入后再下单'
@@ -166,9 +218,13 @@ const submitOrder = async () => {
     return
   }
   
+  await doSubmitOrder()
+}
+
+// 实际下单逻辑（从 submitOrder 提取）
+const doSubmitOrder = async () => {
   try {
     uni.showLoading({ title: '提交中...' })
-    // 获取设备指纹
     const deviceFingerprint = api.getDeviceFingerprint()
     const data = await api.createOrder(sessionId.value, deviceFingerprint)
     uni.hideLoading()

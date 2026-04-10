@@ -275,8 +275,25 @@ const selectCategory = (cat) => {
   loadProducts()
 }
 
+// 员工识别：有 adminToken 或 coachToken 即为员工
+const isEmployee = computed(() => {
+  return !!(uni.getStorageSync('adminToken') || uni.getStorageSync('coachToken'))
+})
+
 const quickAdd = async (item) => {
-  // 检查台桌状态
+  // 员工：跳过扫码检查
+  if (isEmployee.value) {
+    try {
+      await api.addCart({ sessionId: sessionId.value, tableNo: tableName.value, productName: item.name, quantity: 1 })
+      uni.showToast({ title: '已加入购物车', icon: 'success' })
+      loadCart()
+    } catch (e) {
+      uni.showToast({ title: '添加失败', icon: 'none' })
+    }
+    return
+  }
+
+  // 非员工：检查台桌状态
   const status = tableStatus.value
 
   if (status === 'empty') {
