@@ -150,6 +150,9 @@ router.post('/lock-should-invite', auth.required, requireBackendPermission(['inv
       [date, shift, '应约客', '待审查', '约客有效', '约客无效']
     );
     
+    // 提交事务（之前遗漏，导致插入被回滚）
+    await transaction.commit();
+    
     res.json({
       success: true,
       data: {
