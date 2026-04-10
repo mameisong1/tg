@@ -892,20 +892,19 @@ V2.0 新增了多个后台管理页面，位于 `/TG/tgservice/admin/` 目录。
 |------|--------|------|----------|
 | 后台首页 | `index.html` | 菜单入口 | 登录即可 |
 | 登录页 | `login.html` | 管理员登录 | 无 |
-| 订单管理 | `orders.html` | 订单列表与操作 | 管理员 |
 | 商品管理 | `products.html` | 商品CRUD | 管理员/前厅管理 |
 | 商品分类 | `categories.html` | 分类管理 | 管理员 |
 | 台桌管理 | `tables.html` | 台桌CRUD | 管理员 |
 | VIP包房 | `vip-rooms.html` | 包房管理 | 管理员/前厅管理 |
 | 助教管理 | `coaches.html` | 助教CRUD + 批量更新班次 | 管理员/助教管理 |
-| 水牌管理 | `water-boards.html` | 助教实时状态管理 | 管理员/助教管理/店长 |
-| 约客审查 | `invitation-review.html` | 早/晚班约客记录审查 | 管理员/助教管理/店长 |
 | 收银看板 | `cashier-dashboard.html` | 全屏收银调度看板 | 收银/前厅管理 |
 | 会员管理 | `members.html` | 会员列表 | 管理员 |
 | 用户管理 | `users.html` | 后台用户管理 | 管理员 |
 | 首页配置 | `home.html` | Banner/公告配置 | 管理员 |
 | 操作日志 | `operation-logs.html` | 操作日志查询 | 管理员 |
 | 系统设置 | `settings.html` | 系统参数配置 | 管理员 |
+
+> **2026-04-10 变更**：已删除 `orders.html`（订单管理）、`water-boards.html`（水牌管理）、`invitation-review.html`（约客审查）。教练角色不再允许访问后台。
 
 ### 导航与权限
 
