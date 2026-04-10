@@ -463,23 +463,44 @@
 
     // 播放警报声（两声短促）
     function playAlertSound() {
-      console.log('🔊 playAlertSound 被调用, soundEnabled:', soundEnabled, ', hasUserGesture:', hasUserGesture);
       if (!soundEnabled || !hasUserGesture) {
-        console.log('❌ 声音播放被阻止: soundEnabled=' + soundEnabled + ', hasUserGesture=' + hasUserGesture);
+        // 发声失败，上报日志
+        reportSoundFailure('soundEnabled=' + soundEnabled + ', hasUserGesture=' + hasUserGesture);
         return;
       }
       try {
         const ctx = getAudioContext();
         if (ctx.state === 'suspended') {
-          console.log('🔧 AudioContext 被暂停，尝试恢复...');
           ctx.resume();
         }
-        console.log('🔊 正在播放声音... AudioContext state:', ctx.state);
+        if (ctx.state !== 'running') {
+          reportSoundFailure('AudioContext state=' + ctx.state);
+          return;
+        }
         playTone(600, 0.15, 0.15);
         setTimeout(() => playTone(800, 0.15, 0.15), 200);
       } catch(e) {
-        console.error('❌ 播放声音失败:', e);
+        reportSoundFailure('Exception: ' + e.message);
       }
+    }
+    
+    // 上报发声失败日志到后端
+    async function reportSoundFailure(reason) {
+      try {
+        await fetch('/api/admin/sound-failure-log', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({
+            reason,
+            timestamp: new Date().toISOString(),
+            pendingOrders: {
+              product: productOrders.filter(o => o.status === '待处理').length,
+              service: serviceOrders.filter(o => o.status === '待处理').length,
+              coach: coachSessions.filter(o => o.status === '待处理').length
+            }
+          })
+        });
+      } catch(e) {}
     }
 
     // 切换声音
@@ -822,9 +843,16 @@
           serviceOrders.some(o => o.status === '待处理') ||
           coachSessions.some(o => o.status === '待处理')
         );
-        if (hasPendingOrders && alertEnabled && soundEnabled) {
-          console.log('🔔 有待处理订单，播放声音提醒');
-          playAlertSound();
+        
+        if (hasPendingOrders) {
+          // 如果声音未开启，自动弹出提示让用户点击
+          if (!hasUserGesture || !soundEnabled) {
+            console.log('⚠️ 有待处理订单但声音未启动，弹出提示');
+            showSoundOverlay();
+          } else if (alertEnabled && soundEnabled) {
+            console.log('🔔 有待处理订单，播放声音提醒');
+            playAlertSound();
+          }
         }
         
         document.getElementById('lastRefresh').textContent = '上次检查: ' + new Date().toLocaleTimeString('zh-CN');

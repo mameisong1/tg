@@ -294,6 +294,17 @@ function requireBackendPermission(requiredPermissions) {
       return res.status(403).json({ error: '未授权' });
     }
     
+    // 助教用户：检查前台权限
+    if (user.userType === 'coach') {
+      // 助教可以创建服务单
+      if (requiredPermissions.includes('cashierDashboard') && 
+          (requiredPermissions.includes('serviceOrder') || requiredPermissions.length === 1)) {
+        // service-orders API 只需要 cashierDashboard 权限，助教应该可以访问
+        return next();
+      }
+      return res.status(403).json({ error: '权限不足' });
+    }
+    
     const permissions = getUserPermissions(user.role);
     const backendPerms = permissions.backend;
     

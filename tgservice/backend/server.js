@@ -3913,6 +3913,34 @@ app.post('/api/log/camera-error', (req, res) => {
   }
 });
 
+// 发声失败日志 API
+app.post('/api/admin/sound-failure-log', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
+  try {
+    const { reason, timestamp, pendingOrders } = req.body;
+    const user = req.user.username;
+    
+    const logEntry = {
+      timestamp: timestamp || new Date().toISOString(),
+      user,
+      reason,
+      pendingOrders
+    };
+    
+    // 写入专门的发声失败日志文件
+    const soundFailureLogPath = path.join(__dirname, '../logs/sound-failure.log');
+    const logLine = JSON.stringify(logEntry) + '\n';
+    fs.appendFileSync(soundFailureLogPath, logLine);
+    
+    // 同时输出到控制台
+    logger.warn(`发声失败: ${reason} | 用户: ${user} | 待处理: 商品${pendingOrders?.product || 0} 服务${pendingOrders?.service || 0} 上下桌${pendingOrders?.coach || 0}`);
+    
+    res.json({ success: true, message: '日志已记录' });
+  } catch (err) {
+    logger.error(`记录发声失败日志失败: ${err.message}`);
+    res.status(500).json({ error: '记录失败' });
+  }
+});
+
 // 前端页面路由
 app.get('/', (req, res) => {
   res.redirect('/frontend/index.html');

@@ -5,10 +5,13 @@
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api'
 
-// 请求封装（后台用户认证）
+// 请求封装（后台用户认证 + 助教认证）
 const request = (options) => {
   return new Promise((resolve, reject) => {
     const adminToken = uni.getStorageSync('adminToken')
+    const coachToken = uni.getStorageSync('coachToken')
+    // 优先使用 adminToken，否则使用 coachToken
+    const token = adminToken || coachToken
     
     uni.request({
       url: BASE_URL + options.url,
@@ -16,7 +19,7 @@ const request = (options) => {
       data: options.data,
       header: {
         'Content-Type': 'application/json',
-        'Authorization': adminToken ? `Bearer ${adminToken}` : '',
+        'Authorization': token ? `Bearer ${token}` : '',
         ...options.header
       },
       success: (res) => {
