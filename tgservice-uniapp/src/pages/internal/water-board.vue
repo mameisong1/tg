@@ -70,8 +70,39 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import api from '@/utils/api-v2.js'
+
+// #ifdef H5
+// H5 环境下阻止浏览器长按菜单
+let contextmenuHandler = null
+let selectstartHandler = null
+onMounted(() => {
+  // 在 capture 阶段捕获并阻止 contextmenu
+  contextmenuHandler = (e) => {
+    const chip = e.target.closest('.coach-chip, .expand-chip')
+    if (chip) {
+      e.preventDefault()
+      e.stopPropagation()
+      e.stopImmediatePropagation()
+      return false
+    }
+  }
+  selectstartHandler = (e) => {
+    const chip = e.target.closest('.coach-chip, .expand-chip')
+    if (chip) {
+      e.preventDefault()
+      return false
+    }
+  }
+  document.addEventListener('contextmenu', contextmenuHandler, true)
+  document.addEventListener('selectstart', selectstartHandler, true)
+})
+onUnmounted(() => {
+  document.removeEventListener('contextmenu', contextmenuHandler, true)
+  document.removeEventListener('selectstart', selectstartHandler, true)
+})
+// #endif
 
 const statusBarHeight = ref(0)
 const waterBoards = ref([])
@@ -226,11 +257,11 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 
 /* 助教圆形卡片 */
 .coach-chips { display: flex; flex-wrap: wrap; gap: 10px; }
-.coach-chip { display: flex; flex-direction: column; align-items: center; width: 64px; padding: 6px 4px; background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.15); border-radius: 50%; }
-.coach-chip-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(218,165,32,0.3); margin-bottom: 3px; }
-.coach-chip-id { font-size: 10px; color: #d4af37; font-weight: 600; }
-.coach-chip-name { font-size: 10px; color: rgba(255,255,255,0.7); text-align: center; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 58px; }
-.coach-chip-table { font-size: 8px; color: rgba(255,255,255,0.3); }
+.coach-chip { display: flex; flex-direction: column; align-items: center; width: 64px; padding: 6px 4px; background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.15); border-radius: 50%; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+.coach-chip-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(218,165,32,0.3); margin-bottom: 3px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; pointer-events: none; }
+.coach-chip-id { font-size: 10px; color: #d4af37; font-weight: 600; user-select: none; -webkit-user-select: none; pointer-events: none; }
+.coach-chip-name { font-size: 10px; color: rgba(255,255,255,0.7); text-align: center; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 58px; user-select: none; -webkit-user-select: none; pointer-events: none; }
+.coach-chip-table { font-size: 8px; color: rgba(255,255,255,0.3); user-select: none; -webkit-user-select: none; pointer-events: none; }
 .empty-chip { text-align: center; padding: 16px; color: rgba(255,255,255,0.15); font-size: 12px; }
 
 /* 分段放大弹窗 */
@@ -241,11 +272,11 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .expand-count { font-size: 13px; color: rgba(255,255,255,0.4); }
 .expand-content { max-height: 60vh; }
 .expand-chips { display: flex; flex-wrap: wrap; gap: 12px; padding-bottom: 10px; }
-.expand-chip { display: flex; flex-direction: column; align-items: center; width: 90px; padding: 10px 6px; background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.15); border-radius: 50%; }
-.expand-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(218,165,32,0.3); margin-bottom: 6px; }
-.expand-id { font-size: 11px; color: #d4af37; font-weight: 600; }
-.expand-name { font-size: 11px; color: rgba(255,255,255,0.7); text-align: center; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80px; }
-.expand-table { font-size: 10px; color: rgba(255,255,255,0.4); }
+.expand-chip { display: flex; flex-direction: column; align-items: center; width: 90px; padding: 10px 6px; background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.15); border-radius: 50%; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+.expand-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(218,165,32,0.3); margin-bottom: 6px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; pointer-events: none; }
+.expand-id { font-size: 11px; color: #d4af37; font-weight: 600; user-select: none; -webkit-user-select: none; pointer-events: none; }
+.expand-name { font-size: 11px; color: rgba(255,255,255,0.7); text-align: center; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 80px; user-select: none; -webkit-user-select: none; pointer-events: none; }
+.expand-table { font-size: 10px; color: rgba(255,255,255,0.4); user-select: none; -webkit-user-select: none; pointer-events: none; }
 
 /* 修改状态弹窗 */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; align-items: center; justify-content: center; }

@@ -192,14 +192,7 @@
           <text class="internal-btn-icon">🌙</text>
           <text class="internal-btn-text">晚班约客</text>
         </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-stats?shift=早班')">
-          <text class="internal-btn-icon">📊</text>
-          <text class="internal-btn-text">早班统计</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-stats?shift=晚班')">
-          <text class="internal-btn-icon">📊</text>
-          <text class="internal-btn-text">晚班统计</text>
-        </view>
+
       </view>
     </view>
 

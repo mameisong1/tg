@@ -1,0 +1,747 @@
+{
+  "total": 0,
+  "passed": 0,
+  "failed": 0,
+  "details": [],
+  "buttons": [
+    {
+      "text": "全部展开",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "+ 添加助教",
+      "className": "btn btn-primary",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "全部 (51)",
+      "className": "level-btn active",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "高级 (11)",
+      "className": "level-btn ",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "女神 (22)",
+      "className": "level-btn ",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "中级 (11)",
+      "className": "level-btn ",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "初级 (6)",
+      "className": "level-btn ",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "全部",
+      "className": "status-btn active",
+      "disabled": false,
+      "onclick": "无onclick"
+    },
+    {
+      "text": "全职",
+      "className": "status-btn",
+      "disabled": false,
+      "onclick": "无onclick"
+    },
+    {
+      "text": "兼职",
+      "className": "status-btn",
+      "disabled": false,
+      "onclick": "无onclick"
+    },
+    {
+      "text": "离职",
+      "className": "status-btn",
+      "disabled": false,
+      "onclick": "无onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "编辑",
+      "className": "btn btn-sm",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "删除",
+      "className": "btn btn-sm btn-danger",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "取消",
+      "className": "btn btn-cancel",
+      "disabled": false,
+      "onclick": "有onclick"
+    },
+    {
+      "text": "保存",
+      "className": "btn btn-primary",
+      "disabled": false,
+      "onclick": "有onclick"
+    }
+  ],
+  "actionButtons": []
+}

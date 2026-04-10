@@ -47,15 +47,19 @@
     .section-content { flex: 1; }
 
     /* 助教圆形卡片 */
-    .coach-chips { display: flex; flex-wrap: wrap; gap: 10px; max-height: 80px; overflow: hidden; align-items: flex-start; padding-bottom: 4px; }
+    .coach-chips { display: flex; flex-wrap: wrap; gap: 10px; max-height: 80px; overflow: hidden; align-items: flex-start; padding-bottom: 4px; -webkit-touch-callout: none; }
     /* 早班空闲和晚班空闲显示两行 */
     .status-section[data-status="早班空闲"] .coach-chips,
     .status-section[data-status="晚班空闲"] .coach-chips { max-height: 170px; }
     .coach-chip {
       display: flex; flex-direction: column; align-items: center; width: 70px; padding: 6px 4px;
       background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.15);
-      border-radius: 50%; cursor: grab; transition: transform 0.2s, box-shadow 0.2s; user-select: none;
+      border-radius: 50%; cursor: grab; transition: transform 0.2s, box-shadow 0.2s;
+      user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;
+      -webkit-touch-callout: none; touch-action: manipulation; pointer-events: auto;
     }
+    .coach-chip * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; pointer-events: none; }
+    .coach-chip-avatar { -webkit-touch-callout: none; pointer-events: none; }
     .coach-chip:hover { transform: scale(1.08); box-shadow: 0 0 15px rgba(212,175,55,0.3); }
     .coach-chip-avatar {
       width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
@@ -130,7 +134,7 @@
     .section-expand-box .coach-chip-table { font-size: 10px; }
   </style>
 </head>
-<body>
+<body oncontextmenu="return false">
   <div class="sidebar">
     <div class="sidebar-logo">
       <img src="/images/logo.png" alt="Logo">
@@ -326,8 +330,8 @@
                          ontouchstart="handleLongPressStart(event, '${c.coach_no}')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)"
                          onmousedown="handleLongPressStart(event, '${c.coach_no}')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)"
                          oncontextmenu="return false">
-                      <img class="coach-chip-avatar" src="${avatar}" 
-                           onerror="this.src='/static/avatar-default.png'">
+                      <img class="coach-chip-avatar" src="${avatar}" draggable="false"
+                           onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
                       <span class="coach-chip-id">${eid}</span>
                       <span class="coach-chip-name">${c.stage_name}</span>
                       ${c.table_no ? `<span class="coach-chip-table">${c.table_no}</span>` : ''}
@@ -350,10 +354,11 @@
     const MOVE_THRESHOLD = 10; // 移动10px视为拖动
     let currentCoachNo = null; // 当前长按的助教工号
     
-    // ===== 长按功能 =====
+    // ===== 镙按功能 =====
     function handleLongPressStart(e, coachNo) {
-      // 阻止默认的长按菜单
+      // 阻止默认的长按菜单（右键菜单、iOS长按菜单等）
       e.preventDefault();
+      e.stopPropagation();
       
       startX = e.touches ? e.touches[0].clientX : e.clientX;
       startY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -513,7 +518,8 @@
                ontouchstart="handleLongPressStart(event, '${c.coach_no}')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)"
                onmousedown="handleLongPressStart(event, '${c.coach_no}')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)"
                oncontextmenu="return false">
-            <img class="coach-chip-avatar" src="${avatar}" onerror="this.src='/static/avatar-default.png'">
+            <img class="coach-chip-avatar" src="${avatar}" draggable="false" oncontextmenu="return false"
+                 onerror="this.src='/static/avatar-default.png'">
             <span class="coach-chip-id">${eid}</span>
             <span class="coach-chip-name">${c.stage_name}</span>
             ${c.table_no ? `<span class="coach-chip-table">${c.table_no}</span>` : ''}
@@ -532,6 +538,37 @@
     });
     
     refreshData();
+    
+    // ===== 全局阻止长按菜单（鸿蒙系统兼容） =====
+    // 在 capture 阶段捕获并阻止 contextmenu
+    document.addEventListener('contextmenu', function(e) {
+      const target = e.target;
+      const chip = target.closest('.coach-chip');
+      if (chip) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return false;
+      }
+    }, true); // capture 阶段
+    
+    // 阻止文本选择
+    document.addEventListener('selectstart', function(e) {
+      const chip = e.target.closest('.coach-chip');
+      if (chip) {
+        e.preventDefault();
+        return false;
+      }
+    }, true);
+    
+    // 阻止拖拽
+    document.addEventListener('dragstart', function(e) {
+      const chip = e.target.closest('.coach-chip');
+      if (chip && e.target.tagName === 'IMG') {
+        e.preventDefault();
+        return false;
+      }
+    }, true);
     
     // 页面进入时自动全屏
     setTimeout(() => {

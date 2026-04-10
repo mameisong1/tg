@@ -11,6 +11,191 @@ const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const operationLogService = require('../services/operation-log');
 
+// 锁定状态标记（内存变量，重启后丢失）
+const lockFlags = new Set(); // 'YYYY-MM-DD-早班' / 'YYYY-MM-DD-晚班'
+
+/**
+ * GET /api/guest-invitations/check-lock
+ * 检查是否已锁定（从内存变量读取）
+ */
+router.get('/check-lock', auth.required, requireBackendPermission(['invitationReview']), async (req, res) => {
+  const { date, shift } = req.query;
+  if (!date || !shift) return res.status(400).json({ success: false, error: '缺少参数' });
+  const key = `${date}-${shift}`;
+  const isLocked = lockFlags.has(key);
+  if (isLocked) {
+    const { count } = await db.get(
+      'SELECT COUNT(*) as count FROM guest_invitation_results WHERE date = ? AND shift = ? AND result IN (?, ?, ?, ?)',
+      [date, shift, '应约客', '待审查', '约客有效', '约客无效']
+    );
+    return res.json({ success: true, data: { is_locked: true, count: count || 0 } });
+  }
+  res.json({ success: true, data: { is_locked: false, count: 0 } });
+});
+
+/**
+ * POST /api/guest-invitations/lock-should-invite
+ * 锁定应约客人员（开始审查时写入当前空闲助教）
+ */
+router.post('/lock-should-invite', auth.required, requireBackendPermission(['invitationReview']), async (req, res) => {
+  const transaction = await db.beginTransaction();
+  
+  try {
+    const { date, shift } = req.body;
+    
+    // 验证必填字段
+    if (!date || !shift) {
+      return res.status(400).json({
+        success: false,
+        error: '缺少必填字段'
+      });
+    }
+    
+    // 验证班次
+    if (shift !== '早班' && shift !== '晚班') {
+      return res.status(400).json({
+        success: false,
+        error: '无效的班次'
+      });
+    }
+    
+    // 时间校验：早班 16:00 后，晚班 20:00 后才能开始审查
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentTime = currentHour * 60 + currentMinute;
+    
+    if (shift === '早班' && currentTime < 16 * 60) {
+      return res.status(400).json({
+        success: false,
+        error: '早班约客审查需在16:00后开始'
+      });
+    }
+    
+    if (shift === '晚班' && currentTime < 20 * 60) {
+      return res.status(400).json({
+        success: false,
+        error: '晚班约客审查需在20:00后开始'
+      });
+    }
+    
+    // 检查是否已锁定（内存变量）
+    const lockKey = `${date}-${shift}`;
+    if (lockFlags.has(lockKey)) {
+      return res.status(400).json({
+        success: false,
+        error: '今日已开始审查，无需重复锁定'
+      });
+    }
+    
+    // 获取当前水牌空闲状态的助教（早班空闲/晚班空闲）
+    const shouldInviteStatus = shift === '早班' ? ['早班空闲'] : ['晚班空闲'];
+    const placeholders = shouldInviteStatus.map(() => '?').join(',');
+    
+    const shouldInviteCoaches = await transaction.all(`
+      SELECT wb.coach_no, wb.stage_name
+      FROM water_boards wb
+      INNER JOIN coaches c ON wb.coach_no = c.coach_no
+      WHERE wb.status IN (${placeholders})
+        AND c.shift = ?
+    `, [...shouldInviteStatus, shift]);
+    
+    // 写入应约客记录（result='应约客'，无截图）
+    let insertedCount = 0;
+    for (const coach of shouldInviteCoaches) {
+      // 检查是否已有记录（可能已提交截图）
+      const existing = await transaction.get(
+        'SELECT id, result FROM guest_invitation_results WHERE date = ? AND shift = ? AND coach_no = ?',
+        [date, shift, coach.coach_no]
+      );
+      
+      if (!existing) {
+        // 新增应约客记录
+        await transaction.run(`
+          INSERT INTO guest_invitation_results (
+            date, shift, coach_no, stage_name, invitation_image_url, result
+          ) VALUES (?, ?, ?, ?, NULL, '应约客')
+        `, [date, shift, coach.coach_no, coach.stage_name]);
+        insertedCount++;
+      }
+    }
+    
+    // 记录操作日志
+    const user = req.user;
+    await operationLogService.create(transaction, {
+      operator_phone: user.username,
+      operator_name: user.name,
+      operation_type: '开始约客审查',
+      target_type: 'guest_invitation',
+      target_id: null,
+      old_value: null,
+      new_value: JSON.stringify({ date, shift, locked_count: insertedCount }),
+      remark: `${shift}${date} 开始审查，锁定${insertedCount}名应约客助教`
+    });
+    
+    // 设置内存锁定标记
+    lockFlags.add(lockKey);
+    
+    // 查询已锁定的人数（result IN ('应约客','待审查','约客有效','约客无效') 的总人数）
+    const { count } = await transaction.get(
+      'SELECT COUNT(*) as count FROM guest_invitation_results WHERE date = ? AND shift = ? AND result IN (?, ?, ?, ?)',
+      [date, shift, '应约客', '待审查', '约客有效', '约客无效']
+    );
+    
+    res.json({
+      success: true,
+      data: {
+        date,
+        shift,
+        locked_count: insertedCount,
+        total_count: count,
+        coaches: shouldInviteCoaches
+      }
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error('锁定应约客人员失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '锁定应约客人员失败'
+    });
+  }
+});
+
+/**
+ * GET /api/guest-invitations/should-invite
+ * 获取应约客人员列表
+ */
+router.get('/should-invite', auth.required, requireBackendPermission(['invitationReview']), async (req, res) => {
+  try {
+    const { date, shift } = req.query;
+    
+    if (!date || !shift) {
+      return res.status(400).json({
+        success: false,
+        error: '缺少必填字段'
+      });
+    }
+    
+    // 获取应约客人员（result='应约客'）
+    const shouldInviteList = await db.all(
+      'SELECT * FROM guest_invitation_results WHERE date = ? AND shift = ? AND result = ?',
+      [date, shift, '应约客']
+    );
+    
+    res.json({
+      success: true,
+      data: shouldInviteList
+    });
+  } catch (error) {
+    console.error('获取应约客人员列表失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '获取应约客人员列表失败'
+    });
+  }
+});
+
 /**
  * POST /api/guest-invitations
  * 提交约客记录
@@ -42,24 +227,28 @@ router.post('/', auth.required, requireBackendPermission(['all']), async (req, r
       });
     }
     
-    // 时间校验：早班 16:00 前，晚班 20:00 前
+    // 时间校验：早班 14:00-18:00，晚班 18:00-22:00（前后2小时）
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
     const currentTime = currentHour * 60 + currentMinute;
     
-    if (shift === '早班' && currentTime > 16 * 60) {
-      return res.status(400).json({
-        success: false,
-        error: '早班约客记录已超过提交截止时间（16:00）'
-      });
+    if (shift === '早班') {
+      if (currentTime < 14 * 60 || currentTime > 18 * 60) {
+        return res.status(400).json({
+          success: false,
+          error: '早班约客记录提交时间为14:00-18:00'
+        });
+      }
     }
     
-    if (shift === '晚班' && currentTime > 20 * 60) {
-      return res.status(400).json({
-        success: false,
-        error: '晚班约客记录已超过提交截止时间（20:00）'
-      });
+    if (shift === '晚班') {
+      if (currentTime < 18 * 60 || currentTime > 22 * 60) {
+        return res.status(400).json({
+          success: false,
+          error: '晚班约客记录提交时间为18:00-22:00'
+        });
+      }
     }
     
     // 获取助教信息
@@ -236,6 +425,29 @@ router.put('/:id/review', auth.required, requireBackendPermission(['invitationRe
       });
     }
     
+    // 时间校验：审查当日数据时，早班16:00前、晚班20:00前报错
+    const now = new Date();
+    const today = now.toISOString().split('T')[0];
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentTime = currentHour * 60 + currentMinute;
+    
+    if (invitation.date === today) {
+      if (invitation.shift === '早班' && currentTime < 16 * 60) {
+        return res.status(400).json({
+          success: false,
+          error: '早班约客审查需在16:00后开始'
+        });
+      }
+      
+      if (invitation.shift === '晚班' && currentTime < 20 * 60) {
+        return res.status(400).json({
+          success: false,
+          error: '晚班约客审查需在20:00后开始'
+        });
+      }
+    }
+    
     // 更新审查结果
     await transaction.run(`
       UPDATE guest_invitation_results
@@ -341,64 +553,43 @@ router.post('/statistics', auth.required, requireBackendPermission(['invitationS
       });
     }
     
-    // 【第 3 轮修订】应约客状态定义：只算空闲，不算上桌
-    const shouldInviteStatus = shift === '早班'
-      ? ['早班空闲']
-      : ['晚班空闲'];
+    // 统计规则（最终版）：
+    // 应约客人数 = result IN ('应约客', '待审查', '约客有效', '约客无效')
+    // 已约客人数 = result IN ('待审查', '约客有效', '约客无效')
+    // 未约客助教 = result='应约客' AND 无截图
     
-    // 获取应约客助教列表（首次生成时取当前水牌状态）
-    const placeholders2 = shouldInviteStatus.map(() => '?').join(',');
-    const shouldInviteCoaches = await transaction.all(`
-      SELECT wb.coach_no, wb.stage_name, wb.status
-      FROM water_boards wb
-      INNER JOIN coaches c ON wb.coach_no = c.coach_no
-      WHERE wb.status IN (${placeholders2})
-        AND c.shift = ?
-    `, [...shouldInviteStatus, shift]);
-    
-    const shouldInviteCount = shouldInviteCoaches.length;
-    
-    // 获取已提交约客记录的助教
-    const invitedCoaches = await transaction.all(`
-      SELECT coach_no, result
+    // 获取所有约客记录（含详细信息）
+    const allInvitationsWithDetails = await transaction.all(`
+      SELECT coach_no, stage_name, result, invitation_image_url
       FROM guest_invitation_results
       WHERE date = ? AND shift = ?
     `, [date, shift]);
     
-    const invitedCount = invitedCoaches.length;
+    // 应约客人数：所有参与约客流程的助教
+    const shouldInviteCount = allInvitationsWithDetails.filter(inv => 
+      ['应约客', '待审查', '约客有效', '约客无效'].includes(inv.result)
+    ).length;
     
-    // 构建教练映射
-    const shouldInviteMap = {};
-    shouldInviteCoaches.forEach(c => {
-      shouldInviteMap[c.coach_no] = c;
-    });
+    // 已约客人数：提交了截图的（有截图就算已约客）
+    const invitedCount = allInvitationsWithDetails.filter(inv => 
+      ['待审查', '约客有效', '约客无效'].includes(inv.result)
+    ).length;
     
-    const invitedMap = {};
-    invitedCoaches.forEach(c => {
-      invitedMap[c.coach_no] = c.result;
-    });
+    // 未约客助教：result='应约客' 且无截图
+    const missingList = allInvitationsWithDetails.filter(inv => 
+      inv.result === '应约客' && !inv.invitation_image_url
+    ).map(inv => ({
+      coach_no: inv.coach_no,
+      stage_name: inv.stage_name
+    }));
     
-    // 无效约客列表：已提交但审查结果为"约客无效"
-    const invalidList = [];
-    invitedCoaches.forEach(c => {
-      if (c.result === '约客无效') {
-        invalidList.push({
-          coach_no: c.coach_no,
-          stage_name: shouldInviteMap[c.coach_no]?.stage_name || '未知'
-        });
-      }
-    });
-    
-    // 未约客助教一览：应约客但未提交记录
-    const missingList = [];
-    shouldInviteCoaches.forEach(c => {
-      if (!invitedMap[c.coach_no]) {
-        missingList.push({
-          coach_no: c.coach_no,
-          stage_name: c.stage_name
-        });
-      }
-    });
+    // 无效约客列表：result='约客无效'
+    const invalidList = allInvitationsWithDetails.filter(inv => 
+      inv.result === '约客无效'
+    ).map(inv => ({
+      coach_no: inv.coach_no,
+      stage_name: inv.stage_name
+    }));
     
     // 记录操作日志
     const user = req.user;
@@ -458,64 +649,43 @@ router.get('/statistics/:date/:shift', auth.required, requireBackendPermission([
       });
     }
     
-    // 【第 3 轮修订】应约客状态定义：只算空闲，不算上桌
-    const shouldInviteStatus = shift === '早班'
-      ? ['早班空闲']
-      : ['晚班空闲'];
+    // 统计规则（最终版）：
+    // 应约客人数 = result IN ('应约客', '待审查', '约客有效', '约客无效')
+    // 已约客人数 = result IN ('待审查', '约客有效', '约客无效')
+    // 未约客助教 = result='应约客' AND 无截图
     
-    // 获取应约客助教列表
-    const placeholders = shouldInviteStatus.map(() => '?').join(',');
-    const shouldInviteCoaches = await db.all(`
-      SELECT wb.coach_no, wb.stage_name, wb.status
-      FROM water_boards wb
-      INNER JOIN coaches c ON wb.coach_no = c.coach_no
-      WHERE wb.status IN (${placeholders})
-        AND c.shift = ?
-    `, [...shouldInviteStatus, shift]);
-    
-    const shouldInviteCount = shouldInviteCoaches.length;
-    
-    // 获取已提交约客记录的助教
-    const invitedCoaches = await db.all(`
-      SELECT coach_no, result
+    // 获取所有约客记录
+    const allInvitations = await db.all(`
+      SELECT coach_no, stage_name, result, invitation_image_url
       FROM guest_invitation_results
       WHERE date = ? AND shift = ?
     `, [date, shift]);
     
-    const invitedCount = invitedCoaches.length;
+    // 应约客人数：所有参与约客流程的助教
+    const shouldInviteCount = allInvitations.filter(inv => 
+      ['应约客', '待审查', '约客有效', '约客无效'].includes(inv.result)
+    ).length;
     
-    // 构建教练映射
-    const shouldInviteMap = {};
-    shouldInviteCoaches.forEach(c => {
-      shouldInviteMap[c.coach_no] = c;
-    });
+    // 已约客人数：提交了截图的（有截图就算已约客）
+    const invitedCount = allInvitations.filter(inv => 
+      ['待审查', '约客有效', '约客无效'].includes(inv.result)
+    ).length;
     
-    const invitedMap = {};
-    invitedCoaches.forEach(c => {
-      invitedMap[c.coach_no] = c.result;
-    });
+    // 未约客助教：result='应约客' 且无截图
+    const missingList = allInvitations.filter(inv => 
+      inv.result === '应约客' && !inv.invitation_image_url
+    ).map(inv => ({
+      coach_no: inv.coach_no,
+      stage_name: inv.stage_name
+    }));
     
-    // 无效约客列表
-    const invalidList = [];
-    invitedCoaches.forEach(c => {
-      if (c.result === '约客无效') {
-        invalidList.push({
-          coach_no: c.coach_no,
-          stage_name: shouldInviteMap[c.coach_no]?.stage_name || '未知'
-        });
-      }
-    });
-    
-    // 未约客助教一览
-    const missingList = [];
-    shouldInviteCoaches.forEach(c => {
-      if (!invitedMap[c.coach_no]) {
-        missingList.push({
-          coach_no: c.coach_no,
-          stage_name: c.stage_name
-        });
-      }
-    });
+    // 无效约客列表：result='约客无效'
+    const invalidList = allInvitations.filter(inv => 
+      inv.result === '约客无效'
+    ).map(inv => ({
+      coach_no: inv.coach_no,
+      stage_name: inv.stage_name
+    }));
     
     res.json({
       success: true,

@@ -1,0 +1,1582 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>助教管理 - 天宫国际</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0f; font-family: 'PingFang SC', sans-serif; color: #fff; display: flex; min-height: 100vh; }
+    .sidebar { width: 220px; background: rgba(20,20,30,0.8); border-right: 1px solid rgba(218,165,32,0.1); padding: 20px 0; flex-shrink: 0; overflow-y: auto; height: 100vh; position: sticky; top: 0; }
+    .sidebar-logo { padding: 0 20px 30px; display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px; }
+    .sidebar-logo img { width: 32px; height: 32px; }
+    .sidebar-title { font-size: 16px; color: #d4af37; }
+    .sidebar-sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+    
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: rgba(255,255,255,0.6); text-decoration: none; font-size: 14px; transition: all 0.2s; }
+    .nav-item:hover, .nav-item.active { background: rgba(212,175,55,0.1); color: #d4af37; }
+    .nav-icon { font-size: 18px; }
+    
+    .main { flex: 1; padding: 20px; overflow-y: auto; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .page-title { font-size: 22px; }
+    .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; border: none; }
+    .btn-primary { background: linear-gradient(135deg, #d4af37 0%, #ffd700 100%); color: #000; }
+    .btn-danger { background: rgba(231,76,60,0.2); color: #e74c3c; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    
+    .toolbar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+    .level-filter { display: flex; gap: 8px; flex-wrap: wrap; }
+    .level-btn { padding: 8px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; color: rgba(255,255,255,0.6); font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .level-btn:hover { background: rgba(212,175,55,0.1); border-color: rgba(212,175,55,0.3); }
+    .level-btn.active { background: rgba(212,175,55,0.2); border-color: #d4af37; color: #d4af37; }
+    
+    .status-filter { display: flex; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+    .status-btn { padding: 6px 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; color: rgba(255,255,255,0.5); font-size: 12px; cursor: pointer; transition: all 0.2s; }
+    .status-btn:hover { background: rgba(255,255,255,0.08); }
+    .status-btn.active { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.3); color: #fff; }
+    
+    .coach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .coach-card { background: rgba(20,20,30,0.6); border-radius: 12px; padding: 16px; border: 1px solid rgba(218,165,32,0.1); display: flex; gap: 16px; }
+    .coach-avatar { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; background: rgba(30,30,40,0.5); }
+    .coach-info { flex: 1; }
+    .coach-name { font-size: 16px; font-weight: 500; }
+    .coach-level { display: inline-block; padding: 4px 10px; background: rgba(212,175,55,0.2); border-radius: 12px; font-size: 12px; color: #d4af37; margin: 8px 0; }
+    .coach-status { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; margin-left: 6px; }
+    .coach-status.full-time { background: rgba(46,204,113,0.2); color: #2ecc71; }
+    .coach-status.part-time { background: rgba(241,196,15,0.2); color: #f1c40f; }
+    .coach-status.resigned { background: rgba(231,76,60,0.2); color: #e74c3c; }
+    .coach-shift-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; background: rgba(52,152,219,0.2); color: #3498db; margin-left: 6px; }
+    .coach-meta { font-size: 12px; color: rgba(255,255,255,0.4); }
+    .coach-actions { margin-top: 12px; display: flex; gap: 8px; }
+    
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
+    .modal.show { display: flex; }
+    .modal-content { background: rgba(20,20,30,0.95); border-radius: 16px; padding: 24px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; border: 1px solid rgba(218,165,32,0.2); }
+    .modal-title { font-size: 18px; margin-bottom: 20px; }
+    .modal-form { display: flex; flex-direction: column; gap: 12px; }
+    .form-row { display: flex; flex-direction: column; gap: 4px; }
+    .form-row label { font-size: 12px; color: rgba(255,255,255,0.6); }
+    .form-row input, .form-row select { padding: 10px; background: #1a1a24; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; }
+    .form-row select option { background: #1a1a24; color: #fff; }
+    .modal-actions { display: flex; gap: 12px; margin-top: 20px; }
+    .modal-actions .btn { flex: 1; padding: 12px; }
+    .btn-cancel { background: rgba(255,255,255,0.1); color: #fff; }
+    
+    .toast { position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.9); padding: 12px 24px; border-radius: 8px; z-index: 1001; display: none; }
+    .toast.show { display: block; }
+  
+    /* 折叠菜单 */
+    .nav-group { border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .nav-group-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      color: rgba(255,255,255,0.6);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .nav-group-title:hover { background: rgba(212,175,55,0.05); color: rgba(255,255,255,0.8); }
+    .nav-group-title .arrow { transition: transform 0.2s; font-size: 12px; }
+    .nav-group.open .nav-group-title .arrow { transform: rotate(180deg); }
+    .nav-group-title .group-icon { font-size: 18px; margin-right: 12px; }
+    .nav-group-title .group-text { flex: 1; }
+    
+    .nav-submenu { display: none; background: rgba(0,0,0,0.2); }
+    .nav-group.open .nav-submenu { display: block; }
+    .nav-submenu .nav-item { padding-left: 48px; font-size: 13px; }
+
+    /* 批量修改班次 */
+    /* 批量班次筛选栏 */
+    .batch-filter-bar { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
+    .batch-filter-bar label { font-size: 13px; color: rgba(255,255,255,0.6); }
+    .batch-filter-btn { padding: 6px 14px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 16px; color: rgba(255,255,255,0.6); font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .batch-filter-btn:hover { background: rgba(212,175,55,0.1); border-color: rgba(212,175,55,0.3); }
+    .batch-filter-btn.active { background: rgba(212,175,55,0.2); border-color: #d4af37; color: #d4af37; }
+    .batch-shift-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+    .batch-shift-card { background: rgba(20,20,30,0.6); border-radius: 10px; padding: 12px; border: 1px solid rgba(218,165,32,0.1); display: flex; gap: 12px; align-items: center; }
+    .batch-shift-card .batch-shift-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; background: rgba(30,30,40,0.5); flex-shrink: 0; }
+    .batch-shift-card .batch-shift-info { flex: 1; min-width: 0; }
+    .batch-shift-card .batch-shift-name { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
+    .batch-shift-card .batch-shift-id { font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 4px; }
+    /* 批量班次 - 单选按钮样式 */
+    .shift-radio-group { display: flex; gap: 8px; margin-top: 6px; }
+    .shift-radio-group label {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px;
+      color: rgba(255,255,255,0.6);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .shift-radio-group label.selected {
+      background: rgba(212,175,55,0.2);
+      border-color: #d4af37;
+      color: #d4af37;
+    }
+    .shift-radio-group input[type="radio"] { display: none; }
+    .batch-shift-card .batch-shift-save { font-size: 11px; color: rgba(46,204,113,0.7); margin-top: 4px; display: none; }
+    .batch-shift-card .batch-shift-save.show { display: block; }
+
+    /* 批量班次视图 - 搜索筛选 */
+    .batch-search { margin-bottom: 16px; }
+    .batch-search input { padding: 10px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; width: 100%; max-width: 400px; }
+</style>
+</head>
+<body>
+    <div class="sidebar">
+    <div class="sidebar-logo">
+      <img src="/images/logo.png" alt="Logo">
+      <div>
+        <div class="sidebar-title">天宫国际</div>
+        <div class="sidebar-sub">后台管理系统</div>
+      </div>
+    </div>
+    
+    <a href="index.html" class="nav-item"><span class="nav-icon">📊</span> 数据概览</a>
+
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">🏠</span><span class="group-text">前厅</span><span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="cashier-dashboard.html" class="nav-item"><span class="nav-icon">💰</span> 收银看板</a>
+        <a href="products.html" class="nav-item"><span class="nav-icon">📦</span> 商品管理</a>
+        <a href="vip-rooms.html" class="nav-item"><span class="nav-icon">🛋️</span> 包房管理</a>
+        <a href="tables.html" class="nav-item"><span class="nav-icon">🎱</span> 台桌管理</a>
+        <a href="categories.html" class="nav-item"><span class="nav-icon">🏷️</span> 商品分类</a>
+      </div>
+    </div>
+
+    <div class="nav-group open">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">👩‍🏫</span><span class="group-text">助教管理</span><span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="coaches.html" class="nav-item active"><span class="nav-icon">👩</span> 助教列表</a>
+        <a href="coaches.html#batch-shift" class="nav-item"><span class="nav-icon">🔄</span> 批量更新班次</a>
+        <a href="water-boards.html" class="nav-item"><span class="nav-icon">📋</span> 水牌</a>
+        <a href="invitation-review.html?shift=early" class="nav-item"><span class="nav-icon">☀️</span> 早班约客</a>
+        <a href="invitation-review.html?shift=late" class="nav-item"><span class="nav-icon">🌙</span> 晚班约客</a>
+      </div>
+    </div>
+
+    <a href="operation-logs.html" class="nav-item"><span class="nav-icon">📜</span> 操作日志</a>
+    
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">⚙️</span><span class="group-text">配置</span><span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="home.html" class="nav-item"><span class="nav-icon">🏠</span> 首页配置</a>
+        <a href="users.html" class="nav-item"><span class="nav-icon">👥</span> 用户管理</a>
+        <a href="settings.html" class="nav-item"><span class="nav-icon">🛡️</span> 系统配置</a>
+      </div>
+    </div>
+    </div>
+  
+  
+  
+  
+  <div class="main">
+    <!-- 批量修改班次视图 -->
+    <div id="batchShiftView" style="display:none">
+      <div class="page-header">
+        <div class="page-title">批量更新班次</div>
+        <button class="btn btn-sm" style="background:rgba(255,255,255,0.1);color:#fff" onclick="expandAllShifts()">全部展开</button>
+      </div>
+      <p style="color:rgba(255,255,255,0.5);margin-bottom:12px">为每位助教选择班次，修改后自动保存</p>
+      <!-- 筛选栏 -->
+      <div class="batch-filter-bar">
+        <label>等级：</label>
+        <div id="batchLevelFilter"></div>
+        <label style="margin-left:16px">班次：</label>
+        <div id="batchShiftFilter"></div>
+        <span id="batchCount" style="margin-left:auto;font-size:13px;color:rgba(255,255,255,0.4)"></span>
+      </div>
+      <div class="batch-shift-grid" id="batchShiftGrid"></div>
+    </div>
+
+    <!-- 助教列表视图 -->
+    <div id="mainView" style="display: block;">
+      <div class="page-header">
+        <div class="page-title">助教管理</div>
+        <button class="btn btn-primary" onclick="showModal()">+ 添加助教</button>
+      </div>
+      
+      <div class="toolbar">
+        <div class="level-filter" id="levelFilter"><button class="level-btn active" onclick="filterByLevel('全部')">全部 <span style="opacity:0.6;font-size:12px;">(51)</span></button><button class="level-btn " onclick="filterByLevel('高级')">高级 <span style="opacity:0.6;font-size:12px;">(11)</span></button><button class="level-btn " onclick="filterByLevel('女神')">女神 <span style="opacity:0.6;font-size:12px;">(22)</span></button><button class="level-btn " onclick="filterByLevel('中级')">中级 <span style="opacity:0.6;font-size:12px;">(11)</span></button><button class="level-btn " onclick="filterByLevel('初级')">初级 <span style="opacity:0.6;font-size:12px;">(6)</span></button></div>
+        <div class="status-filter" id="statusFilter">
+          <button class="status-btn active" data-status="全部">全部</button>
+          <button class="status-btn" data-status="全职">全职</button>
+          <button class="status-btn" data-status="兼职">兼职</button>
+          <button class="status-btn" data-status="离职">离职</button>
+        </div>
+      </div>
+      
+      <div class="coach-grid" id="coachGrid">
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774512156393_71b17482.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">歪歪 (1号)</div>
+            <span class="coach-level">高级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">晚班</span>
+            <div class="coach-meta">
+              编号: 10001 | 陪打价: ¥109/小时 | 人气: <span style="color:#d4af37;font-weight:600">72</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10001)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10001)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061941314818.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">陆飞 (2号)</div>
+            <span class="coach-level">高级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10002 | 陪打价: ¥109/小时 | 人气: <span style="color:#d4af37;font-weight:600">58</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10002)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10002)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061944406975.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">六六 (3号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10003 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">71</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10003)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10003)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774608151790_f8330c95.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">芝芝 (5号)</div>
+            <span class="coach-level">中级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">晚班</span>
+            <div class="coach-meta">
+              编号: 10005 | 陪打价: ¥99/小时 | 人气: <span style="color:#d4af37;font-weight:600">12</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10005)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10005)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061940527158.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">小月 (7号)</div>
+            <span class="coach-level">中级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10007 | 陪打价: ¥99/小时 | 人气: <span style="color:#d4af37;font-weight:600">50</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10007)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10007)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061956253735.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">小雨 (8号)</div>
+            <span class="coach-level">中级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">晚班</span>
+            <div class="coach-meta">
+              编号: 10008 | 陪打价: ¥99/小时 | 人气: <span style="color:#d4af37;font-weight:600">36</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10008)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10008)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061942596815.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">momo (10号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">晚班</span>
+            <div class="coach-meta">
+              编号: 10009 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">32</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10009)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10009)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061911545518.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name"> 小怡 (11号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status resigned">离职</span>
+            <span class="coach-shift-badge">晚班</span>
+            <div class="coach-meta">
+              编号: 10010 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">8</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10010)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10010)" style="display:inline-block">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061943206462.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">十七 (12号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">晚班</span>
+            <div class="coach-meta">
+              编号: 10011 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">94</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10011)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10011)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="/static/avatar-default.png" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">文婷 (13号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">晚班</span>
+            <div class="coach-meta">
+              编号: 10079 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">8</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10079)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10079)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774608944624_155c6abf.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">柳柳 (15号)</div>
+            <span class="coach-level">中级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10012 | 陪打价: ¥99/小时 | 人气: <span style="color:#d4af37;font-weight:600">20</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10012)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10012)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061942054156.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">雪梨 (16号)</div>
+            <span class="coach-level">中级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10013 | 陪打价: ¥99/小时 | 人气: <span style="color:#d4af37;font-weight:600">7</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10013)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10013)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774354392549_db4a5c66.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">静香 (17号)</div>
+            <span class="coach-level">中级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">晚班</span>
+            <div class="coach-meta">
+              编号: 10014 | 陪打价: ¥99/小时 | 人气: <span style="color:#d4af37;font-weight:600">28</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10014)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10014)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061941521516.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">莫莫 (18号)</div>
+            <span class="coach-level">高级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">晚班</span>
+            <div class="coach-meta">
+              编号: 10015 | 陪打价: ¥109/小时 | 人气: <span style="color:#d4af37;font-weight:600">12</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10015)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10015)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061944168596.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">茜茜 (19号)</div>
+            <span class="coach-level">初级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">晚班</span>
+            <div class="coach-meta">
+              编号: 10016 | 陪打价: ¥89/小时 | 人气: <span style="color:#d4af37;font-weight:600">22</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10016)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10016)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061941157249.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">恩恩 (20号)</div>
+            <span class="coach-level">中级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10017 | 陪打价: ¥99/小时 | 人气: <span style="color:#d4af37;font-weight:600">18</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10017)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10017)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061956318019.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">球球 (21号)</div>
+            <span class="coach-level">高级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">晚班</span>
+            <div class="coach-meta">
+              编号: 10018 | 陪打价: ¥109/小时 | 人气: <span style="color:#d4af37;font-weight:600">13</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10018)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10018)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061945002650.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">小土豆 (23号)</div>
+            <span class="coach-level">高级</span>
+            <span class="coach-status part-time">兼职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10020 | 陪打价: ¥109/小时 | 人气: <span style="color:#d4af37;font-weight:600">17</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10020)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10020)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061943271259.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">周周 (25号)</div>
+            <span class="coach-level">中级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10021 | 陪打价: ¥99/小时 | 人气: <span style="color:#d4af37;font-weight:600">10</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10021)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10021)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774608600630_991dbb27.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">安娜 (26号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">晚班</span>
+            <div class="coach-meta">
+              编号: 10073 | 陪打价: ¥169/小时 | 人气: <span style="color:#d4af37;font-weight:600">12</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10073)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10073)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="/static/avatar-default.png" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">晚晚 (26号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10074 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">8</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10074)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10074)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061946193843.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">小白 (27号)</div>
+            <span class="coach-level">中级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10023 | 陪打价: ¥99/小时 | 人气: <span style="color:#d4af37;font-weight:600">13</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10023)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10023)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061955528527.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">逍遥 (28号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10024 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">9</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10024)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10024)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061942368916.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">青子 (29号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">晚班</span>
+            <div class="coach-meta">
+              编号: 10025 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">18</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10025)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10025)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774609992738_5969fb3b.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">江江 (30号)</div>
+            <span class="coach-level">高级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10026 | 陪打价: ¥109/小时 | 人气: <span style="color:#d4af37;font-weight:600">15</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10026)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10026)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061941445468.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">小涵 (31号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">晚班</span>
+            <div class="coach-meta">
+              编号: 10027 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">15</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10027)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10027)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/40b00aL9HkKxKvVe.jpg?x-oss-process=image/format,jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">梦辰 (32号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status part-time">兼职</span>
+            <span class="coach-shift-badge">晚班</span>
+            <div class="coach-meta">
+              编号: 10066 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">10</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10066)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10066)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061942453239.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">晴天 (33号)</div>
+            <span class="coach-level">初级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10028 | 陪打价: ¥89/小时 | 人气: <span style="color:#d4af37;font-weight:600">13</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10028)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10028)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774458344256_e40db519.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">多多 (35号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10030 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">25</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10030)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10030)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061943145562.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">芊芊 (36号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10031 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">14</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10031)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10031)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774454428463_268bdaff.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">三七 (37号)</div>
+            <span class="coach-level">高级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10032 | 陪打价: ¥109/小时 | 人气: <span style="color:#d4af37;font-weight:600">35</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10032)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10032)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061942212058.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">饼饼 (39号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status resigned">离职</span>
+            <span class="coach-shift-badge">晚班</span>
+            <div class="coach-meta">
+              编号: 10033 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">16</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10033)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10033)" style="display:inline-block">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061956042449.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">羊羊 (40号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">晚班</span>
+            <div class="coach-meta">
+              编号: 10034 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">16</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10034)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10034)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061945075225.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">晓墨 (42号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status resigned">离职</span>
+            <span class="coach-shift-badge">晚班</span>
+            <div class="coach-meta">
+              编号: 10035 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">9</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10035)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10035)" style="display:inline-block">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774610303469_78e83602.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">快乐 (49号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10036 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">49</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10036)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10036)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774524710706_9d6ae041.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">禾子 (50号)</div>
+            <span class="coach-level">初级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10037 | 陪打价: ¥89/小时 | 人气: <span style="color:#d4af37;font-weight:600">24</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10037)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10037)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774451415019_5c67b9a3.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">露露 (52号)</div>
+            <span class="coach-level">初级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10038 | 陪打价: ¥89/小时 | 人气: <span style="color:#d4af37;font-weight:600">15</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10038)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10038)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="/static/avatar-default.png" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">敏儿 (57号)</div>
+            <span class="coach-level">初级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10082 | 陪打价: ¥89/小时 | 人气: <span style="color:#d4af37;font-weight:600">5</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10082)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10082)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/40b00aL9HkKxKvVe.jpg?x-oss-process=image/format,jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">诗雨 (60号)</div>
+            <span class="coach-level">高级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10059 | 陪打价: ¥109/小时 | 人气: <span style="color:#d4af37;font-weight:600">17</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10059)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10059)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1775389871680_ebb10f93.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">小茹 (61号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">晚班</span>
+            <div class="coach-meta">
+              编号: 10078 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">8</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10078)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10078)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/40b00aL9HkKxKvVe.jpg?x-oss-process=image/format,jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">小晴 (66号)</div>
+            <span class="coach-level">高级</span>
+            <span class="coach-status resigned">离职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10069 | 陪打价: ¥109/小时 | 人气: <span style="color:#d4af37;font-weight:600">6</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10069)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10069)" style="display:inline-block">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774453302421_327fdb76.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">kimi (68号)</div>
+            <span class="coach-level">高级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10070 | 陪打价: ¥109/小时 | 人气: <span style="color:#d4af37;font-weight:600">11</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10070)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10070)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061942527102.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">六九 (69号)</div>
+            <span class="coach-level">高级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10039 | 陪打价: ¥109/小时 | 人气: <span style="color:#d4af37;font-weight:600">35</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10039)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10039)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1775391482937_5fb2e103.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">kiki (70号)</div>
+            <span class="coach-level">中级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10080 | 陪打价: ¥99/小时 | 人气: <span style="color:#d4af37;font-weight:600">6</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10080)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10080)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774704947500_58aee779.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">7k (77号)</div>
+            <span class="coach-level">中级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10060 | 陪打价: ¥99/小时 | 人气: <span style="color:#d4af37;font-weight:600">12</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10060)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10060)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="/static/avatar-default.png" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">AA (80号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10083 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">8</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10083)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10083)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/pic/D24KXM6G3tr3Bb5c.jpg?x-oss-process=image/format,jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">小涵 (85号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10064 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">17</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10064)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10064)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/40b00aL9HkKxKvVe.jpg?x-oss-process=image/format,jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">多多 (86号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10065 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">11</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10065)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10065)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1775389292471_93c79d9f.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">寒寒 (87号)</div>
+            <span class="coach-level">高级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">晚班</span>
+            <div class="coach-meta">
+              编号: 10075 | 陪打价: ¥109/小时 | 人气: <span style="color:#d4af37;font-weight:600">11</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10075)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10075)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774608707740_34a52e90.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">莲宝 (88号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10072 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">9</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10072)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10072)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="/static/avatar-default.png" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">MS (90号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10077 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">5</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10077)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10077)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1775078965647_3c05aa31.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">逍遥 (99号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">晚班</span>
+            <div class="coach-meta">
+              编号: 10056 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">9</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10056)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10056)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="/static/avatar-default.png" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">测试助教 (99号)</div>
+            <span class="coach-level">初级</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">晚班</span>
+            <div class="coach-meta">
+              编号: 10085 | 陪打价: ¥109/小时 | 人气: <span style="color:#d4af37;font-weight:600">0</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10085)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10085)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774451950385_4be6f62e.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">四瑶 (100号)</div>
+            <span class="coach-level">女神</span>
+            <span class="coach-status full-time">全职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10022 | 陪打价: ¥129/小时 | 人气: <span style="color:#d4af37;font-weight:600">17</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10022)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10022)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      
+        <div class="coach-card">
+          <img class="coach-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774270487079_32d808e7.jpg" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">豆豆 (999号)</div>
+            <span class="coach-level">初级</span>
+            <span class="coach-status part-time">兼职</span>
+            <span class="coach-shift-badge">早班</span>
+            <div class="coach-meta">
+              编号: 10040 | 陪打价: ¥109/小时 | 人气: <span style="color:#d4af37;font-weight:600">41</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(10040)">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(10040)" style="display:none">删除</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <div class="modal-title" id="modalTitle">添加助教</div>
+      <div class="modal-form">
+        <div style="display:flex;gap:12px">
+          <div class="form-row" style="flex:1"><label>编号</label><input type="text" id="formCoachNo" disabled=""></div>
+          <div class="form-row" style="flex:1"><label>工号 *</label><input type="text" id="formEmployeeId" placeholder="如：1"></div>
+        </div>
+        <div style="display:flex;gap:12px">
+          <div class="form-row" style="flex:1"><label>艺名 *</label><input type="text" id="formStageName" placeholder="如：歪歪"></div>
+          <div class="form-row" style="flex:1"><label>真实姓名</label><input type="text" id="formRealName" placeholder="如：张三"></div>
+        </div>
+        <div style="display:flex;gap:12px">
+          <div class="form-row" style="flex:1"><label>手机号</label><input type="text" id="formPhone" placeholder="如：13800138000" maxlength="11"></div>
+        </div>
+        <div style="display:flex;gap:12px">
+          <div class="form-row" style="flex:1"><label>等级</label>
+            <select id="formLevel">
+              <option value="初级">初级</option>
+              <option value="中级">中级</option>
+              <option value="高级">高级</option>
+              <option value="女神">女神</option>
+            </select>
+          </div>
+          <div class="form-row" style="flex:1"><label>陪打价(元/小时，最低70元)</label><input type="number" id="formPrice" step="1" value="109" min="70"></div>
+        </div>
+        <div style="display:flex;gap:12px">
+          <div class="form-row" style="flex:1"><label>班次</label>
+            <select id="formShift">
+              <option value="早班">早班</option>
+              <option value="晚班">晚班</option>
+            </select>
+          </div>
+          <div class="form-row" style="flex:1"><label>状态</label>
+            <select id="formStatus">
+              <option value="全职">全职</option>
+              <option value="兼职">兼职</option>
+              <option value="离职">离职</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-cancel" onclick="closeModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveCoach()">保存</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="toast" id="toast"></div>
+  
+  <script>
+    const token = localStorage.getItem('adminToken');
+    if (!token) window.location.href = 'login.html';
+    
+    let coaches = [];
+    let currentLevel = '全部';
+    let currentStatus = '全部';
+    let editingNo = null;
+    let editingPhotos = []; // 保存编辑时的照片数据
+    
+    async function api(url, options = {}) {
+      options.headers = { ...options.headers, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+      const res = await fetch(url, options);
+      if (res.status === 401) { localStorage.removeItem('adminToken'); window.location.href = 'login.html'; }
+      return res.json();
+    }
+    
+    function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
+    
+    async function loadCoaches() {
+      coaches = await api('/api/admin/coaches');
+      // 按工号排序
+      coaches.sort((a, b) => {
+        const idA = parseInt(a.employee_id) || 9999;
+        const idB = parseInt(b.employee_id) || 9999;
+        return idA - idB;
+      });
+      renderLevelFilter();
+      renderCoaches();
+      // 数据加载完成后，如果当前在批量班次视图，重新渲染
+      if (window.location.hash === '#batch-shift') {
+        renderBatchShift();
+      }
+    }
+    
+    function renderLevelFilter() {
+      const levels = ['全部', ...new Set(coaches.map(c => c.level).filter(Boolean))];
+      const filter = document.getElementById('levelFilter');
+      
+      // 计算每个等级的在职助教数量
+      const activeCoaches = coaches.filter(c => c.status !== '离职');
+      const levelCounts = { '全部': activeCoaches.length };
+      activeCoaches.forEach(c => {
+        if (c.level) {
+          levelCounts[c.level] = (levelCounts[c.level] || 0) + 1;
+        }
+      });
+      
+      filter.innerHTML = levels.map(l => {
+        const count = levelCounts[l] || 0;
+        return `<button class="level-btn ${currentLevel === l ? 'active' : ''}" onclick="filterByLevel('${l}')">${l} <span style="opacity:0.6;font-size:12px;">(${count})</span></button>`;
+      }).join('');
+    }
+    
+    function filterByLevel(level) {
+      currentLevel = level;
+      renderLevelFilter();
+      renderCoaches();
+    }
+    
+    // 状态筛选点击事件
+    document.querySelectorAll('.status-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.status-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentStatus = btn.dataset.status;
+        renderCoaches();
+      });
+    });
+    
+    function getStatusClass(status) {
+      if (status === '全职') return 'full-time';
+      if (status === '兼职') return 'part-time';
+      if (status === '离职') return 'resigned';
+      return 'full-time';
+    }
+    
+    function renderCoaches() {
+      let filtered = currentLevel === '全部' ? coaches : coaches.filter(c => c.level === currentLevel);
+      filtered = currentStatus === '全部' ? filtered : filtered.filter(c => c.status === currentStatus);
+      const grid = document.getElementById('coachGrid');
+      
+      if (filtered.length === 0) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:rgba(255,255,255,0.3)">暂无助教数据</div>';
+        return;
+      }
+      
+      grid.innerHTML = filtered.map(c => `
+        <div class="coach-card">
+          <img class="coach-avatar" src="${c.photos?.[0] || '/static/avatar-default.png'}" onerror="this.src='/static/avatar-default.png'">
+          <div class="coach-info">
+            <div class="coach-name">${c.stage_name || '-'} (${c.employee_id || '-'}号)</div>
+            <span class="coach-level">${c.level || '初级'}</span>
+            <span class="coach-status ${getStatusClass(c.status)}">${c.status || '全职'}</span>
+            <span class="coach-shift-badge">${c.shift || '早班'}</span>
+            <div class="coach-meta">
+              编号: ${c.coach_no} | 陪打价: ¥${c.price || 109}/小时 | 人气: <span style="color:#d4af37;font-weight:600">${c.popularity || 0}</span>
+            </div>
+            <div class="coach-actions">
+              <button class="btn btn-sm" onclick="editCoach(${c.coach_no})">编辑</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteCoach(${c.coach_no})" style="display:${c.status === '离职' ? 'inline-block' : 'none'}">删除</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    function showModal(no = null) {
+      editingNo = no;
+      editingPhotos = []; // 重置照片数据，防止新增时继承上次的值
+      document.getElementById('modalTitle').textContent = no ? '编辑助教' : '添加助教';
+      document.getElementById('formCoachNo').value = no || '(自动生成)';
+      document.getElementById('formEmployeeId').value = '';
+      document.getElementById('formStageName').value = '';
+      document.getElementById('formRealName').value = '';
+      document.getElementById('formPhone').value = '';
+      document.getElementById('formLevel').value = '初级';
+      document.getElementById('formPrice').value = '109';
+      document.getElementById('formShift').value = '早班';
+      document.getElementById('formStatus').value = '全职';
+      document.getElementById('modal').classList.add('show');
+    }
+    
+    function closeModal() { document.getElementById('modal').classList.remove('show'); }
+    
+    async function editCoach(no) {
+      const c = coaches.find(x => x.coach_no === no);
+      if (!c) return;
+      showModal(no);
+      document.getElementById('formEmployeeId').value = c.employee_id || '';
+      document.getElementById('formStageName').value = c.stage_name || '';
+      document.getElementById('formRealName').value = c.real_name || '';
+      document.getElementById('formPhone').value = c.phone || '';
+      document.getElementById('formLevel').value = c.level || '初级';
+      document.getElementById('formPrice').value = c.price || 109;
+      document.getElementById('formShift').value = c.shift || '早班';
+      document.getElementById('formStatus').value = c.status || '全职';
+      // 保存原有照片数据
+      editingPhotos = c.photos || [];
+    }
+    
+    async function saveCoach() {
+      const data = {
+        employeeId: document.getElementById('formEmployeeId').value,
+        stageName: document.getElementById('formStageName').value,
+        realName: document.getElementById('formRealName').value,
+        phone: document.getElementById('formPhone').value || null,
+        level: document.getElementById('formLevel').value,
+        price: parseFloat(document.getElementById('formPrice').value) || 109,
+        shift: document.getElementById('formShift').value,
+        status: document.getElementById('formStatus').value,
+        photos: editingPhotos // 保留原有照片
+      };
+      
+      if (!data.stageName) { showToast('请输入艺名'); return; }
+      if (!data.employeeId) { showToast('请输入工号'); return; }
+      if (data.price < 70) { showToast('陪打价不能低于70元'); return; }
+      
+      try {
+        if (editingNo) {
+          await api(`/api/admin/coaches/${editingNo}`, { method: 'PUT', body: JSON.stringify(data) });
+          showToast('更新成功');
+        } else {
+          await api('/api/admin/coaches', { method: 'POST', body: JSON.stringify(data) });
+          showToast('添加成功');
+        }
+        closeModal();
+        loadCoaches();
+      } catch (err) { showToast('操作失败'); }
+    }
+    
+    async function deleteCoach(no) {
+      if (!confirm('确定删除该助教吗？')) return;
+      try {
+        const result = await api(`/api/admin/coaches/${no}`, { method: 'DELETE' });
+        if (result.error) {
+          showToast(result.error);
+        } else {
+          showToast('删除成功');
+          loadCoaches();
+        }
+      } catch (err) { showToast('删除失败'); }
+    }
+    
+    loadCoaches();
+  </script>
+  <script src="nav-control.js"></script>
+  <script>
+    // 折叠菜单切换
+    function toggleGroup(el) {
+      el.parentElement.classList.toggle('open');
+    }
+
+    // ===== 批量修改班次 =====
+    const savingShifts = {}; // 记录正在保存中的教练号，防止重复提交
+
+    function checkHash() {
+      const hash = window.location.hash;
+      if (hash === '#batch-shift') {
+        document.getElementById('batchShiftView').style.display = 'block';
+        document.getElementById('mainView').style.display = 'none';
+        // 更新侧边栏激活状态
+        document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(item => {
+          if (item.getAttribute('href') === 'coaches.html#batch-shift') {
+            item.classList.add('active');
+          }
+        });
+        // 展开助教管理菜单
+        document.querySelectorAll('.nav-group').forEach(g => {
+          if (g.querySelector('a[href="coaches.html#batch-shift"]')) {
+            g.classList.add('open');
+          }
+        });
+        renderBatchShift();
+      } else {
+        document.getElementById('batchShiftView').style.display = 'none';
+        document.getElementById('mainView').style.display = 'block';
+      }
+    }
+
+    // 批量班次筛选状态
+    let batchLevelFilter = '全部';
+    let batchShiftFilter = '全部';
+
+    function renderBatchShift() {
+      const grid = document.getElementById('batchShiftGrid');
+      if (coaches.length === 0) {
+        grid.innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.3)">暂无助教数据</div>';
+        return;
+      }
+      renderBatchFilters();
+      // 筛选
+      let filtered = coaches;
+      if (batchLevelFilter !== '全部') filtered = filtered.filter(c => c.level === batchLevelFilter);
+      if (batchShiftFilter !== '全部') filtered = filtered.filter(c => (c.shift || '早班') === batchShiftFilter);
+      document.getElementById('batchCount').textContent = `显示 ${filtered.length} / ${coaches.length} 人`;
+      if (filtered.length === 0) {
+        grid.innerHTML = '<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.3)">没有符合条件的助教</div>';
+        return;
+      }
+      grid.innerHTML = filtered.map(c => {
+        const currentShift = c.shift || '早班';
+        return `
+          <div class="batch-shift-card" data-coach-no="${c.coach_no}">
+            <img class="batch-shift-avatar" src="${c.photos?.[0] || '/static/avatar-default.png'}" onerror="this.src='/static/avatar-default.png'">
+            <div class="batch-shift-info">
+              <div class="batch-shift-name">${c.stage_name || '-'} (${c.employee_id || '-'}号)</div>
+              <div class="batch-shift-id">编号: ${c.coach_no} | 等级: ${c.level || '初级'}</div>
+              <div class="shift-radio-group" data-coach-no="${c.coach_no}">
+                <label class="shift-radio-label ${currentShift === '早班' ? 'selected' : ''}" data-coach-no="${c.coach_no}" data-shift="早班">
+                  <input type="radio" name="shift-${c.coach_no}" value="早班" ${currentShift === '早班' ? 'checked' : ''}>
+                  ☀️ 早班
+                </label>
+                <label class="shift-radio-label ${currentShift === '晚班' ? 'selected' : ''}" data-coach-no="${c.coach_no}" data-shift="晚班">
+                  <input type="radio" name="shift-${c.coach_no}" value="晚班" ${currentShift === '晚班' ? 'checked' : ''}>
+                  🌙 晚班
+                </label>
+              </div>
+              <div class="batch-shift-save" id="save-indicator-${c.coach_no}">✓ 已保存</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function onShiftChange(coachNo, newShift) {
+      // 更新单选按钮的选中样式
+      const group = document.querySelector(`.shift-radio-group[data-coach-no="${coachNo}"]`);
+      if (group) {
+        group.querySelectorAll('.shift-radio-label').forEach(label => {
+          label.classList.toggle('selected', label.dataset.shift === newShift);
+        });
+      }
+      // 防止重复提交
+      if (savingShifts[coachNo]) return;
+      savingShifts[coachNo] = true;
+      const indicator = document.getElementById(`save-indicator-${coachNo}`);
+      if (indicator) {
+        indicator.textContent = '⏳ 保存中...';
+        indicator.style.color = '#f1c40f';
+        indicator.classList.add('show');
+      }
+      try {
+        // 使用专用班次修改API，只更新班次字段，不影响其他数据
+        const res = await api(`/api/admin/coaches/${coachNo}/shift`, {
+          method: 'PUT',
+          body: JSON.stringify({ shift: newShift })
+        });
+        if (res.error) {
+          throw new Error(res.error);
+        }
+        if (indicator) {
+          indicator.textContent = '✓ 已保存';
+          indicator.style.color = 'rgba(46,204,113,0.7)';
+          indicator.classList.add('show');
+          // 2秒后隐藏提示
+          setTimeout(() => indicator.classList.remove('show'), 2000);
+        }
+        showToast(`${newShift}已保存`);
+        // 更新本地数据
+        const coach = coaches.find(c => c.coach_no == coachNo);
+        if (coach) coach.shift = newShift;
+      } catch (err) {
+        if (indicator) {
+          indicator.textContent = '✗ 保存失败';
+          indicator.style.color = '#e74c3c';
+          indicator.classList.add('show');
+        }
+        showToast('保存失败，请重试');
+        // 恢复单选按钮到原值
+        const coach = coaches.find(c => c.coach_no == coachNo);
+        if (coach) {
+          const origShift = coach.shift || '早班';
+          group.querySelectorAll('input[type="radio"]').forEach(radio => {
+            radio.checked = radio.value === origShift;
+          });
+          group.querySelectorAll('.shift-radio-label').forEach(label => {
+            label.classList.toggle('selected', label.dataset.shift === origShift);
+          });
+        }
+      } finally {
+        savingShifts[coachNo] = false;
+      }
+    }
+
+    // 为单选按钮绑定事件（事件委托）
+    document.addEventListener('change', function(e) {
+      if (e.target.type === 'radio' && e.target.name && e.target.name.startsWith('shift-')) {
+        const coachNo = e.target.name.replace('shift-', '');
+        onShiftChange(coachNo, e.target.value);
+      }
+    });
+
+    function renderBatchFilters() {
+      // 等级筛选
+      const levels = ['全部', '网红', '女神', '高级', '中级', '初级'];
+      document.getElementById('batchLevelFilter').innerHTML = levels.map(l => {
+        const count = l === '全部' ? coaches.length : coaches.filter(c => c.level === l).length;
+        return `<button class="batch-filter-btn ${batchLevelFilter === l ? 'active' : ''}" onclick="setBatchLevelFilter('${l}')">${l} (${count})</button>`;
+      }).join('');
+      // 班次筛选
+      const shifts = ['全部', '早班', '晚班'];
+      document.getElementById('batchShiftFilter').innerHTML = shifts.map(s => {
+        const count = s === '全部' ? coaches.length : coaches.filter(c => (c.shift || '早班') === s).length;
+        return `<button class="batch-filter-btn ${batchShiftFilter === s ? 'active' : ''}" onclick="setBatchShiftFilter('${s}')">${s} (${count})</button>`;
+      }).join('');
+    }
+
+    function setBatchLevelFilter(level) {
+      batchLevelFilter = level;
+      renderBatchShift();
+    }
+
+    function setBatchShiftFilter(shift) {
+      batchShiftFilter = shift;
+      renderBatchShift();
+    }
+
+    function expandAllShifts() {
+      // 滚动到顶部
+      document.getElementById('batchShiftGrid').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // 监听 hash 变化
+    window.addEventListener('hashchange', checkHash);
+    // 页面加载时检查 hash
+    checkHash();
+</script>
+
+</body></html>

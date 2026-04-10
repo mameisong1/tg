@@ -1,0 +1,1089 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>水牌 - 天宫国际</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0f; font-family: 'PingFang SC', sans-serif; color: #fff; display: flex; min-height: 100vh; }
+    .sidebar { width: 220px; background: rgba(20,20,30,0.8); border-right: 1px solid rgba(218,165,32,0.1); padding: 20px 0; flex-shrink: 0; overflow-y: auto; height: 100vh; position: sticky; top: 0; }
+    .sidebar-logo { padding: 0 20px 30px; display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px; }
+    .sidebar-logo img { width: 32px; height: 32px; filter: sepia(60%) saturate(200%) hue-rotate(10deg); }
+    .sidebar-title { font-size: 16px; color: #d4af37; }
+    .sidebar-sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+    
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: rgba(255,255,255,0.6); text-decoration: none; font-size: 14px; transition: all 0.2s; }
+    .nav-item:hover, .nav-item.active { background: rgba(212,175,55,0.1); color: #d4af37; }
+    .nav-icon { font-size: 18px; }
+    
+    .nav-group { border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .nav-group-title { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px; color: rgba(255,255,255,0.6); font-size: 14px; cursor: pointer; transition: all 0.2s; }
+    .nav-group-title:hover { background: rgba(212,175,55,0.05); color: rgba(255,255,255,0.8); }
+    .nav-group-title .arrow { transition: transform 0.2s; font-size: 12px; }
+    .nav-group.open .nav-group-title .arrow { transform: rotate(180deg); }
+    .nav-group-title .group-icon { font-size: 18px; margin-right: 12px; }
+    .nav-group-title .group-text { flex: 1; }
+    .nav-submenu { display: none; background: rgba(0,0,0,0.2); }
+    .nav-group.open .nav-submenu { display: block; }
+    .nav-submenu .nav-item { padding-left: 48px; font-size: 13px; }
+    
+    .main { flex: 1; padding: 20px; overflow-y: auto; height: 100vh; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .page-title { font-size: 22px; }
+    .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; border: none; }
+    .btn-primary { background: linear-gradient(135deg, #d4af37 0%, #ffd700 100%); color: #000; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .toast { position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.9); padding: 12px 24px; border-radius: 8px; z-index: 1001; display: none; }
+    .toast.show { display: block; }
+
+    /* 状态分段 */
+    .status-section { display: flex; gap: 12px; margin-bottom: 12px; border: 2px solid rgba(218,165,32,0.15); border-radius: 12px; padding: 10px; min-height: 60px; transition: border-color 0.3s, background 0.3s; }
+    .status-section.drag-over { border-color: #d4af37; background: rgba(212,175,55,0.08); }
+    .section-header { display: flex; flex-direction: column; justify-content: center; align-items: center; min-width: 70px; padding-right: 12px; border-right: 1px solid rgba(255,255,255,0.1); gap: 2px; cursor: pointer; }
+    .section-header:hover .section-title { text-decoration: underline; }
+    .section-title { font-size: 14px; font-weight: 600; color: #d4af37; white-space: nowrap; }
+    .section-expand-icon { font-size: 13px; color: rgba(255,255,255,0.5); }
+    .section-content { flex: 1; }
+
+    /* 助教圆形卡片 */
+    .coach-chips { display: flex; flex-wrap: wrap; gap: 10px; max-height: 80px; overflow: hidden; align-items: flex-start; padding-bottom: 4px; -webkit-touch-callout: none; }
+    /* 早班空闲和晚班空闲显示两行 */
+    .status-section[data-status="早班空闲"] .coach-chips,
+    .status-section[data-status="晚班空闲"] .coach-chips { max-height: 170px; }
+    .coach-chip {
+      display: flex; flex-direction: column; align-items: center; width: 70px; padding: 6px 4px;
+      background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.15);
+      border-radius: 50%; cursor: grab; transition: transform 0.2s, box-shadow 0.2s;
+      user-select: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none;
+      -webkit-touch-callout: none; touch-action: manipulation; pointer-events: auto;
+    }
+    .coach-chip * { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; pointer-events: none; }
+    .coach-chip-avatar { -webkit-touch-callout: none; pointer-events: none; }
+    .coach-chip:hover { transform: scale(1.08); box-shadow: 0 0 15px rgba(212,175,55,0.3); }
+    .coach-chip-avatar {
+      width: 40px; height: 40px; border-radius: 50%; object-fit: cover;
+      border: 2px solid rgba(218,165,32,0.3); margin-bottom: 4px;
+    }
+    .coach-chip-id { font-size: 11px; color: #d4af37; font-weight: 600; }
+    .coach-chip-name { font-size: 11px; color: rgba(255,255,255,0.7); text-align: center; line-height: 1.1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 65px; }
+    .coach-chip-table { font-size: 8px; color: rgba(255,255,255,0.3); }
+
+    /* 状态颜色 */
+    .status-section[data-status="早班上桌"] { border-color: rgba(52,152,219,0.3); }
+    .status-section[data-status="早班空闲"] { border-color: rgba(46,204,113,0.3); background: rgba(255,255,255,0.18); }
+    .status-section[data-status="晚班上桌"] { border-color: rgba(155,89,182,0.3); }
+    .status-section[data-status="晚班空闲"] { border-color: rgba(241,196,15,0.3); background: rgba(255,255,255,0.18); }
+    .status-section[data-status="早加班"] { border-color: rgba(230,126,34,0.3); }
+    .status-section[data-status="晚加班"] { border-color: rgba(231,76,60,0.3); }
+    .status-section[data-status="休息"] { border-color: rgba(149,165,166,0.3); }
+    .status-section[data-status="公休"] { border-color: rgba(26,188,156,0.3); }
+    .status-section[data-status="请假"] { border-color: rgba(52,73,94,0.3); }
+    .status-section[data-status="乐捐"] { border-color: rgba(243,156,18,0.3); }
+    .status-section[data-status="下班"] { border-color: rgba(44,62,80,0.3); }
+
+    .status-section[data-status="早班上桌"] .section-title { color: #3498db; }
+    .status-section[data-status="早班空闲"] .section-title { color: #2ecc71; }
+    .status-section[data-status="晚班上桌"] .section-title { color: #9b59b6; }
+    .status-section[data-status="晚班空闲"] .section-title { color: #f1c40f; }
+    .status-section[data-status="早加班"] .section-title { color: #e67e22; }
+    .status-section[data-status="晚加班"] .section-title { color: #e74c3c; }
+    .status-section[data-status="休息"] .section-title { color: #95a5a6; }
+    .status-section[data-status="公休"] .section-title { color: #1abc9c; }
+    .status-section[data-status="请假"] .section-title { color: #7f8c8d; }
+    .status-section[data-status="乐捐"] .section-title { color: #f39c12; }
+    .status-section[data-status="下班"] .section-title { color: #bdc3c7; }
+
+    .empty-section { text-align: center; padding: 16px; color: rgba(255,255,255,0.15); font-size: 12px; }
+
+    /* 桌号输入弹窗 */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
+    .modal-overlay.show { display: flex; }
+    .modal-box { background: rgba(20,20,30,0.95); border-radius: 16px; padding: 24px; width: 90%; max-width: 380px; border: 1px solid rgba(218,165,32,0.3); }
+    .modal-box-title { font-size: 18px; color: #d4af37; margin-bottom: 16px; }
+    .modal-box-form { display: flex; flex-direction: column; gap: 12px; }
+    .modal-box-form label { font-size: 13px; color: rgba(255,255,255,0.6); }
+    .modal-box-form input, .modal-box-form select { padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; }
+    .modal-box-actions { display: flex; gap: 12px; margin-top: 20px; }
+    .modal-box-actions .btn { flex: 1; padding: 12px; border-radius: 8px; font-size: 14px; cursor: pointer; border: none; }
+    .btn-cancel { background: rgba(255,255,255,0.1); color: #fff; }
+    .btn-confirm { background: linear-gradient(135deg, #d4af37 0%, #ffd700 100%); color: #000; }
+
+    /* 全屏按钮样式 */
+    .fullscreen-btn { padding: 8px 16px; background: rgba(212,175,55,0.15); border: 1px solid rgba(212,175,55,0.3); border-radius: 8px; color: #d4af37; font-size: 13px; cursor: pointer; }
+    .fullscreen-btn:hover { background: rgba(212,175,55,0.25); }
+
+    /* 长按修改状态弹窗 */
+    .status-modal-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+    .status-modal-btn { padding: 10px 8px; border-radius: 8px; font-size: 12px; cursor: pointer; border: 1px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); color: #fff; transition: all 0.2s; }
+    .status-modal-btn:hover { background: rgba(212,175,55,0.2); border-color: #d4af37; }
+    .status-modal-btn.current { background: rgba(212,175,55,0.3); border-color: #d4af37; color: #d4af37; font-weight: 600; }
+
+    /* 分段放大弹窗 */
+    .section-expand-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 999; align-items: center; justify-content: center; }
+    .section-expand-overlay.show { display: flex; }
+    .section-expand-box { background: rgba(20,20,30,0.95); border-radius: 16px; padding: 24px; width: 90%; max-width: 800px; max-height: 80vh; overflow-y: auto; border: 2px solid rgba(218,165,55,0.3); }
+    .section-expand-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .section-expand-title { font-size: 18px; font-weight: 600; }
+    .section-expand-count { font-size: 13px; color: rgba(255,255,255,0.4); }
+    .section-expand-box .coach-chips { max-height: none; }
+    .section-expand-box .coach-chip { width: 100px; padding: 10px 6px; }
+    .section-expand-box .coach-chip-avatar { width: 56px; height: 56px; margin-bottom: 6px; }
+    .section-expand-box .coach-chip-id { font-size: 11px; }
+    .section-expand-box .coach-chip-name { font-size: 11px; max-width: 90px; }
+    .section-expand-box .coach-chip-table { font-size: 10px; }
+  </style>
+</head>
+<body oncontextmenu="return false">
+  <div class="sidebar" style="display: none;">
+    <div class="sidebar-logo">
+      <img src="/images/logo.png" alt="Logo">
+      <div>
+        <div class="sidebar-title">天宫国际</div>
+        <div class="sidebar-sub">后台管理系统</div>
+      </div>
+    </div>
+    
+    <a href="index.html" class="nav-item"><span class="nav-icon">📊</span> 数据概览</a>
+
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">🏠</span><span class="group-text">前厅</span><span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="cashier-dashboard.html" class="nav-item"><span class="nav-icon">💰</span> 收银看板</a>
+        <a href="products.html" class="nav-item"><span class="nav-icon">📦</span> 商品管理</a>
+        <a href="vip-rooms.html" class="nav-item"><span class="nav-icon">🛋️</span> 包房管理</a>
+        <a href="tables.html" class="nav-item"><span class="nav-icon">🎱</span> 台桌管理</a>
+        <a href="categories.html" class="nav-item"><span class="nav-icon">🏷️</span> 商品分类</a>
+      </div>
+    </div>
+
+    <div class="nav-group open">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">👩‍🏫</span><span class="group-text">助教管理</span><span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="coaches.html" class="nav-item"><span class="nav-icon">👩</span> 助教列表</a>
+        <a href="coaches.html#batch-shift" class="nav-item"><span class="nav-icon">🔄</span> 批量更新班次</a>
+        <a href="water-boards.html" class="nav-item active"><span class="nav-icon">📋</span> 水牌</a>
+        <a href="invitation-review.html?shift=early" class="nav-item"><span class="nav-icon">☀️</span> 早班约客</a>
+        <a href="invitation-review.html?shift=late" class="nav-item"><span class="nav-icon">🌙</span> 晚班约客</a>
+      </div>
+    </div>
+
+    <a href="operation-logs.html" class="nav-item"><span class="nav-icon">📜</span> 操作日志</a>
+    
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">⚙️</span><span class="group-text">配置</span><span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="home.html" class="nav-item"><span class="nav-icon">🏠</span> 首页配置</a>
+        <a href="users.html" class="nav-item"><span class="nav-icon">👥</span> 用户管理</a>
+        <a href="settings.html" class="nav-item"><span class="nav-icon">🛡️</span> 系统配置</a>
+      </div>
+    </div>
+    </div>
+  
+  
+  <div class="main">
+    <div class="page-header">
+      <div class="page-title">📋 水牌</div>
+      <div style="display:flex;gap:12px;align-items:center;">
+        <button class="fullscreen-btn" id="fullscreenBtn" onclick="toggleFullscreen()">🖥️ 退出全屏</button>
+        <button class="fullscreen-btn" onclick="refreshData()">🔄 刷新</button>
+      </div>
+    </div>
+    
+    <div id="statusSections">
+          <div class="status-section" data-status="早班上桌">
+            <div class="section-header" onclick="showSectionExpand('早班上桌')">
+              <span class="section-title">早班上桌</span>
+              <span class="section-expand-icon">⛶ 16</span>
+            </div>
+            <div class="section-content">
+              <div class="coach-chips">
+                
+                    <div class="coach-chip" data-coach-no="10007" ontouchstart="handleLongPressStart(event, '10007')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10007')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061940527158.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">7</span>
+                      <span class="coach-chip-name">小月</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10013" ontouchstart="handleLongPressStart(event, '10013')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10013')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061942054156.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">16</span>
+                      <span class="coach-chip-name">雪梨</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10017" ontouchstart="handleLongPressStart(event, '10017')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10017')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061941157249.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">20</span>
+                      <span class="coach-chip-name">恩恩</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10018" ontouchstart="handleLongPressStart(event, '10018')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10018')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061956318019.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">21</span>
+                      <span class="coach-chip-name">球球</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10020" ontouchstart="handleLongPressStart(event, '10020')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10020')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061945002650.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">23</span>
+                      <span class="coach-chip-name">小土豆</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10027" ontouchstart="handleLongPressStart(event, '10027')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10027')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061941445468.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">31</span>
+                      <span class="coach-chip-name">小涵</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10028" ontouchstart="handleLongPressStart(event, '10028')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10028')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061942453239.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">33</span>
+                      <span class="coach-chip-name">晴天</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10032" ontouchstart="handleLongPressStart(event, '10032')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10032')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774454428463_268bdaff.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">37</span>
+                      <span class="coach-chip-name">三七</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10033" ontouchstart="handleLongPressStart(event, '10033')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10033')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061942212058.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">39</span>
+                      <span class="coach-chip-name">饼饼</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10037" ontouchstart="handleLongPressStart(event, '10037')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10037')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774524710706_9d6ae041.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">50</span>
+                      <span class="coach-chip-name">禾子</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10059" ontouchstart="handleLongPressStart(event, '10059')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10059')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/40b00aL9HkKxKvVe.jpg?x-oss-process=image/format,jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">60</span>
+                      <span class="coach-chip-name">诗雨</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10064" ontouchstart="handleLongPressStart(event, '10064')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10064')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/pic/D24KXM6G3tr3Bb5c.jpg?x-oss-process=image/format,jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">85</span>
+                      <span class="coach-chip-name">小涵</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10066" ontouchstart="handleLongPressStart(event, '10066')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10066')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/40b00aL9HkKxKvVe.jpg?x-oss-process=image/format,jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">32</span>
+                      <span class="coach-chip-name">梦辰</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10072" ontouchstart="handleLongPressStart(event, '10072')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10072')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774608707740_34a52e90.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">88</span>
+                      <span class="coach-chip-name">莲宝</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10073" ontouchstart="handleLongPressStart(event, '10073')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10073')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774608600630_991dbb27.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">26</span>
+                      <span class="coach-chip-name">安娜</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10078" ontouchstart="handleLongPressStart(event, '10078')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10078')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1775389871680_ebb10f93.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">61</span>
+                      <span class="coach-chip-name">小茹</span>
+                      
+                    </div>
+                  
+              </div>
+            </div>
+          </div>
+        
+          <div class="status-section" data-status="早班空闲">
+            <div class="section-header" onclick="showSectionExpand('早班空闲')">
+              <span class="section-title">早班空闲</span>
+              <span class="section-expand-icon">⛶ 14</span>
+            </div>
+            <div class="section-content">
+              <div class="coach-chips">
+                
+                    <div class="coach-chip" data-coach-no="10021" ontouchstart="handleLongPressStart(event, '10021')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10021')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061943271259.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">25</span>
+                      <span class="coach-chip-name">周周</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10022" ontouchstart="handleLongPressStart(event, '10022')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10022')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774451950385_4be6f62e.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">100</span>
+                      <span class="coach-chip-name">四瑶</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10023" ontouchstart="handleLongPressStart(event, '10023')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10023')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061946193843.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">27</span>
+                      <span class="coach-chip-name">小白</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10024" ontouchstart="handleLongPressStart(event, '10024')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10024')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061955528527.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">28</span>
+                      <span class="coach-chip-name">逍遥</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10025" ontouchstart="handleLongPressStart(event, '10025')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10025')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061942368916.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">29</span>
+                      <span class="coach-chip-name">青子</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10030" ontouchstart="handleLongPressStart(event, '10030')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10030')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774458344256_e40db519.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">35</span>
+                      <span class="coach-chip-name">多多</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10036" ontouchstart="handleLongPressStart(event, '10036')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10036')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774610303469_78e83602.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">49</span>
+                      <span class="coach-chip-name">快乐</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10038" ontouchstart="handleLongPressStart(event, '10038')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10038')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774451415019_5c67b9a3.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">52</span>
+                      <span class="coach-chip-name">露露</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10039" ontouchstart="handleLongPressStart(event, '10039')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10039')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061942527102.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">69</span>
+                      <span class="coach-chip-name">六九</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10060" ontouchstart="handleLongPressStart(event, '10060')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10060')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774704947500_58aee779.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">77</span>
+                      <span class="coach-chip-name">7k</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10065" ontouchstart="handleLongPressStart(event, '10065')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10065')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/40b00aL9HkKxKvVe.jpg?x-oss-process=image/format,jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">86</span>
+                      <span class="coach-chip-name">多多</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10069" ontouchstart="handleLongPressStart(event, '10069')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10069')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/avatar/40b00aL9HkKxKvVe.jpg?x-oss-process=image/format,jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">66</span>
+                      <span class="coach-chip-name">小晴</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10070" ontouchstart="handleLongPressStart(event, '10070')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10070')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774453302421_327fdb76.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">68</span>
+                      <span class="coach-chip-name">kimi</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10074" ontouchstart="handleLongPressStart(event, '10074')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10074')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="/static/avatar-default.png" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">26</span>
+                      <span class="coach-chip-name">晚晚</span>
+                      
+                    </div>
+                  
+              </div>
+            </div>
+          </div>
+        
+          <div class="status-section" data-status="晚班上桌">
+            <div class="section-header" onclick="showSectionExpand('晚班上桌')">
+              <span class="section-title">晚班上桌</span>
+              <span class="section-expand-icon">⛶ 2</span>
+            </div>
+            <div class="section-content">
+              <div class="coach-chips">
+                
+                    <div class="coach-chip" data-coach-no="10010" ontouchstart="handleLongPressStart(event, '10010')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10010')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061911545518.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">11</span>
+                      <span class="coach-chip-name"> 小怡</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10011" ontouchstart="handleLongPressStart(event, '10011')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10011')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061943206462.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">12</span>
+                      <span class="coach-chip-name">十七</span>
+                      
+                    </div>
+                  
+              </div>
+            </div>
+          </div>
+        
+          <div class="status-section" data-status="晚班空闲">
+            <div class="section-header" onclick="showSectionExpand('晚班空闲')">
+              <span class="section-title">晚班空闲</span>
+              <span class="section-expand-icon">⛶ 5</span>
+            </div>
+            <div class="section-content">
+              <div class="coach-chips">
+                
+                    <div class="coach-chip" data-coach-no="10001" ontouchstart="handleLongPressStart(event, '10001')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10001')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774512156393_71b17482.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">1</span>
+                      <span class="coach-chip-name">歪歪</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10005" ontouchstart="handleLongPressStart(event, '10005')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10005')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774608151790_f8330c95.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">5</span>
+                      <span class="coach-chip-name">芝芝</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10014" ontouchstart="handleLongPressStart(event, '10014')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10014')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774354392549_db4a5c66.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">17</span>
+                      <span class="coach-chip-name">静香</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10016" ontouchstart="handleLongPressStart(event, '10016')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10016')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061944168596.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">19</span>
+                      <span class="coach-chip-name">茜茜</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10026" ontouchstart="handleLongPressStart(event, '10026')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10026')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774609992738_5969fb3b.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">30</span>
+                      <span class="coach-chip-name">江江</span>
+                      
+                    </div>
+                  
+              </div>
+            </div>
+          </div>
+        
+          <div class="status-section" data-status="早加班">
+            <div class="section-header" onclick="showSectionExpand('早加班')">
+              <span class="section-title">早加班</span>
+              <span class="section-expand-icon">⛶ 3</span>
+            </div>
+            <div class="section-content">
+              <div class="coach-chips">
+                
+                    <div class="coach-chip" data-coach-no="10031" ontouchstart="handleLongPressStart(event, '10031')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10031')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061943145562.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">36</span>
+                      <span class="coach-chip-name">芊芊</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10035" ontouchstart="handleLongPressStart(event, '10035')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10035')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061945075225.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">42</span>
+                      <span class="coach-chip-name">晓墨</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10040" ontouchstart="handleLongPressStart(event, '10040')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10040')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774270487079_32d808e7.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">999</span>
+                      <span class="coach-chip-name">豆豆</span>
+                      
+                    </div>
+                  
+              </div>
+            </div>
+          </div>
+        
+          <div class="status-section" data-status="晚加班">
+            <div class="section-header" onclick="showSectionExpand('晚加班')">
+              <span class="section-title">晚加班</span>
+              <span class="section-expand-icon">⛶ 1</span>
+            </div>
+            <div class="section-content">
+              <div class="coach-chips">
+                
+                    <div class="coach-chip" data-coach-no="10015" ontouchstart="handleLongPressStart(event, '10015')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10015')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061941521516.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">18</span>
+                      <span class="coach-chip-name">莫莫</span>
+                      
+                    </div>
+                  
+              </div>
+            </div>
+          </div>
+        
+          <div class="status-section" data-status="休息">
+            <div class="section-header" onclick="showSectionExpand('休息')">
+              <span class="section-title">休息</span>
+              <span class="section-expand-icon">⛶ 2</span>
+            </div>
+            <div class="section-content">
+              <div class="coach-chips">
+                
+                    <div class="coach-chip" data-coach-no="10034" ontouchstart="handleLongPressStart(event, '10034')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10034')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061956042449.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">40</span>
+                      <span class="coach-chip-name">羊羊</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10080" ontouchstart="handleLongPressStart(event, '10080')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10080')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1775391482937_5fb2e103.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">70</span>
+                      <span class="coach-chip-name">kiki</span>
+                      
+                    </div>
+                  
+              </div>
+            </div>
+          </div>
+        
+          <div class="status-section" data-status="公休">
+            <div class="section-header" onclick="showSectionExpand('公休')">
+              <span class="section-title">公休</span>
+              <span class="section-expand-icon">⛶ 3</span>
+            </div>
+            <div class="section-content">
+              <div class="coach-chips">
+                
+                    <div class="coach-chip" data-coach-no="10009" ontouchstart="handleLongPressStart(event, '10009')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10009')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061942596815.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">10</span>
+                      <span class="coach-chip-name">momo</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10075" ontouchstart="handleLongPressStart(event, '10075')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10075')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1775389292471_93c79d9f.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">87</span>
+                      <span class="coach-chip-name">寒寒</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10082" ontouchstart="handleLongPressStart(event, '10082')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10082')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="/static/avatar-default.png" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">57</span>
+                      <span class="coach-chip-name">敏儿</span>
+                      
+                    </div>
+                  
+              </div>
+            </div>
+          </div>
+        
+          <div class="status-section" data-status="请假">
+            <div class="section-header" onclick="showSectionExpand('请假')">
+              <span class="section-title">请假</span>
+              <span class="section-expand-icon">⛶ 3</span>
+            </div>
+            <div class="section-content">
+              <div class="coach-chips">
+                
+                    <div class="coach-chip" data-coach-no="10003" ontouchstart="handleLongPressStart(event, '10003')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10003')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061944406975.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">3</span>
+                      <span class="coach-chip-name">六六</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10012" ontouchstart="handleLongPressStart(event, '10012')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10012')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1774608944624_155c6abf.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">15</span>
+                      <span class="coach-chip-name">柳柳</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10077" ontouchstart="handleLongPressStart(event, '10077')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10077')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="/static/avatar-default.png" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">90</span>
+                      <span class="coach-chip-name">MS</span>
+                      
+                    </div>
+                  
+              </div>
+            </div>
+          </div>
+        
+          <div class="status-section" data-status="乐捐">
+            <div class="section-header" onclick="showSectionExpand('乐捐')">
+              <span class="section-title">乐捐</span>
+              <span class="section-expand-icon">⛶ 3</span>
+            </div>
+            <div class="section-content">
+              <div class="coach-chips">
+                
+                    <div class="coach-chip" data-coach-no="10002" ontouchstart="handleLongPressStart(event, '10002')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10002')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061941314818.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">2</span>
+                      <span class="coach-chip-name">陆飞</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10008" ontouchstart="handleLongPressStart(event, '10008')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10008')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://hui-shang.oss-cn-hangzhou.aliyuncs.com/online/file/product/202603061956253735.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">8</span>
+                      <span class="coach-chip-name">小雨</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10079" ontouchstart="handleLongPressStart(event, '10079')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10079')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="/static/avatar-default.png" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">13</span>
+                      <span class="coach-chip-name">文婷</span>
+                      
+                    </div>
+                  
+              </div>
+            </div>
+          </div>
+        
+          <div class="status-section" data-status="下班">
+            <div class="section-header" onclick="showSectionExpand('下班')">
+              <span class="section-title">下班</span>
+              <span class="section-expand-icon">⛶ 2</span>
+            </div>
+            <div class="section-content">
+              <div class="coach-chips">
+                
+                    <div class="coach-chip" data-coach-no="10056" ontouchstart="handleLongPressStart(event, '10056')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10056')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="https://resource-images-sh.oss-cn-shanghai.aliyuncs.com/coaches/1775078965647_3c05aa31.jpg" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">99</span>
+                      <span class="coach-chip-name">逍遥</span>
+                      
+                    </div>
+                  
+                    <div class="coach-chip" data-coach-no="10083" ontouchstart="handleLongPressStart(event, '10083')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)" onmousedown="handleLongPressStart(event, '10083')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)" oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="/static/avatar-default.png" draggable="false" onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">80</span>
+                      <span class="coach-chip-name">AA</span>
+                      
+                    </div>
+                  
+              </div>
+            </div>
+          </div>
+        </div>
+  </div>
+  
+  <div class="toast" id="toast"></div>
+  
+  <!-- 长按修改状态弹窗 -->
+  <div class="modal-overlay" id="statusChangeModal">
+    <div class="modal-box">
+      <div class="modal-box-title">🔄 修改水牌状态</div>
+      <div id="statusChangeCoachInfo" style="font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:8px"></div>
+      <div class="status-modal-grid" id="statusChangeGrid"></div>
+      <div class="modal-box-actions" style="margin-top:16px">
+        <button class="btn btn-cancel" onclick="closeStatusChangeModal()">取消</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 分段放大弹窗 -->
+  <div class="section-expand-overlay" id="sectionExpandOverlay">
+    <div class="section-expand-box">
+      <div class="section-expand-header">
+        <span class="section-expand-title" id="sectionExpandTitle"></span>
+        <span class="section-expand-count" id="sectionExpandCount"></span>
+      </div>
+      <div class="coach-chips" id="sectionExpandChips"></div>
+    </div>
+  </div>
+  
+  <script>
+    const token = localStorage.getItem('adminToken');
+    if (!token) window.location.href = 'login.html';
+    
+    const STATUS_LIST = [
+      '早班上桌', '早班空闲', '晚班上桌', '晚班空闲',
+      '早加班', '晚加班', '休息', '公休', '请假', '乐捐', '下班'
+    ];
+    
+    let allData = [];
+    
+    async function api(url, options = {}) {
+      options.headers = { ...options.headers, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+      const res = await fetch(url, options);
+      if (res.status === 401) { localStorage.removeItem('adminToken'); window.location.href = 'login.html'; }
+      return res.json();
+    }
+    
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3000);
+    }
+    
+    // 全屏切换
+    function toggleFullscreen() {
+      const sidebar = document.querySelector('.sidebar');
+      const btn = document.getElementById('fullscreenBtn');
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().then(() => {
+          sidebar.style.display = 'none';
+          btn.textContent = '🖥️ 退出全屏';
+        }).catch(() => {
+          sidebar.style.display = 'none';
+          btn.textContent = '🖥️ 退出全屏';
+        });
+      } else {
+        document.exitFullscreen().then(() => {
+          sidebar.style.display = '';
+          btn.textContent = '🖥️ 全屏';
+        }).catch(() => {
+          sidebar.style.display = '';
+          btn.textContent = '🖥️ 全屏';
+        });
+      }
+    }
+
+    // 监听全屏状态变化（用户按 ESC 退出全屏时）
+    document.addEventListener('fullscreenchange', () => {
+      const sidebar = document.querySelector('.sidebar');
+      const btn = document.getElementById('fullscreenBtn');
+      if (!document.fullscreenElement) {
+        sidebar.style.display = '';
+        btn.textContent = '🖥️ 全屏';
+      }
+    });
+    
+    async function refreshData() {
+      try {
+        const res = await api('/api/water-boards');
+        if (res.success) {
+          allData = res.data;
+          renderSections();
+        } else {
+          showToast('获取水牌数据失败');
+        }
+      } catch (e) {
+        showToast('获取数据失败: ' + e.message);
+      }
+    }
+    
+    function renderSections() {
+      const container = document.getElementById('statusSections');
+      
+      // 按状态分组
+      const groups = {};
+      STATUS_LIST.forEach(s => { groups[s] = []; });
+      allData.forEach(item => {
+        if (groups[item.status]) {
+          groups[item.status].push(item);
+        } else {
+          groups[item.status] = [item];
+        }
+      });
+      
+      let html = '';
+      STATUS_LIST.forEach(status => {
+        const coaches = groups[status] || [];
+        html += `
+          <div class="status-section" data-status="${status}">
+            <div class="section-header" onclick="showSectionExpand('${status}')">
+              <span class="section-title">${status}</span>
+              <span class="section-expand-icon">⛶ ${coaches.length}</span>
+            </div>
+            <div class="section-content">
+              <div class="coach-chips">
+                ${coaches.length === 0 ? '<div class="empty-section">暂无</div>' :
+                  coaches.map(c => {
+                    const eid = c.employee_id || c.coach_no;
+                    const avatar = (c.photos && c.photos.length > 0) ? c.photos[0] : '/static/avatar-default.png';
+                    return `
+                    <div class="coach-chip" data-coach-no="${c.coach_no}"
+                         ontouchstart="handleLongPressStart(event, '${c.coach_no}')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)"
+                         onmousedown="handleLongPressStart(event, '${c.coach_no}')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)"
+                         oncontextmenu="return false">
+                      <img class="coach-chip-avatar" src="${avatar}" draggable="false"
+                           onerror="this.src='/static/avatar-default.png'" oncontextmenu="return false">
+                      <span class="coach-chip-id">${eid}</span>
+                      <span class="coach-chip-name">${c.stage_name}</span>
+                      ${c.table_no ? `<span class="coach-chip-table">${c.table_no}</span>` : ''}
+                    </div>
+                  `}).join('')
+                }
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      
+      container.innerHTML = html;
+    }
+    
+    // ===== 长按功能 =====
+    let longPressTimer = null;
+    let startX, startY;
+    const LONG_PRESS_DURATION = 500; // 500ms长按阈值
+    const MOVE_THRESHOLD = 10; // 移动10px视为拖动
+    let currentCoachNo = null; // 当前长按的助教工号
+    
+    // ===== 镙按功能 =====
+    function handleLongPressStart(e, coachNo) {
+      // 阻止默认的长按菜单（右键菜单、iOS长按菜单等）
+      e.preventDefault();
+      e.stopPropagation();
+      
+      startX = e.touches ? e.touches[0].clientX : e.clientX;
+      startY = e.touches ? e.touches[0].clientY : e.clientY;
+      
+      longPressTimer = setTimeout(() => {
+        showStatusChangeModal(coachNo);
+      }, LONG_PRESS_DURATION);
+    }
+    
+    function handleLongPressEnd(e) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+    
+    // 检测移动，如果移动超过阈值则取消长按
+    function handleTouchMove(e) {
+      if (!longPressTimer) return;
+      
+      const moveX = e.touches ? e.touches[0].clientX : e.clientX;
+      const moveY = e.touches ? e.touches[0].clientY : e.clientY;
+      
+      if (Math.abs(moveX - startX) > MOVE_THRESHOLD || 
+          Math.abs(moveY - startY) > MOVE_THRESHOLD) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+        longPressFired = false;
+      }
+    }
+    
+    // ===== 状态修改弹窗 =====
+    // 简化状态按钮列表（上桌/空闲/加班根据班次自动判断）
+    const SIMPLE_STATUS_LIST = ['上桌', '空闲', '加班', '休息', '公休', '请假', '乐捐', '下班'];
+    
+    // 根据班次和简化状态获取实际状态
+    function getActualStatus(simpleStatus, shift) {
+      const shiftPrefix = shift === '晚班' ? '晚班' : '早班';
+      switch (simpleStatus) {
+        case '上桌': return shiftPrefix + '上桌';
+        case '空闲': return shiftPrefix + '空闲';
+        case '加班': return shiftPrefix === '早班' ? '早加班' : '晚加班';
+        default: return simpleStatus;
+      }
+    }
+    
+    // 获取当前助教的简化状态显示名
+    function getSimpleStatusDisplay(actualStatus) {
+      if (actualStatus === '早班上桌' || actualStatus === '晚班上桌') return '上桌';
+      if (actualStatus === '早班空闲' || actualStatus === '晚班空闲') return '空闲';
+      if (actualStatus === '早加班' || actualStatus === '晚加班') return '加班';
+      return actualStatus;
+    }
+    
+    function showStatusChangeModal(coachNo) {
+      currentCoachNo = coachNo;
+      const coach = allData.find(c => c.coach_no === coachNo);
+      if (!coach) return;
+      
+      const eid = coach.employee_id || coach.coach_no;
+      const shift = coach.shift || '早班';
+      document.getElementById('statusChangeCoachInfo').textContent = 
+        `工号${eid} - ${coach.stage_name} (${shift})`;
+      
+      // 生成简化状态按钮
+      const currentSimpleStatus = getSimpleStatusDisplay(coach.status);
+      const grid = document.getElementById('statusChangeGrid');
+      grid.innerHTML = SIMPLE_STATUS_LIST.map(status => `
+        <button class="status-modal-btn ${currentSimpleStatus === status ? 'current' : ''}"
+                onclick="changeStatus('${status}')">${status}</button>
+      `).join('');
+      
+      document.getElementById('statusChangeModal').style.display = 'flex';
+    }
+    
+    function closeStatusChangeModal() {
+      document.getElementById('statusChangeModal').style.display = 'none';
+      currentCoachNo = null;
+    }
+    
+    async function changeStatus(simpleStatus) {
+      if (!currentCoachNo) return;
+      
+      const coach = allData.find(c => c.coach_no === currentCoachNo);
+      if (!coach) return;
+      
+      // 根据班次获取实际状态
+      const actualStatus = getActualStatus(simpleStatus, coach.shift);
+      
+      try {
+        const res = await api(`/api/water-boards/${currentCoachNo}/status`, {
+          method: 'PUT',
+          body: JSON.stringify({ status: actualStatus, table_no: coach.table_no || null })
+        });
+        
+        if (res.success) {
+          showToast(`${coach.stage_name}: ${coach.status} → ${actualStatus}`);
+          closeStatusChangeModal();
+          refreshData();
+        } else {
+          showToast(res.error || '更新失败');
+        }
+      } catch (err) {
+        showToast('修改状态失败: ' + err.message);
+      }
+    }
+    
+    async function updateWaterBoardStatus(coach, oldStatus, newStatus, tableNo) {
+      try {
+        const res = await api(`/api/water-boards/${coach.coach_no}/status`, {
+          method: 'PUT',
+          body: JSON.stringify({ status: newStatus, table_no: tableNo })
+        });
+        
+        if (res.success) {
+          showToast(`${coach.stage_name}: ${oldStatus} → ${newStatus}`);
+          refreshData();
+        } else {
+          showToast(res.error || '更新失败');
+        }
+      } catch (err) {
+        showToast('更新失败: ' + err.message);
+      }
+    }
+    
+    function logout() {
+      localStorage.removeItem('adminToken');
+      window.location.href = 'login.html';
+    }
+    
+    function toggleGroup(el) {
+      el.parentElement.classList.toggle('open');
+    }
+    
+    // ===== 分段放大功能 =====
+    // 点击分段标题放大显示
+    // 显示放大弹窗
+    function showSectionExpand(status) {
+      const coaches = allData.filter(c => c.status === status);
+      // 获取状态对应的颜色
+      const colorMap = {
+        '早班上桌': '#3498db', '早班空闲': '#2ecc71', '晚班上桌': '#9b59b6', '晚班空闲': '#f1c40f',
+        '早加班': '#e67e22', '晚加班': '#e74c3c', '休息': '#95a5a6', '公休': '#1abc9c',
+        '请假': '#7f8c8d', '乐捐': '#f39c12', '下班': '#bdc3c7'
+      };
+      
+      document.getElementById('sectionExpandTitle').textContent = status;
+      document.getElementById('sectionExpandTitle').style.color = colorMap[status] || '#d4af37';
+      document.getElementById('sectionExpandCount').textContent = `${coaches.length}人`;
+      
+      // 生成助教卡片
+      const chips = document.getElementById('sectionExpandChips');
+      chips.innerHTML = coaches.map(c => {
+        const eid = c.employee_id || c.coach_no;
+        const avatar = (c.photos && c.photos.length > 0) ? c.photos[0] : '/static/avatar-default.png';
+        return `
+          <div class="coach-chip" draggable="true" data-coach-no="${c.coach_no}"
+               ondragstart="handleDragStart(event, '${c.coach_no}')" ondragend="handleDragEnd(event)"
+               ontouchstart="handleLongPressStart(event, '${c.coach_no}')" ontouchend="handleLongPressEnd(event)" ontouchmove="handleTouchMove(event)"
+               onmousedown="handleLongPressStart(event, '${c.coach_no}')" onmouseup="handleLongPressEnd(event)" onmouseleave="handleLongPressEnd(event)"
+               oncontextmenu="return false">
+            <img class="coach-chip-avatar" src="${avatar}" draggable="false" oncontextmenu="return false"
+                 onerror="this.src='/static/avatar-default.png'">
+            <span class="coach-chip-id">${eid}</span>
+            <span class="coach-chip-name">${c.stage_name}</span>
+            ${c.table_no ? `<span class="coach-chip-table">${c.table_no}</span>` : ''}
+          </div>
+        `;
+      }).join('') || '<div class="empty-section">暂无</div>';
+      
+      document.getElementById('sectionExpandOverlay').classList.add('show');
+    }
+    
+    // 点击空白处关闭放大弹窗
+    document.getElementById('sectionExpandOverlay').addEventListener('click', (e) => {
+      if (e.target.id === 'sectionExpandOverlay') {
+        e.target.classList.remove('show');
+      }
+    });
+    
+    refreshData();
+    
+    // ===== 全局阻止长按菜单（鸿蒙系统兼容） =====
+    // 在 capture 阶段捕获并阻止 contextmenu
+    document.addEventListener('contextmenu', function(e) {
+      const target = e.target;
+      const chip = target.closest('.coach-chip');
+      if (chip) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return false;
+      }
+    }, true); // capture 阶段
+    
+    // 阻止文本选择
+    document.addEventListener('selectstart', function(e) {
+      const chip = e.target.closest('.coach-chip');
+      if (chip) {
+        e.preventDefault();
+        return false;
+      }
+    }, true);
+    
+    // 阻止拖拽
+    document.addEventListener('dragstart', function(e) {
+      const chip = e.target.closest('.coach-chip');
+      if (chip && e.target.tagName === 'IMG') {
+        e.preventDefault();
+        return false;
+      }
+    }, true);
+    
+    // 页面进入时自动全屏
+    setTimeout(() => {
+      toggleFullscreen();
+    }, 300);
+  </script>
+  <script src="nav-control.js"></script>
+
+
+</body></html>

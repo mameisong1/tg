@@ -89,6 +89,12 @@ export const guestInvitations = {
   getList: (params) => request({ url: '/guest-invitations', data: params }),
   // 审查约客记录
   review: (id, data) => request({ url: `/guest-invitations/${id}/review`, method: 'PUT', data }),
+  // 锁定应约客人员（开始审查）
+  lockShouldInvite: (data) => request({ url: '/guest-invitations/lock-should-invite', method: 'POST', data }),
+  // 检查是否已锁定（内存变量）
+  checkLock: (params) => request({ url: '/guest-invitations/check-lock', data: params }),
+  // 获取应约客人员列表
+  getShouldInvite: (params) => request({ url: '/guest-invitations/should-invite', data: params }),
   // 生成约客统计
   generateStats: (data) => request({ url: '/guest-invitations/statistics', method: 'POST', data }),
   // 获取约客统计结果
