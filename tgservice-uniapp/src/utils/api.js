@@ -138,41 +138,47 @@ export default {
   // OSS签名
   getOSSSignature: (type = 'image', ext = 'jpg') => request({ url: `/oss/sts?type=${type}&ext=${ext}` }),
   
-  // 上传图片到OSS（通过后端代理，解决PUT方法不兼容问题）
-  uploadImageToOSS: (filePath, fileType = 'image') => {
-    return new Promise((resolve, reject) => {
-      const token = uni.getStorageSync('coachToken') || uni.getStorageSync('memberToken')
-      uni.uploadFile({
-        url: BASE_URL + '/oss/upload',
-        filePath: filePath,
-        name: 'file',
-        formData: { type: fileType },
-        header: {
-          'Authorization': token ? `Bearer ${token}` : ''
-        },
-        success: (res) => {
-          if (res.statusCode === 200) {
-            try {
-              const data = JSON.parse(res.data)
-              resolve(data)
-            } catch (e) {
-              reject({ error: '解析响应失败' })
+  // 上传图片到OSS（使用签名URL直传）
+  uploadImageToOSS: async (filePath, fileType = 'image') => {
+    try {
+      // 1. 获取签名URL
+      const signRes = await exports.getOSSSignature(fileType, 'jpg')
+      if (!signRes.success || !signRes.uploadUrl) {
+        return { error: '获取签名失败' }
+      }
+      
+      // 2. 读取文件内容
+      const fileInfo = await uni.getFileInfo({ filePath })
+      const fileData = await uni.readFile({ filePath, encoding: 'base64' })
+      
+      // 3. 用签名URL直接PUT上传
+      const uploadRes = await new Promise((resolve, reject) => {
+        uni.request({
+          url: signRes.uploadUrl,
+          method: 'PUT',
+          data: fileData.data,
+          header: {
+            'Content-Type': 'image/jpeg'
+          },
+          success: (res) => {
+            if (res.statusCode === 200) {
+              resolve({ success: true })
+            } else {
+              reject({ error: `上传失败: ${res.statusCode}` })
             }
-          } else {
-            try {
-              reject(JSON.parse(res.data))
-            } catch (e) {
-              reject({ error: '上传失败' })
-            }
+          },
+          fail: (err) => {
+            reject({ error: '网络请求失败' })
           }
-        },
-        fail: (err) => {
-          reject({ error: '网络请求失败' })
-        }
+        })
       })
-    })
-  },
-  
+      
+      // 4. 返回文件URL
+      return { success: true, url: signRes.fileUrl }
+    } catch (e) {
+      return { error: e.error || '上传失败' }
+    }
+  },  
   // 设备统计
   recordDeviceVisit: () => {
     const fp = getDeviceFingerprint()
