@@ -1187,6 +1187,18 @@ app.post('/api/sms/send', async (req, res) => {
       return res.status(400).json({ error: '请输入正确的手机号' });
     }
     
+    // 测试环境：针对测试用户跳过真实短信发送
+    const testUsers = ['18600000001', '18600000002', '18600000003'];
+    const isTestEnv = process.env.TGSERVICE_ENV === 'test';
+    const isTestUser = testUsers.includes(phone);
+    
+    if (isTestEnv && isTestUser) {
+      // 不发送真实短信，直接返回成功（验证码固定为 8888）
+      smsCodeCache.set(phone, { code: '8888', timestamp: Date.now(), attempts: 0 });
+      operationLog.info(`测试用户短信验证码: ${phone}, 验证码: 8888 (跳过真实发送)`);
+      return res.json({ success: true, message: '验证码已发送' });
+    }
+    
     // 检查发送频率
     const existing = smsCodeCache.get(phone);
     if (existing && Date.now() - existing.timestamp < SMS_SEND_INTERVAL_MS) {
@@ -1245,10 +1257,43 @@ app.post('/api/member/login-sms', async (req, res) => {
       return res.status(400).json({ error: '请输入手机号和验证码' });
     }
     
-    // 验证验证码
-    const codeData = smsCodeCache.get(phone);
-    if (!codeData) {
-      return res.status(400).json({ error: '验证码已过期，请重新获取' });
+    // 测试环境：针对测试用户允许使用 8888 验证码登录
+    const testUsers = ['18600000001', '18600000002', '18600000003'];
+    const isTestEnv = process.env.TGSERVICE_ENV === 'test';
+    const isTestUser = testUsers.includes(phone);
+    
+    if (isTestEnv && isTestUser && code === '8888') {
+      // 直接允许登录，不验证缓存中的验证码
+      operationLog.info(`测试用户登录: ${phone}, 验证码: 8888`);
+      // 继续执行登录逻辑（跳过验证码校验）
+    } else {
+      // 正常验证码验证流程
+      // 验证验证码
+      const codeData = smsCodeCache.get(phone);
+      if (!codeData) {
+        return res.status(400).json({ error: '验证码已过期，请重新获取' });
+      }
+      
+      // 检查尝试次数
+      if (codeData.attempts >= 5) {
+        smsCodeCache.delete(phone);
+        return res.status(400).json({ error: '验证码错误次数过多，请重新获取' });
+      }
+      
+      // 检查过期
+      if (Date.now() - codeData.timestamp > SMS_CODE_EXPIRE_MS) {
+        smsCodeCache.delete(phone);
+        return res.status(400).json({ error: '验证码已过期，请重新获取' });
+      }
+      
+      // 验证码校验
+      if (codeData.code !== code) {
+        codeData.attempts++;
+        return res.status(400).json({ error: '验证码错误' });
+      }
+      
+      // 验证成功，删除验证码
+      smsCodeCache.delete(phone);
     }
     
     // 检查尝试次数
