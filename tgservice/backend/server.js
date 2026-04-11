@@ -2280,9 +2280,14 @@ app.get('/api/admin/sync-products-status', authMiddleware, requireBackendPermiss
     // 统计商品数量
     const countResult = await dbGet('SELECT COUNT(*) as count FROM products');
     
+    // 将本地时间字符串转换为 ISO 8601 格式（带时区 +08:00）
+    const localTime = latestProduct.updated_at;
+    const isoTime = localTime.replace(' ', 'T') + '+08:00';
+    
     res.json({ 
       status: 'success', 
-      lastSyncTime: latestProduct.updated_at,
+      lastSyncTime: isoTime,  // ISO 8601 格式（带时区）
+      lastSyncTimeLocal: localTime,  // 本地时间字符串（用于显示）
       productsCount: countResult?.count || 0,
       message: '同步成功' 
     });
@@ -3109,10 +3114,15 @@ app.get('/api/admin/sync-tables-status', authMiddleware, requireBackendPermissio
     // 统计台桌数量
     const countResult = await dbGet('SELECT COUNT(*) as count FROM tables');
     
+    // 将本地时间字符串转换为 ISO 8601 格式（带时区 +08:00）
+    // SQLite datetime('now', 'localtime') 返回格式: "2026-04-11 09:20:26"
+    const localTime = latestTable.updated_at;
+    const isoTime = localTime.replace(' ', 'T') + '+08:00';
+    
     res.json({ 
       success: true, 
-      lastSyncTime: latestTable.updated_at,
-      lastSyncTimeLocal: latestTable.updated_at,
+      lastSyncTime: isoTime,  // ISO 8601 格式（带时区）
+      lastSyncTimeLocal: localTime,  // 本地时间字符串（用于显示）
       tablesCount: countResult?.count || 0,
       message: '同步成功'
     });
