@@ -1,4 +1,28 @@
 
+## 2026-04-11 台桌选择器优化 + 助教台桌号一致性检查
+
+### 需求1：台桌选择后统一更新 storage
+- service-order.vue 的台桌选择回调新增写入 `tableAuth`，与扫码成功行为一致
+- products.vue 和 cart.vue 已有此逻辑，无需修改
+
+### 需求2：水牌上台助教台桌号不一致警告
+- cart.vue 下单流程新增 `checkCoachTableConsistency()` 检查
+- 助教水牌状态为「早班上桌/晚班上桌」时，若水牌台桌号 ≠ 当前选择台桌号
+- 弹出警告弹框：显示水牌台桌号和选择台桌号，用户确认后继续下单
+- 后台用户（非助教）不受此检查影响
+
+### 需求3：台桌选择器区域排序
+- TableSelector.vue 的 `areas` 计算属性改为固定排序：
+  - **包厢区 → 大厅区 → 斯诺克区 → 棋牌区 → TV区 → 其他**
+- 前端所有使用 TableSelector 的页面（商品页、购物车、上桌单、服务下单）自动生效
+
+### 涉及文件
+- `src/components/TableSelector.vue` - 区域排序
+- `src/pages/cart/cart.vue` - 台桌号一致性检查 + 警告弹框
+- `src/pages/internal/service-order.vue` - 台桌选择后更新 tableAuth
+
+---
+
 ## 2026-04-11 助教权限系统优化
 
 ### 新增功能
