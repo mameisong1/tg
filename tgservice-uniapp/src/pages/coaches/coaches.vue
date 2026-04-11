@@ -71,6 +71,11 @@
         <view class="coach-card" v-for="coach in coaches" :key="coach.coach_no" @click="goDetail(coach.coach_no)">
           <view class="coach-img-wrap">
             <image class="coach-img" :src="getPhoto(coach)" mode="aspectFill"></image>
+            <!-- 水牌状态徽章 -->
+            <view class="status-badge" :class="'status-' + (coach.display_status || '离店')">
+              <text class="status-icon">{{ coach.display_status_icon || '⚪' }}</text>
+              <text class="status-text">{{ coach.display_status_text || '离店' }}</text>
+            </view>
           </view>
           <view class="coach-info">
             <view class="coach-header">
@@ -299,6 +304,43 @@ const scrollToTop = () => {
   height: 100%;
   background: rgba(30,30,40,0.5);
 }
+
+/* 水牌状态徽章 */
+.status-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  backdrop-filter: blur(8px);
+  z-index: 2;
+}
+.status-badge.status-空闲 {
+  background: rgba(34, 197, 94, 0.85);
+  border: 1px solid rgba(34, 197, 94, 0.6);
+}
+.status-badge.status-上桌 {
+  background: rgba(245, 158, 11, 0.85);
+  border: 1px solid rgba(245, 158, 11, 0.6);
+}
+.status-badge.status-离店 {
+  background: rgba(107, 114, 128, 0.7);
+  border: 1px solid rgba(107, 114, 128, 0.5);
+}
+.status-icon {
+  font-size: 10px;
+  line-height: 1;
+}
+.status-text {
+  font-size: 10px;
+  color: #fff;
+  font-weight: 600;
+  line-height: 1;
+}
+
 /* 黑色渐变色渲染效果 - 高级氛围感 */
 .coach-img-wrap::after {
   content: '';

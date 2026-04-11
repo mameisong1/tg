@@ -52,6 +52,11 @@
           <view class="coach-name">{{ coach.stage_name || '未命名' }}</view>
           <view class="coach-no">工号: {{ coach.employee_id || '-' }}</view>
           <view class="coach-level">{{ formatLevel(coach.level) }}</view>
+          <!-- 水牌状态 -->
+          <view class="coach-water-status" :class="'status-' + (coach.display_status || '离店')" v-if="coach.display_status">
+            <text class="water-status-icon">{{ coach.display_status_icon || '⚪' }}</text>
+            <text class="water-status-text">{{ coach.display_status_text || '离店' }}</text>
+          </view>
         </view>
       </view>
       
@@ -345,6 +350,38 @@ const updateFullscreenClass = () => {
 .coach-name { font-size: 18px; font-weight: 500; margin-bottom: 4px; color: #fff; }
 .coach-no { font-size: 14px; color: rgba(255,255,255,0.5); margin-bottom: 6px; }
 .coach-level { display: inline-block; padding: 4px 12px; background: linear-gradient(135deg, #ffd700, #ffaa00); border-radius: 12px; font-size: 12px; color: #000; font-weight: 600; }
+
+/* 水牌状态徽章 */
+.coach-water-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  margin-top: 6px;
+}
+.coach-water-status.status-空闲 {
+  background: rgba(34, 197, 94, 0.85);
+  border: 1px solid rgba(34, 197, 94, 0.6);
+}
+.coach-water-status.status-上桌 {
+  background: rgba(245, 158, 11, 0.85);
+  border: 1px solid rgba(245, 158, 11, 0.6);
+}
+.coach-water-status.status-离店 {
+  background: rgba(107, 114, 128, 0.7);
+  border: 1px solid rgba(107, 114, 128, 0.5);
+}
+.water-status-icon {
+  font-size: 10px;
+  line-height: 1;
+}
+.water-status-text {
+  font-size: 11px;
+  color: #fff;
+  font-weight: 600;
+  line-height: 1;
+}
 
 .info-cards { display: flex; gap: 10px; margin-bottom: 20px; }
 .info-card { flex: 1; background: rgba(20,20,30,0.6); border-radius: 14px; padding: 14px; text-align: center; border: 1px solid rgba(218,165,32,0.1); }
