@@ -21,15 +21,13 @@
       </view>
 
       <!-- 快捷需求按钮 -->
-      <view class="quick-grid">
-        <view class="quick-group" v-for="group in quickTagGroups" :key="group.label"
-              :class="{ 'group-full': group.label === '服务' }">
-          <text class="group-label">{{ group.label }}</text>
-          <view class="quick-tags" :class="{ 'nowrap': group.label === '服务' }">
+      <view class="quick-list">
+        <view class="quick-row" v-for="group in quickTagGroups" :key="group.label">
+          <text class="group-label" :style="{ color: group.color }">{{ group.label }}</text>
+          <view class="quick-tags">
             <view
               class="quick-tag"
               :style="getTagStyle(group.color)"
-              :class="{ 'service-tag': group.label === '服务' }"
               v-for="tag in group.tags"
               :key="tag"
               @click="selectQuickTag(tag)"
@@ -80,8 +78,7 @@ const quickTagGroups = [
   { label: '挂烟', color: '#e67e22', tags: ['挂烟1包', '挂烟2包'] },
   { label: '配件', color: '#f39c12', tags: ['打火机', '换电池'] },
   { label: '酒具', color: '#3498db', tags: ['啤酒杯', '样酒杯'] },
-  { label: '餐饮', color: '#2ecc71', tags: ['零食推车'] },
-  { label: '服务', color: '#9b59b6', tags: ['换垃圾袋', '搞卫生', '音响连接', '加水'] }
+  { label: '其它', color: '#9b59b6', tags: ['零食推车', '换垃圾袋', '搞卫生', '音响连接', '加水'] }
 ]
 
 const getTagStyle = (color) => {
@@ -187,26 +184,26 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .form-value .placeholder { color: rgba(255,255,255,0.3); }
 .arrow { font-size: 18px; color: rgba(255,255,255,0.3); }
 
-/* 双列网格布局 */
-.quick-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px 12px;
-  margin-bottom: 20px;
+/* 左右排列列表布局 */
+.quick-list {
+  margin-bottom: 16px;
 }
-.quick-group {
-  background: rgba(255,255,255,0.02);
-  border-radius: 10px;
-  padding: 8px 10px;
+.quick-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
 }
-.quick-group.group-full {
-  grid-column: 1 / -1;
+.group-label {
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 42px;
+  text-align: center;
+  letter-spacing: 1px;
+  flex-shrink: 0;
 }
-.group-label { font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 6px; display: block; letter-spacing: 1px; }
 .quick-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-.quick-tags.nowrap { flex-wrap: nowrap; }
 .quick-tag { padding: 8px 12px; border: 1px solid; border-radius: 20px; font-size: 13px; white-space: nowrap; }
-.quick-tag.service-tag { padding: 8px 10px; font-size: 12px; flex: 1; text-align: center; }
 .quick-tag:active { filter: brightness(1.3); }
 
 .input { width: 100%; height: 48px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 0 12px; font-size: 14px; color: #fff; box-sizing: border-box; }
