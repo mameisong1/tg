@@ -40,6 +40,14 @@
       <view class="submit-btn" :class="{ disabled: !canSubmit }" @click="submitApply"><text>提交申请</text></view>
     </view>
 
+    <!-- 上传进度 -->
+    <view class="upload-progress" v-if="uploading">
+      <view class="progress-content">
+        <text class="progress-text">{{ uploadText }}</text>
+        <view class="progress-bar"><view class="progress-fill" :style="{ width: uploadProgress + '%' }"></view></view>
+      </view>
+    </view>
+
     <!-- 成功弹窗 -->
     <SuccessModal :visible="showSuccess" title="提交成功" content="加班/晚到申请已提交，请等待审批" @confirm="handleSuccessConfirm" />
   </view>
@@ -47,13 +55,16 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import api from '@/utils/api-v2.js'
-import apiCommon from '@/utils/api.js'
+import { applications } from '@/utils/api-v2.js'
+import api from '@/utils/api.js'
 import SuccessModal from '@/components/SuccessModal.vue'
 
 const statusBarHeight = ref(0)
 const coachInfo = ref({})
 const showSuccess = ref(false)
+const uploading = ref(false)
+const uploadText = ref('')
+const uploadProgress = ref(0)
 
 const form = ref({ remark: '', proof_image_url: '' })
 
@@ -75,32 +86,105 @@ const canSubmit = computed(() => {
   return form.value.proof_image_url && form.value.remark
 })
 
-const uploadImage = async () => {
+// 错误上报函数
+const reportError = async (info) => {
   try {
-    uni.chooseImage({
-      count: 1,
-      sizeType: ['compressed'],
-      sourceType: ['album', 'camera'],
-      success: async (res) => {
-        uni.showLoading({ title: '上传中...' })
-        try {
-          const uploadRes = await apiCommon.uploadImageToOSS(res.tempFilePaths[0], 'image', 'TgTemp/')
-          if (uploadRes && uploadRes.url) {
-            form.value.proof_image_url = uploadRes.url
-            uni.hideLoading()
-            uni.showToast({ title: '上传成功', icon: 'success' })
-          } else {
-            uni.hideLoading()
-            uni.showToast({ title: uploadRes?.error || '上传失败', icon: 'none' })
-          }
-        } catch (e) {
-          uni.hideLoading()
-          uni.showToast({ title: e?.error || '上传失败', icon: 'none' })
+    await uni.request({
+      url: '/api/upload-error',
+      method: 'POST',
+      data: { time: new Date().toISOString(), type: 'overtime_proof', ...info },
+      header: { 'Content-Type': 'application/json' }
+    })
+  } catch (e) {}
+}
+
+const uploadImage = () => {
+  uni.chooseImage({
+    count: 1,
+    sizeType: ['compressed'],
+    sourceType: ['album', 'camera'],
+    success: async (res) => {
+      await uploadFile(res.tempFilePaths[0], 'image')
+    }
+  })
+}
+
+const uploadFile = async (filePath, type) => {
+  uploading.value = true
+  uploadText.value = '上传图片中...'
+  uploadProgress.value = 0
+  
+  try {
+    // 先检查文件类型，推断扩展名
+    let ext = 'jpg'
+    try {
+      const blobCheck = await fetch(filePath).then(r => r.blob())
+      if (blobCheck.type) {
+        const mimeExt = blobCheck.type.split('/')[1]
+        if (mimeExt && ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(mimeExt)) {
+          ext = mimeExt === 'jpeg' ? 'jpg' : mimeExt
         }
       }
-    })
+    } catch (e) {}
+    
+    // 获取 OSS 签名
+    const signData = await api.getOSSSignature(type, ext, 'TgTemp/')
+    if (!signData.success) {
+      throw new Error(signData.error || '获取上传凭证失败')
+    }
+    
+    // 读取文件为 blob
+    const response = await fetch(filePath)
+    const blob = await response.blob()
+    
+    // XHR 直传 OSS
+    const xhr = new XMLHttpRequest()
+    xhr.open('PUT', signData.signedUrl, true)
+    xhr.setRequestHeader('Content-Type', 'image/jpeg')
+    
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        uploadProgress.value = Math.round((e.loaded / e.total) * 100)
+      }
+    }
+    
+    xhr.timeout = 300000
+    
+    xhr.onload = async () => {
+      uploading.value = false
+      if (xhr.status === 200) {
+        form.value.proof_image_url = signData.accessUrl
+        uni.showToast({ title: '上传成功', icon: 'success' })
+      } else {
+        let errorMsg = `上传失败(${xhr.status})`
+        if (xhr.status === 413) errorMsg = '文件太大，请压缩后重试'
+        else if (xhr.status === 504 || xhr.status === 502) errorMsg = '服务器超时，请稍后重试'
+        else if (xhr.status === 500) errorMsg = '服务器错误，请联系管理员'
+        else if (xhr.status === 403) errorMsg = '没有上传权限'
+        else if (xhr.status === 401) errorMsg = '登录已过期，请重新登录'
+        uni.showToast({ title: errorMsg, icon: 'none' })
+        await reportError({ stage: 'XHR上传', status: xhr.status, response: xhr.responseText?.substring(0, 200) })
+      }
+    }
+    
+    xhr.onerror = async () => {
+      uploading.value = false
+      uni.showToast({ title: '网络错误，请检查网络连接', icon: 'none' })
+      await reportError({ stage: 'XHR网络错误', signedUrl: signData.signedUrl?.substring(0, 80) })
+    }
+    
+    xhr.ontimeout = async () => {
+      uploading.value = false
+      uni.showToast({ title: '上传超时，请重试', icon: 'none' })
+      await reportError({ stage: 'XHR超时' })
+    }
+    
+    xhr.send(blob)
+    
   } catch (e) {
-    uni.showToast({ title: '选择图片失败', icon: 'none' })
+    uploading.value = false
+    await reportError({ stage: '异常', error: e.message || String(e) })
+    uni.showToast({ title: e.message || '上传失败', icon: 'none' })
   }
 }
 
@@ -116,7 +200,7 @@ const submitApply = async () => {
 
   try {
     uni.showLoading({ title: '提交中...' })
-    await api.applications.create({
+    await applications.create({
       applicant_phone: phone,
       application_type: applicationType.value,
       remark: form.value.remark,
@@ -173,4 +257,10 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .submit-btn { height: 50px; background: linear-gradient(135deg, #d4af37, #ffd700); border-radius: 25px; display: flex; align-items: center; justify-content: center; margin-top: 30px; }
 .submit-btn text { font-size: 16px; font-weight: 600; color: #000; }
 .submit-btn.disabled { opacity: 0.5; }
+
+.upload-progress { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 1001; }
+.progress-content { text-align: center; }
+.progress-text { font-size: 14px; color: rgba(255,255,255,0.6); display: block; margin-bottom: 20px; }
+.progress-bar { width: 200px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #d4af37, #ffd700); transition: width 0.3s; }
 </style>
