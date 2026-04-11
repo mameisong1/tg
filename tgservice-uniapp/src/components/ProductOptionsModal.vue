@@ -69,9 +69,9 @@ async function loadOptions() {
         const result = await api.getProductOptions(props.product.category, props.product.name);
         if (result && result.options) {
             const opt = result.options;
-            // 温度和糖度用 / 或 + 分隔
-            temperatureOptions.value = opt.temperature ? opt.temperature.split(/[\/\+]/).filter(t => t) : [];
-            sugarOptions.value = opt.sugar ? opt.sugar.split(/[\/\+]/).filter(s => s) : [];
+            // 温度和糖度用 / 或 + 分隔，过滤掉 "-" 和空字符串
+            temperatureOptions.value = opt.temperature ? opt.temperature.split(/[\/\+]/).filter(t => t && t !== '-' && t !== '无') : [];
+            sugarOptions.value = opt.sugar ? opt.sugar.split(/[\/\+]/).filter(s => s && s !== '-' && s !== '无') : [];
             // 默认选中第一个
             selectedTemperature.value = temperatureOptions.value[0] || '';
             selectedSugar.value = sugarOptions.value[0] || '';
@@ -150,14 +150,18 @@ watch(() => props.visible, (val) => {
 }
 .option-item {
     padding: 12rpx 24rpx;
-    border: 1rpx solid #ddd;
+    border: 2rpx solid #ddd;
     border-radius: 30rpx;
     font-size: 26rpx;
+    background: #f5f5f5;
+    color: #333;
+    transition: all 0.2s ease;
 }
 .option-item.active {
-    background: #e6553a;
+    background: linear-gradient(135deg, #d4af37, #c49b2a);
     color: #fff;
-    border-color: #e6553a;
+    border-color: #d4af37;
+    box-shadow: 0 2rpx 12rpx rgba(212, 175, 55, 0.3);
 }
 .modal-footer {
     margin-top: 30rpx;

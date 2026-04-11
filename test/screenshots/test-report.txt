@@ -1,0 +1,9 @@
+测试报告 - 2026/4/12 01:28:46
+总计: 2 PASS / 4 FAIL / 6 总计
+
+✅ TC-01: PASS - 选项弹窗:未出现, 购物车:有商品, 订单:未提交
+❌ TC-02: FAIL - 选项弹窗:未出现, 购物车选项:显示
+❌ TC-03: FAIL - page.$: Unexpected token "=" while parsing css selector ".delete-btn, [class*="delete"], text="删除"". Did you mean to CSS.escape it?
+❌ TC-04: FAIL - 商品1选项:无, 商品2选项:无
+❌ TC-05: FAIL - DB items含选项:否, 长度:40
+✅ TC-06: PASS - 订单信息:是, 显示选项:是

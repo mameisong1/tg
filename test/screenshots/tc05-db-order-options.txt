@@ -1,0 +1,1 @@
+[{"name":"昆仑山","quantity":1,"price":8,"category":"酒水"},{"name":"珍珠奶茶","quantity":1,"price":18,"category":"奶茶店","options":{"temperature":"正常冰","sugar":"少糖"}}]
