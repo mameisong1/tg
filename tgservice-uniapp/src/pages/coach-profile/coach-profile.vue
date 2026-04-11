@@ -195,65 +195,72 @@ const uploadFile = async (filePath, type) => {
     // #ifdef H5
     let ext = type === 'video' ? 'mp4' : 'jpg'
     try {
-      const response = await fetch(filePath)
-      const blob = await response.blob()
-      if (blob.type) {
-        const mimeExt = blob.type.split('/')[1]
+      const blobCheck = await fetch(filePath).then(r => r.blob())
+      if (blobCheck.type) {
+        const mimeExt = blobCheck.type.split('/')[1]
         if (mimeExt && ['jpg', 'jpeg', 'png', 'gif', 'webp', 'mp4', 'mov', 'webm'].includes(mimeExt)) {
           ext = mimeExt === 'jpeg' ? 'jpg' : mimeExt
         }
       }
     } catch (e) {}
     
-    // H5环境：使用后端本地上传接口（绕过OSS 403问题）
+    const signData = await api.getOSSSignature(type, ext)
+    if (!signData.success) throw new Error(signData.error || '获取上传凭证失败')
+    
     const response = await fetch(filePath)
     const blob = await response.blob()
     
-    const formData = new FormData()
-    formData.append('image', blob, 'upload.jpg')
+    const xhr = new XMLHttpRequest()
+    xhr.open('PUT', signData.signedUrl, true)
+    xhr.setRequestHeader('Content-Type', type === 'video' ? 'video/mp4' : 'image/jpeg')
     
-    const uploadXhr = new XMLHttpRequest()
-    uploadXhr.open('POST', '/api/upload/image', true)
-    
-    uploadXhr.onload = async () => {
-      uploading.value = false
-      if (uploadXhr.status === 200) {
-        try {
-          const data = JSON.parse(uploadXhr.responseText)
-          if (data.success && data.url) {
-            const url = data.url.startsWith('http') ? data.url : window.location.origin + data.url
-            photos.value.push(url)
-            uni.showToast({ title: '上传成功', icon: 'success' })
-            try {
-              await api.updateCoachProfile({
-                coachNo: coachInfo.value.coachNo,
-                age: parseInt(form.age) || null,
-                height: parseInt(form.height) || null,
-                intro: form.intro,
-                photos: photos.value,
-                videos: videos.value
-              })
-            } catch (e) { uni.showToast({ title: '自动保存失败', icon: 'none' }) }
-          } else {
-            uni.showToast({ title: data.error || '上传失败', icon: 'none' })
-          }
-        } catch (e) { uni.showToast({ title: '解析响应失败', icon: 'none' }) }
-      } else {
-        uni.showToast({ title: `上传失败(${uploadXhr.status})`, icon: 'none' })
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) {
+        uploadProgress.value = Math.round((e.loaded / e.total) * 100)
       }
     }
     
-    uploadXhr.onerror = async () => {
+    xhr.timeout = 300000
+    
+    xhr.onload = async () => {
+      uploading.value = false
+      if (xhr.status === 200) {
+        const url = signData.accessUrl
+        if (type === 'video') videos.value.push(url)
+        else photos.value.push(url)
+        uni.showToast({ title: '上传成功', icon: 'success' })
+        try {
+          await api.updateCoachProfile({
+            coachNo: coachInfo.value.coachNo,
+            age: parseInt(form.age) || null,
+            height: parseInt(form.height) || null,
+            intro: form.intro,
+            photos: photos.value,
+            videos: videos.value
+          })
+        } catch (e) { uni.showToast({ title: '自动保存失败', icon: 'none' }) }
+      } else {
+        let errorMsg = `上传失败(${xhr.status})`
+        if (xhr.status === 413) errorMsg = '文件太大，请压缩后重试'
+        else if (xhr.status === 504 || xhr.status === 502) errorMsg = '服务器超时，请稍后重试'
+        else if (xhr.status === 500) errorMsg = '服务器错误，请联系管理员'
+        else if (xhr.status === 403) errorMsg = '没有上传权限'
+        else if (xhr.status === 401) errorMsg = '登录已过期，请重新登录'
+        uni.showToast({ title: errorMsg, icon: 'none' })
+      }
+    }
+    
+    xhr.onerror = async () => {
       uploading.value = false
       uni.showToast({ title: '网络错误，请检查网络连接', icon: 'none' })
     }
     
-    uploadXhr.ontimeout = async () => {
+    xhr.ontimeout = async () => {
       uploading.value = false
-      uni.showToast({ title: '上传超时，请重试', icon: 'none' })
+      uni.showToast({ title: '上传超时，请压缩文件后重试', icon: 'none' })
     }
-    uploadXhr.timeout = 60000
-    uploadXhr.send(formData)
+    
+    xhr.send(blob)
     // #endif
     
     // #ifndef H5

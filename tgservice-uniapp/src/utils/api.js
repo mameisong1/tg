@@ -141,67 +141,56 @@ export default {
   // 上传图片到OSS（使用签名URL直传）
   uploadImageToOSS: async (filePath, fileType = 'image') => {
     try {
-      // 1. 获取签名URL（注意：不能用 this，ES模块箭头函数this为undefined）
+      // 1. 获取签名URL
       const signRes = await request({ url: `/oss/sts?type=${fileType}&ext=jpg` })
-      if (!signRes.success || !signRes.uploadUrl) {
-        return { error: '获取签名失败' }
+      if (!signRes.success || !signRes.signedUrl) {
+        return { error: signRes?.error || '获取签名失败' }
       }
       
       // #ifdef H5
-      // H5环境：使用后端本地上传接口（绕过OSS跨域问题）
+      // H5环境：fetch 获取 blob，XHR 直传 OSS
       const response = await fetch(filePath)
       const blob = await response.blob()
       
-      const formData = new FormData()
-      formData.append('image', blob, 'upload.jpg')
-      
-      const uploadXhr = new XMLHttpRequest()
-      uploadXhr.open('POST', '/api/upload/image', true)
-      
       return new Promise((resolve) => {
-        uploadXhr.onload = () => {
-          if (uploadXhr.status === 200) {
-            try {
-              const data = JSON.parse(uploadXhr.responseText)
-              if (data.success && data.url) {
-                // 返回完整URL
-                resolve({ success: true, url: data.url.startsWith('http') ? data.url : window.location.origin + data.url })
-              } else {
-                resolve({ error: data.error || '上传失败' })
-              }
-            } catch (e) {
-              resolve({ error: '解析响应失败' })
-            }
+        const xhr = new XMLHttpRequest()
+        xhr.open('PUT', signRes.signedUrl, true)
+        xhr.setRequestHeader('Content-Type', 'image/jpeg')
+        xhr.onload = () => {
+          if (xhr.status === 200) {
+            resolve({ success: true, url: signRes.accessUrl })
           } else {
-            resolve({ error: `上传失败: ${uploadXhr.status}` })
+            resolve({ error: `上传失败: ${xhr.status}` })
           }
         }
-        uploadXhr.onerror = () => resolve({ error: '网络错误，请检查网络连接' })
-        uploadXhr.ontimeout = () => resolve({ error: '上传超时，请重试' })
-        uploadXhr.timeout = 60000
-        uploadXhr.send(formData)
+        xhr.onerror = () => resolve({ error: '网络错误，请检查网络连接' })
+        xhr.ontimeout = () => resolve({ error: '上传超时，请重试' })
+        xhr.timeout = 300000
+        xhr.send(blob)
       })
       // #endif
       
       // #ifndef H5
-      // 小程序环境：使用 uni.request + base64
-      const fileInfo = await uni.getFileInfo({ filePath })
-      const fileData = await uni.readFile({ filePath, encoding: 'base64' })
-      
+      // 小程序环境：使用 uni.uploadFile 通过后端代理上传
       return new Promise((resolve, reject) => {
-        uni.request({
-          url: signRes.uploadUrl,
-          method: 'PUT',
-          data: fileData.data,
-          header: { 'Content-Type': 'image/jpeg' },
+        uni.uploadFile({
+          url: '/api/oss/upload',
+          filePath: filePath,
+          name: 'file',
+          formData: { type: fileType },
           success: (res) => {
-            if (res.statusCode === 200) {
-              resolve({ success: true, url: signRes.fileUrl })
-            } else {
-              reject({ error: `上传失败: ${res.statusCode}` })
+            try {
+              const data = JSON.parse(res.data)
+              if (data.success && data.url) {
+                resolve({ success: true, url: data.url })
+              } else {
+                reject({ error: data.error || '上传失败' })
+              }
+            } catch (e) {
+              reject({ error: '解析响应失败' })
             }
           },
-          fail: (err) => reject({ error: '网络请求失败' })
+          fail: (err) => reject({ error: err.errMsg || '上传失败' })
         })
       })
       // #endif

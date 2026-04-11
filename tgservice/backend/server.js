@@ -2265,85 +2265,143 @@ app.delete('/api/admin/categories/:name', authMiddleware, requireBackendPermissi
 });
 
 // 商品同步状态
+// 获取商品同步状态（改为查询数据库 updated_at）
 app.get('/api/admin/sync-products-status', authMiddleware, requireBackendPermission(['productManagement']), async (req, res) => {
   try {
-    const logPath = path.join(__dirname, '../scripts/sync-products.log');
+    // 查询最近更新的商品
+    const latestProduct = await dbGet(
+      `SELECT updated_at FROM products ORDER BY updated_at DESC LIMIT 1`
+    );
     
-    if (!fs.existsSync(logPath)) {
-      return res.json({ status: 'none', lastSyncTime: null, message: '从未同步' });
+    if (!latestProduct || !latestProduct.updated_at) {
+      return res.json({ status: 'none', lastSyncTime: null, productsCount: 0, message: '从未同步' });
     }
     
-    // 读取日志文件末尾 10000 字符
-    const stat = fs.statSync(logPath);
-    const fileSize = stat.size;
-    const readSize = Math.min(fileSize, 10000);
-    const buffer = Buffer.alloc(readSize);
+    // 统计商品数量
+    const countResult = await dbGet('SELECT COUNT(*) as count FROM products');
     
-    const fd = fs.openSync(logPath, 'r');
-    fs.readSync(fd, buffer, 0, readSize, fileSize - readSize);
-    fs.closeSync(fd);
-    
-    const logContent = buffer.toString('utf-8');
-    const lines = logContent.split('\n');
-    
-    // 从后往前找同步记录
-    let status = 'none';
-    let lastSyncTime = null;
-    let message = '';
-    
-    // 找最后的同步状态
-    for (let i = lines.length - 1; i >= 0; i--) {
-      const line = lines[i];
-      
-      // 检查是否是异常结束
-      if (line.includes('商品数据同步结束（异常）')) {
-        status = 'failed';
-        const timeMatch = line.match(/\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)\]/);
-        if (timeMatch) lastSyncTime = timeMatch[1];
-        
-        // 找错误信息
-        for (let j = i - 1; j >= Math.max(0, i - 5); j--) {
-          const errMatch = lines[j].match(/\[ERROR\] 同步失败\s+(.+)/);
-          if (errMatch) {
-            message = errMatch[1].substring(0, 50);
-            break;
-          }
-        }
-        break;
-      }
-      
-      // 检查是否是成功结束
-      if (line.includes('[SUCCESS] ========== 同步完成 ==========')) {
-        status = 'success';
-        const timeMatch = line.match(/\[(\d{4}[-\/]\d{1,2}[-\/]\d{1,2}[T ]\d{2}:\d{2}:\d{2})/);
-        if (timeMatch) lastSyncTime = timeMatch[1];
-        message = '同步成功';
-        break;
-      }
-      
-      // 检查是否正在运行（只有开始没有结束）
-      if (line.includes('商品数据同步开始')) {
-        // 检查是否已经有结束标记
-        let hasEnd = false;
-        for (let j = i; j < lines.length; j++) {
-          if (lines[j].includes('同步完成') || lines[j].includes('同步结束')) {
-            hasEnd = true;
-            break;
-          }
-        }
-        if (!hasEnd) {
-          status = 'running';
-          const timeMatch = line.match(/\[(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z)\]/);
-          if (timeMatch) lastSyncTime = timeMatch[1];
-          message = '同步中...';
-        }
-        break;
-      }
-    }
-    
-    res.json({ status, lastSyncTime, message });
+    res.json({ 
+      status: 'success', 
+      lastSyncTime: latestProduct.updated_at,
+      productsCount: countResult?.count || 0,
+      message: '同步成功' 
+    });
   } catch (err) {
+    logger.error(`获取商品同步状态失败: ${err.message}`);
     res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 商品数据同步接口（供同步脚本调用）
+app.post('/api/admin/sync/products', authMiddleware, requireBackendPermission(['productManagement']), async (req, res) => {
+  const startTime = Date.now();
+  try {
+    const { products } = req.body;
+    
+    if (!products || !Array.isArray(products) || products.length === 0) {
+      return res.status(400).json({ error: '缺少商品数据或数据格式错误' });
+    }
+    
+    logger.info(`开始商品数据同步，共 ${products.length} 条数据`);
+    
+    // 排除分类（与脚本逻辑一致）
+    const EXCLUDE_CATEGORIES = ['美女教练'];
+    const filteredProducts = products.filter(p => !EXCLUDE_CATEGORIES.includes(p.category));
+    const removedCount = products.length - filteredProducts.length;
+    logger.info(`过滤分类: ${EXCLUDE_CATEGORIES.join('、')}, 排除 ${removedCount} 条`);
+    
+    // 特殊图片强制下架（与脚本逻辑一致）
+    const OFFLINE_IMAGE_URL = 'https://hui-shang.oss-cn-hangzhou.aliyuncs.com/pic/GtYe33GDA60y6xWF.png';
+    
+    let inserted = 0, updated = 0, skipped = 0;
+    
+    for (const p of filteredProducts) {
+      if (!p.name || p.name.trim() === '') {
+        skipped++;
+        continue;
+      }
+      
+      // 特殊图片强制下架
+      const finalStatus = p.imageUrl === OFFLINE_IMAGE_URL ? '下架' : (p.status || '上架');
+      
+      try {
+        const existing = await dbGet('SELECT name FROM products WHERE name = ?', [p.name]);
+        
+        if (existing) {
+          await dbRun(
+            `UPDATE products SET 
+              image_url = ?, 
+              price = ?, 
+              stock_total = ?, 
+              stock_available = ?, 
+              category = ?, 
+              status = ?, 
+              creator = ?,
+              updated_at = datetime('now', 'localtime')
+            WHERE name = ?`,
+            [p.imageUrl || '', p.price || '', p.stockTotal || 0, p.stockAvailable || 0, p.category || '', finalStatus, p.creator || '', p.name]
+          );
+          updated++;
+        } else {
+          await dbRun(
+            `INSERT INTO products (name, image_url, price, stock_total, stock_available, category, status, creator, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))`,
+            [p.name, p.imageUrl || '', p.price || '', p.stockTotal || 0, p.stockAvailable || 0, p.category || '', finalStatus, p.creator || '']
+          );
+          inserted++;
+        }
+      } catch (e) {
+        logger.error(`同步商品失败: ${p.name} - ${e.message}`);
+        skipped++;
+      }
+    }
+    
+    // 同步分类（与脚本逻辑一致）
+    const filteredCategories = [...new Set(
+      filteredProducts
+        .map(p => p.category)
+        .filter(c => c && !EXCLUDE_CATEGORIES.includes(c))
+    )];
+    
+    let categoriesInserted = 0, categoriesExisting = 0;
+    
+    for (const cat of filteredCategories) {
+      try {
+        const row = await dbGet('SELECT name FROM product_categories WHERE name = ?', [cat]);
+        
+        if (row) {
+          categoriesExisting++;
+        } else {
+          await dbRun(
+            `INSERT INTO product_categories (name, creator, created_at) VALUES (?, 'sync-script', datetime('now', 'localtime'))`,
+            [cat]
+          );
+          categoriesInserted++;
+        }
+      } catch (e) {
+        logger.error(`同步分类失败: ${cat} - ${e.message}`);
+      }
+    }
+    
+    const elapsed = Date.now() - startTime;
+    logger.info(`商品同步完成: 新增 ${inserted} 条, 更新 ${updated} 条, 跳过 ${skipped} 条, 分类新增 ${categoriesInserted} 个, 已存在 ${categoriesExisting} 个, 耗时 ${elapsed}ms`);
+    
+    res.json({ 
+      success: true, 
+      data: {
+        productsInserted: inserted,
+        productsUpdated: updated,
+        productsSkipped: skipped,
+        categoriesInserted: categoriesInserted,
+        categoriesExisting: categoriesExisting,
+        productsCount: filteredProducts.length,
+        elapsedMs: elapsed
+      }
+    });
+  } catch (err) {
+    const elapsed = Date.now() - startTime;
+    logger.error(`商品同步失败: ${err.message}, 耗时 ${elapsed}ms`);
+    res.status(500).json({ error: '服务器错误', elapsedMs: elapsed });
   }
 });
 
@@ -3031,23 +3089,100 @@ app.delete('/api/admin/tables/:id', authMiddleware, requireBackendPermission(['v
 });
 
 // 获取台桌同步状态
+// 获取台桌同步状态（改为查询数据库 updated_at）
 app.get('/api/admin/sync-tables-status', authMiddleware, requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
-    const statusPath = path.join(__dirname, '../scripts/sync-status.json');
+    // 查询最近更新的台桌
+    const latestTable = await dbGet(
+      `SELECT updated_at FROM tables ORDER BY updated_at DESC LIMIT 1`
+    );
     
-    if (!fs.existsSync(statusPath)) {
+    if (!latestTable || !latestTable.updated_at) {
       return res.json({ 
-        success: false, 
+        success: true, 
         lastSyncTime: null,
+        tablesCount: 0,
         message: '暂无同步记录' 
       });
     }
     
-    const statusData = JSON.parse(fs.readFileSync(statusPath, 'utf8'));
-    res.json(statusData);
+    // 统计台桌数量
+    const countResult = await dbGet('SELECT COUNT(*) as count FROM tables');
+    
+    res.json({ 
+      success: true, 
+      lastSyncTime: latestTable.updated_at,
+      lastSyncTimeLocal: latestTable.updated_at,
+      tablesCount: countResult?.count || 0,
+      message: '同步成功'
+    });
   } catch (err) {
-    logger.error(`获取同步状态失败: ${err.message}`);
+    logger.error(`获取台桌同步状态失败: ${err.message}`);
     res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 台桌状态同步接口（供同步脚本调用）
+app.post('/api/admin/sync/tables', authMiddleware, requireBackendPermission(['vipRoomManagement']), async (req, res) => {
+  const startTime = Date.now();
+  try {
+    const { tables } = req.body;
+    
+    if (!tables || !Array.isArray(tables) || tables.length === 0) {
+      return res.status(400).json({ error: '缺少台桌数据或数据格式错误' });
+    }
+    
+    logger.info(`开始台桌状态同步，共 ${tables.length} 条数据`);
+    
+    // 状态转换函数（与脚本逻辑完全一致）
+    const convertStatus = (status) => {
+      if (status === '空闲') return '空闲';
+      if (status === '已暂停') return '已暂停';
+      return '接待中';
+    };
+    
+    // 更新 tables 表
+    let tablesUpdated = 0;
+    for (const table of tables) {
+      const dbStatus = convertStatus(table.status);
+      const result = await dbRun(
+        `UPDATE tables SET status = ?, updated_at = datetime('now', 'localtime') WHERE name = ?`,
+        [dbStatus, table.name]
+      );
+      if (result.changes > 0) {
+        tablesUpdated++;
+      }
+    }
+    
+    // 更新 vip_rooms 表（name 匹配台桌名前缀，与脚本逻辑一致）
+    let vipRoomsUpdated = 0;
+    for (const table of tables) {
+      const dbStatus = convertStatus(table.status);
+      const result = await dbRun(
+        `UPDATE vip_rooms SET status = ?, updated_at = datetime('now', 'localtime') WHERE name LIKE ? || '%'`,
+        [dbStatus, table.name]
+      );
+      if (result.changes > 0) {
+        vipRoomsUpdated += result.changes;
+      }
+    }
+    
+    const elapsed = Date.now() - startTime;
+    logger.info(`台桌同步完成: tables更新 ${tablesUpdated} 条, vip_rooms更新 ${vipRoomsUpdated} 条, 耗时 ${elapsed}ms`);
+    
+    res.json({ 
+      success: true, 
+      data: {
+        tablesUpdated,
+        vipRoomsUpdated,
+        tablesCount: tables.length,
+        elapsedMs: elapsed
+      }
+    });
+  } catch (err) {
+    const elapsed = Date.now() - startTime;
+    logger.error(`台桌同步失败: ${err.message}, 耗时 ${elapsed}ms`);
+    res.status(500).json({ error: '服务器错误', elapsedMs: elapsed });
   }
 });
 
@@ -3418,8 +3553,9 @@ app.get('/api/oss/sts', async (req, res) => {
       
       res.json({
         success: true,
-        uploadUrl: signedUrl,
-        fileUrl: accessUrl,
+        signedUrl,
+        objectKey,
+        accessUrl,
         expires: 3600
       });
     }

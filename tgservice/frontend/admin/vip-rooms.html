@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>包房管理 - 天宫国际</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0f; font-family: 'PingFang SC', sans-serif; color: #fff; display: flex; min-height: 100vh; }
+    .sidebar { width: 220px; background: rgba(20,20,30,0.8); border-right: 1px solid rgba(218,165,32,0.1); padding: 20px 0; flex-shrink: 0; overflow-y: auto; height: 100vh; position: sticky; top: 0; }
+    .sidebar-logo { padding: 0 20px 30px; display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px; }
+    .sidebar-logo img { width: 32px; height: 32px; }
+    .sidebar-title { font-size: 16px; color: #d4af37; }
+    .sidebar-sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+    
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: rgba(255,255,255,0.6); text-decoration: none; font-size: 14px; transition: all 0.2s; }
+    .nav-item:hover, .nav-item.active { background: rgba(212,175,55,0.1); color: #d4af37; }
+    .nav-icon { font-size: 18px; }
+    .main { flex: 1; padding: 20px; overflow-y: auto; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .page-title { font-size: 22px; }
+    .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; border: none; }
+    .btn-primary { background: linear-gradient(135deg, #d4af37 0%, #ffd700 100%); color: #000; }
+    .btn-secondary { background: rgba(255,255,255,0.1); color: #fff; }
+    .btn-danger { background: rgba(231,76,60,0.2); color: #e74c3c; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    
+    /* Room Cards */
+    .room-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .room-card { background: rgba(20,20,30,0.6); border-radius: 12px; overflow: hidden; border: 1px solid rgba(218,165,32,0.1); }
+    .room-cover { width: 100%; height: 160px; background: rgba(30,30,40,0.5); object-fit: cover; }
+    .room-info { padding: 16px; }
+    .room-name { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+    .room-status { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; }
+    .status-idle { background: rgba(46,204,113,0.2); color: #2ecc71; }
+    .status-occupied { background: rgba(241,196,15,0.2); color: #f1c40f; }
+    .room-intro { font-size: 13px; color: rgba(255,255,255,0.5); margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .room-meta { display: flex; gap: 16px; font-size: 12px; color: rgba(255,255,255,0.4); }
+    .room-actions { display: flex; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.05); }
+    .room-actions .btn { flex: 1; }
+    
+    /* Modal */
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
+    .modal.show { display: flex; }
+    .modal-content { background: rgba(20,20,30,0.95); border-radius: 16px; padding: 24px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; border: 1px solid rgba(218,165,32,0.2); }
+    .modal-title { font-size: 18px; margin-bottom: 20px; }
+    .modal-form { display: flex; flex-direction: column; gap: 16px; }
+    .form-row { display: flex; flex-direction: column; gap: 8px; }
+    .form-row label { font-size: 13px; color: rgba(255,255,255,0.6); }
+    .form-row input, .form-row select, .form-row textarea { 
+      padding: 12px; 
+      background: #1a1a24; 
+      border: 1px solid rgba(255,255,255,0.1); 
+      border-radius: 8px; 
+      color: #fff; 
+      font-size: 14px; 
+    }
+    .form-row input:focus, .form-row select:focus, .form-row textarea:focus { outline: none; border-color: #d4af37; }
+    .form-row select option { background: #1a1a24; color: #fff; }
+    .form-row textarea { min-height: 80px; resize: vertical; }
+    .modal-actions { display: flex; gap: 12px; margin-top: 20px; }
+    .modal-actions .btn { flex: 1; padding: 12px; }
+    .btn-cancel { background: rgba(255,255,255,0.1); color: #fff; }
+    
+    /* Media Grid */
+    .media-section { margin-top: 16px; }
+    .media-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .media-title { font-size: 14px; color: rgba(255,255,255,0.6); }
+    .media-grid { display: flex; gap: 10px; flex-wrap: wrap; }
+    .media-item { width: 80px; height: 80px; border-radius: 8px; overflow: hidden; position: relative; background: rgba(30,30,40,0.5); }
+    .media-item img, .media-item video { width: 100%; height: 100%; object-fit: cover; }
+    .media-item .avatar-badge { position: absolute; top: 4px; left: 4px; background: #d4af37; color: #000; font-size: 9px; padding: 2px 5px; border-radius: 6px; font-weight: 600; }
+    .media-item .delete-btn { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; background: rgba(231,76,60,0.9); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; opacity: 0; transition: opacity 0.2s; }
+    .media-item:hover .delete-btn { opacity: 1; }
+    .media-add { width: 80px; height: 80px; border-radius: 8px; background: rgba(255,255,255,0.05); border: 2px dashed rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 28px; color: rgba(255,255,255,0.3); cursor: pointer; }
+    
+    /* Toast & Upload */
+    .toast { position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.9); color: #fff; padding: 12px 24px; border-radius: 8px; z-index: 1001; display: none; }
+    .toast.show { display: block; }
+    .upload-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); z-index: 1002; align-items: center; justify-content: center; }
+    .upload-overlay.show { display: flex; }
+    .upload-content { text-align: center; }
+    .upload-text { font-size: 14px; color: rgba(255,255,255,0.6); margin-bottom: 16px; }
+    .upload-bar { width: 200px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+    .upload-fill { height: 100%; background: linear-gradient(90deg, #d4af37, #ffd700); transition: width 0.3s; }
+  
+    /* 折叠菜单 */
+    .nav-group { border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .nav-group-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      color: rgba(255,255,255,0.6);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .nav-group-title:hover { background: rgba(212,175,55,0.05); color: rgba(255,255,255,0.8); }
+    .nav-group-title .arrow { transition: transform 0.2s; font-size: 12px; }
+    .nav-group.open .nav-group-title .arrow { transform: rotate(180deg); }
+    .nav-group-title .group-icon { font-size: 18px; margin-right: 12px; }
+    .nav-group-title .group-text { flex: 1; }
+    
+    .nav-submenu { display: none; background: rgba(0,0,0,0.2); }
+    .nav-group.open .nav-submenu { display: block; }
+    .nav-submenu .nav-item { padding-left: 48px; font-size: 13px; }
+</style>
+</head>
+<body>
+    <div class="sidebar">
+    <div class="sidebar-logo">
+      <img src="/images/logo.png" alt="Logo">
+      <div>
+        <div class="sidebar-title">天宫国际</div>
+        <div class="sidebar-sub">后台管理系统</div>
+      </div>
+    </div>
+    
+    <a href="index.html" class="nav-item"><span class="nav-icon">📊</span> 数据概览</a>
+
+    <div class="nav-group open">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">🏠</span><span class="group-text">前厅</span><span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="cashier-dashboard.html" class="nav-item"><span class="nav-icon">💰</span> 收银看板</a>
+        <a href="products.html" class="nav-item"><span class="nav-icon">📦</span> 商品管理</a>
+        <a href="vip-rooms.html" class="nav-item active"><span class="nav-icon">🛋️</span> 包房管理</a>
+        <a href="tables.html" class="nav-item"><span class="nav-icon">🎱</span> 台桌管理</a>
+        <a href="categories.html" class="nav-item"><span class="nav-icon">🏷️</span> 商品分类</a>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">👩‍🏫</span><span class="group-text">助教管理</span><span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="coaches.html" class="nav-item"><span class="nav-icon">👩</span> 助教列表</a>
+        <a href="coaches.html#batch-shift" class="nav-item"><span class="nav-icon">🔄</span> 批量更新班次</a>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">⚙️</span><span class="group-text">系统</span><span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="operation-logs.html" class="nav-item"><span class="nav-icon">📜</span> 操作日志</a>
+        <a href="home.html" class="nav-item"><span class="nav-icon">🏠</span> 首页配置</a>
+        <a href="users.html" class="nav-item"><span class="nav-icon">👥</span> 用户管理</a>
+        <a href="settings.html" class="nav-item"><span class="nav-icon">🛡️</span> 系统配置</a>
+      </div>
+    </div>
+    </div>
+  </div>
+  
+  
+  
+  <div class="main">
+    <div class="page-header">
+      <div class="page-title">🛋️ 包房管理</div>
+      <button class="btn btn-primary" onclick="showAddModal()">+ 新增包房</button>
+    </div>
+    
+    <div class="room-grid" id="roomGrid"></div>
+  </div>
+  
+  <div class="modal" id="roomModal">
+    <div class="modal-content">
+      <div class="modal-title" id="modalTitle">新增包房</div>
+      <div class="modal-form">
+        <div class="form-row">
+          <label>包房名称</label>
+          <input type="text" id="formName" placeholder="例如：VIP1">
+        </div>
+        <div class="form-row">
+          <label>状态</label>
+          <select id="formStatus">
+            <option value="空闲">空闲</option>
+            <option value="使用中">使用中</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>包房介绍</label>
+          <textarea id="formIntro" placeholder="描述包房特色、设施等"></textarea>
+        </div>
+        
+        <div class="media-section">
+          <div class="media-header">
+            <span class="media-title">包房照片（最多10张，点击设为封面）</span>
+          </div>
+          <div class="media-grid" id="photoGrid"></div>
+        </div>
+        
+        <div class="media-section">
+          <div class="media-header">
+            <span class="media-title">包房视频（最多3个）</span>
+          </div>
+          <div class="media-grid" id="videoGrid"></div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-cancel" onclick="closeModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveRoom()">保存</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="upload-overlay" id="uploadOverlay">
+    <div class="upload-content">
+      <div class="upload-text" id="uploadText">上传中...</div>
+      <div class="upload-bar"><div class="upload-fill" id="uploadFill" style="width:0%"></div></div>
+    </div>
+  </div>
+  
+  <div class="toast" id="toast"></div>
+  
+  <script>
+    const token = localStorage.getItem('adminToken');
+    if (!token) window.location.href = 'login.html';
+    
+    let rooms = [];
+    let editingId = null;
+    let currentPhotos = [];
+    let currentVideos = [];
+    
+    function showToast(msg) {
+      document.getElementById('toast').textContent = msg;
+      document.getElementById('toast').classList.add('show');
+      setTimeout(() => document.getElementById('toast').classList.remove('show'), 3000);
+    }
+    
+    function showUpload(text) {
+      document.getElementById('uploadText').textContent = text;
+      document.getElementById('uploadFill').style.width = '0%';
+      document.getElementById('uploadOverlay').classList.add('show');
+    }
+    
+    function hideUpload() { document.getElementById('uploadOverlay').classList.remove('show'); }
+    function updateProgress(pct) { document.getElementById('uploadFill').style.width = pct + '%'; }
+    
+    async function api(url, options = {}) {
+      options.headers = { ...options.headers, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+      const res = await fetch(url, options);
+      if (res.status === 401) { localStorage.removeItem('adminToken'); window.location.href = 'login.html'; }
+      return res.json();
+    }
+    
+    async function loadRooms() {
+      rooms = await api('/api/admin/vip-rooms');
+      renderRooms();
+    }
+    
+    function renderRooms() {
+      const grid = document.getElementById('roomGrid');
+      if (rooms.length === 0) {
+        grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:60px;color:rgba(255,255,255,0.3)">暂无包房数据</div>';
+        return;
+      }
+      grid.innerHTML = rooms.map(r => `
+        <div class="room-card">
+          <img class="room-cover" src="${r.photos?.[0] || '/static/avatar-default.png'}" onerror="this.src='/static/avatar-default.png'">
+          <div class="room-info">
+            <div class="room-name">${r.name}</div>
+            <span class="room-status ${r.status === '空闲' ? 'status-idle' : 'status-occupied'}">${r.status}</span>
+            <div class="room-intro">${r.intro || '暂无介绍'}</div>
+            <div class="room-meta">
+              <span>📷 ${r.photos?.length || 0}</span>
+              <span>🎬 ${r.videos?.length || 0}</span>
+            </div>
+            <div class="room-actions">
+              <button class="btn btn-secondary btn-sm" onclick="editRoom(${r.id})">编辑</button>
+              <button class="btn btn-danger btn-sm" disabled style="opacity:0.4;cursor:not-allowed;">删除</button>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+    
+    function showAddModal() {
+      editingId = null;
+      currentPhotos = [];
+      currentVideos = [];
+      document.getElementById('modalTitle').textContent = '新增包房';
+      document.getElementById('formName').value = '';
+      document.getElementById('formName').removeAttribute('readonly');
+      document.getElementById('formName').style.background = '#1a1a24';
+      document.getElementById('formName').style.color = '#fff';
+      document.getElementById('formStatus').value = '空闲';
+      document.getElementById('formIntro').value = '';
+      renderMediaGrid();
+      document.getElementById('roomModal').classList.add('show');
+    }
+    
+    async function editRoom(id) {
+      const room = rooms.find(r => r.id === id);
+      if (!room) return;
+      editingId = id;
+      currentPhotos = room.photos || [];
+      currentVideos = room.videos || [];
+      document.getElementById('modalTitle').textContent = '编辑包房';
+      document.getElementById('formName').value = room.name;
+      document.getElementById('formName').removeAttribute('readonly');
+      document.getElementById('formName').style.background = '#1a1a24';
+      document.getElementById('formName').style.color = '#fff';
+      document.getElementById('formStatus').value = room.status;
+      document.getElementById('formIntro').value = room.intro || '';
+      renderMediaGrid();
+      document.getElementById('roomModal').classList.add('show');
+    }
+    
+    function closeModal() {
+      document.getElementById('roomModal').classList.remove('show');
+      editingId = null;
+    }
+    
+    function renderMediaGrid() {
+      document.getElementById('photoGrid').innerHTML = currentPhotos.map((p, i) => `
+        <div class="media-item" onclick="setAvatar(${i})">
+          <img src="${p}">
+          ${i === 0 ? '<span class="avatar-badge">封面</span>' : ''}
+          <span class="delete-btn" onclick="event.stopPropagation();deletePhoto(${i})">×</span>
+        </div>
+      `).join('') + (currentPhotos.length < 10 ? `<div class="media-add" onclick="uploadPhoto()">+</div>` : '');
+      
+      document.getElementById('videoGrid').innerHTML = currentVideos.map((v, i) => `
+        <div class="media-item">
+          <video src="${v}"></video>
+          <span class="delete-btn" onclick="deleteVideo(${i})">×</span>
+        </div>
+      `).join('') + (currentVideos.length < 3 ? `<div class="media-add" onclick="uploadVideo()">+</div>` : '');
+    }
+    
+    function setAvatar(index) {
+      if (index === 0) return;
+      const photo = currentPhotos.splice(index, 1)[0];
+      currentPhotos.unshift(photo);
+      renderMediaGrid();
+      showToast('已设为封面');
+    }
+    
+    async function deletePhoto(index) {
+      if (!confirm('确定删除这张照片吗？')) return;
+      const url = currentPhotos[index];
+      currentPhotos.splice(index, 1);
+      if (editingId && url) {
+        try { await api('/api/admin/vip-rooms/' + editingId + '/photo', { method: 'DELETE', body: JSON.stringify({ photoUrl: url }) }); } catch (e) {}
+      }
+      renderMediaGrid();
+    }
+    
+    async function deleteVideo(index) {
+      if (!confirm('确定删除这个视频吗？')) return;
+      const url = currentVideos[index];
+      currentVideos.splice(index, 1);
+      if (editingId && url) {
+        try { await api('/api/admin/vip-rooms/' + editingId + '/video', { method: 'DELETE', body: JSON.stringify({ videoUrl: url }) }); } catch (e) {}
+      }
+      renderMediaGrid();
+    }
+    
+    // 上报上传错误日志到后端
+    async function reportUploadError(errorInfo) {
+      try {
+        await fetch('/api/upload-error', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ ...errorInfo, timestamp: new Date().toISOString() })
+        });
+        console.log('错误已上报:', JSON.stringify(errorInfo));
+      } catch (e) {
+        console.log('上报错误失败:', e.message);
+      }
+    }
+    
+    // 根据错误信息生成用户友好的提示
+    function getUploadErrorMessage(status, error) {
+      if (status === 413) return '文件太大，服务器拒绝接收。请压缩后重试。';
+      if (status === 504 || status === 502) return '服务器响应超时，请稍后重试。';
+      if (status === 500) return '服务器内部错误: ' + (error || '请稍后重试');
+      if (status === 401) return '登录已过期，请重新登录。';
+      if (status === 400) return '请求格式错误: ' + (error || '请检查文件格式');
+      if (!status) return '网络连接失败，请检查网络后重试。';
+      return `上传失败(${status}): ${error || '未知错误'}`;
+    }
+    
+    // H5 前端直传 OSS（使用签名 URL）
+    async function uploadToOSSDirect(file, type) {
+      const uploadInfo = { type, fileName: file.name, fileSize: file.size, fileType: file.type };
+      await reportUploadError({ stage: '开始上传', ...uploadInfo });
+      
+      const maxSize = type === 'video' ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+      if (file.size > maxSize) {
+        await reportUploadError({ stage: '前端校验失败', error: `文件超过${type === 'video' ? '50M' : '10M'}`, ...uploadInfo });
+        throw new Error(`${type === 'video' ? '视频' : '图片'}不能超过${type === 'video' ? '50M' : '10M'}`);
+      }
+      
+      // 获取文件扩展名
+      let ext = file.name.split('.').pop() || (type === 'video' ? 'mp4' : 'jpg');
+      if (ext === 'jpeg') ext = 'jpg';
+      
+      // 获取签名 URL
+      const signRes = await fetch(`/api/oss/sts?type=${type}&ext=${ext}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const signData = await signRes.json();
+      
+      if (!signData.success) {
+        await reportUploadError({ stage: '获取签名失败', ...uploadInfo, error: signData.error });
+        throw new Error(signData.error || '获取上传凭证失败');
+      }
+      
+      // 直接上传到 OSS
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.timeout = 300000; // 5分钟超时
+        xhr.open('PUT', signData.signedUrl, true);
+        xhr.setRequestHeader('Content-Type', type === 'video' ? 'video/mp4' : file.type || 'image/jpeg');
+        
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) updateProgress(Math.round((e.loaded / e.total) * 100));
+        };
+        
+        xhr.onload = async () => {
+          if (xhr.status === 200) {
+            await reportUploadError({ stage: '上传成功', ...uploadInfo, url: signData.accessUrl });
+            resolve(signData.accessUrl);
+          } else {
+            await reportUploadError({ stage: 'OSS上传失败', ...uploadInfo, statusCode: xhr.status });
+            reject(new Error(`上传失败(${xhr.status})`));
+          }
+        };
+        
+        xhr.onerror = async () => {
+          await reportUploadError({ stage: '网络错误', ...uploadInfo, readyState: xhr.readyState });
+          reject(new Error('网络连接失败，请检查网络后重试'));
+        };
+        
+        xhr.ontimeout = async () => {
+          await reportUploadError({ stage: '上传超时', ...uploadInfo });
+          reject(new Error('上传超时，请检查网络或压缩文件后重试'));
+        };
+        
+        xhr.send(file);
+      });
+    }
+    
+    // 上传成功后自动保存
+    async function autoSaveAfterUpload() {
+      if (!editingId) {
+        showToast('请先创建包房后再上传');
+        return false;
+      }
+      try {
+        await api('/api/admin/vip-rooms/' + editingId, {
+          method: 'PUT',
+          body: JSON.stringify({
+            name: document.getElementById('formName').value,
+            status: document.getElementById('formStatus').value,
+            intro: document.getElementById('formIntro').value,
+            photos: currentPhotos,
+            videos: currentVideos
+          })
+        });
+        showToast('已自动保存');
+        // 刷新列表数据
+        loadRooms();
+        return true;
+      } catch (e) {
+        showToast('自动保存失败: ' + (e.error || ''));
+        return false;
+      }
+    }
+    
+    function uploadPhoto() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        showUpload('上传照片中...');
+        try {
+          const url = await uploadToOSSDirect(file, 'image');
+          currentPhotos.push(url);
+          renderMediaGrid();
+          hideUpload();  // 关闭进度条
+          showToast('上传成功');
+          // 自动保存
+          await autoSaveAfterUpload();
+        } catch (err) {
+          hideUpload();
+          showToast(err.message || '上传失败');
+        }
+      };
+      input.click();
+    }
+    
+    function uploadVideo() {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'video/*';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        showUpload('上传视频中...');
+        try {
+          const url = await uploadToOSSDirect(file, 'video');
+          currentVideos.push(url);
+          renderMediaGrid();
+          hideUpload();  // 关闭进度条
+          showToast('上传成功');
+          // 自动保存
+          await autoSaveAfterUpload();
+        } catch (err) {
+          hideUpload();
+          showToast(err.message || '上传失败');
+        }
+      };
+      input.click();
+    }
+    
+    async function saveRoom() {
+      const name = document.getElementById('formName').value.trim();
+      if (!name) return showToast('请输入包房名称');
+      try {
+        if (editingId) {
+          await api('/api/admin/vip-rooms/' + editingId, {
+            method: 'PUT',
+            body: JSON.stringify({ name, status: document.getElementById('formStatus').value, intro: document.getElementById('formIntro').value, photos: currentPhotos, videos: currentVideos })
+          });
+          showToast('包房已更新');
+        } else {
+          const result = await api('/api/admin/vip-rooms', {
+            method: 'POST',
+            body: JSON.stringify({ name, status: document.getElementById('formStatus').value, intro: document.getElementById('formIntro').value, photos: currentPhotos, videos: currentVideos })
+          });
+          // 新增成功后设置 editingId，允许后续上传自动保存
+          if (result && result.id) {
+            editingId = result.id;
+          }
+          showToast('包房已添加');
+        }
+        closeModal();
+        loadRooms();
+      } catch (e) { showToast('操作失败: ' + (e.error || '')); }
+    }
+    
+    async function deleteRoom(id) {
+      if (!confirm('确定删除该包房吗？相关照片和视频也会被删除。')) return;
+      try {
+        await api('/api/admin/vip-rooms/' + id, { method: 'DELETE' });
+        showToast('包房已删除');
+        loadRooms();
+      } catch (e) { showToast('删除失败'); }
+    }
+    
+    loadRooms();
+  </script>
+  <script src="nav-control.js"></script>
+  <script>
+    // 折叠菜单切换
+    function toggleGroup(el) {
+      el.parentElement.classList.toggle('open');
+    }
+</script>
+</body>
+</html>

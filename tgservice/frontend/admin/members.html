@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>会员管理 - 天宫国际</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0f; font-family: 'PingFang SC', sans-serif; color: #fff; display: flex; min-height: 100vh; }
+    .sidebar { width: 220px; background: rgba(20,20,30,0.8); border-right: 1px solid rgba(218,165,32,0.1); padding: 20px 0; flex-shrink: 0; overflow-y: auto; height: 100vh; position: sticky; top: 0; }
+    .sidebar-logo { padding: 0 20px 30px; display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px; }
+    .sidebar-logo img { width: 32px; height: 32px; }
+    .sidebar-title { font-size: 16px; color: #d4af37; }
+    .sidebar-sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+    
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: rgba(255,255,255,0.6); text-decoration: none; font-size: 14px; transition: all 0.2s; }
+    .nav-item:hover, .nav-item.active { background: rgba(212,175,55,0.1); color: #d4af37; }
+    .nav-icon { font-size: 18px; }
+    
+    .main { flex: 1; padding: 20px; overflow-y: auto; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .page-title { font-size: 22px; }
+    .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; border: none; }
+    .btn-primary { background: linear-gradient(135deg, #d4af37 0%, #ffd700 100%); color: #000; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    
+    .stats-bar { display: flex; gap: 20px; margin-bottom: 20px; }
+    .stat-card { background: rgba(20,20,30,0.6); border-radius: 12px; padding: 16px 24px; border: 1px solid rgba(218,165,32,0.1); }
+    .stat-label { font-size: 12px; color: rgba(255,255,255,0.5); }
+    .stat-value { font-size: 24px; color: #d4af37; font-weight: 600; margin-top: 4px; }
+    
+    .member-table { width: 100%; border-collapse: collapse; background: rgba(20,20,30,0.4); border-radius: 12px; overflow: hidden; }
+    .member-table th, .member-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .member-table th { background: rgba(212,175,55,0.1); color: #d4af37; font-weight: 500; font-size: 13px; }
+    .member-table td { font-size: 14px; color: rgba(255,255,255,0.8); }
+    .member-table tr:hover { background: rgba(255,255,255,0.02); }
+    .member-table .phone { font-family: monospace; color: #d4af37; }
+    .member-table .gender-male { color: #3498db; }
+    .member-table .gender-female { color: #e91e63; }
+    .member-table .actions { display: flex; gap: 8px; }
+    
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
+    .modal.show { display: flex; }
+    .modal-content { background: rgba(20,20,30,0.95); border-radius: 16px; padding: 24px; width: 90%; max-width: 400px; border: 1px solid rgba(218,165,32,0.2); }
+    .modal-title { font-size: 18px; margin-bottom: 20px; }
+    .modal-form { display: flex; flex-direction: column; gap: 12px; }
+    .form-row { display: flex; flex-direction: column; gap: 4px; }
+    .form-row label { font-size: 12px; color: rgba(255,255,255,0.6); }
+    .form-row input, .form-row select { padding: 10px; background: #1a1a24; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; }
+    .form-row select option { background: #1a1a24; color: #fff; }
+    .modal-actions { display: flex; gap: 12px; margin-top: 20px; }
+    .modal-actions .btn { flex: 1; padding: 12px; }
+    .btn-cancel { background: rgba(255,255,255,0.1); color: #fff; }
+    
+    .toast { position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.9); padding: 12px 24px; border-radius: 8px; z-index: 1001; display: none; }
+    .toast.show { display: block; }
+  
+    /* 折叠菜单 */
+    .nav-group { border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .nav-group-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      color: rgba(255,255,255,0.6);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .nav-group-title:hover { background: rgba(212,175,55,0.05); color: rgba(255,255,255,0.8); }
+    .nav-group-title .arrow { transition: transform 0.2s; font-size: 12px; }
+    .nav-group.open .nav-group-title .arrow { transform: rotate(180deg); }
+    .nav-group-title .group-icon { font-size: 18px; margin-right: 12px; }
+    .nav-group-title .group-text { flex: 1; }
+    
+    .nav-submenu { display: none; background: rgba(0,0,0,0.2); }
+    .nav-group.open .nav-submenu { display: block; }
+    .nav-submenu .nav-item { padding-left: 48px; font-size: 13px; }
+</style>
+</head>
+<body>
+    <div class="sidebar">
+    <div class="sidebar-logo">
+      <img src="/images/logo.png" alt="Logo">
+      <div>
+        <div class="sidebar-title">天宫国际</div>
+        <div class="sidebar-sub">后台管理系统</div>
+      </div>
+    </div>
+    
+    <a href="index.html" class="nav-item"><span class="nav-icon">📊</span> 数据概览</a>
+    <a href="cashier-dashboard.html" class="nav-item"><span class="nav-icon">💰</span> 收银看板</a>
+    <a href="products.html" class="nav-item"><span class="nav-icon">📦</span> 商品管理</a>
+    <a href="vip-rooms.html" class="nav-item"><span class="nav-icon">🛋️</span> 包房管理</a>
+    <a href="tables.html" class="nav-item"><span class="nav-icon">🎱</span> 台桌管理</a>
+    <a href="categories.html" class="nav-item"><span class="nav-icon">🏷️</span> 商品分类</a>
+    
+    <!-- 助教管理 -->
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">👩‍🏫</span>
+        <span class="group-text">助教管理</span>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="coaches.html" class="nav-item"><span class="nav-icon">👩</span> 助教列表</a>
+        <a href="coaches.html#batch-shift" class="nav-item"><span class="nav-icon">🔄</span> 批量更新班次</a>
+      </div>
+    </div>
+    
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">⚙️</span>
+        <span class="group-text">系统</span>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="operation-logs.html" class="nav-item"><span class="nav-icon">📜</span> 操作日志</a>
+        <a href="home.html" class="nav-item"><span class="nav-icon">🏠</span> 首页配置</a>
+        <a href="users.html" class="nav-item"><span class="nav-icon">👥</span> 用户管理</a>
+        <a href="settings.html" class="nav-item"><span class="nav-icon">🛡️</span> 系统配置</a>
+      </div>
+    </div>
+  </div>
+  
+  
+  
+  <div class="main">
+    <div class="page-header">
+      <div class="page-title">会员管理</div>
+      <button class="btn btn-primary" onclick="showModal()">+ 添加会员</button>
+    </div>
+    
+    <div class="stats-bar">
+      <div class="stat-card">
+        <div class="stat-label">会员总数</div>
+        <div class="stat-value" id="totalMembers">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">今日新增</div>
+        <div class="stat-value" id="todayMembers">0</div>
+      </div>
+    </div>
+    
+    <table class="member-table">
+      <thead>
+        <tr>
+          <th>会员号</th>
+          <th>手机号</th>
+          <th>姓名</th>
+          <th>性别</th>
+          <th>注册时间</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="memberList"></tbody>
+    </table>
+  </div>
+  
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <div class="modal-title" id="modalTitle">添加会员</div>
+      <div class="modal-form">
+        <div class="form-row">
+          <label>手机号 *</label>
+          <input type="tel" id="formPhone" placeholder="请输入手机号" maxlength="11">
+        </div>
+        <div class="form-row">
+          <label>姓名</label>
+          <input type="text" id="formName" placeholder="请输入姓名">
+        </div>
+        <div class="form-row">
+          <label>性别</label>
+          <select id="formGender">
+            <option value="">未设置</option>
+            <option value="男">男</option>
+            <option value="女">女</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>备注</label>
+          <input type="text" id="formRemark" placeholder="备注信息">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-cancel" onclick="closeModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveMember()">保存</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="toast" id="toast"></div>
+  
+  <script>
+    const token = localStorage.getItem('adminToken');
+    if (!token) window.location.href = 'login.html';
+    
+    let members = [];
+    let editingNo = null;
+    
+    async function api(url, options = {}) {
+      options.headers = { ...options.headers, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+      const res = await fetch(url, options);
+      if (res.status === 401) { localStorage.removeItem('adminToken'); window.location.href = 'login.html'; }
+      return res.json();
+    }
+    
+    function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
+    
+    async function loadMembers() {
+      members = await api('/api/admin/members');
+      
+      // 统计
+      document.getElementById('totalMembers').textContent = members.length;
+      const today = new Date().toISOString().split('T')[0];
+      const todayCount = members.filter(m => m.created_at && m.created_at.startsWith(today)).length;
+      document.getElementById('todayMembers').textContent = todayCount;
+      
+      renderMembers();
+    }
+    
+    function renderMembers() {
+      const tbody = document.getElementById('memberList');
+      
+      if (members.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:rgba(255,255,255,0.3)">暂无会员数据</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = members.map(m => `
+        <tr>
+          <td>${m.member_no}</td>
+          <td class="phone">${maskPhone(m.phone)}</td>
+          <td>${m.name || '-'}</td>
+          <td><span class="${m.gender === '男' ? 'gender-male' : m.gender === '女' ? 'gender-female' : ''}">${m.gender || '-'}</span></td>
+          <td>${formatTime(m.created_at)}</td>
+          <td class="actions">
+            <button class="btn btn-sm" onclick="editMember(${m.member_no})">编辑</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+    
+    function maskPhone(phone) {
+      if (!phone || phone.length < 7) return phone;
+      return phone.substring(0, 3) + '****' + phone.substring(7);
+    }
+    
+    function formatTime(timeStr) {
+      if (!timeStr) return '-';
+      return timeStr.replace('T', ' ').substring(0, 16);
+    }
+    
+    function showModal(no = null) {
+      editingNo = no;
+      document.getElementById('modalTitle').textContent = no ? '编辑会员' : '添加会员';
+      document.getElementById('formPhone').value = '';
+      document.getElementById('formName').value = '';
+      document.getElementById('formGender').value = '';
+      document.getElementById('formRemark').value = '';
+      document.getElementById('modal').classList.add('show');
+    }
+    
+    function closeModal() { document.getElementById('modal').classList.remove('show'); }
+    
+    async function editMember(no) {
+      const m = members.find(x => x.member_no === no);
+      if (!m) return;
+      showModal(no);
+      document.getElementById('formPhone').value = m.phone || '';
+      document.getElementById('formName').value = m.name || '';
+      document.getElementById('formGender').value = m.gender || '';
+      document.getElementById('formRemark').value = m.remark || '';
+    }
+    
+    async function saveMember() {
+      const phone = document.getElementById('formPhone').value.trim();
+      const name = document.getElementById('formName').value.trim();
+      const gender = document.getElementById('formGender').value;
+      const remark = document.getElementById('formRemark').value.trim();
+      
+      if (!phone) { showToast('请输入手机号'); return; }
+      if (!/^1\d{10}$/.test(phone)) { showToast('手机号格式不正确'); return; }
+      
+      try {
+        if (editingNo) {
+          await api(`/api/admin/members/${editingNo}`, { method: 'PUT', body: JSON.stringify({ phone, name, gender, remark }) });
+          showToast('更新成功');
+        } else {
+          await api('/api/admin/members', { method: 'POST', body: JSON.stringify({ phone, name, gender, remark }) });
+          showToast('添加成功');
+        }
+        closeModal();
+        loadMembers();
+      } catch (err) { 
+        showToast(err.error || '操作失败'); 
+      }
+    }
+    
+    loadMembers();
+  </script>
+  <script src="nav-control.js"></script>
+  <script>
+    // 折叠菜单切换
+    function toggleGroup(el) {
+      el.parentElement.classList.toggle('open');
+    }
+</script>
+</body>
+</html>

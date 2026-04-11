@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>商品管理 - 天宫国际</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0f; font-family: 'PingFang SC', sans-serif; color: #fff; display: flex; min-height: 100vh; }
+    .sidebar { width: 220px; background: rgba(20,20,30,0.8); border-right: 1px solid rgba(218,165,32,0.1); padding: 20px 0; flex-shrink: 0; overflow-y: auto; height: 100vh; position: sticky; top: 0; }
+    .sidebar-logo { padding: 0 20px 30px; display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px; }
+    .sidebar-logo img { width: 32px; height: 32px; }
+    .sidebar-title { font-size: 16px; color: #d4af37; }
+    .sidebar-sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+    
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: rgba(255,255,255,0.6); text-decoration: none; font-size: 14px; transition: all 0.2s; }
+    .nav-item:hover, .nav-item.active { background: rgba(212,175,55,0.1); color: #d4af37; }
+    .nav-icon { font-size: 18px; }
+    .main { flex: 1; padding: 20px; overflow-y: auto; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .page-title { font-size: 22px; }
+    .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; border: none; }
+    .btn-primary { background: linear-gradient(135deg, #d4af37 0%, #ffd700 100%); color: #000; }
+    .btn-danger { background: rgba(231,76,60,0.2); color: #e74c3c; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    
+    .toolbar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+    .search-input { flex: 1; min-width: 200px; max-width: 300px; padding: 10px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; }
+    .search-input:focus { outline: none; border-color: #d4af37; }
+    
+    /* 分类筛选按钮 */
+    .category-filter { display: flex; gap: 8px; flex-wrap: wrap; }
+    .cat-btn { padding: 8px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; color: rgba(255,255,255,0.6); font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .cat-btn:hover { background: rgba(212,175,55,0.1); border-color: rgba(212,175,55,0.3); }
+    .cat-btn.active { background: rgba(212,175,55,0.2); border-color: #d4af37; color: #d4af37; }
+    .cat-btn.offline { background: rgba(231,76,60,0.1); border-color: rgba(231,76,60,0.2); color: rgba(231,76,60,0.7); }
+    .cat-btn.offline:hover { background: rgba(231,76,60,0.15); border-color: rgba(231,76,60,0.4); }
+    .cat-btn.offline.active { background: rgba(231,76,60,0.2); border-color: #e74c3c; color: #e74c3c; }
+    
+    .data-table { width: 100%; background: rgba(20,20,30,0.6); border-radius: 12px; border: 1px solid rgba(218,165,32,0.1); overflow: hidden; border-collapse: collapse; }
+    .data-table th, .data-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .data-table th { background: rgba(212,175,55,0.1); font-weight: 500; font-size: 13px; color: rgba(255,255,255,0.7); }
+    .data-table td { font-size: 14px; }
+    .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .product-img { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; background: rgba(30,30,40,0.5); }
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; }
+    .badge-success { background: rgba(46,204,113,0.2); color: #2ecc71; }
+    .badge-danger { background: rgba(231,76,60,0.2); color: #e74c3c; }
+    
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
+    .modal.show { display: flex; }
+    .modal-content { background: rgba(20,20,30,0.95); border-radius: 16px; padding: 24px; width: 90%; max-width: 500px; border: 1px solid rgba(218,165,32,0.2); max-height: 90vh; overflow-y: auto; }
+    .modal-title { font-size: 18px; margin-bottom: 20px; }
+    .modal-form { display: flex; flex-direction: column; gap: 16px; }
+    .form-row { display: flex; flex-direction: column; gap: 8px; }
+    .form-row label { font-size: 13px; color: rgba(255,255,255,0.6); }
+    .form-row input, .form-row select { padding: 12px; background: #1a1a24; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; }
+    .form-row select option { background: #1a1a24; color: #fff; }
+    .form-row input:focus, .form-row select:focus { outline: none; border-color: #d4af37; }
+    .modal-actions { display: flex; gap: 12px; margin-top: 20px; }
+    .modal-actions .btn { flex: 1; padding: 12px; }
+    .btn-cancel { background: rgba(255,255,255,0.1); color: #fff; }
+    
+    .toast { position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.9); color: #fff; padding: 12px 24px; border-radius: 8px; z-index: 1001; display: none; }
+    .toast.show { display: block; }
+  
+    /* 折叠菜单 */
+    .nav-group { border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .nav-group-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      color: rgba(255,255,255,0.6);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .nav-group-title:hover { background: rgba(212,175,55,0.05); color: rgba(255,255,255,0.8); }
+    .nav-group-title .arrow { transition: transform 0.2s; font-size: 12px; }
+    .nav-group.open .nav-group-title .arrow { transform: rotate(180deg); }
+    .nav-group-title .group-icon { font-size: 18px; margin-right: 12px; }
+    .nav-group-title .group-text { flex: 1; }
+    
+    .nav-submenu { display: none; background: rgba(0,0,0,0.2); }
+    .nav-group.open .nav-submenu { display: block; }
+    .nav-submenu .nav-item { padding-left: 48px; font-size: 13px; }
+    
+    /* 同步状态样式 */
+    .sync-status { display: flex; align-items: center; gap: 6px; }
+    .sync-status.success { color: #2ecc71; }
+    .sync-status.failed { color: #e74c3c; }
+    .sync-status.running { color: #f39c12; }
+    .sync-status.none { color: rgba(255,255,255,0.4); }
+    .sync-icon { font-size: 14px; }
+    .sync-status.running .sync-icon { animation: spin 1s linear infinite; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+    <div class="sidebar">
+    <div class="sidebar-logo">
+      <img src="/images/logo.png" alt="Logo">
+      <div>
+        <div class="sidebar-title">天宫国际</div>
+        <div class="sidebar-sub">后台管理系统</div>
+      </div>
+    </div>
+    
+    <a href="index.html" class="nav-item"><span class="nav-icon">📊</span> 数据概览</a>
+
+    <div class="nav-group open">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">🏠</span><span class="group-text">前厅</span><span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="cashier-dashboard.html" class="nav-item"><span class="nav-icon">💰</span> 收银看板</a>
+        <a href="products.html" class="nav-item active"><span class="nav-icon">📦</span> 商品管理</a>
+        <a href="vip-rooms.html" class="nav-item"><span class="nav-icon">🛋️</span> 包房管理</a>
+        <a href="tables.html" class="nav-item"><span class="nav-icon">🎱</span> 台桌管理</a>
+        <a href="categories.html" class="nav-item"><span class="nav-icon">🏷️</span> 商品分类</a>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">👩‍🏫</span><span class="group-text">助教管理</span><span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="coaches.html" class="nav-item"><span class="nav-icon">👩</span> 助教列表</a>
+        <a href="coaches.html#batch-shift" class="nav-item"><span class="nav-icon">🔄</span> 批量更新班次</a>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">⚙️</span><span class="group-text">系统</span><span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="operation-logs.html" class="nav-item"><span class="nav-icon">📜</span> 操作日志</a>
+        <a href="home.html" class="nav-item"><span class="nav-icon">🏠</span> 首页配置</a>
+        <a href="users.html" class="nav-item"><span class="nav-icon">👥</span> 用户管理</a>
+        <a href="settings.html" class="nav-item"><span class="nav-icon">🛡️</span> 系统配置</a>
+      </div>
+    </div>
+    </div>
+  </div>
+  
+  
+  
+  <div class="main">
+    <div class="page-header">
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <div class="page-title">商品管理</div>
+        <div id="syncStatus" class="sync-status" style="font-size: 13px;">
+          <span class="sync-icon">⟳</span>
+          <span class="sync-text">加载中...</span>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="showModal()">+ 添加商品</button>
+    </div>
+    
+    <div class="toolbar">
+      <input type="text" class="search-input" id="searchInput" placeholder="搜索商品名称..." oninput="loadProducts()">
+      <div class="category-filter" id="categoryFilter"></div>
+    </div>
+    
+    <table class="data-table">
+      <thead>
+        <tr><th>图片</th><th>名称</th><th>分类</th><th>价格</th><th>库存</th><th>状态</th><th>操作</th></tr>
+      </thead>
+      <tbody id="productsTable"></tbody>
+    </table>
+  </div>
+  
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <div class="modal-title" id="modalTitle">添加商品</div>
+      <div class="modal-form">
+        <div class="form-row"><label>商品名称</label><input type="text" id="formName"></div>
+        <div class="form-row"><label>分类</label><select id="formCategory"></select></div>
+        <div class="form-row"><label>价格</label><input type="number" id="formPrice" step="0.01"></div>
+        <div class="form-row"><label>总库存</label><input type="number" id="formStockTotal"></div>
+        <div class="form-row"><label>可用库存</label><input type="number" id="formStockAvailable"></div>
+        <div class="form-row"><label>图片URL</label><input type="text" id="formImage"></div>
+        <div class="form-row"><label>状态</label><select id="formStatus"><option value="上架">上架</option><option value="下架">下架</option></select></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-cancel" onclick="closeModal()">取消</button>
+        <button class="btn btn-primary" onclick="saveProduct()">保存</button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="toast" id="toast"></div>
+  
+  <script>
+    const token = localStorage.getItem('adminToken');
+    if (!token) window.location.href = 'login.html';
+    
+    let products = [];
+    let categories = [];
+    let editingName = null;
+    let currentCategory = '全部'; // '全部' | 分类名 | '下架'
+    let filterMode = 'all'; // 'all' | 'category' | 'offline'
+    
+    async function api(url, options = {}) {
+      options.headers = { ...options.headers, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+      const res = await fetch(url, options);
+      if (res.status === 401) { localStorage.removeItem('adminToken'); window.location.href = 'login.html'; }
+      return res.json();
+    }
+    
+    function showToast(msg) { 
+      const t = document.getElementById('toast'); 
+      t.textContent = msg; 
+      t.classList.add('show'); 
+      setTimeout(() => t.classList.remove('show'), 3000); 
+    }
+    
+    async function loadCategories() {
+      categories = await api('/api/admin/categories');
+      renderCategoryFilter();
+      
+      // 渲染表单下拉框
+      const select = document.getElementById('formCategory');
+      select.innerHTML = categories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+    }
+    
+    function renderCategoryFilter() {
+      // 计算各分类上架商品数
+      const categoryOnlineCount = {};
+      let offlineCount = 0;
+      
+      products.forEach(p => {
+        if (p.status === '上架') {
+          const cat = p.category || '未分类';
+          categoryOnlineCount[cat] = (categoryOnlineCount[cat] || 0) + 1;
+        } else if (p.status === '下架') {
+          offlineCount++;
+        }
+      });
+      
+      // 计算全部上架数
+      const totalOnlineCount = Object.values(categoryOnlineCount).reduce((sum, n) => sum + n, 0);
+      
+      // 渲染分类筛选按钮
+      const filter = document.getElementById('categoryFilter');
+      
+      // 全部按钮
+      let html = `<button class="cat-btn ${filterMode === 'all' ? 'active' : ''}" onclick="filterByCategory('全部')">全部（${totalOnlineCount}）</button>`;
+      
+      // 各分类按钮（只显示有上架商品的分类）
+      categories.forEach(c => {
+        const count = categoryOnlineCount[c.name] || 0;
+        if (count > 0) {
+          const isActive = filterMode === 'category' && currentCategory === c.name;
+          html += `<button class="cat-btn ${isActive ? 'active' : ''}" onclick="filterByCategory('${c.name}')">${c.name}（${count}）</button>`;
+        }
+      });
+      
+      // 下架按钮
+      if (offlineCount > 0) {
+        html += `<button class="cat-btn offline ${filterMode === 'offline' ? 'active' : ''}" onclick="filterByCategory('下架')">下架（${offlineCount}）</button>`;
+      }
+      
+      filter.innerHTML = html;
+    }
+    
+    function filterByCategory(cat) {
+      currentCategory = cat;
+      if (cat === '全部') {
+        filterMode = 'all';
+      } else if (cat === '下架') {
+        filterMode = 'offline';
+      } else {
+        filterMode = 'category';
+      }
+      loadProducts();
+    }
+    
+    async function loadProducts() {
+      products = await api('/api/admin/products');
+      renderCategoryFilter();
+      
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      let filtered = products.filter(p => p.name.toLowerCase().includes(search));
+      
+      // 按筛选模式过滤
+      if (filterMode === 'all') {
+        // 全部：只显示上架商品
+        filtered = filtered.filter(p => p.status === '上架');
+      } else if (filterMode === 'category') {
+        // 分类筛选：显示该分类的上架商品
+        filtered = filtered.filter(p => p.category === currentCategory && p.status === '上架');
+      } else if (filterMode === 'offline') {
+        // 下架筛选：显示所有下架商品
+        filtered = filtered.filter(p => p.status === '下架');
+      }
+      
+      document.getElementById('productsTable').innerHTML = filtered.map(p => `
+        <tr>
+          <td><img class="product-img" src="${p.image_url || ''}" onerror="this.style.background='rgba(30,30,40,0.5)'"></td>
+          <td>${p.name}</td>
+          <td>${p.category || '-'}</td>
+          <td>¥${p.price || 0}</td>
+          <td>${p.stock_available || 0}/${p.stock_total || 0}</td>
+          <td><span class="badge ${p.status === '上架' ? 'badge-success' : 'badge-danger'}">${p.status}</span></td>
+          <td><button class="btn btn-sm" onclick="editProduct('${p.name}')">编辑</button> <button class="btn btn-sm btn-danger" onclick="deleteProduct('${p.name}')">删除</button></td>
+        </tr>
+      `).join('') || '<tr><td colspan="7" style="text-align:center;color:rgba(255,255,255,0.3)">暂无商品</td></tr>';
+    }
+    
+    function showModal(name = null) {
+      editingName = name;
+      document.getElementById('modalTitle').textContent = name ? '编辑商品' : '添加商品';
+      document.getElementById('formName').value = '';
+      document.getElementById('formCategory').value = categories[0]?.name || '';
+      document.getElementById('formPrice').value = '';
+      document.getElementById('formStockTotal').value = '';
+      document.getElementById('formStockAvailable').value = '';
+      document.getElementById('formImage').value = '';
+      document.getElementById('formStatus').value = '上架';
+      document.getElementById('modal').classList.add('show');
+    }
+    
+    function closeModal() { document.getElementById('modal').classList.remove('show'); }
+    
+    function editProduct(name) {
+      const p = products.find(x => x.name === name);
+      if (!p) return;
+      showModal(p.name);
+      editingName = p.name;
+      document.getElementById('formName').value = p.name;
+      document.getElementById('formCategory').value = p.category || '';
+      document.getElementById('formPrice').value = p.price || '';
+      document.getElementById('formStockTotal').value = p.stock_total || '';
+      document.getElementById('formStockAvailable').value = p.stock_available || '';
+      document.getElementById('formImage').value = p.image_url || '';
+      document.getElementById('formStatus').value = p.status || '上架';
+    }
+    
+    async function saveProduct() {
+      const data = {
+        name: document.getElementById('formName').value,
+        category: document.getElementById('formCategory').value,
+        price: parseFloat(document.getElementById('formPrice').value) || 0,
+        stockTotal: parseInt(document.getElementById('formStockTotal').value) || 0,
+        stockAvailable: parseInt(document.getElementById('formStockAvailable').value) || 0,
+        imageUrl: document.getElementById('formImage').value,
+        status: document.getElementById('formStatus').value
+      };
+      
+      if (!data.name) { showToast('请输入商品名称'); return; }
+      
+      try {
+        if (editingName) {
+          await api(`/api/admin/products/${encodeURIComponent(editingName)}`, { method: 'PUT', body: JSON.stringify(data) });
+          showToast('更新成功');
+        } else {
+          await api('/api/admin/products', { method: 'POST', body: JSON.stringify(data) });
+          showToast('添加成功');
+        }
+        closeModal();
+        loadProducts();
+      } catch (err) { showToast('操作失败'); }
+    }
+    
+    async function deleteProduct(name) {
+      if (!confirm('确定删除该商品吗？')) return;
+      try {
+        await api(`/api/admin/products/${encodeURIComponent(name)}`, { method: 'DELETE' });
+        showToast('删除成功');
+        loadProducts();
+      } catch (err) { showToast('删除失败'); }
+    }
+    
+    loadCategories();
+    loadProducts();
+    loadSyncStatus();
+    
+    // 加载同步状态
+    async function loadSyncStatus() {
+      try {
+        const result = await api('/api/admin/sync-products-status');
+        const statusEl = document.getElementById('syncStatus');
+        
+        // 格式化时间
+        let timeText = '';
+        if (result.lastSyncTime) {
+          const date = new Date(result.lastSyncTime);
+          const now = new Date();
+          const diffMs = now - date;
+          const diffMins = Math.floor(diffMs / 60000);
+          const diffHours = Math.floor(diffMs / 3600000);
+          const diffDays = Math.floor(diffMs / 86400000);
+          
+          if (diffMins < 1) {
+            timeText = '刚刚';
+          } else if (diffMins < 60) {
+            timeText = `${diffMins} 分钟前`;
+          } else if (diffHours < 24) {
+            timeText = `${diffHours} 小时前`;
+          } else {
+            timeText = `${diffDays} 天前`;
+          }
+        }
+        
+        // 设置样式和文本
+        statusEl.className = `sync-status ${result.status}`;
+        
+        if (result.status === 'success') {
+          statusEl.innerHTML = `<span class="sync-icon">✅</span><span class="sync-text">同步于 ${timeText}</span>`;
+        } else if (result.status === 'failed') {
+          statusEl.innerHTML = `<span class="sync-icon">❌</span><span class="sync-text">同步失败</span>`;
+          statusEl.title = result.message;
+        } else if (result.status === 'running') {
+          statusEl.innerHTML = `<span class="sync-icon">⏳</span><span class="sync-text">同步中...</span>`;
+        } else {
+          statusEl.innerHTML = `<span class="sync-icon">○</span><span class="sync-text">从未同步</span>`;
+        }
+      } catch (err) {
+        console.error('加载同步状态失败:', err);
+      }
+    }
+  </script>
+  <script src="nav-control.js"></script>
+  <script>
+    // 折叠菜单切换
+    function toggleGroup(el) {
+      el.parentElement.classList.toggle('open');
+    }
+</script>
+</body>
+</html>
