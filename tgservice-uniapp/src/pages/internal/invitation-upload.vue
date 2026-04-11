@@ -96,7 +96,7 @@ const uploadImage = async () => {
         uni.showLoading({ title: '上传中...' })
         try {
           // 使用后端代理上传接口（解决OSS PUT方法不兼容问题）
-          const uploadRes = await apiCommon.uploadImageToOSS(res.tempFilePaths[0], 'image')
+          const uploadRes = await apiCommon.uploadImageToOSS(res.tempFilePaths[0], 'image', 'TgTemp/')
           if (uploadRes && uploadRes.url) {
             form.value.invitation_image_url = uploadRes.url
             uni.hideLoading()

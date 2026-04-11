@@ -136,13 +136,14 @@ export default {
   getVipRoom: (id) => request({ url: `/vip-rooms/${id}` }),
   
   // OSS签名
-  getOSSSignature: (type = 'image', ext = 'jpg') => request({ url: `/oss/sts?type=${type}&ext=${ext}` }),
+  getOSSSignature: (type = 'image', ext = 'jpg', dir) => request({ url: dir ? `/oss/sts?type=${type}&ext=${ext}&dir=${dir}` : `/oss/sts?type=${type}&ext=${ext}` }),
   
   // 上传图片到OSS（使用签名URL直传）
-  uploadImageToOSS: async (filePath, fileType = 'image') => {
+  uploadImageToOSS: async (filePath, fileType = 'image', dir) => {
     try {
       // 1. 获取签名URL
-      const signRes = await request({ url: `/oss/sts?type=${fileType}&ext=jpg` })
+      const signUrl = dir ? `/oss/sts?type=${fileType}&ext=jpg&dir=${dir}` : `/oss/sts?type=${fileType}&ext=jpg`;
+      const signRes = await request({ url: signUrl })
       if (!signRes.success || !signRes.signedUrl) {
         return { error: signRes?.error || '获取签名失败' }
       }

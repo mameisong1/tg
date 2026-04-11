@@ -70,7 +70,7 @@ const uploadImage = async () => {
       success: async (res) => {
         uni.showLoading({ title: '上传中...' })
         try {
-          const uploadRes = await apiCommon.uploadImageToOSS(res.tempFilePaths[0], 'image')
+          const uploadRes = await apiCommon.uploadImageToOSS(res.tempFilePaths[0], 'image', 'TgTemp/')
           if (uploadRes && uploadRes.url) {
             form.value.proof_image_url = uploadRes.url
             uni.hideLoading()

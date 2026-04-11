@@ -204,7 +204,7 @@ const uploadFile = async (filePath, type) => {
       }
     } catch (e) {}
     
-    const signData = await api.getOSSSignature(type, ext)
+    const signData = await api.getOSSSignature(type, ext, 'coaches/')
     if (!signData.success) throw new Error(signData.error || '获取上传凭证失败')
     
     const response = await fetch(filePath)

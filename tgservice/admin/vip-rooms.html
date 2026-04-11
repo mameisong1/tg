@@ -402,7 +402,8 @@
       if (ext === 'jpeg') ext = 'jpg';
       
       // 获取签名 URL
-      const signRes = await fetch(`/api/oss/sts?type=${type}&ext=${ext}`, {
+      const dir = type === 'video' ? 'coaches/' : 'coaches/';
+      const signRes = await fetch(`/api/oss/sts?type=${type}&ext=${ext}&dir=${dir}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const signData = await signRes.json();

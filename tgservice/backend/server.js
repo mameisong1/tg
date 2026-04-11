@@ -3537,9 +3537,10 @@ app.get('/api/oss/sts', async (req, res) => {
       // 简化模式：直接返回签名URL（适合小规模使用）
       const fileType = req.query.type || 'image';
       const ext = req.query.ext || (fileType === 'video' ? 'mp4' : 'jpg');
+      const dir = req.query.dir || ossConfig.uploadDir; // 默认 coaches/
       const timestamp = Date.now();
       const randomStr = crypto.randomBytes(4).toString('hex');
-      const objectKey = `${ossConfig.uploadDir}${timestamp}_${randomStr}.${ext}`;
+      const objectKey = `${dir}${timestamp}_${randomStr}.${ext}`;
       
       // 生成签名URL
       const signedUrl = client.signatureUrl(objectKey, {
