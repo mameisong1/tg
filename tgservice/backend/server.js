@@ -3845,15 +3845,22 @@ app.get('/api/admin/device-stats', async (req, res) => {
       deviceStatsCache.week = { count: result.count, weekStart, timestamp: now };
     }
     
-    // 近12周数据（缓存1天）
+    // 近12周数据（按自然周，周一~周日，缓存1天）
     if (now - deviceStatsCache.weeks12.timestamp > 24 * 60 * 60 * 1000) {
       const weeksData = [];
+      const today = new Date();
+      const dayOfWeek = today.getDay(); // 0=周日, 1=周一, ..., 6=周六
+      // 计算本周日（自然周结束日）
+      const daysToSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+      const thisSunday = new Date(today);
+      thisSunday.setDate(today.getDate() + daysToSunday);
+      
       for (let i = 0; i < 12; i++) {
-        const weekEndDate = new Date();
+        const weekEndDate = new Date(thisSunday);
         weekEndDate.setDate(weekEndDate.getDate() - i * 7);
         const weekEndStr = weekEndDate.toISOString().split('T')[0];
         const weekStartDate = new Date(weekEndDate);
-        weekStartDate.setDate(weekStartDate.getDate() - 6);
+        weekStartDate.setDate(weekStartDate.getDate() - 6); // 周一 = 周日往前6天
         const weekStartStr = weekStartDate.toISOString().split('T')[0];
         
         const result = await dbGet(
