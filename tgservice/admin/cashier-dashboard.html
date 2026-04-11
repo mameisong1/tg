@@ -86,8 +86,8 @@
     .product-order-no { font-size: 13px; color: rgba(255,255,255,0.6); }
     .product-order-time { font-size: 11px; color: rgba(255,255,255,0.3); }
     .product-order-items { margin-bottom: 10px; }
-    .product-order-item { display: flex; justify-content: space-between; align-items: center; font-size: 13px; padding: 4px 0; color: rgba(255,255,255,0.7); }
-    .product-order-item .item-info { display: flex; align-items: center; gap: 8px; }
+    .product-order-item { display: flex; justify-content: space-between; align-items: center; font-size: 16px; padding: 6px 0; color: rgba(255,255,255,0.7); }
+    .product-order-item .item-info { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; color: #fff; }
     .product-order-item .item-cancel-btn { padding: 2px 8px; border-radius: 4px; font-size: 10px; background: rgba(231,76,60,0.15); color: #e74c3c; border: none; cursor: pointer; }
     .product-order-item .item-cancel-btn:hover { background: rgba(231,76,60,0.3); }
     .product-order-total { display: flex; justify-content: space-between; align-items: center; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.05); }
@@ -98,7 +98,7 @@
     .service-order-header { display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
     .service-order-no { font-size: 13px; color: #3498db; }
     .service-order-time { font-size: 11px; color: rgba(255,255,255,0.3); }
-    .service-order-info { font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 6px; }
+    .service-order-info { font-size: 18px; color: rgba(255,255,255,0.9); margin-bottom: 6px; font-weight: 600; }
     .service-order-coach { font-size: 12px; color: rgba(255,255,255,0.5); }
     .service-order-actions { display: flex; gap: 8px; margin-top: 10px; }
     .service-order-actions .btn { flex: 1; }
@@ -109,7 +109,7 @@
     .coach-session-no { font-size: 13px; color: #9b59b6; }
     .coach-session-time { font-size: 11px; color: rgba(255,255,255,0.3); }
     .coach-session-info { font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 4px; }
-    .coach-session-detail { font-size: 12px; color: rgba(255,255,255,0.5); }
+    .coach-session-detail { font-size: 16px; color: rgba(255,255,255,0.8); font-weight: 600; }
     .coach-session-actions { display: flex; gap: 8px; margin-top: 10px; }
     .coach-session-actions .btn { flex: 1; }
     .status-badge { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 11px; }
@@ -450,6 +450,12 @@
       return d.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
     }
 
+    function formatBeijingTimeOnly(timeStr) {
+      if (!timeStr) return '-';
+      const d = new Date(timeStr + ' UTC');
+      return d.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit' });
+    }
+
     function isWithinMinutes(timeStr, minutes) {
       if (!timeStr) return false;
       const d = new Date(timeStr + ' UTC');
@@ -689,7 +695,6 @@
               <div class="product-order-item">
                 <span class="item-info">${item.name} × ${item.quantity}</span>
                 <div style="display:flex;align-items:center;gap:8px">
-                  <span>¥${((item.price || 0) * (item.quantity || 1)).toFixed(2)}</span>
                   ${isPending ? `<button class="item-cancel-btn" onclick="openCancelItemModal(${o.id}, '${item.name}', ${item.quantity})">取消</button>` : ''}
                 </div>
               </div>
@@ -804,12 +809,12 @@
             ${tableNo ? `<span class="card-table-no">🎱 ${tableNo}</span>` : ''}
             <span class="status-badge ${getStatusClass(s.status)}">${s.status}</span>
           </div>
-          <div class="coach-session-info">
+          <div class="coach-session-info" style="font-size:16px;font-weight:600;">
             ${s.order_type === '上桌单' ? '⬆️' : s.order_type === '下桌单' ? '⬇️' : '❌'} ${s.order_type || s.type || '-'}
-            | 👤 ${s.stage_name || '-'} (工号${displayId})
+            | 👤 ${s.stage_name || '-'} (${displayId})
           </div>
           <div class="coach-session-detail">${s.action_category || ''}</div>
-          <div class="coach-session-time" style="font-size:11px;color:rgba(255,255,255,0.3);margin-top:4px">${formatBeijingTime(s.created_at)}</div>
+          <div class="coach-session-time" style="font-size:15px;color:rgba(255,255,255,0.7);margin-top:6px;font-weight:600;">${formatBeijingTimeOnly(s.created_at)}</div>
           ${isPending ? `<div class="coach-session-actions">
             <button class="btn btn-sm btn-danger" onclick="updateTableOrder(${s.id}, '已取消')">取消</button>
             <button class="btn btn-sm btn-success" onclick="updateTableOrder(${s.id}, '已完成')">完成</button>
