@@ -1028,21 +1028,36 @@
   { "url": "/uploads/videos/xxx.mp4" }
   ```
 
-### 获取OSS临时凭证
+### 获取OSS签名URL
 
 - **路径**: `GET /api/oss/sts`
+- **查询参数**: 
+  | 参数 | 类型 | 必填 | 默认值 | 说明 |
+  |------|------|------|--------|------|
+  | type | string | 否 | image | 文件类型（image/video） |
+  | ext | string | 否 | jpg | 文件扩展名 |
+  | dir | string | 否 | coaches/ | 上传目录 |
 - **返回**: 
   ```json
   {
-    "accessKeyId": "临时AK",
-    "accessKeySecret": "临时SK",
-    "stsToken": "STS Token",
-    "expiration": "过期时间",
-    "bucket": "bucket名称",
-    "region": "区域"
+    "success": true,
+    "signedUrl": "https://xxx.oss-cn-xxx.aliyuncs.com/coaches/xxx.jpg?OSSAccessKeyId=...",
+    "accessUrl": "https://xxx.oss-cn-xxx.aliyuncs.com/coaches/xxx.jpg",
+    "objectKey": "coaches/1775871062425_xxx.jpg",
+    "expires": 3600
   }
   ```
-- **说明**: 获取阿里云OSS STS临时凭证，用于前端直传
+- **说明**: 获取阿里云OSS签名URL，用于前端直传。前端使用PUT方法将文件上传到signedUrl。
+
+#### 上传目录分配
+
+| 页面 | dir 参数 | OSS目录 |
+|------|----------|--------|
+| 助教个人中心 | `coaches/` | `coaches/` |
+| 包房编辑 | `coaches/` | `coaches/` |
+| 约客记录 | `TgTemp/` | `TgTemp/` |
+| 加班申请 | `TgTemp/` | `TgTemp/` |
+| 公休申请 | `TgTemp/` | `TgTemp/` |
 
 ### 上传到OSS
 

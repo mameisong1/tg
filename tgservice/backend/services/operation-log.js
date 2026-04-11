@@ -4,6 +4,11 @@
 
 const db = require('../db');
 
+// 操作日志数据库写入开关
+// 默认关闭（不设置环境变量时不写入DB），减少SQLite锁竞争
+// 需要开启时设置 ENABLE_OPERATION_LOG=true
+const ENABLE_OPERATION_LOG = process.env.ENABLE_OPERATION_LOG === 'true';
+
 /**
  * 创建操作日志记录
  * @param {Object} transaction - 数据库事务对象
@@ -11,6 +16,10 @@ const db = require('../db');
  * @returns {Promise<Object>} 创建的日志记录
  */
 async function create(transaction, logData) {
+  if (!ENABLE_OPERATION_LOG) {
+    return { id: null, skipped: true };
+  }
+  
   const {
     operator_phone,
     operator_name,
