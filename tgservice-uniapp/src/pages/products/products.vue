@@ -171,8 +171,8 @@ const tableInfoRef = ref(null)
 // 直接从 localStorage 读取台桌信息，不依赖组件传递（解决响应式链断裂问题）
 const tableAuthExpireMinutes = ref(5) // 默认5分钟
 
-// 台桌名称 - 直接从 localStorage 读取
-const tableName = computed(() => uni.getStorageSync('tableName') || '')
+// 台桌名称 - 用 ref 存储，选择台桌后手动更新（解决 computed 不响应 localStorage 变化问题）
+const tableName = ref(uni.getStorageSync('tableName') || '')
 
 // 台桌状态 - 直接计算，不依赖组件
 const tableStatus = computed(() => {
@@ -319,6 +319,8 @@ const onTableSelected = (tableNo) => {
   uni.setStorageSync('tableName', tableNo)
   // 当作扫码成功：同时写入 tableAuth
   uni.setStorageSync('tableAuth', JSON.stringify({ table: tableNo, time: Date.now() }))
+  // 手动更新 ref（让页面立即响应，解决 computed 不响应 localStorage 变化问题）
+  tableName.value = tableNo
   tableInfoRef.value?.loadTableInfo()
 }
 
