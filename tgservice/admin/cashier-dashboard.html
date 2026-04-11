@@ -693,7 +693,7 @@
           <div class="product-order-items">
             ${items.map(item => `
               <div class="product-order-item">
-                <span class="item-info">${item.name} × ${item.quantity}</span>
+                <span class="item-info">${item.category ? `<span style="font-size:12px;color:rgba(212,175,55,0.8);margin-right:6px">${item.category}</span>` : ''}${item.name} × ${item.quantity}</span>
                 <div style="display:flex;align-items:center;gap:8px">
                   ${isPending ? `<button class="item-cancel-btn" onclick="openCancelItemModal(${o.id}, '${item.name}', ${item.quantity})">取消</button>` : ''}
                 </div>
@@ -702,7 +702,6 @@
           </div>
           <div class="product-order-total">
             <span class="status-badge ${getStatusClass(o.status)}">${o.status || '待处理'}</span>
-            <span class="product-order-price">${formatMoney(o.total_price)}</span>
           </div>
           ${isPending ? `<div style="margin-top:10px;display:flex;gap:8px">
             <button class="btn btn-sm btn-success" style="flex:1" onclick="completeOrder(${o.id})">✓ 完成</button>
