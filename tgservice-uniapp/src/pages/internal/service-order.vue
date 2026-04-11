@@ -22,10 +22,18 @@
 
       <!-- 快捷需求按钮 -->
       <view class="form-item">
-        <text class="form-label">快捷需求</text>
-        <view class="quick-tags">
-          <view class="quick-tag" v-for="tag in quickTags" :key="tag" @click="selectQuickTag(tag)">
-            <text>{{ tag }}</text>
+        <view class="quick-group" v-for="group in quickTagGroups" :key="group.label">
+          <text class="group-label">{{ group.label }}</text>
+          <view class="quick-tags">
+            <view
+              class="quick-tag"
+              :style="getTagStyle(group.color)"
+              v-for="tag in group.tags"
+              :key="tag"
+              @click="selectQuickTag(tag)"
+            >
+              <text>{{ tag }}</text>
+            </view>
           </view>
         </view>
       </view>
@@ -65,7 +73,22 @@ const showSuccess = ref(false)
 const adminInfo = ref({})
 const coachInfo = ref({})
 
-const quickTags = ['换垃圾袋', '搞卫生', '音响连接', '加水']
+const quickTagGroups = [
+  { label: '账务', color: '#e74c3c', tags: ['看账单'] },
+  { label: '挂烟', color: '#e67e22', tags: ['挂烟1包', '挂烟2包'] },
+  { label: '配件', color: '#f39c12', tags: ['打火机', '换电池'] },
+  { label: '酒具', color: '#3498db', tags: ['啤酒杯', '样酒杯'] },
+  { label: '餐饮', color: '#2ecc71', tags: ['零食推车'] },
+  { label: '服务', color: '#9b59b6', tags: ['换垃圾袋', '搞卫生', '音响连接', '加水'] }
+]
+
+const getTagStyle = (color) => {
+  return {
+    background: color + '18',
+    borderColor: color + '66',
+    color: color
+  }
+}
 
 const form = ref({ table_no: '', requirement: '' })
 
@@ -162,9 +185,11 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .form-value .placeholder { color: rgba(255,255,255,0.3); }
 .arrow { font-size: 18px; color: rgba(255,255,255,0.3); }
 
-.quick-tags { display: flex; flex-wrap: wrap; gap: 8px; }
-.quick-tag { padding: 10px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; font-size: 13px; color: rgba(255,255,255,0.7); }
-.quick-tag:active { background: rgba(212,175,55,0.2); border-color: #d4af37; color: #d4af37; }
+.quick-group { margin-bottom: 12px; }
+.group-label { font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 6px; display: block; letter-spacing: 1px; }
+.quick-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.quick-tag { padding: 10px 16px; border: 1px solid; border-radius: 20px; font-size: 13px; }
+.quick-tag:active { filter: brightness(1.3); }
 
 .input { width: 100%; height: 48px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 0 12px; font-size: 14px; color: #fff; box-sizing: border-box; }
 
