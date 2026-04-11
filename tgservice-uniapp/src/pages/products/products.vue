@@ -132,6 +132,14 @@
       confirmText="知道了"
       @confirm="showTipModal = false"
     />
+
+    <!-- 商品选项弹窗 -->
+    <ProductOptionsModal
+      :visible="showOptionsModal"
+      :product="currentProduct"
+      @confirm="handleOptionsConfirm"
+      @close="showOptionsModal = false"
+    />
     
     <!-- #ifdef H5 -->
     <!-- 台桌选择器（员工使用） -->
@@ -152,6 +160,7 @@ import api from '@/utils/api.js'
 import BeautyModal from '@/components/BeautyModal.vue'
 import TableInfo from '@/components/TableInfo.vue'
 import TableSelector from '@/components/TableSelector.vue'
+import ProductOptionsModal from '@/components/ProductOptionsModal.vue'
 
 // 状态栏高度
 const statusBarHeight = ref(0)
@@ -197,6 +206,8 @@ const products = ref([])
 const loading = ref(false)
 const sessionId = ref('')
 const cartCount = ref(0)
+const showOptionsModal = ref(false)
+const currentProduct = ref(null)
 const highlightProductName = ref('') // 高亮商品名
 const categoryCounts = ref({}) // 分类商品数量
 
@@ -332,12 +343,28 @@ const quickAdd = async (item) => {
       showTableSelector.value = true
       return
     }
+    // 检查商品是否有选项
     try {
-      await api.addCart({ sessionId: sessionId.value, tableNo: tableName.value, productName: item.name, quantity: 1 })
+      const result = await api.getProductOptions(item.category, item.name)
+      if (result && result.options && (result.options.temperature || result.options.sugar)) {
+        // 有选项，弹窗选择
+        currentProduct.value = item
+        showOptionsModal.value = true
+        return
+      }
+      // 无选项，直接加车
+      await api.addCart({ sessionId: sessionId.value, tableNo: tableName.value, productName: item.name, quantity: 1, options: '' })
       uni.showToast({ title: '已加入购物车', icon: 'success' })
       loadCart()
     } catch (e) {
-      uni.showToast({ title: '添加失败', icon: 'none' })
+      // 获取选项失败，直接加车
+      try {
+        await api.addCart({ sessionId: sessionId.value, tableNo: tableName.value, productName: item.name, quantity: 1, options: '' })
+        uni.showToast({ title: '已加入购物车', icon: 'success' })
+        loadCart()
+      } catch (e2) {
+        uni.showToast({ title: '添加失败', icon: 'none' })
+      }
     }
     return
   }
@@ -357,8 +384,36 @@ const quickAdd = async (item) => {
     return
   }
 
+  // 检查商品是否有选项
   try {
-    await api.addCart({ sessionId: sessionId.value, tableNo: tableName.value, productName: item.name, quantity: 1 })
+    const result = await api.getProductOptions(item.category, item.name)
+    if (result && result.options && (result.options.temperature || result.options.sugar)) {
+      // 有选项，弹窗选择
+      currentProduct.value = item
+      showOptionsModal.value = true
+      return
+    }
+    // 无选项，直接加车
+    await api.addCart({ sessionId: sessionId.value, tableNo: tableName.value, productName: item.name, quantity: 1, options: '' })
+    uni.showToast({ title: '已加入购物车', icon: 'success' })
+    loadCart()
+  } catch (e) {
+    // 获取选项失败，直接加车
+    try {
+      await api.addCart({ sessionId: sessionId.value, tableNo: tableName.value, productName: item.name, quantity: 1, options: '' })
+      uni.showToast({ title: '已加入购物车', icon: 'success' })
+      loadCart()
+    } catch (e2) {
+      uni.showToast({ title: '添加失败', icon: 'none' })
+    }
+  }
+}
+
+// 选项确认回调
+const handleOptionsConfirm = async ({ product, options }) => {
+  try {
+    await api.addCart({ sessionId: sessionId.value, tableNo: tableName.value, productName: product.name, quantity: 1, options: options })
+    showOptionsModal.value = false
     uni.showToast({ title: '已加入购物车', icon: 'success' })
     loadCart()
   } catch (e) {

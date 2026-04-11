@@ -22,6 +22,7 @@
         <image class="item-img" :src="getProductImage(item)" mode="aspectFill"></image>
         <view class="item-info">
           <view class="item-name">{{ item.product_name }}</view>
+          <view v-if="item.options" class="item-options">{{ item.options }}</view>
           <view class="item-price">¥{{ item.price }}</view>
           <view class="item-actions">
             <view class="qty-btn" @click="changeQty(item, -1)">-</view>
@@ -180,14 +181,14 @@ const loadCart = async () => {
 const changeQty = async (item, delta) => {
   const newQty = item.quantity + delta
   try {
-    if (newQty <= 0) await api.deleteCartItem({ sessionId: sessionId.value, productName: item.product_name })
-    else await api.updateCart({ sessionId: sessionId.value, productName: item.product_name, quantity: newQty })
+    if (newQty <= 0) await api.deleteCartItem({ sessionId: sessionId.value, productName: item.product_name, options: item.options || '' })
+    else await api.updateCart({ sessionId: sessionId.value, productName: item.product_name, quantity: newQty, options: item.options || '' })
     loadCart()
   } catch (e) { uni.showToast({ title: '操作失败', icon: 'none' }) }
 }
 
 const deleteItem = async (item) => {
-  try { await api.deleteCartItem({ sessionId: sessionId.value, productName: item.product_name }); loadCart() }
+  try { await api.deleteCartItem({ sessionId: sessionId.value, productName: item.product_name, options: item.options || '' }); loadCart() }
   catch (e) { uni.showToast({ title: '删除失败', icon: 'none' }) }
 }
 
@@ -415,6 +416,7 @@ onShow(() => {
 .item-img { width: 80px; height: 80px; border-radius: 8px; background: rgba(30,30,40,0.5); }
 .item-info { flex: 1; }
 .item-name { font-size: 15px; font-weight: 500; margin-bottom: 8px; }
+.item-options { font-size: 12px; color: #e6553a; margin-bottom: 4px; }
 .item-price { font-size: 14px; color: #d4af37; margin-bottom: 12px; }
 .item-actions { display: flex; align-items: center; }
 .qty-btn { width: 28px; height: 28px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; }

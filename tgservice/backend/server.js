@@ -353,11 +353,59 @@ const dbRun = (sql, params = []) => {
   });
 };
 
+// 商品选项缓存
+let productOptionsCache = [];
+
+// 加载商品选项缓存
+function loadProductOptionsCache() {
+  return new Promise((resolve) => {
+    db.all('SELECT * FROM product_options', [], (err, rows) => {
+      if (err) {
+        logger.error(`加载商品选项缓存失败: ${err.message}`);
+        productOptionsCache = [];
+      } else {
+        productOptionsCache = rows || [];
+        logger.info(`商品选项缓存加载完成: ${productOptionsCache.length} 条`);
+      }
+      resolve();
+    });
+  });
+}
+
+// 匹配商品选项
+function matchProductOptions(category, productName) {
+  if (!category || !productName) return null;
+  
+  // 优先精确匹配
+  const exact = productOptionsCache.find(
+    opt => opt.category === category && opt.product_name === productName
+  );
+  if (exact) return exact;
+  
+  // 通配匹配：product_name='所有商品'
+  const wildcard = productOptionsCache.find(
+    opt => opt.category === category && opt.product_name === '所有商品'
+  );
+  if (wildcard) return wildcard;
+  
+  return null;
+}
+
+// 启动时加载商品选项缓存
+loadProductOptionsCache();
+
 // =============== API 路由 ===============
 
 // 健康检查
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// 获取商品选项
+app.get('/api/product-options', (req, res) => {
+  const { category, product_name } = req.query;
+  const options = matchProductOptions(category, product_name);
+  res.json({ options });
 });
 
 
@@ -530,16 +578,16 @@ app.get('/api/products/:name', async (req, res) => {
 // 购物车操作
 app.post('/api/cart', async (req, res) => {
   try {
-    const { sessionId, tableNo, productName, quantity = 1 } = req.body;
+    const { sessionId, tableNo, productName, quantity = 1, options = '' } = req.body;
 
     if (!sessionId || !productName) {
       return res.status(400).json({ error: '缺少必要参数' });
     }
 
-    // 检查是否已存在
+    // 检查是否已存在（匹配 session_id + product_name + options）
     const existing = await dbGet(
-      'SELECT id, quantity FROM carts WHERE session_id = ? AND product_name = ?',
-      [sessionId, productName]
+      'SELECT id, quantity FROM carts WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')',
+      [sessionId, productName, options, options]
     );
 
     if (existing) {
@@ -551,12 +599,12 @@ app.post('/api/cart', async (req, res) => {
     } else {
       // 新增
       await dbRun(
-        'INSERT INTO carts (session_id, table_no, product_name, quantity) VALUES (?, ?, ?, ?)',
-        [sessionId, tableNo || null, productName, quantity]
+        'INSERT INTO carts (session_id, table_no, product_name, quantity, options) VALUES (?, ?, ?, ?, ?)',
+        [sessionId, tableNo || null, productName, quantity, options]
       );
     }
 
-    operationLog.info(`购物车操作: sessionId=${sessionId}, tableNo=${tableNo}, product=${productName}, qty=${quantity}`);
+    operationLog.info(`购物车操作: sessionId=${sessionId}, tableNo=${tableNo}, product=${productName}, qty=${quantity}, options=${options}`);
     res.json({ success: true, message: '已添加到购物车' });
   } catch (err) {
     logger.error(`购物车操作失败: ${err.message}`);
@@ -569,7 +617,7 @@ app.get('/api/cart/:sessionId', async (req, res) => {
   try {
     const { sessionId } = req.params;
     const items = await dbAll(
-      `SELECT c.product_name, c.quantity, c.table_no, p.price, p.image_url
+      `SELECT c.product_name, c.quantity, c.table_no, c.options, p.price, p.image_url
        FROM carts c
        LEFT JOIN products p ON c.product_name = p.name
        WHERE c.session_id = ?`,
@@ -589,12 +637,12 @@ app.get('/api/cart/:sessionId', async (req, res) => {
 // 更新购物车数量
 app.put('/api/cart', async (req, res) => {
   try {
-    const { sessionId, productName, quantity } = req.body;
+    const { sessionId, productName, quantity, options = '' } = req.body;
 
     if (quantity <= 0) {
-      await dbRun('DELETE FROM carts WHERE session_id = ? AND product_name = ?', [sessionId, productName]);
+      await dbRun('DELETE FROM carts WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')', [sessionId, productName, options, options]);
     } else {
-      await dbRun('UPDATE carts SET quantity = ? WHERE session_id = ? AND product_name = ?', [quantity, sessionId, productName]);
+      await dbRun('UPDATE carts SET quantity = ? WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')', [quantity, sessionId, productName, options, options]);
     }
 
     res.json({ success: true });
@@ -607,8 +655,8 @@ app.put('/api/cart', async (req, res) => {
 // 删除购物车商品
 app.delete('/api/cart', async (req, res) => {
   try {
-    const { sessionId, productName } = req.body;
-    await dbRun('DELETE FROM carts WHERE session_id = ? AND product_name = ?', [sessionId, productName]);
+    const { sessionId, productName, options = '' } = req.body;
+    await dbRun('DELETE FROM carts WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')', [sessionId, productName, options, options]);
     res.json({ success: true });
   } catch (err) {
     logger.error(`删除购物车商品失败: ${err.message}`);
@@ -666,7 +714,7 @@ app.post('/api/order', async (req, res) => {
 
     // 获取购物车
     const items = await dbAll(
-      `SELECT c.product_name, c.quantity, c.table_no, p.price
+      `SELECT c.product_name, c.quantity, c.table_no, c.options, p.price
        FROM carts c
        LEFT JOIN products p ON c.product_name = p.name
        WHERE c.session_id = ?`,
@@ -704,11 +752,15 @@ app.post('/api/order', async (req, res) => {
     const orderItems = items.map(item => ({
       name: item.product_name,
       quantity: item.quantity,
-      price: item.price
+      price: item.price,
+      options: item.options || ''
     }));
 
-    // 发送钉钉消息
-    const message = `【天宫国际 - 新订单】\n\n台桌号: ${tableNo}\n商品:\n${orderItems.map(i => `  • ${i.name} x${i.quantity} = ¥${(i.price * i.quantity).toFixed(2)}`).join('\n')}\n\n合计: ¥${totalPrice.toFixed(2)}\n订单号: ${orderNo}\n时间: ${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}`;
+    // 发送钉钉消息（商品名显示选项）
+    const message = `【天宫国际 - 新订单】\n\n台桌号: ${tableNo}\n商品:\n${orderItems.map(i => {
+      const displayName = i.options ? `${i.name}(${i.options})` : i.name;
+      return `  • ${displayName} x${i.quantity} = ¥${(i.price * i.quantity).toFixed(2)}`;
+    }).join('\n')}\n\n合计: ¥${totalPrice.toFixed(2)}\n订单号: ${orderNo}\n时间: ${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}`;
 
     // 发送钉钉消息(加签方式)
     const dingtalkResult = await sendDingtalkMessage(message);

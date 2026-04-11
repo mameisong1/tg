@@ -97,6 +97,7 @@ export default {
   getCategoryCounts: () => request({ url: '/categories/counts' }),
   getProducts: (category) => request({ url: '/products', data: { category } }),
   getProduct: (name) => request({ url: `/products/${encodeURIComponent(name)}` }),
+  getProductOptions: (category, productName) => request({ url: '/product-options', data: { category, product_name: productName } }),
   
   // 购物车
   addCart: (data) => request({ url: '/cart', method: 'POST', data }),
