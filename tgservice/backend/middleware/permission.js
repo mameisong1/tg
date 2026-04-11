@@ -79,6 +79,7 @@ const PERMISSION_MATRIX = {
   '收银': {
     menu: ['cashier-dashboard', 'products'],
     cashierDashboard: true,
+    serviceOrder: true,
     productManagement: true,
     vipRoomManagement: false,
     coachManagement: false,
@@ -94,6 +95,7 @@ const PERMISSION_MATRIX = {
   'cashier': {
     menu: ['cashier-dashboard', 'products'],
     cashierDashboard: true,
+    serviceOrder: true,
     productManagement: true,
     vipRoomManagement: false,
     coachManagement: false,
