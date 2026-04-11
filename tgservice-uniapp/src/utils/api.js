@@ -148,25 +148,38 @@ export default {
       }
       
       // #ifdef H5
-      // H5环境：fetch 获取 blob，XHR 直传 OSS（避免 uni.request PUT 的 CORS 和 base64 问题）
+      // H5环境：使用后端本地上传接口（绕过OSS跨域问题）
       const response = await fetch(filePath)
       const blob = await response.blob()
       
+      const formData = new FormData()
+      formData.append('image', blob, 'upload.jpg')
+      
+      const uploadXhr = new XMLHttpRequest()
+      uploadXhr.open('POST', '/api/upload/image', true)
+      
       return new Promise((resolve) => {
-        const xhr = new XMLHttpRequest()
-        xhr.open('PUT', signRes.uploadUrl, true)
-        xhr.setRequestHeader('Content-Type', 'image/jpeg')
-        xhr.onload = () => {
-          if (xhr.status === 200) {
-            resolve({ success: true, url: signRes.fileUrl })
+        uploadXhr.onload = () => {
+          if (uploadXhr.status === 200) {
+            try {
+              const data = JSON.parse(uploadXhr.responseText)
+              if (data.success && data.url) {
+                // 返回完整URL
+                resolve({ success: true, url: data.url.startsWith('http') ? data.url : window.location.origin + data.url })
+              } else {
+                resolve({ error: data.error || '上传失败' })
+              }
+            } catch (e) {
+              resolve({ error: '解析响应失败' })
+            }
           } else {
-            resolve({ error: `上传失败: ${xhr.status}` })
+            resolve({ error: `上传失败: ${uploadXhr.status}` })
           }
         }
-        xhr.onerror = () => resolve({ error: '网络错误，请检查网络连接' })
-        xhr.ontimeout = () => resolve({ error: '上传超时，请重试' })
-        xhr.timeout = 60000
-        xhr.send(blob)
+        uploadXhr.onerror = () => resolve({ error: '网络错误，请检查网络连接' })
+        uploadXhr.ontimeout = () => resolve({ error: '上传超时，请重试' })
+        uploadXhr.timeout = 60000
+        uploadXhr.send(formData)
       })
       // #endif
       

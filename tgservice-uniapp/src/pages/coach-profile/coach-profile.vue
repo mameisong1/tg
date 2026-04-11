@@ -205,69 +205,55 @@ const uploadFile = async (filePath, type) => {
       }
     } catch (e) {}
     
-    const signData = await api.getOSSSignature(type, ext)
-    if (!signData.success) throw new Error(signData.error || '获取上传凭证失败')
-    
+    // H5环境：使用后端本地上传接口（绕过OSS 403问题）
     const response = await fetch(filePath)
     const blob = await response.blob()
     
-    const xhr = new XMLHttpRequest()
-    xhr.open('PUT', signData.signedUrl, true)
-    xhr.setRequestHeader('Content-Type', type === 'video' ? 'video/mp4' : 'image/jpeg')
+    const formData = new FormData()
+    formData.append('image', blob, 'upload.jpg')
     
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) {
-        uploadProgress.value = Math.round((e.loaded / e.total) * 100)
-      }
-    }
+    const uploadXhr = new XMLHttpRequest()
+    uploadXhr.open('POST', '/api/upload/image', true)
     
-    // 设置超时时间 5 分钟
-    xhr.timeout = 300000
-    
-    xhr.onload = async () => {
+    uploadXhr.onload = async () => {
       uploading.value = false
-      if (xhr.status === 200) {
-        const url = signData.accessUrl
-        if (type === 'video') videos.value.push(url)
-        else photos.value.push(url)
-        uni.showToast({ title: '上传成功', icon: 'success' })
-        await reportError({ stage: '上传成功', url })
+      if (uploadXhr.status === 200) {
         try {
-          await api.updateCoachProfile({
-            coachNo: coachInfo.value.coachNo,
-            age: parseInt(form.age) || null,
-            height: parseInt(form.height) || null,
-            intro: form.intro,
-            photos: photos.value,
-            videos: videos.value
-          })
-        } catch (e) { uni.showToast({ title: '自动保存失败', icon: 'none' }) }
+          const data = JSON.parse(uploadXhr.responseText)
+          if (data.success && data.url) {
+            const url = data.url.startsWith('http') ? data.url : window.location.origin + data.url
+            photos.value.push(url)
+            uni.showToast({ title: '上传成功', icon: 'success' })
+            try {
+              await api.updateCoachProfile({
+                coachNo: coachInfo.value.coachNo,
+                age: parseInt(form.age) || null,
+                height: parseInt(form.height) || null,
+                intro: form.intro,
+                photos: photos.value,
+                videos: videos.value
+              })
+            } catch (e) { uni.showToast({ title: '自动保存失败', icon: 'none' }) }
+          } else {
+            uni.showToast({ title: data.error || '上传失败', icon: 'none' })
+          }
+        } catch (e) { uni.showToast({ title: '解析响应失败', icon: 'none' }) }
       } else {
-        // 根据 HTTP 状态码提供详细错误信息
-        let errorMsg = `上传失败(${xhr.status})`
-        if (xhr.status === 413) errorMsg = '文件太大，请压缩后重试'
-        else if (xhr.status === 504 || xhr.status === 502) errorMsg = '服务器超时，请稍后重试'
-        else if (xhr.status === 500) errorMsg = '服务器错误，请联系管理员'
-        else if (xhr.status === 403) errorMsg = '没有上传权限'
-        else if (xhr.status === 401) errorMsg = '登录已过期，请重新登录'
-        await reportError({ stage: 'H5上传', statusCode: xhr.status, response: xhr.responseText?.substring(0, 200) })
-        uni.showToast({ title: errorMsg, icon: 'none' })
+        uni.showToast({ title: `上传失败(${uploadXhr.status})`, icon: 'none' })
       }
     }
     
-    xhr.onerror = async () => {
+    uploadXhr.onerror = async () => {
       uploading.value = false
-      await reportError({ stage: 'H5上传', error: 'XHR网络错误' })
       uni.showToast({ title: '网络错误，请检查网络连接', icon: 'none' })
     }
     
-    xhr.ontimeout = async () => {
+    uploadXhr.ontimeout = async () => {
       uploading.value = false
-      await reportError({ stage: 'H5上传', error: '上传超时' })
-      uni.showToast({ title: '上传超时，请压缩文件后重试', icon: 'none' })
+      uni.showToast({ title: '上传超时，请重试', icon: 'none' })
     }
-    
-    xhr.send(blob)
+    uploadXhr.timeout = 60000
+    uploadXhr.send(formData)
     // #endif
     
     // #ifndef H5
