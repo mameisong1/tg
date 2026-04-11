@@ -832,7 +832,7 @@ app.get('/api/coaches', async (req, res) => {
         photos: c.photos ? JSON.parse(c.photos) : [],
         display_status: displayStatus,
         display_status_icon: getWaterStatusIcon(c.water_status),
-        display_status_text: displayStatus === '上桌' ? (c.water_table_no ? `上桌 ${c.water_table_no}` : '上桌') : displayStatus
+        display_status_text: displayStatus
       };
     });
 
@@ -864,7 +864,7 @@ app.get('/api/coaches/popularity/top6', async (req, res) => {
       photos: c.photos ? JSON.parse(c.photos) : [],
       display_status: categorizeWaterStatus(c.water_status),
       display_status_icon: getWaterStatusIcon(c.water_status),
-      display_status_text: categorizeWaterStatus(c.water_status) === '上桌' ? (c.water_table_no ? `上桌 ${c.water_table_no}` : '上桌') : categorizeWaterStatus(c.water_status)
+      display_status_text: categorizeWaterStatus(c.water_status)
     }));
     res.json(coaches);
   } catch (err) {
@@ -919,7 +919,7 @@ app.get('/api/coaches/:coachNo', async (req, res) => {
       videos: coach.videos ? JSON.parse(coach.videos) : [],
       display_status: displayStatus,
       display_status_icon: getWaterStatusIcon(coach.water_status),
-      display_status_text: displayStatus === '上桌' ? (coach.water_table_no ? `上桌 ${coach.water_table_no}` : '上桌') : displayStatus
+      display_status_text: displayStatus
     });
   } catch (err) {
     logger.error(`获取助教详情失败: ${err.message}`);
