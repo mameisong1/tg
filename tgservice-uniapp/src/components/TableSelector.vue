@@ -87,7 +87,18 @@ const loading = ref(false)
 
 const areas = computed(() => {
   const areaSet = new Set(allTables.value.map(t => t.area))
-  return Array.from(areaSet).map(area => ({ label: area, value: area }))
+  const allAreas = Array.from(areaSet)
+  // 指定区域排序顺序
+  const areaOrder = ['包厢区', '大厅区', '斯诺克区', '棋牌区', 'TV区', 'tv区']
+  const sorted = allAreas.sort((a, b) => {
+    const idxA = areaOrder.findIndex(o => o === a || o.toLowerCase() === a.toLowerCase())
+    const idxB = areaOrder.findIndex(o => o === b || o.toLowerCase() === b.toLowerCase())
+    const orderA = idxA === -1 ? areaOrder.length : idxA
+    const orderB = idxB === -1 ? areaOrder.length : idxB
+    if (orderA !== orderB) return orderA - orderB
+    return a.localeCompare(b, 'zh-CN')
+  })
+  return sorted.map(area => ({ label: area, value: area }))
 })
 
 const currentArea = ref('')

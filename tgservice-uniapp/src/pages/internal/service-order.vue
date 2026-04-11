@@ -104,6 +104,8 @@ const onTableSelected = (tableNo) => {
   showTableSelector.value = false
   // 同步到 localStorage，让商品页/购物车的台桌号也更新
   uni.setStorageSync('tableName', tableNo)
+  // 当作扫码成功：同时写入 tableAuth
+  uni.setStorageSync('tableAuth', JSON.stringify({ table: tableNo, time: Date.now() }))
 }
 
 // 点击快捷需求，直接填入需求内容

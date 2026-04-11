@@ -56,6 +56,18 @@
       @confirm="handleModalConfirm"
     />
     
+    <!-- 助教水牌台桌号不一致警告 -->
+    <BeautyModal
+      v-model:visible="showCoachTableWarning"
+      title="⚠️ 台桌号不一致"
+      :content="`您当前水牌台桌号为 ${coachWaterTableNo}，与当前选择台桌号（${tableName}）不一致，确定要用 ${tableName} 下单吗？`"
+      confirmText="确定下单"
+      cancelText="取消"
+      showCancel
+      @confirm="confirmCoachTableMismatch"
+      @cancel="cancelCoachTableMismatch"
+    />
+    
     <!-- #ifdef H5 -->
     <!-- 台桌选择器（员工使用） -->
     <TableSelector :visible="showTableSelector" :defaultTable="defaultTableNo" @confirm="onTableSelected" @cancel="showTableSelector = false" />
@@ -114,6 +126,10 @@ const showResultModal = ref(false)
 const resultTitle = ref('')
 const resultContent = ref('')
 const orderSuccess = ref(false)
+// 助教水牌台桌号不一致警告
+const showCoachTableWarning = ref(false)
+const coachWaterTableNo = ref('')
+const pendingOrderSubmit = ref(false)
 const floatPosition = ref('left')
 
 // 员工识别：有 adminToken 或 coachToken 即为员工
@@ -242,7 +258,8 @@ const submitOrder = async () => {
       showResultModal.value = true
       return
     }
-    await doSubmitOrder()
+    // 水牌为上桌状态的助教，检查台桌号一致性
+    await checkCoachTableConsistency()
     return
   }
   
@@ -256,6 +273,50 @@ const submitOrder = async () => {
   }
   
   await doSubmitOrder()
+}
+
+// 检查助教水牌台桌号与购物车台桌号是否一致
+const checkCoachTableConsistency = async () => {
+  const coachInfo = uni.getStorageSync('coachInfo')
+  if (!coachInfo?.coachNo) {
+    // 后台用户，直接下单
+    await doSubmitOrder()
+    return
+  }
+  
+  try {
+    const res = await api.getCoachWaterStatus(coachInfo.coachNo)
+    const waterStatus = res.data?.status
+    const waterTableNo = res.data?.table_no
+    
+    // 判断是否为上桌状态
+    const isOnTable = waterStatus === '早班上桌' || waterStatus === '晚班上桌'
+    
+    if (isOnTable && waterTableNo && waterTableNo !== tableName.value) {
+      // 水牌台桌号与当前选择台桌号不一致，弹出警告
+      coachWaterTableNo.value = waterTableNo
+      showCoachTableWarning.value = true
+      return
+    }
+    
+    // 一致或无冲突，直接下单
+    await doSubmitOrder()
+  } catch (e) {
+    console.log('获取水牌状态失败，直接下单', e)
+    await doSubmitOrder()
+  }
+}
+
+// 确认使用不一致的台桌号下单
+const confirmCoachTableMismatch = async () => {
+  showCoachTableWarning.value = false
+  pendingOrderSubmit.value = true
+  await doSubmitOrder()
+}
+
+// 取消下单（台桌号不一致时）
+const cancelCoachTableMismatch = () => {
+  showCoachTableWarning.value = false
 }
 
 // 实际下单逻辑
