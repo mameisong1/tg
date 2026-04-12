@@ -24,8 +24,6 @@ WORKDIR /app
 COPY tgservice /app/tgservice
 COPY tgservice-uniapp /app/tgservice-uniapp
 COPY data /app/data
-COPY scripts /app/scripts
-COPY tmp /app/tmp
 
 # 复制 PM2 配置
 COPY ecosystem.config.js /app/ecosystem.config.js
