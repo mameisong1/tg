@@ -385,6 +385,11 @@
         if (!res.ok) {
           const errText = await res.text();
           reportFrontendError('API Error', { url, status: res.status, response: errText });
+          try {
+            return JSON.parse(errText);
+          } catch {
+            return { error: errText };
+          }
         }
         return res.json();
       } catch (e) {
