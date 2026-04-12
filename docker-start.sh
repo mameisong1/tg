@@ -1,6 +1,5 @@
 #!/bin/bash
 # Docker 启动脚本 - 生产环境
-# 包含凭证文件挂载（短信服务商配置）
 
 set -e
 
@@ -12,16 +11,6 @@ echo "=========================================="
 IMAGE_NAME="mameisong/tgservice:latest"
 CONTAINER_NAME="tgservice"
 TG_DIR="/TG"
-CREDENTIALS_DIR="/root/.openclaw"
-
-# 检查凭证文件
-if [ ! -f "$CREDENTIALS_DIR/credentials.json" ]; then
-    echo "❌ 错误: 凭证文件不存在: $CREDENTIALS_DIR/credentials.json"
-    echo "请先创建凭证文件后再启动"
-    exit 1
-fi
-
-echo "✅ 凭证文件检查通过"
 
 # 停止并删除旧容器（如果存在）
 if docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
@@ -38,7 +27,6 @@ docker run -d \
     -p 8081:80 \
     -p 8083:81 \
     -v $TG_DIR:/app \
-    -v $CREDENTIALS_DIR:$CREDENTIALS_DIR \
     $IMAGE_NAME
 
 # 检查启动状态
@@ -55,7 +43,6 @@ if docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
     echo ""
     echo "挂载目录:"
     echo "  - $TG_DIR → /app"
-    echo "  - $CREDENTIALS_DIR → $CREDENTIALS_DIR (凭证文件)"
     echo ""
     echo "查看日志: docker logs -f $CONTAINER_NAME"
 else
