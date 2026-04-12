@@ -317,6 +317,11 @@ const db = new sqlite3.Database(dbPath, (err) => {
       if (err) logger.error(`WAL模式失败: ${err.message}`);
       else logger.info('WAL 模式已启用');
     });
+    // synchronous = NORMAL,提升写入性能(WAL模式下安全)
+    db.run('PRAGMA synchronous = NORMAL', (err) => {
+      if (err) logger.error(`synchronous=NORMAL设置失败: ${err.message}`);
+      else logger.info('synchronous = NORMAL');
+    });
     // 写操作 busy_timeout 3秒,自动重试
     db.run('PRAGMA busy_timeout = 3000', (err) => {
       if (err) logger.error(`busy_timeout设置失败: ${err.message}`);
