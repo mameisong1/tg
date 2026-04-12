@@ -20,7 +20,7 @@ RUN npm install -g pm2 serve
 # 创建工作目录
 WORKDIR /app
 
-# 复制项目文件
+# 复制项目文件（.dockerignore 会排除 node_modules 等）
 COPY tgservice /app/tgservice
 COPY tgservice-uniapp /app/tgservice-uniapp
 COPY data /app/data
@@ -32,6 +32,11 @@ COPY ecosystem.config.js /app/ecosystem.config.js
 
 # 设置环境变量
 ENV NODE_ENV=production
+
+# 安装后端生产依赖（node_modules 已被 .dockerignore 排除）
+RUN cd /app/tgservice/backend && npm install --production
+
+# H5 前端只需 serve 静态文件，不需要 node_modules
 
 # 初始化数据库（如果不存在）
 RUN if [ ! -f /app/tgservice/db/tgservice.db ]; then \

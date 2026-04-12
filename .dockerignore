@@ -1,0 +1,24 @@
+# Node modules (容器内重新安装，只装生产依赖)
+**/node_modules
+
+# 前端源代码（运行时不需要，只需要 dist/build/h5 产物）
+tgservice-uniapp/src
+tgservice-uniapp/public
+
+# Git
+.git
+.gitignore
+
+# 文档
+docs
+
+# 临时文件
+tmp
+*.log
+*.md
+
+# 测试和开发
+**/test
+**/__tests__
+**/*.test.js
+**/*.spec.js
