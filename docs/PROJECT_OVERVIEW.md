@@ -21,13 +21,15 @@
 |------|------|
 | **Node.js** | 运行时环境 |
 | **Express 4.x** | Web框架 |
-| **SQLite** (better-sqlite3) | 轻量级关系型数据库 |
+| **SQLite** (sqlite3) | 轻量级关系型数据库，WAL模式 |
 | **bcryptjs** | 密码加密 |
 | **jsonwebtoken** | JWT身份认证 |
 | **multer** | 文件上传处理 |
 | **阿里云 OSS** | 对象存储（图片/视频） |
 | **阿里云短信服务** | 验证码发送 |
 | **winston** | 日志管理 |
+
+> **2026-04-12 变更**：数据库连接统一为单连接架构（`db/index.js` 是唯一连接中心），避免多连接竞争导致的 SQLITE_BUSY 错误。所有路由和 server.js 都从 `db/index.js` 获取连接。
 
 ### 前端 (Frontend)
 
@@ -105,8 +107,9 @@
 /TG/
 ├── tgservice/                    # 后端项目
 │   ├── backend/
-│   │   ├── server.js             # 主服务入口
-│   │   ├── init-db.js            # 数据库初始化脚本
+│   │   ├── server.js             # 主服务入口（从 db/index.js 获取连接）
+│   │   ├── db/
+│   │   │   └── index.js          # ⭐ 数据库连接中心（单连接）
 │   │   ├── package.json
 │   │   └── logs/                 # 日志目录
 │   ├── db/

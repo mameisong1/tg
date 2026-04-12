@@ -4,8 +4,11 @@
 
 - **数据库类型**: SQLite
 - **数据库文件**: `/TG/tgservice/db/tgservice.db`
-- **ORM/驱动**: better-sqlite3 (Node.js)
-- **初始化脚本**: `/TG/tgservice/backend/init-db.js`
+- **ORM/驱动**: sqlite3 (Node.js)
+- **连接中心**: `/TG/tgservice/backend/db/index.js`（唯一数据库连接）
+
+> **2026-04-12 变更**：采用单连接架构，所有路由和 server.js 都从 `db/index.js` 获取连接，消除多连接竞争。
+> 配置：WAL 模式 + synchronous=NORMAL + busy_timeout=3000ms + writeQueue 写串行化。
 
 ---
 
