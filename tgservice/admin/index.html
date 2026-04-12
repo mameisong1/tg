@@ -92,7 +92,8 @@
     .chart-container { position: relative; margin: 8px 0 4px; height: 150px; }
     .chart-container canvas { width: 100% !important; height: 100% !important; }
     .chart-label { font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 4px; }
-    .chart-value { position: absolute; top: 0; right: 0; font-size: 13px; color: #d4af37; }
+    .chart-value { position: absolute; top: 0; right: 0; font-size: 13px; color: #d4af37; line-height: 1.4; text-align: right; }
+    .chart-value .peak { font-size: 11px; color: rgba(212,175,55,0.55); }
 
     /* 人气值卡片 - 与小程序一致 */
     .popularity-section { margin-bottom: 24px; }
@@ -513,18 +514,19 @@
         const statusEl = document.getElementById("queueStatus");
         const lenValEl = document.getElementById("queueLenValue");
         const waitValEl = document.getElementById("queueWaitValue");
-        lenValEl.textContent = res.currentQueueLength + " (当前: " + (res.currentQueueLength || 0) + ")";
-        waitValEl.textContent = "0ms";
         if (res.queueLengths.length > 0) {
           const maxLen = Math.max(...res.queueLengths, 1);
           const maxWait = Math.max(...res.waitTimes, 0);
+          const lastWait = res.waitTimes[res.waitTimes.length - 1];
           drawLineChart("queueLenChart", res.queueLengths, maxLen, "rgb(212,175,55)");
           drawLineChart("queueWaitChart", res.waitTimes, maxWait, "rgb(100,200,255)");
           statusEl.textContent = res.timestamps.length + " 个数据点 | 当前队列: " + res.currentQueueLength;
-          const lastWait = res.waitTimes[res.waitTimes.length - 1];
-          waitValEl.textContent = lastWait > 0 ? lastWait + "ms" : "<1ms";
+          lenValEl.innerHTML = res.currentQueueLength + "<br><span class=\"peak\">峰值: " + maxLen + "</span>";
+          waitValEl.innerHTML = (lastWait > 0 ? lastWait + "ms" : "<1ms") + "<br><span class=\"peak\">峰值: " + maxWait + "ms</span>";
         } else {
           statusEl.textContent = "数据采集中，请稍候...";
+          lenValEl.textContent = "-";
+          waitValEl.textContent = "-";
         }
       } catch (e) {
         document.getElementById("queueStatus").textContent = "加载失败";
