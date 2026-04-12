@@ -358,27 +358,52 @@ const dbRun = (sql, params = []) => {
   });
 };
 
-// 事务辅助: 在 BEGIN IMMEDIATE 事务中串行执行操作
-// 用法: await dbTx((db, done) => { db.get(..., (err, row) => { ... done(err, result) }) })
-const dbTx = (fn) => {
+// 写操作串行队列: 确保所有写操作依次执行，避免 SQLITE_BUSY
+// sqlite3 是单连接，并发写会竞争，用队列保证同时只有一个写事务在执行
+const writeQueue = [];
+let writeQueueRunning = false;
+
+const enqueueWrite = (fn) => {
   return new Promise((resolve, reject) => {
-    db.serialize(() => {
-      db.run('BEGIN IMMEDIATE', (err) => {
-        if (err) return reject(err);
-        fn(
-          db,
-          (err, result) => {
-            if (err) {
-              db.run('ROLLBACK', () => reject(err));
-            } else {
-              db.run('COMMIT', (commitErr) => {
-                if (commitErr) reject(commitErr);
-                else resolve(result);
-              });
-            }
+    writeQueue.push({ fn, resolve, reject });
+    if (!writeQueueRunning) runWriteQueue();
+  });
+};
+
+const runWriteQueue = () => {
+  if (writeQueue.length === 0) {
+    writeQueueRunning = false;
+    return;
+  }
+  writeQueueRunning = true;
+  const { fn, resolve, reject } = writeQueue.shift();
+  fn((err, result) => {
+    if (err) reject(err);
+    else resolve(result);
+    // 执行下一个
+    setTimeout(runWriteQueue, 0);
+  });
+};
+
+// 事务辅助: 在 BEGIN IMMEDIATE 事务中串行执行读写操作
+// 通过 writeQueue 确保同时只有一个事务在执行
+const dbTx = (fn) => {
+  return enqueueWrite((done) => {
+    db.run('BEGIN IMMEDIATE', (err) => {
+      if (err) return done(err);
+      fn(
+        db,
+        (err, result) => {
+          if (err) {
+            db.run('ROLLBACK', () => done(err));
+          } else {
+            db.run('COMMIT', (commitErr) => {
+              if (commitErr) done(commitErr);
+              else done(null, result);
+            });
           }
-        );
-      });
+        }
+      );
     });
   });
 };
