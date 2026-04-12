@@ -88,6 +88,13 @@
     .toast.show { display: block; animation: fadeOut 3s forwards; }
     @keyframes fadeOut { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
     
+    /* DB 队列监控图表 */
+    .chart-container { position: relative; margin: 8px 0 4px; height: 150px; }
+    .chart-container canvas { width: 100% !important; height: 100% !important; }
+    .chart-label { font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 4px; }
+    .chart-value { font-size: 13px; color: #d4af37; line-height: 1.4; text-align: right; }
+    .chart-value .peak { font-size: 11px; color: rgba(212,175,55,0.55); }
+
     /* 人气值卡片 - 与小程序一致 */
     .popularity-section { margin-bottom: 24px; }
     .popularity-title { font-size: 15px; color: #d4af37; margin-bottom: 16px; display: block; text-align: center; }
@@ -276,6 +283,34 @@
       </div>
     </div>
     
+    <!-- DB 写入队列监控 -->
+    <div style="background:rgba(20,20,30,0.6);border-radius:12px;padding:20px;border:1px solid rgba(218,165,32,0.1);margin-bottom:24px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="font-size:15px;">📈 DB 写入队列监控（最近6小时）</h3>
+        <span id="queueStatus" style="font-size:12px;color:rgba(255,255,255,0.4);">加载中...</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div class="chart-label">队列最长长度</div>
+            <div class="chart-value" id="queueLenValue">-</div>
+          </div>
+          <div class="chart-container">
+            <canvas id="queueLenChart"></canvas>
+          </div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div class="chart-label">排队最长等待</div>
+            <div class="chart-value" id="queueWaitValue">-</div>
+          </div>
+          <div class="chart-container">
+            <canvas id="queueWaitChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 设备趋势图 -->
     <div style="background:rgba(20,20,30,0.6);border-radius:12px;padding:20px;border:1px solid rgba(218,165,32,0.1);margin-bottom:24px;">
       <h3 style="margin-bottom:16px;font-size:15px;">📊 设备访问趋势（近12周）</h3>
@@ -417,6 +452,87 @@
       }
     }
     
+    // Canvas 折线图绘制
+    function drawLineChart(canvasId, data, maxVal, color) {
+      const canvas = document.getElementById(canvasId);
+      if (!canvas || data.length < 2) return;
+      const ctx = canvas.getContext("2d");
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+      const w = rect.width, h = rect.height;
+      const pad = { top: 8, right: 8, bottom: 20, left: 8 };
+      const cw = w - pad.left - pad.right;
+      const ch = h - pad.top - pad.bottom;
+      ctx.clearRect(0, 0, w, h);
+      const maxV = Math.max(maxVal, 1);
+      // 网格线
+      ctx.strokeStyle = "rgba(255,255,255,0.06)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= 4; i++) {
+        const y = pad.top + (ch / 4) * i;
+        ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.stroke();
+      }
+      // 数据点
+      const step = cw / (data.length - 1);
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.lineJoin = "round";
+      for (let i = 0; i < data.length; i++) {
+        const x = pad.left + i * step;
+        const y = pad.top + ch - (data[i] / maxV) * ch;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      // 填充
+      ctx.lineTo(pad.left + (data.length - 1) * step, pad.top + ch);
+      ctx.lineTo(pad.left, pad.top + ch);
+      ctx.closePath();
+      const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
+      grad.addColorStop(0, color.replace(")", ",0.3)").replace("rgb", "rgba"));
+      grad.addColorStop(1, color.replace(")", ",0.02)").replace("rgb", "rgba"));
+      ctx.fillStyle = grad;
+      ctx.fill();
+      // X 轴标签（首尾 + 中间）
+      ctx.fillStyle = "rgba(255,255,255,0.3)";
+      ctx.font = "10px PingFang SC, sans-serif";
+      ctx.textAlign = "center";
+      const labels = [0, Math.floor(data.length / 2), data.length - 1];
+      labels.forEach(idx => {
+        const x = pad.left + idx * step;
+        const d = new Date(new Date().getTime() - (data.length - 1 - idx) * 60000);
+        ctx.fillText(d.getHours().toString().padStart(2, "0") + ":" + d.getMinutes().toString().padStart(2, "0"), x, h - 4);
+      });
+    }
+
+    async function loadQueueStats() {
+      try {
+        const res = await api("/api/admin/db-queue-stats");
+        const statusEl = document.getElementById("queueStatus");
+        const lenValEl = document.getElementById("queueLenValue");
+        const waitValEl = document.getElementById("queueWaitValue");
+        if (res.queueLengths.length > 0) {
+          const maxLen = Math.max(...res.queueLengths, 1);
+          const maxWait = Math.max(...res.waitTimes, 0);
+          const lastWait = res.waitTimes[res.waitTimes.length - 1];
+          drawLineChart("queueLenChart", res.queueLengths, maxLen, "rgb(212,175,55)");
+          drawLineChart("queueWaitChart", res.waitTimes, maxWait, "rgb(100,200,255)");
+          statusEl.textContent = res.timestamps.length + " 个数据点 | 当前队列: " + res.currentQueueLength;
+          lenValEl.innerHTML = res.currentQueueLength + "<br><span class=\"peak\">峰值: " + maxLen + "</span>";
+          waitValEl.innerHTML = (lastWait > 0 ? lastWait + "ms" : "<1ms") + "<br><span class=\"peak\">峰值: " + maxWait + "ms</span>";
+        } else {
+          statusEl.textContent = "数据采集中，请稍候...";
+          lenValEl.textContent = "-";
+          waitValEl.textContent = "-";
+        }
+      } catch (e) {
+        document.getElementById("queueStatus").textContent = "加载失败";
+      }
+    }
+
     async function loadDeviceStats() {
       try {
         const stats = await api('/api/admin/device-stats');
@@ -460,6 +576,8 @@
     loadStats();
     loadPopularity();
     loadDeviceStats();
+    loadQueueStats();
+    setInterval(loadQueueStats, 30000);
   </script>
   <script src="nav-control.js"></script>
 </body>
