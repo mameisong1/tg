@@ -1039,6 +1039,28 @@
 - **返回**: 设备访问统计数据
 - **说明**: 获取设备访问统计（用于分析用户来源）
 
+### DB 写入队列监控
+
+- **路径**: `GET /api/admin/db-queue-stats`
+- **认证**: 需要后台权限（`authMiddleware`）
+- **返回**:
+  ```json
+  {
+    "timestamps": [1776009420000, 1776009480000],
+    "queueLengths": [1, 0],
+    "waitTimes": [7, 0],
+    "currentQueueLength": 0,
+    "currentMinute": 1776009540000
+  }
+  ```
+- **说明**: 获取 DB 写入队列监控数据（纯内存读取，不碰数据库）。
+  - `timestamps`: 采样时间点（Unix 毫秒戳）
+  - `queueLengths`: 对应每分钟队列最长长度
+  - `waitTimes`: 对应每分钟最长等待毫秒数
+  - `currentQueueLength`: 当前队列等待中的写操作数
+  - 采样间隔 60 秒，保留最近 6 小时（360 个点）
+- **更新时间**: 2026-04-12
+
 ---
 
 ## 文件上传接口
