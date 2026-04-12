@@ -358,6 +358,31 @@ const dbRun = (sql, params = []) => {
   });
 };
 
+// 事务辅助: 在 BEGIN IMMEDIATE 事务中串行执行操作
+// 用法: await dbTx((db, done) => { db.get(..., (err, row) => { ... done(err, result) }) })
+const dbTx = (fn) => {
+  return new Promise((resolve, reject) => {
+    db.serialize(() => {
+      db.run('BEGIN IMMEDIATE', (err) => {
+        if (err) return reject(err);
+        fn(
+          db,
+          (err, result) => {
+            if (err) {
+              db.run('ROLLBACK', () => reject(err));
+            } else {
+              db.run('COMMIT', (commitErr) => {
+                if (commitErr) reject(commitErr);
+                else resolve(result);
+              });
+            }
+          }
+        );
+      });
+    });
+  });
+};
+
 // 商品选项缓存
 let productOptionsCache = [];
 
@@ -589,25 +614,29 @@ app.post('/api/cart', async (req, res) => {
       return res.status(400).json({ error: '缺少必要参数' });
     }
 
-    // 检查是否已存在（匹配 session_id + product_name + options）
-    const existing = await dbGet(
-      'SELECT id, quantity FROM carts WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')',
-      [sessionId, productName, options, options]
-    );
-
-    if (existing) {
-      // 更新数量
-      await dbRun(
-        'UPDATE carts SET quantity = quantity + ?, table_no = ? WHERE id = ?',
-        [quantity, tableNo || null, existing.id]
+    // 事务内完成 SELECT + INSERT/UPDATE，避免中间被其他写操作抢占锁
+    await dbTx((db, done) => {
+      db.get(
+        'SELECT id, quantity FROM carts WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')',
+        [sessionId, productName, options, options],
+        (err, existing) => {
+          if (err) return done(err);
+          if (existing) {
+            db.run(
+              'UPDATE carts SET quantity = quantity + ?, table_no = ? WHERE id = ?',
+              [quantity, tableNo || null, existing.id],
+              done
+            );
+          } else {
+            db.run(
+              'INSERT INTO carts (session_id, table_no, product_name, quantity, options) VALUES (?, ?, ?, ?, ?)',
+              [sessionId, tableNo || null, productName, quantity, options],
+              done
+            );
+          }
+        }
       );
-    } else {
-      // 新增
-      await dbRun(
-        'INSERT INTO carts (session_id, table_no, product_name, quantity, options) VALUES (?, ?, ?, ?, ?)',
-        [sessionId, tableNo || null, productName, quantity, options]
-      );
-    }
+    });
 
     operationLog.info(`购物车操作: sessionId=${sessionId}, tableNo=${tableNo}, product=${productName}, qty=${quantity}, options=${options}`);
     res.json({ success: true, message: '已添加到购物车' });
