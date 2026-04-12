@@ -953,23 +953,9 @@ app.get('/api/coaches/:coachNo', async (req, res) => {
     const popularityCacheKey = `${fingerprint}_${req.params.coachNo}`;
     const now = Date.now();
 
-    if (fingerprint) {
-      const lastVisit = popularityCache.get(popularityCacheKey);
-      if (!lastVisit || (now - lastVisit > ONE_DAY_MS)) {
-        // 首次访问或已过期，增加人气值
-        await dbRun('UPDATE coaches SET popularity = popularity + 1 WHERE coach_no = ?', [req.params.coachNo]);
-        popularityCache.set(popularityCacheKey, now);
-        coach.popularity = (coach.popularity || 0) + 1;
-      }
-      // 同一天内重复访问，不增加人气值
-    } else {
-      // 没有设备指纹的情况，仍然增加人气值（兼容旧版本）
-      await dbRun('UPDATE coaches SET popularity = popularity + 1 WHERE coach_no = ?', [req.params.coachNo]);
-      coach.popularity = (coach.popularity || 0) + 1;
-    }
-
     const displayStatus = categorizeWaterStatus(coach.water_status);
 
+    // 先返回响应，不等人气值写入
     res.json({
       ...coach,
       photos: coach.photos ? JSON.parse(coach.photos) : [],
@@ -978,6 +964,22 @@ app.get('/api/coaches/:coachNo', async (req, res) => {
       display_status_icon: getWaterStatusIcon(coach.water_status),
       display_status_text: displayStatus
     });
+
+    // 有设备指纹时，异步更新人气值（fire-and-forget）
+    if (fingerprint) {
+      const lastVisit = popularityCache.get(popularityCacheKey);
+      if (!lastVisit || (now - lastVisit > ONE_DAY_MS)) {
+        setImmediate(async () => {
+          try {
+            await dbRun('UPDATE coaches SET popularity = popularity + 1 WHERE coach_no = ?', [req.params.coachNo]);
+            popularityCache.set(popularityCacheKey, now);
+          } catch (err) {
+            logger.error(`人气值更新失败 (coach_no=${req.params.coachNo}): ${err.message}`);
+          }
+        });
+      }
+    }
+    // 没有设备指纹 → 跳过更新
   } catch (err) {
     logger.error(`获取助教详情失败: ${err.message}`);
     res.status(500).json({ error: '服务器错误' });
