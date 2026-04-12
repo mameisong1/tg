@@ -25,7 +25,6 @@
 │   └── dist/build/h5/
 │
 ├── data/                # 数据目录
-├── scripts/             # 脚本目录
 ├── tmp/                 # 临时文件
 ├── logs/                # PM2 日志
 │   ├── tgservice-error.log
@@ -145,12 +144,14 @@ crontab配置：`/etc/cron.d/tgservice`（系统级，已指定用户名）
 
 ### 手动触发同步
 
+> ⚠️ **2026-04-12 更新**：同步脚本已改为宿主机运行（依赖宿主机 Chrome），不再在容器内执行。
+
 ```bash
 # 台桌状态同步
-docker exec tgservice /usr/local/bin/node /app/tgservice/scripts/sync-tables-status.js
+node /TG/run/scripts/sync-tables-status.js
 
 # 商品同步
-docker exec tgservice bash -c "cd /app/tgservice && /usr/local/bin/node scripts/sync-products.js"
+node /TG/run/scripts/sync-products.js
 ```
 
 ## nginx 配置
