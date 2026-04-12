@@ -1195,17 +1195,8 @@ app.put('/api/coach/profile', async (req, res) => {
 
 // kltx 短信发送函数
 async function sendKltxSms(phone, code) {
-  // 加载 kltx 凭证
-  const credentialsPath = path.join(process.env.HOME || '/root', '.openclaw/credentials.json');
-  let kltxConfig = null;
-
-  try {
-    const credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf-8'));
-    kltxConfig = credentials.kltx_sms;
-  } catch (e) {
-    logger.error(`加载 kltx 凭证失败: ${e.message}`);
-    return { success: false, error: '凭证加载失败' };
-  }
+  // 从项目配置加载 kltx 配置
+  let kltxConfig = config.kltxSms || null;
 
   if (!kltxConfig) {
     logger.error('kltx 短信配置不存在');
@@ -2870,18 +2861,16 @@ app.get('/api/admin/sms/config', authMiddleware, requireBackendPermission(['all'
     };
 
     try {
-      const credentialsPath = path.join(process.env.HOME || '/root', '.openclaw/credentials.json');
-      const credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf-8'));
-      if (credentials.kltx_sms) {
+      if (config.kltxSms) {
         // 从模板中提取签名(模板最后有【签名】)
-        const template = credentials.kltx_sms.template || '';
+        const template = config.kltxSms.template || '';
         const signMatch = template.match(/【(.+?)】/);
         kltxInfo.signName = signMatch ? signMatch[1] : '未配置';
-        kltxInfo.uid = credentials.kltx_sms.uid || '未配置';
+        kltxInfo.uid = config.kltxSms.uid || '未配置';
         kltxInfo.status = '已配置';
       }
     } catch (e) {
-      // 凭证文件读取失败
+      // 配置读取失败
     }
 
     res.json({
