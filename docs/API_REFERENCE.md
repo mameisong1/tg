@@ -89,6 +89,30 @@
 
 ---
 
+## 商品选项接口
+
+### 获取商品选项
+
+- **路径**: `GET /api/product-options`
+- **参数**: 
+  | 参数 | 类型 | 必填 | 说明 |
+  |------|------|------|------|
+  | category | string | 是 | 商品分类 |
+  | product_name | string | 是 | 商品名称 |
+- **返回**: 
+  ```json
+  {
+    "options": {
+      "id": 1,
+      "category": "奶茶店",
+      "product_name": "美式",
+      "temperature": "冰/去冰/常温/热",
+      "sugar": "无糖"
+    }
+  }
+  ```
+- **说明**: 获取商品可选项（温度、糖度）。无选项返回 `{"options": null}`。支持通配匹配（product_name='所有商品'）
+
 ## 商品接口
 
 ### 获取商品分类
@@ -158,14 +182,15 @@
     "sessionId": "会话ID",
     "tableNo": "台桌号（可选）",
     "productName": "商品名称",
-    "quantity": 1
+    "quantity": 1,
+    "options": "正常冰+少糖"
   }
   ```
 - **返回**: 
   ```json
   { "success": true, "cartId": 123 }
   ```
-- **说明**: 添加商品到购物车，如果商品已存在则增加数量
+- **说明**: 添加商品到购物车。如果商品已存在且options相同则增加数量；不同options视为独立行
 
 ### 获取购物车
 
@@ -184,13 +209,14 @@
         "quantity": 2,
         "table_no": "普台1",
         "price": 10.00,
-        "image_url": "图片URL"
+        "image_url": "图片URL",
+        "options": "正常冰+少糖"
       }
     ],
     "totalPrice": 20.00
   }
   ```
-- **说明**: 获取指定会话的购物车内容
+- **说明**: 获取指定会话的购物车内容。返回中包含options字段
 
 ### 更新购物车商品数量
 
@@ -200,14 +226,15 @@
   {
     "sessionId": "会话ID",
     "productName": "商品名称",
-    "quantity": 3
+    "quantity": 3,
+    "options": "正常冰+少糖"
   }
   ```
 - **返回**: 
   ```json
   { "success": true }
   ```
-- **说明**: 更新购物车中指定商品的数量
+- **说明**: 更新购物车中指定商品的数量。需传递options以精确匹配
 
 ### 删除购物车商品
 
@@ -216,14 +243,15 @@
   ```json
   {
     "sessionId": "会话ID",
-    "productName": "商品名称"
+    "productName": "商品名称",
+    "options": "正常冰+少糖"
   }
   ```
 - **返回**: 
   ```json
   { "success": true }
   ```
-- **说明**: 从购物车中删除指定商品
+- **说明**: 从购物车中删除指定商品。需传递options以精确匹配
 
 ### 清空购物车
 
