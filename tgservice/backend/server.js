@@ -2625,6 +2625,7 @@ app.get('/api/admin/coaches', authMiddleware, requireBackendPermission(['coachMa
 });
 
 app.post('/api/admin/coaches', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
+  const transaction = await db.beginTransaction();
   try {
     const { employeeId, stageName, realName, phone, level, price, age, height, photos, video, intro, isPopular, status, shift } = req.body;
 
@@ -2633,41 +2634,47 @@ app.post('/api/admin/coaches', authMiddleware, requireBackendPermission(['coachM
     const finalShift = (shift && validShifts.includes(shift)) ? shift : '早班';
 
     // 检查工号和艺名组合是否已存在
-    const existing = await dbGet(
+    const existing = await transaction.get(
       'SELECT coach_no FROM coaches WHERE employee_id = ? AND stage_name = ?',
       [employeeId, stageName]
     );
     if (existing) {
+      await transaction.rollback();
       return res.status(400).json({ error: '该工号和艺名组合已存在,请检查是否重复添加' });
     }
 
-    const result = await dbRun(
+    const result = await transaction.run(
       `INSERT INTO coaches (employee_id, stage_name, real_name, phone, level, price, age, height, photos, video, intro, is_popular, status, shift, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime("now", "localtime"), datetime("now", "localtime"))`,
       [employeeId, stageName, realName, phone || null, level, price, age, height, JSON.stringify(photos || []), video, intro, isPopular ? 1 : 0, status || '全职', finalShift]
     );
     const newCoachNo = result.lastID;
 
-    // 同步创建 water_boards 记录(如果表存在)
-    try {
-      await dbRun(
-        `INSERT OR IGNORE INTO water_boards (coach_no, stage_name, status, created_at, updated_at)
-         VALUES (?, ?, '下班', datetime("now", "localtime"), datetime("now", "localtime"))`,
-        [newCoachNo, stageName]
-      );
-    } catch (e) {
-      // water_boards 表可能不存在,忽略
-      logger.warn(`water_boards 初始化失败: ${e.message}`);
+    // 同步创建 water_boards 记录（必须成功，否则回滚）
+    await transaction.run(
+      `INSERT INTO water_boards (coach_no, stage_name, status, created_at, updated_at)
+       VALUES (?, ?, '下班', datetime("now", "localtime"), datetime("now", "localtime"))`,
+      [newCoachNo, stageName]
+    );
+
+    // 验证水牌记录是否创建成功
+    const wbCheck = await transaction.get('SELECT id FROM water_boards WHERE coach_no = ?', [newCoachNo]);
+    if (!wbCheck) {
+      await transaction.rollback();
+      logger.error(`水牌记录创建失败: coach_no=${newCoachNo}, stage_name=${stageName}`);
+      return res.status(500).json({ error: '水牌记录创建失败，请重试' });
     }
 
-    operationLog.info(`创建助教: ${stageName} (${newCoachNo})`);
+    await transaction.commit();
+    operationLog.info(`创建助教: ${stageName} (${newCoachNo}), 水牌记录已同步创建`);
     res.json({ success: true, coachNo: newCoachNo });
   } catch (err) {
+    await transaction.rollback();
     if (err.message.includes('UNIQUE constraint failed')) {
       return res.status(400).json({ error: '该工号和艺名组合已存在,请检查是否重复添加' });
     }
     logger.error(`创建助教失败: ${err.message}`);
-    res.status(500).json({ error: '服务器错误' });
+    res.status(500).json({ error: `服务器错误: ${err.message}` });
   }
 });
 
