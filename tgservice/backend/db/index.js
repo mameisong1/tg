@@ -117,61 +117,68 @@ const dbTxAsync = async (fn) => {
 
 /**
  * 开始事务 (async/await 版本，供路由使用)
- * 通过 writeQueue 确保事务不与其他写操作冲突
+ * 单连接 + WAL 模式下，SQLite 自动串行化
+ * busy_timeout=3000 确保冲突时自动重试
  * 如果当前已有活跃事务（异常退出未清理），先回滚再开始
  */
 const beginTransaction = async () => {
-  return enqueueWrite((done) => {
-    db.run('BEGIN IMMEDIATE', function(err) {
-      if (err) {
-        if (err.message && err.message.includes('cannot start a transaction')) {
-          db.run('ROLLBACK', () => {
-            db.run('BEGIN IMMEDIATE', (err2) => {
-              done(err2);
-            });
-          });
-        } else {
-          done(err);
-        }
-      } else {
-        done(null);
-      }
+  try {
+    await new Promise((resolve, reject) => {
+      db.run('BEGIN IMMEDIATE', function(err) {
+        if (err) reject(err);
+        else resolve();
+      });
     });
-  }).then(() => {
-    const transaction = {
-      run: (sql, params = []) => {
-        return new Promise((resolve, reject) => {
-          db.run(sql, params, function(err) {
-            if (err) reject(err);
-            else resolve({ lastID: this.lastID, changes: this.changes });
-          });
+  } catch (err) {
+    if (err.message && err.message.includes('cannot start a transaction')) {
+      // 有未清理的旧事务，先强制回滚
+      try {
+        await new Promise((resolve) => db.run('ROLLBACK', () => resolve()));
+      } catch (_) {}
+      await new Promise((resolve, reject) => {
+        db.run('BEGIN IMMEDIATE', function(err) {
+          if (err) reject(err);
+          else resolve();
         });
-      },
-      get: (sql, params = []) => {
-        return new Promise((resolve, reject) => {
-          db.get(sql, params, (err, row) => {
-            if (err) reject(err);
-            else resolve(row);
-          });
+      });
+    } else {
+      throw err;
+    }
+  }
+
+  const transaction = {
+    run: (sql, params = []) => {
+      return new Promise((resolve, reject) => {
+        db.run(sql, params, function(err) {
+          if (err) reject(err);
+          else resolve({ lastID: this.lastID, changes: this.changes });
         });
-      },
-      all: (sql, params = []) => {
-        return new Promise((resolve, reject) => {
-          db.all(sql, params, (err, rows) => {
-            if (err) reject(err);
-            else resolve(rows);
-          });
+      });
+    },
+    get: (sql, params = []) => {
+      return new Promise((resolve, reject) => {
+        db.get(sql, params, (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
         });
-      },
-      commit: () => {
-        return run('COMMIT');
-      },
-      rollback: () => {
-        return run('ROLLBACK').catch(() => {});
-      }
-    };
-    return transaction;
-  });
+      });
+    },
+    all: (sql, params = []) => {
+      return new Promise((resolve, reject) => {
+        db.all(sql, params, (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        });
+      });
+    },
+    commit: () => {
+      return run('COMMIT');
+    },
+    rollback: () => {
+      return run('ROLLBACK').catch(() => {});
+    }
+  };
+  return transaction;
 };
 
 /**
