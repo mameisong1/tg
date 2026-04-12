@@ -2005,6 +2005,20 @@ app.get('/api/admin/stats', authMiddleware, requireBackendPermission(['cashierDa
   }
 });
 
+// 获取 DB 写入队列监控数据（纯内存读取，不碰数据库）
+const dbModule = require('./db');
+app.get('/api/admin/db-queue-stats', authMiddleware, async (req, res) => {
+  const stats = dbModule.queueStats;
+  const data = stats.data || [];
+  res.json({
+    timestamps: data.map(d => d.timestamp),
+    queueLengths: data.map(d => d.queueLength),
+    waitTimes: data.map(d => d.waitMs),
+    currentQueueLength: writeQueue.length,
+    currentMinute: stats.currentMinute
+  });
+});
+
 // =============== 后台订单管理 API ===============
 
 // 获取订单列表

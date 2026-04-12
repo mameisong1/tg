@@ -58,9 +58,56 @@ const run = (sql, params = []) => {
 const writeQueue = [];
 let writeQueueRunning = false;
 
+// ========== Write Queue 监控模块 ==========
+
+const queueStats = {
+  data: [],              // 环形缓冲区，最多 360 个点（6小时 × 60分钟）
+  maxQueueLen: 0,        // 当前分钟最大队列长度
+  maxWaitMs: 0,          // 当前分钟最长等待毫秒
+  currentMinute: 0       // 当前分钟桶时间戳
+};
+
+const MAX_POINTS = 360;  // 6小时 × 60 分钟
+
+function flushMinuteBucket() {
+  const now = Date.now();
+  const minuteKey = Math.floor(now / 60000) * 60000;
+  if (queueStats.currentMinute !== minuteKey) {
+    // 新分钟桶，先保存旧桶数据
+    if (queueStats.currentMinute !== 0) {
+      queueStats.data.push({
+        timestamp: queueStats.currentMinute,
+        queueLength: queueStats.maxQueueLen,
+        waitMs: queueStats.maxWaitMs
+      });
+      // 保留最近 MAX_POINTS 个点
+      if (queueStats.data.length > MAX_POINTS) {
+        queueStats.data.splice(0, queueStats.data.length - MAX_POINTS);
+      }
+    }
+    // 重置当前桶
+    queueStats.currentMinute = minuteKey;
+    queueStats.maxQueueLen = 0;
+    queueStats.maxWaitMs = 0;
+  }
+}
+
+// 每 60 秒检查并 flush
+setInterval(flushMinuteBucket, 60000);
+
+function recordQueueMetrics() {
+  flushMinuteBucket();
+  // 更新当前分钟的峰值
+  const pendingNow = writeQueue.length;
+  if (pendingNow > queueStats.maxQueueLen) {
+    queueStats.maxQueueLen = pendingNow;
+  }
+}
+
 const enqueueWrite = (fn) => {
   return new Promise((resolve, reject) => {
-    writeQueue.push({ fn, resolve, reject });
+    writeQueue.push({ fn, resolve, reject, _queuedAt: Date.now() });
+    recordQueueMetrics();
     if (!writeQueueRunning) runWriteQueue();
   });
 };
@@ -71,8 +118,14 @@ const runWriteQueue = () => {
     return;
   }
   writeQueueRunning = true;
-  const { fn, resolve, reject } = writeQueue.shift();
+  const { fn, resolve, reject, _queuedAt } = writeQueue.shift();
   fn((err, result) => {
+    // 记录等待时长
+    flushMinuteBucket();
+    const waitMs = _queuedAt ? Date.now() - _queuedAt : 0;
+    if (waitMs > queueStats.maxWaitMs) {
+      queueStats.maxWaitMs = waitMs;
+    }
     if (err) reject(err);
     else resolve(result);
     setTimeout(runWriteQueue, 0);
@@ -209,5 +262,7 @@ module.exports = {
   dbGet: get,
   dbRun: run,
   // 关闭
-  close
+  close,
+  // 监控数据（只读，供 API 导出）
+  queueStats
 };
