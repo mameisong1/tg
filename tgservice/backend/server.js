@@ -408,6 +408,15 @@ const dbTx = (fn) => {
   });
 };
 
+// 事务辅助 async/await 版本
+const dbTxAsync = async (fn) => {
+  return new Promise((resolve, reject) => {
+    dbTx((db, done) => {
+      fn(db).then(result => done(null, result)).catch(err => done(err));
+    }).then(result => resolve(result)).catch(err => reject(err));
+  });
+};
+
 // 商品选项缓存
 let productOptionsCache = [];
 
@@ -2524,87 +2533,105 @@ app.post('/api/admin/sync/products', authMiddleware, requireBackendPermission(['
     // 特殊图片强制下架(与脚本逻辑一致)
     const OFFLINE_IMAGE_URL = 'https://hui-shang.oss-cn-hangzhou.aliyuncs.com/pic/GtYe33GDA60y6xWF.png';
 
-    let inserted = 0, updated = 0, skipped = 0;
+    // 事务包裹: 所有商品+分类同步在一个 BEGIN/COMMIT 内执行
+    const result = await dbTxAsync(async (db) => {
+      const get = (sql, params) => new Promise((resolve, reject) => {
+        db.get(sql, params, (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        });
+      });
+      const run = (sql, params) => new Promise((resolve, reject) => {
+        db.run(sql, params, function(err) {
+          if (err) reject(err);
+          else resolve({ id: this.lastID, changes: this.changes });
+        });
+      });
 
-    for (const p of filteredProducts) {
-      if (!p.name || p.name.trim() === '') {
-        skipped++;
-        continue;
-      }
+      let inserted = 0, updated = 0, skipped = 0;
 
-      // 特殊图片强制下架
-      const finalStatus = p.imageUrl === OFFLINE_IMAGE_URL ? '下架' : (p.status || '上架');
-
-      try {
-        const existing = await dbGet('SELECT name FROM products WHERE name = ?', [p.name]);
-
-        if (existing) {
-          await dbRun(
-            `UPDATE products SET
-              image_url = ?,
-              price = ?,
-              stock_total = ?,
-              stock_available = ?,
-              category = ?,
-              status = ?,
-              creator = ?,
-              updated_at = datetime('now', 'localtime')
-            WHERE name = ?`,
-            [p.imageUrl || '', p.price || '', p.stockTotal || 0, p.stockAvailable || 0, p.category || '', finalStatus, p.creator || '', p.name]
-          );
-          updated++;
-        } else {
-          await dbRun(
-            `INSERT INTO products (name, image_url, price, stock_total, stock_available, category, status, creator, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))`,
-            [p.name, p.imageUrl || '', p.price || '', p.stockTotal || 0, p.stockAvailable || 0, p.category || '', finalStatus, p.creator || '']
-          );
-          inserted++;
+      for (const p of filteredProducts) {
+        if (!p.name || p.name.trim() === '') {
+          skipped++;
+          continue;
         }
-      } catch (e) {
-        logger.error(`同步商品失败: ${p.name} - ${e.message}`);
-        skipped++;
-      }
-    }
 
-    // 同步分类(与脚本逻辑一致)
-    const filteredCategories = [...new Set(
-      filteredProducts
-        .map(p => p.category)
-        .filter(c => c && !EXCLUDE_CATEGORIES.includes(c))
-    )];
+        // 特殊图片强制下架
+        const finalStatus = p.imageUrl === OFFLINE_IMAGE_URL ? '下架' : (p.status || '上架');
 
-    let categoriesInserted = 0, categoriesExisting = 0;
+        try {
+          const existing = await get('SELECT name FROM products WHERE name = ?', [p.name]);
 
-    for (const cat of filteredCategories) {
-      try {
-        const row = await dbGet('SELECT name FROM product_categories WHERE name = ?', [cat]);
-
-        if (row) {
-          categoriesExisting++;
-        } else {
-          await dbRun(
-            `INSERT INTO product_categories (name, creator, created_at) VALUES (?, 'sync-script', datetime('now', 'localtime'))`,
-            [cat]
-          );
-          categoriesInserted++;
+          if (existing) {
+            await run(
+              `UPDATE products SET
+                image_url = ?,
+                price = ?,
+                stock_total = ?,
+                stock_available = ?,
+                category = ?,
+                status = ?,
+                creator = ?,
+                updated_at = datetime('now', 'localtime')
+              WHERE name = ?`,
+              [p.imageUrl || '', p.price || '', p.stockTotal || 0, p.stockAvailable || 0, p.category || '', finalStatus, p.creator || '', p.name]
+            );
+            updated++;
+          } else {
+            await run(
+              `INSERT INTO products (name, image_url, price, stock_total, stock_available, category, status, creator, created_at, updated_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))`,
+              [p.name, p.imageUrl || '', p.price || '', p.stockTotal || 0, p.stockAvailable || 0, p.category || '', finalStatus, p.creator || '']
+            );
+            inserted++;
+          }
+        } catch (e) {
+          logger.error(`同步商品失败: ${p.name} - ${e.message}`);
+          skipped++;
         }
-      } catch (e) {
-        logger.error(`同步分类失败: ${cat} - ${e.message}`);
       }
-    }
+
+      // 同步分类(与脚本逻辑一致)
+      const filteredCategories = [...new Set(
+        filteredProducts
+          .map(p => p.category)
+          .filter(c => c && !EXCLUDE_CATEGORIES.includes(c))
+      )];
+
+      let categoriesInserted = 0, categoriesExisting = 0;
+
+      for (const cat of filteredCategories) {
+        try {
+          const row = await get('SELECT name FROM product_categories WHERE name = ?', [cat]);
+
+          if (row) {
+            categoriesExisting++;
+          } else {
+            await run(
+              `INSERT INTO product_categories (name, creator, created_at) VALUES (?, 'sync-script', datetime('now', 'localtime'))`,
+              [cat]
+            );
+            categoriesInserted++;
+          }
+        } catch (e) {
+          logger.error(`同步分类失败: ${cat} - ${e.message}`);
+        }
+      }
+
+      return { inserted, updated, skipped, categoriesInserted, categoriesExisting };
+    });
 
     const elapsed = Date.now() - startTime;
-    logger.info(`商品同步完成: 新增 ${inserted} 条, 更新 ${updated} 条, 跳过 ${skipped} 条, 分类新增 ${categoriesInserted} 个, 已存在 ${categoriesExisting} 个, 耗时 ${elapsed}ms`);
+    logger.info(`商品同步完成: 新增 ${result.inserted} 条, 更新 ${result.updated} 条, 跳过 ${result.skipped} 条, 分类新增 ${result.categoriesInserted} 个, 已存在 ${result.categoriesExisting} 个, 耗时 ${elapsed}ms`);
 
     res.json({
       success: true,
       data: {
-        productsInserted: inserted,
-        productsUpdated: updated,
-        productsSkipped: skipped,
-        categoriesInserted: categoriesInserted,
-        categoriesExisting: categoriesExisting,
+        productsInserted: result.inserted,
+        productsUpdated: result.updated,
+        productsSkipped: result.skipped,
+        categoriesInserted: result.categoriesInserted,
+        categoriesExisting: result.categoriesExisting,
         productsCount: filteredProducts.length,
         elapsedMs: elapsed
       }
@@ -3367,40 +3394,49 @@ app.post('/api/admin/sync/tables', authMiddleware, requireBackendPermission(['vi
       return '接待中';
     };
 
-    // 更新 tables 表
-    let tablesUpdated = 0;
-    for (const table of tables) {
-      const dbStatus = convertStatus(table.status);
-      const result = await dbRun(
-        `UPDATE tables SET status = ?, updated_at = datetime('now', 'localtime') WHERE name = ?`,
-        [dbStatus, table.name]
-      );
-      if (result.changes > 0) {
-        tablesUpdated++;
-      }
-    }
+    // 事务包裹: 所有更新在一个 BEGIN/COMMIT 内执行
+    const result = await dbTxAsync(async (db) => {
+      let tablesUpdated = 0;
+      let vipRoomsUpdated = 0;
 
-    // 更新 vip_rooms 表(name 匹配台桌名前缀,与脚本逻辑一致)
-    let vipRoomsUpdated = 0;
-    for (const table of tables) {
-      const dbStatus = convertStatus(table.status);
-      const result = await dbRun(
-        `UPDATE vip_rooms SET status = ?, updated_at = datetime('now', 'localtime') WHERE name LIKE ? || '%'`,
-        [dbStatus, table.name]
-      );
-      if (result.changes > 0) {
-        vipRoomsUpdated += result.changes;
+      const run = (sql, params) => new Promise((resolve, reject) => {
+        db.run(sql, params, function(err) {
+          if (err) reject(err);
+          else resolve({ changes: this.changes });
+        });
+      });
+
+      // 更新 tables 表
+      for (const table of tables) {
+        const dbStatus = convertStatus(table.status);
+        const r = await run(
+          `UPDATE tables SET status = ?, updated_at = datetime('now', 'localtime') WHERE name = ?`,
+          [dbStatus, table.name]
+        );
+        if (r.changes > 0) tablesUpdated++;
       }
-    }
+
+      // 更新 vip_rooms 表(name 匹配台桌名前缀,与脚本逻辑一致)
+      for (const table of tables) {
+        const dbStatus = convertStatus(table.status);
+        const r = await run(
+          `UPDATE vip_rooms SET status = ?, updated_at = datetime('now', 'localtime') WHERE name LIKE ? || '%'`,
+          [dbStatus, table.name]
+        );
+        if (r.changes > 0) vipRoomsUpdated += r.changes;
+      }
+
+      return { tablesUpdated, vipRoomsUpdated };
+    });
 
     const elapsed = Date.now() - startTime;
-    logger.info(`台桌同步完成: tables更新 ${tablesUpdated} 条, vip_rooms更新 ${vipRoomsUpdated} 条, 耗时 ${elapsed}ms`);
+    logger.info(`台桌同步完成: tables更新 ${result.tablesUpdated} 条, vip_rooms更新 ${result.vipRoomsUpdated} 条, 耗时 ${elapsed}ms`);
 
     res.json({
       success: true,
       data: {
-        tablesUpdated,
-        vipRoomsUpdated,
+        tablesUpdated: result.tablesUpdated,
+        vipRoomsUpdated: result.vipRoomsUpdated,
         tablesCount: tables.length,
         elapsedMs: elapsed
       }
