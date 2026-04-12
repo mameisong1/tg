@@ -264,5 +264,6 @@ module.exports = {
   // 关闭
   close,
   // 监控数据（只读，供 API 导出）
-  queueStats
+  queueStats,
+  writeQueue
 };

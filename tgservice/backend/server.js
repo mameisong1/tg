@@ -305,7 +305,7 @@ app.use('/api/table-action-orders', tableActionOrdersRouter);
 app.use('/api/operation-logs', operationLogsRouter);
 
 // 数据库连接 - 统一从 db/index.js 获取，确保单连接
-const { db, dbAll, dbGet, dbRun, dbTx, dbTxAsync } = require('./db');
+const { db, dbAll, dbGet, dbRun, dbTx, dbTxAsync, writeQueue } = require('./db');
 
 // 商品选项缓存
 let productOptionsCache = [];
