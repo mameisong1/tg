@@ -4293,7 +4293,7 @@ app.post('/api/admin/sound-failure-log', authMiddleware, requireBackendPermissio
   }
 });
 
-// 前端错误日志 API(收银看板按钮操作错误捕获)
+// 前端追踪日志 API(收银看板按钮操作追踪)
 app.post('/api/admin/frontend-error-log', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
   try {
     const { action, timestamp, url, userAgent, userToken, state, ...details } = req.body;
@@ -4316,7 +4316,7 @@ app.post('/api/admin/frontend-error-log', authMiddleware, requireBackendPermissi
     fs.appendFileSync(frontendErrorLogPath, logLine);
 
     // 同时输出到控制台
-    logger.error(`🔴 前端错误: ${action} | 用户: ${user} | 详情: ${JSON.stringify(details)}`);
+    logger.info(`📋 前端追踪: ${action} | 用户: ${user} | 详情: ${JSON.stringify(details)}`);
 
     res.json({ success: true, message: '日志已记录' });
   } catch (err) {
