@@ -2024,13 +2024,21 @@ app.get('/api/admin/db-queue-stats', authMiddleware, async (req, res) => {
 // 获取订单列表
 app.get('/api/admin/orders', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
   try {
-    const { status } = req.query;
+    const { status, date } = req.query;
     let sql = 'SELECT * FROM orders';
     const params = [];
 
+    const conditions = [];
+    if (date) {
+      conditions.push("DATE(created_at) = ?");
+      params.push(date);
+    }
     if (status && status !== '全部') {
-      sql += ' WHERE status = ?';
+      conditions.push("status = ?");
       params.push(status);
+    }
+    if (conditions.length > 0) {
+      sql += ' WHERE ' + conditions.join(' AND ');
     }
 
     sql += ' ORDER BY created_at DESC';

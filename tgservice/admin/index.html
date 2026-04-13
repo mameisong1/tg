@@ -370,10 +370,15 @@
       loadOrderStats();
     }
     
-    // 加载订单统计（仅统计，不显示列表）
+    // 加载今日订单统计（按日期过滤，不限状态）
     async function loadOrderStats() {
       try {
-        const orders = await api('/api/admin/orders?status=待处理');
+        // 获取今天日期（北京时间）
+        const now = new Date();
+        const bj = new Date(now.getTime() + 8 * 60 * 60 * 1000);
+        const today = bj.toISOString().slice(0, 10); // 格式: "2026-04-13"
+
+        const orders = await api(`/api/admin/orders?date=${today}`);
         document.getElementById('statOrders').textContent = orders.length || 0;
         const totalRevenue = (orders || []).reduce((sum, o) => sum + (o.total_price || 0), 0);
         document.getElementById('statRevenue').textContent = '¥' + totalRevenue.toFixed(0);
