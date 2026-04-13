@@ -2036,6 +2036,10 @@ app.get('/api/admin/orders', authMiddleware, requireBackendPermission(['cashierD
     if (status && status !== '全部') {
       conditions.push("status = ?");
       params.push(status);
+    } else if (!status) {
+      // 默认不传status时，排除已取消订单
+      conditions.push("status != ?");
+      params.push('已取消');
     }
     if (conditions.length > 0) {
       sql += ' WHERE ' + conditions.join(' AND ');
