@@ -66,6 +66,7 @@
       <view class="confirm-section">
         <text class="confirm-text">确认下桌</text>
         <text class="confirm-hint" v-if="waterBoard?.table_no">当前台桌: {{ waterBoard.table_no }}</text>
+        <text class="confirm-hint">当前状态: {{ waterBoard?.status }}</text>
       </view>
       <view class="submit-btn danger" @click="submitTableOut"><text>提交下桌单</text></view>
     </view>
@@ -75,6 +76,7 @@
       <view class="confirm-section">
         <text class="confirm-text">取消上桌</text>
         <text class="confirm-hint" v-if="waterBoard?.table_no">当前台桌: {{ waterBoard.table_no }}</text>
+        <text class="confirm-hint">当前状态: {{ waterBoard?.status }}</text>
       </view>
       <view class="submit-btn warning" @click="submitTableCancel"><text>提交取消单</text></view>
     </view>
@@ -144,11 +146,12 @@ const submitTableIn = async () => {
 }
 
 const submitTableOut = async () => {
-  if (!waterBoard.value?.table_no) return uni.showToast({ title: '当前未在桌上', icon: 'none' })
+  const isOnTable = waterBoard.value?.status === '早班上桌' || waterBoard.value?.status === '晚班上桌'
+  if (!isOnTable) return uni.showToast({ title: '当前未在桌上', icon: 'none' })
   try {
     uni.showLoading({ title: '提交中...' })
     await api.tableActionOrders.create({
-      table_no: waterBoard.value.table_no,
+      table_no: waterBoard.value.table_no || '',
       coach_no: coachInfo.value.coachNo,
       order_type: '下桌单',
       stage_name: coachInfo.value.stageName
@@ -163,11 +166,12 @@ const submitTableOut = async () => {
 }
 
 const submitTableCancel = async () => {
-  if (!waterBoard.value?.table_no) return uni.showToast({ title: '当前未在桌上', icon: 'none' })
+  const isOnTable = waterBoard.value?.status === '早班上桌' || waterBoard.value?.status === '晚班上桌'
+  if (!isOnTable) return uni.showToast({ title: '当前未在桌上', icon: 'none' })
   try {
     uni.showLoading({ title: '提交中...' })
     await api.tableActionOrders.create({
-      table_no: waterBoard.value.table_no,
+      table_no: waterBoard.value.table_no || '',
       coach_no: coachInfo.value.coachNo,
       order_type: '取消单',
       stage_name: coachInfo.value.stageName
