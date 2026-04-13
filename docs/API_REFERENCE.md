@@ -804,10 +804,21 @@
 
 | 路径 | 方法 | 说明 |
 |------|------|------|
-| `/api/admin/orders` | GET | 获取订单列表 |
+| `/api/admin/orders` | GET | 获取订单列表（支持 date/status 过滤） |
 | `/api/admin/orders/:id/complete` | POST | 完成订单 |
 | `/api/admin/orders/:id/cancel` | POST | 取消订单 |
 | `/api/admin/orders/:id/cancel-item` | POST | 取消订单中的单个商品 |
+
+#### 获取订单列表
+
+- **路径**: `GET /api/admin/orders`
+- **认证**: 需要后台权限（`cashierDashboard`）
+- **参数**: `?status=待处理&date=2026-04-13`
+  | 参数 | 类型 | 必填 | 说明 |
+  |------|------|------|------|
+  | status | string | 否 | 状态筛选（待处理/已完成/已取消/全部），不传时默认排除已取消 |
+  | date | string | 否 | 日期过滤（格式：YYYY-MM-DD），按 `DATE(created_at)` 匹配 |
+- **说明**: 获取订单列表，支持按状态和日期过滤。**2026-04-13 更新**：新增 `date` 参数；不传 `status` 时默认排除已取消订单。
 
 #### 取消订单中的单个商品
 
