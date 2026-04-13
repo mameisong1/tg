@@ -74,7 +74,7 @@
         '管理员': 'all',
         '店长': 'all',
         '助教管理': 'all',
-        '前厅管理': ['cashier-dashboard.html', 'products.html', 'vip-rooms.html', 'tables.html', 'categories.html'],
+        '前厅管理': ['cashier-dashboard.html', 'products.html', 'vip-rooms.html', 'tables.html', 'categories.html', 'members.html'],
         '收银': ['cashier-dashboard.html'],
         '教练': [] // 教练不再允许访问后台
       };
