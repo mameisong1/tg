@@ -276,10 +276,10 @@ const isAuthUser = (req) => {
   return authHeader && authHeader.startsWith('Bearer ');
 };
 
-// API 限流:1分钟最多 60 次请求(未认证用户)
+// API 限流:1分钟最多 120 次请求(未认证用户)
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 60,
+  max: 120,
   validate: { trustProxy: false },
   skip: (req) => {
     return RATE_LIMIT_SKIP_PATHS.some(p => req.path.startsWith(p))
