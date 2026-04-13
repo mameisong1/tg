@@ -268,13 +268,22 @@ const RATE_LIMIT_SKIP_PATHS = [
   '/api/agreement/'
 ];
 
-// API 限流:1分钟最多 60 次请求
+// 跳过限流:已认证用户(有 Authorization header)
+// 收银台高频轮询、助教使用店内WiFi共享IP 等场景都需要跳过限流
+// 未认证用户(前台顾客/爬虫)仍然正常限流
+const isAuthUser = (req) => {
+  const authHeader = req.headers.authorization;
+  return authHeader && authHeader.startsWith('Bearer ');
+};
+
+// API 限流:1分钟最多 60 次请求(未认证用户)
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 60,
   validate: { trustProxy: false },
   skip: (req) => {
-    return RATE_LIMIT_SKIP_PATHS.some(p => req.path.startsWith(p));
+    return RATE_LIMIT_SKIP_PATHS.some(p => req.path.startsWith(p))
+      || isAuthUser(req);
   },
   handler: (req, res) => {
     res.status(429).json({ error: '请求太频繁,请稍后再试' });
@@ -282,16 +291,31 @@ const apiLimiter = rateLimit({
 });
 app.use('/api/', apiLimiter);
 
-// 后台管理限流:1分钟最多 120 次请求(宽松一点)
+// 后台管理限流:1分钟最多 120 次请求(未认证用户)
 const adminLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 120,
   validate: { trustProxy: false },
+  skip: (req) => isAuthUser(req),
   handler: (req, res) => {
     res.status(429).json({ error: '请求太频繁,请稍后再试' });
   }
 });
 app.use('/api/admin/', adminLimiter);
+
+// 极端IP上限:每分钟1000次(所有请求,包括已认证用户)
+// 作为最后一道安全网,防止token泄露后无限刷接口
+const extremeIPLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 1000,
+  validate: { trustProxy: false },
+  keyGenerator: (req) => req.ip,
+  handler: (req, res) => {
+    logger.warn(`⚠️ 极端IP限流触发: ${req.ip} 1分钟内请求超过1000次`);
+    res.status(429).json({ error: '请求太频繁,请稍后再试' });
+  }
+});
+app.use('/api/', extremeIPLimiter);
 
 // 注册路由模块
 app.use('/api/applications', applicationsRouter);
