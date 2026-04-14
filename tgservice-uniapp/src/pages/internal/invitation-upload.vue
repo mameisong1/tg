@@ -65,6 +65,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { guestInvitations } from '@/utils/api-v2.js'
 import { useImageUpload } from '@/utils/image-upload.js'
+import { getBeijingDate } from '@/utils/time-util.js'
 
 const statusBarHeight = ref(0)
 const coachInfo = ref({})
@@ -99,7 +100,7 @@ onMounted(() => {
   }
 })
 
-const today = computed(() => new Date().toISOString().split('T')[0])
+const today = computed(() => getBeijingDate()) // 修复：使用北京时间，避免 toISOString() UTC 偏移
 const canSubmit = computed(() => imageUrls.value.length > 0)
 
 const previewImage = (idx) => {

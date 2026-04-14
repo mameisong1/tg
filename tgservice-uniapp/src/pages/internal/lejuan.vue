@@ -67,13 +67,14 @@ import { ref, computed, onMounted } from 'vue'
 import api from '@/utils/api-v2.js'
 import { useImageUpload } from '@/utils/image-upload.js'
 import SuccessModal from '@/components/SuccessModal.vue'
+import { getBeijingDate } from '@/utils/time-util.js'
 
 const statusBarHeight = ref(0)
 const coachInfo = ref({})
 const showSuccess = ref(false)
 const hourOptions = [1, 2, 3, 4, 5, 6, 7, 8]
 
-const today = new Date().toISOString().split('T')[0]
+const today = getBeijingDate() // 修复：使用北京时间，避免 toISOString() UTC 偏移
 const form = ref({ date: today, hours: null, remark: '' })
 
 const { imageUrls, uploading, uploadProgress, uploadText, chooseAndUpload, removeImage } =

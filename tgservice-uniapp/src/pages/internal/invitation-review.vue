@@ -185,6 +185,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import api from '@/utils/api-v2.js'
+import { getBeijingDate } from '@/utils/time-util.js'
 
 const statusBarHeight = ref(0)
 const shiftLabel = ref('早班')
@@ -257,9 +258,11 @@ const getImageUrls = (record) => {
   return []
 }
 
+// 修复：解析数据库时间字符串时加 '+08:00' 显式指定北京时间时区
+// 数据库存的是北京时间 "YYYY-MM-DD HH:MM:SS"，不加时区会被当作 UTC
 const formatTime = (t) => {
   if (!t) return '-'
-  const d = new Date(t.replace(' ', 'T'))
+  const d = new Date(t.replace(' ', 'T') + '+08:00')
   return `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
 }
 
@@ -272,7 +275,7 @@ const loadAll = async () => {
 }
 
 const loadData = async () => {
-  const today = new Date().toISOString().split('T')[0]
+  const today = getBeijingDate() // 修复：使用北京时间
   try {
     const res = await api.guestInvitations.getList({ date: today, shift: shift.value })
     invitations.value = res.data || []
@@ -281,7 +284,7 @@ const loadData = async () => {
 
 // 加载未约客列表（result = '应约客'）
 const loadNotInvited = async () => {
-  const today = new Date().toISOString().split('T')[0]
+  const today = getBeijingDate() // 修复：使用北京时间
   try {
     const res = await api.guestInvitations.getList({ date: today, shift: shift.value, result: '应约客' })
     notInvitedList.value = res.data || []
@@ -292,7 +295,7 @@ const loadNotInvited = async () => {
 
 // 加载统计数据
 const loadReviewStats = async () => {
-  const today = new Date().toISOString().split('T')[0]
+  const today = getBeijingDate() // 修复：使用北京时间
   try {
     const res = await api.guestInvitations.getStats(today, shift.value)
     if (res.data) {
@@ -305,7 +308,7 @@ const loadReviewStats = async () => {
 
 // 检查是否已锁定（从内存变量读取）
 const checkLocked = async () => {
-  const today = new Date().toISOString().split('T')[0]
+  const today = getBeijingDate() // 修复：使用北京时间
   try {
     const res = await api.guestInvitations.checkLock({ date: today, shift: shift.value })
     if (res.data && res.data.is_locked) {
@@ -319,7 +322,7 @@ const checkLocked = async () => {
 
 // 开始审查（锁定应约客人员）
 const startReview = async () => {
-  const today = new Date().toISOString().split('T')[0]
+  const today = getBeijingDate() // 修复：使用北京时间
   try {
     uni.showLoading({ title: '锁定中...' })
     const res = await api.guestInvitations.lockShouldInvite({ date: today, shift: shift.value })

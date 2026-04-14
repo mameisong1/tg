@@ -11,6 +11,7 @@
 
 import { ref } from 'vue'
 import api from '@/utils/api.js'
+import { getBeijingTimestamp } from '@/utils/time-util.js'
 
 /**
  * @param {Object} options
@@ -35,7 +36,7 @@ export function useImageUpload(options = {}) {
       await uni.request({
         url: '/api/upload-error',
         method: 'POST',
-        data: { time: new Date().toISOString(), type: errorType, ...info },
+        data: { time: getBeijingTimestamp(), type: errorType, ...info }, // 修复：使用北京时间
         header: { 'Content-Type': 'application/json' }
       })
     } catch (e) {}

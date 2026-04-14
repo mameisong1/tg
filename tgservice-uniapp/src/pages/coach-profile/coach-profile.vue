@@ -91,6 +91,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import api from '@/utils/api.js'
+import { getBeijingTimestamp } from '@/utils/time-util.js'
 
 // 状态栏高度
 const statusBarHeight = ref(0)
@@ -184,7 +185,7 @@ const uploadFile = async (filePath, type) => {
       await uni.request({
         url: '/api/upload-error',
         method: 'POST',
-        data: { time: new Date().toISOString(), type, ...info },
+        data: { time: getBeijingTimestamp(), type, ...info }, // 修复：使用北京时间
         header: { 'Content-Type': 'application/json' }
       })
     } catch (e) {}
