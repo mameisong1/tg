@@ -154,6 +154,10 @@
   <div class="toast" id="toast"></div>
 
   <script>
+    // time-util loaded via separate script tag
+  </script>
+  <script src="js/time-util.js"></script>
+  <script>
     const token = localStorage.getItem('adminToken');
     if (!token) window.location.href = 'login.html';
 
@@ -176,9 +180,7 @@
     }
 
     function formatBeijingTime(timeStr) {
-      if (!timeStr) return '-';
-      const d = new Date(timeStr + ' UTC');
-      return d.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+      return TimeUtil.format(timeStr);
     }
 
     function getTypeBadge(type) {
@@ -263,7 +265,7 @@
         ? '<tr><td colspan="5" style="text-align:center;color:rgba(255,255,255,0.3);padding:40px">暂无日志数据</td></tr>'
         : pageData.map(l => `
           <tr>
-            <td style="white-space:nowrap">${formatBeijingTime(l.created_at)}</td>
+            <td style="white-space:nowrap">${TimeUtil.format(l.created_at)}</td>
             <td>${l.user || '-'}</td>
             <td><span class="badge ${getTypeBadge(l.type)}">${getTypeLabel(l.type)}</span></td>
             <td>${l.action || l.description || '-'}</td>

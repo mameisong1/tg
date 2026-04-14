@@ -350,6 +350,10 @@
   <div class="toast" id="toast"></div>
 
   <script>
+    // time-util loaded via separate script tag
+  </script>
+  <script src="js/time-util.js"></script>
+  <script>
     const token = localStorage.getItem('adminToken');
     if (!token) window.location.href = 'login.html';
 
@@ -451,23 +455,15 @@
     }
 
     function formatBeijingTime(timeStr) {
-      if (!timeStr) return '-';
-      const d = new Date(timeStr + ' UTC');
-      return d.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+      return TimeUtil.format(timeStr);
     }
 
     function formatBeijingTimeOnly(timeStr) {
-      if (!timeStr) return '-';
-      const d = new Date(timeStr + ' UTC');
-      return d.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit' });
+      return TimeUtil.formatTime(timeStr);
     }
 
     function isWithinMinutes(timeStr, minutes) {
-      if (!timeStr) return false;
-      const d = new Date(timeStr + ' UTC');
-      const now = new Date();
-      const diffMs = now - d;
-      return diffMs <= minutes * 60 * 1000;
+      return TimeUtil.isWithinMinutes(timeStr, minutes);
     }
 
     function filterByTime(items, status) {

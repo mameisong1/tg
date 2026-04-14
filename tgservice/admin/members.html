@@ -196,6 +196,10 @@
   <div class="toast" id="toast"></div>
   
   <script>
+    // time-util loaded via separate script tag
+  </script>
+  <script src="js/time-util.js"></script>
+  <script>
     const token = localStorage.getItem('adminToken');
     if (!token) window.location.href = 'login.html';
     
@@ -216,7 +220,7 @@
       
       // 统计
       document.getElementById('totalMembers').textContent = members.length;
-      const today = new Date().toISOString().split('T')[0];
+      const today = TimeUtil.today();
       const todayCount = members.filter(m => m.created_at && m.created_at.startsWith(today)).length;
       document.getElementById('todayMembers').textContent = todayCount;
       

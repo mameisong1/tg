@@ -2,6 +2,9 @@
  * 天宫国际线上服务 - 后端服务
  */
 
+// 统一时间工具（北京时间）
+const TimeUtil = require('./utils/time');
+
 // ========== PM2 检测(必须由PM2启动)==========
 const PM2_PROCESS_ID = process.env.pm_id;
 
@@ -742,7 +745,7 @@ app.post('/api/order', async (req, res) => {
     const message = `【天宫国际 - 新订单】\n\n台桌号: ${tableNo}\n商品:\n${orderItems.map(i => {
       const displayName = i.options ? `${i.name}(${i.options})` : i.name;
       return `  • ${displayName} x${i.quantity} = ¥${(i.price * i.quantity).toFixed(2)}`;
-    }).join('\n')}\n\n合计: ¥${totalPrice.toFixed(2)}\n订单号: ${orderNo}\n时间: ${new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}`;
+    }).join('\n')}\n\n合计: ¥${totalPrice.toFixed(2)}\n订单号: ${orderNo}\n时间: ${TimeUtil.toLocaleStr()}`;
 
     // 发送钉钉消息(加签方式)
     const dingtalkResult = await sendDingtalkMessage(message);
@@ -759,8 +762,8 @@ app.post('/api/order', async (req, res) => {
     } catch (e) { /* 列已存在 */ }
 
     await dbRun(
-      `INSERT INTO orders (order_no, table_no, items, total_price, status, device_fingerprint, created_at) VALUES (?, ?, ?, ?, '待处理', ?, datetime('now'))`,
-      [orderNo, tableNo, JSON.stringify(orderItems), totalPrice, deviceFingerprint || null]
+      `INSERT INTO orders (order_no, table_no, items, total_price, status, device_fingerprint, created_at) VALUES (?, ?, ?, ?, '待处理', ?, ?)`,
+      [orderNo, tableNo, JSON.stringify(orderItems), totalPrice, deviceFingerprint || null, TimeUtil.nowDB()]
     );
 
     // 清空购物车
@@ -1014,9 +1017,9 @@ app.get('/api/orders/pending/:tableName', async (req, res) => {
     const orders = await dbAll(
       `SELECT * FROM orders
        WHERE table_no = ? AND status = '待处理'
-       AND datetime(created_at) >= datetime('now', '-5 hours')
+       AND created_at >= ?
        ORDER BY created_at DESC`,
-      [tableName]
+      [tableName, TimeUtil.offsetDB(-5)]
     );
     res.json(orders.map(o => ({
       ...o,
@@ -1040,9 +1043,9 @@ app.get('/api/orders/my-pending', async (req, res) => {
     const orders = await dbAll(
       `SELECT * FROM orders
        WHERE device_fingerprint = ? AND status = '待处理'
-       AND datetime(created_at) >= datetime('now', '-5 hours')
+       AND created_at >= ?
        ORDER BY created_at DESC`,
-      [deviceFingerprint]
+      [deviceFingerprint, TimeUtil.offsetDB(-5)]
     );
 
     res.json(orders.map(o => ({
@@ -1162,8 +1165,8 @@ app.put('/api/coach/profile', async (req, res) => {
       return res.status(400).json({ error: '没有要更新的内容' });
     }
 
-    updates.push("updated_at = datetime('now', 'localtime')");
-    params.push(coachNo);
+    updates.push("updated_at = ?");
+    params.push(TimeUtil.nowDB(), coachNo);
 
     await dbRun(`UPDATE coaches SET ${updates.join(', ')} WHERE coach_no = ?`, params);
 
@@ -2104,7 +2107,7 @@ app.get('/api/admin/orders', authMiddleware, requireBackendPermission(['cashierD
 // 完成订单
 app.post('/api/admin/orders/:id/complete', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
   try {
-    await dbRun("UPDATE orders SET status = '已完成', updated_at = datetime('now', 'localtime') WHERE id = ?", [req.params.id]);
+    await dbRun("UPDATE orders SET status = '已完成', updated_at = ? WHERE id = ?", [TimeUtil.nowDB(), req.params.id]);
     operationLog.info(`订单完成: ${req.params.id} by ${req.user.username}`);
     res.json({ success: true });
   } catch (err) {
@@ -2116,7 +2119,7 @@ app.post('/api/admin/orders/:id/complete', authMiddleware, requireBackendPermiss
 // 取消订单
 app.post('/api/admin/orders/:id/cancel', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
   try {
-    await dbRun("UPDATE orders SET status = '已取消', updated_at = datetime('now', 'localtime') WHERE id = ?", [req.params.id]);
+    await dbRun("UPDATE orders SET status = '已取消', updated_at = ? WHERE id = ?", [TimeUtil.nowDB(), req.params.id]);
     operationLog.info(`订单取消: ${req.params.id} by ${req.user.username}`);
     res.json({ success: true });
   } catch (err) {
@@ -2184,8 +2187,8 @@ app.post('/api/admin/orders/:id/cancel-item', authMiddleware, requireBackendPerm
     // 如果订单无商品,自动取消订单
     if (items.length === 0) {
       await dbRun(
-        "UPDATE orders SET status = '已取消', items = ?, total_price = 0, updated_at = datetime('now', 'localtime') WHERE id = ?",
-        [JSON.stringify([]), orderId]
+        "UPDATE orders SET status = '已取消', items = ?, total_price = 0, updated_at = ? WHERE id = ?",
+        [JSON.stringify([]), TimeUtil.nowDB(), orderId]
       );
       operationLog.info(`订单自动取消: ${orderId}(所有商品已取消) by ${req.user.username}`);
 
@@ -2197,8 +2200,8 @@ app.post('/api/admin/orders/:id/cancel-item', authMiddleware, requireBackendPerm
     } else {
       // 更新订单
       await dbRun(
-        "UPDATE orders SET items = ?, total_price = ?, updated_at = datetime('now', 'localtime') WHERE id = ?",
-        [JSON.stringify(items), totalPrice, orderId]
+        "UPDATE orders SET items = ?, total_price = ?, updated_at = ? WHERE id = ?",
+        [JSON.stringify(items), totalPrice, TimeUtil.nowDB(), orderId]
       );
 
       // 返回更新后的订单信息(包含商品图片和类别)
@@ -2512,16 +2515,16 @@ app.post('/api/admin/sync/products', authMiddleware, requireBackendPermission(['
                 category = ?,
                 status = ?,
                 creator = ?,
-                updated_at = datetime('now', 'localtime')
+                updated_at = ?
               WHERE name = ?`,
-              [p.imageUrl || '', p.price || '', p.stockTotal || 0, p.stockAvailable || 0, p.category || '', finalStatus, p.creator || '', p.name]
+              [p.imageUrl || '', p.price || '', p.stockTotal || 0, p.stockAvailable || 0, p.category || '', finalStatus, p.creator || '', TimeUtil.nowDB(), p.name]
             );
             updated++;
           } else {
             await run(
               `INSERT INTO products (name, image_url, price, stock_total, stock_available, category, status, creator, created_at, updated_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))`,
-              [p.name, p.imageUrl || '', p.price || '', p.stockTotal || 0, p.stockAvailable || 0, p.category || '', finalStatus, p.creator || '']
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              [p.name, p.imageUrl || '', p.price || '', p.stockTotal || 0, p.stockAvailable || 0, p.category || '', finalStatus, p.creator || '', TimeUtil.nowDB(), TimeUtil.nowDB()]
             );
             inserted++;
           }
@@ -2548,8 +2551,8 @@ app.post('/api/admin/sync/products', authMiddleware, requireBackendPermission(['
             categoriesExisting++;
           } else {
             await run(
-              `INSERT INTO product_categories (name, creator, created_at) VALUES (?, 'sync-script', datetime('now', 'localtime'))`,
-              [cat]
+              `INSERT INTO product_categories (name, creator, created_at) VALUES (?, 'sync-script', ?)`,
+              [cat, TimeUtil.nowDB()]
             );
             categoriesInserted++;
           }
@@ -2934,8 +2937,8 @@ app.put('/api/admin/sms/config', authMiddleware, requireBackendPermission(['all'
     }
 
     await dbRun(
-      "INSERT OR REPLACE INTO system_config (key, value, description, updated_at) VALUES ('sms_provider', ?, '短信服务商: aliyun / kltx', datetime('now', 'localtime'))",
-      [provider]
+      "INSERT OR REPLACE INTO system_config (key, value, description, updated_at) VALUES ('sms_provider', ?, '短信服务商: aliyun / kltx', ?)",
+      [provider, TimeUtil.nowDB()]
     );
 
     operationLog.info(`短信服务商切换: ${provider}, 操作人: ${req.user.username}`);
@@ -3350,8 +3353,8 @@ app.post('/api/admin/sync/tables', authMiddleware, requireBackendPermission(['vi
       for (const table of tables) {
         const dbStatus = convertStatus(table.status);
         const r = await run(
-          `UPDATE tables SET status = ?, updated_at = datetime('now', 'localtime') WHERE name = ?`,
-          [dbStatus, table.name]
+          `UPDATE tables SET status = ?, updated_at = ? WHERE name = ?`,
+          [dbStatus, TimeUtil.nowDB(), table.name]
         );
         if (r.changes > 0) tablesUpdated++;
       }
@@ -3360,8 +3363,8 @@ app.post('/api/admin/sync/tables', authMiddleware, requireBackendPermission(['vi
       for (const table of tables) {
         const dbStatus = convertStatus(table.status);
         const r = await run(
-          `UPDATE vip_rooms SET status = ?, updated_at = datetime('now', 'localtime') WHERE name LIKE ? || '%'`,
-          [dbStatus, table.name]
+          `UPDATE vip_rooms SET status = ?, updated_at = ? WHERE name LIKE ? || '%'`,
+          [dbStatus, TimeUtil.nowDB(), table.name]
         );
         if (r.changes > 0) vipRoomsUpdated += r.changes;
       }

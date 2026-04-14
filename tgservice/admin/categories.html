@@ -187,6 +187,10 @@
   <div class="toast" id="toast"></div>
   
   <script>
+    // time-util loaded via separate script tag
+  </script>
+  <script src="js/time-util.js"></script>
+  <script>
     const token = localStorage.getItem('adminToken');
     if (!token) window.location.href = 'login.html';
     
@@ -199,21 +203,6 @@
     
     function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
     
-    // 格式化为北京时区时间（数据库存的是UTC，需要转换）
-    function formatBeijingTime(timeStr) {
-      if (!timeStr) return '-';
-      // 数据库存的是UTC时间，需要加8小时转为北京时间
-      const d = new Date(timeStr + ' UTC');
-      return d.toLocaleString('zh-CN', { 
-        timeZone: 'Asia/Shanghai',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-    }
-    
     async function loadCategories() {
       const categories = await api('/api/admin/categories');
       document.getElementById('categoryGrid').innerHTML = categories.map(c => `
@@ -225,7 +214,7 @@
               <button class="card-sort-btn" onclick="updateSort('${encodeURIComponent(c.name)}')">保存</button>
             </div>
           </div>
-          <div class="card-meta">创建于 ${formatBeijingTime(c.created_at)}</div>
+          <div class="card-meta">创建于 ${TimeUtil.format(c.created_at)}</div>
           <div class="card-actions">
             <button class="btn btn-sm btn-danger" onclick="deleteCategory('${encodeURIComponent(c.name)}')">删除</button>
           </div>

@@ -331,27 +331,14 @@
   <script>
     const token = localStorage.getItem('adminToken');
     if (!token) window.location.href = 'login.html';
-    
+  </script>
+  <script src="js/time-util.js"></script>
+  <script>
     function showToast(msg) {
       const toast = document.getElementById('toast');
       toast.textContent = msg;
       toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), 3000);
-    }
-    
-    // 格式化为北京时区时间（数据库存的是UTC，需要转换）
-    function formatBeijingTime(timeStr) {
-      if (!timeStr) return '-';
-      // 数据库存的是UTC时间，需要加8小时转为北京时间
-      const d = new Date(timeStr + ' UTC');
-      return d.toLocaleString('zh-CN', { 
-        timeZone: 'Asia/Shanghai',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-      });
     }
     
     async function api(url, options = {}) {
@@ -375,9 +362,7 @@
     async function loadOrderStats() {
       try {
         // 获取今天日期（北京时间）
-        const now = new Date();
-        const bj = new Date(now.getTime() + 8 * 60 * 60 * 1000);
-        const today = bj.toISOString().slice(0, 10); // 格式: "2026-04-13"
+        const today = TimeUtil.today();
 
         const orders = await api(`/api/admin/orders?date=${today}`);
         document.getElementById('statOrders').textContent = orders.length || 0;
