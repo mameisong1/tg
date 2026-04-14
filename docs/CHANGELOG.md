@@ -31,6 +31,11 @@
 - **修复**：新建 `src/utils/time-util.js` 北京时间工具，替换所有 `toISOString()` 调用
 - **formatTime 修复**：`invitation-review.vue` 中 `new Date(t.replace(' ', 'T'))` 改为显式 `+08:00`
 
+### 路由时区修复（2026-04-14 11:49）
+- **约客时间校验**：`guest-invitations.js` 中 `toISOString().split('T')[0]` 改为 `TimeUtil.todayStr()`，修复凌晨 00:00-08:00 时间校验失效
+- **约客审查时间**：`reviewed_at` / `generated_at` 改为 `TimeUtil.nowDB()`（北京时间）
+- **审批时间**：`applications.js` 中 `approve_time` 改为 `TimeUtil.nowDB()`
+
 ### 安全修复（2026-04-14 10:45）
 - `.config` 从 Git 历史中彻底移除（`git filter-branch`），消除阿里云 AccessKey 泄露风险
 - 添加 `.config.example` 模板文件供开发者参考
