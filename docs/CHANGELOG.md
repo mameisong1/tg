@@ -1,4 +1,38 @@
 
+## 2026-04-14 修复 SQLite 事务嵌套冲突（BUG-0414）
+
+### 问题
+- 购物车添加商品时报错 `SQLITE_ERROR: cannot start a transaction within a transaction`
+- 根因：三套互相冲突的事务机制共用同一个 SQLite 数据库连接
+  - `dbTx()` — 走写队列串行化
+  - `beginTransaction()` — 不走写队列
+  - 裸 `dbRun('BEGIN TRANSACTION')` — 不走写队列
+
+### 修复方案
+- **所有数据库写入操作统一通过 writeQueue 串行化**
+
+### 变更内容
+
+#### 核心模块
+- **db/index.js**：新增 `runInTransaction()`（事务排队）、`enqueueRun()`（非事务写入排队），`dbTx` 增加事务恢复逻辑
+
+#### 后端路由
+- **server.js**：教练创建改用 `runInTransaction()`，54 处 `dbRun()` → `enqueueRun()`
+- **routes/coaches.js**：4 处 `beginTransaction()` → `runInTransaction()`
+- **routes/applications.js**：2 处
+- **routes/guest-invitations.js**：4 处
+- **routes/water-boards.js**：1 处
+- **routes/table-action-orders.js**：2 处
+- **routes/service-orders.js**：4 处 `db.run()` → `enqueueRun()`
+
+### 测试结果
+- 37/37 测试用例全部通过
+- 并发测试：5 个同时购物车写入全部成功
+- 回归测试：事务恢复场景正常工作
+- 生产环境发布成功（镜像 `mameisong/tgservice:20260414-v4`）
+
+---
+
 ## 2026-04-14 助教上班时间记录 + 水牌排序优化
 
 ### 需求
