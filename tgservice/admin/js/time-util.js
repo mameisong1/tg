@@ -11,7 +11,8 @@ window.TimeUtil = {
    * 返回: "2026-04-14"
    */
   today() {
-    return new Date().toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' }).replace(/\//g, '-');
+    const d = new Date().toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' }).split('/');
+    return `${d[0]}-${d[1].padStart(2, '0')}-${d[2].padStart(2, '0')}`;
   },
 
   /**
