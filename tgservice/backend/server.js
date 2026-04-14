@@ -1416,14 +1416,12 @@ app.post('/api/member/login-sms', async (req, res) => {
       return res.status(400).json({ error: '请输入手机号和验证码' });
     }
 
-    // 测试环境:针对测试用户允许使用 888888 验证码登录
-    const testUsers = ['18600000001', '18600000002', '18600000003'];
+    // 测试环境:任何人使用 888888 验证码均可登录
     const isTestEnv = process.env.TGSERVICE_ENV === 'test';
-    const isTestUser = testUsers.includes(phone);
 
-    if (isTestEnv && isTestUser && code === '888888') {
+    if (isTestEnv && code === '888888') {
       // 直接允许登录,不验证缓存中的验证码
-      operationLog.info(`测试用户登录: ${phone}, 验证码: 888888`);
+      operationLog.info(`测试环境登录: ${phone}, 验证码: 888888`);
       // 跳过验证码校验,直接进入会员查询/创建流程
     } else {
       // 正常验证码验证流程
