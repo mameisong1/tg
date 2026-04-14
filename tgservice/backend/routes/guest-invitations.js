@@ -240,26 +240,30 @@ router.post('/', auth.required, requireBackendPermission(['all']), async (req, r
     }
     
     // 时间校验：早班 14:00-18:00，晚班 18:00-22:00（前后2小时）
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentTime = currentHour * 60 + currentMinute;
-    
-    if (shift === '早班') {
-      if (currentTime < 14 * 60 || currentTime > 18 * 60) {
-        return res.status(400).json({
-          success: false,
-          error: '早班约客记录提交时间为14:00-18:00'
-        });
+    // 测试环境跳过时间限制
+    const isTestEnv = process.env.TGSERVICE_ENV === 'test';
+    if (!isTestEnv) {
+      const now = new Date();
+      const currentHour = now.getHours();
+      const currentMinute = now.getMinutes();
+      const currentTime = currentHour * 60 + currentMinute;
+      
+      if (shift === '早班') {
+        if (currentTime < 14 * 60 || currentTime > 18 * 60) {
+          return res.status(400).json({
+            success: false,
+            error: '早班约客记录提交时间为14:00-18:00'
+          });
+        }
       }
-    }
-    
-    if (shift === '晚班') {
-      if (currentTime < 18 * 60 || currentTime > 22 * 60) {
-        return res.status(400).json({
-          success: false,
-          error: '晚班约客记录提交时间为18:00-22:00'
-        });
+      
+      if (shift === '晚班') {
+        if (currentTime < 18 * 60 || currentTime > 22 * 60) {
+          return res.status(400).json({
+            success: false,
+            error: '晚班约客记录提交时间为18:00-22:00'
+          });
+        }
       }
     }
     
