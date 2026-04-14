@@ -214,7 +214,11 @@ const allowedOrigins = [
   'http://localhost:8081',      // 本地开发
   'http://localhost:8083',      // 本地 H5
   'http://localhost:8088',      // 开发环境后端
-  'http://localhost:8089'       // 开发环境 H5
+  'http://localhost:8089',      // 开发环境 H5
+  'http://127.0.0.1:8081',      // 本地开发(IP)
+  'http://127.0.0.1:8083',      // 本地 H5(IP)
+  'http://127.0.0.1:8088',      // 开发环境后端(IP)
+  'http://127.0.0.1:8089'       // 开发环境 H5(IP)
 ];
 app.use(cors({
   origin: function(origin, callback) {
