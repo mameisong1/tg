@@ -926,6 +926,8 @@
 | `/api/water-boards` | GET | 获取所有水牌状态 |
 | `/api/water-boards/:coach_no` | GET | 获取单个助教水牌 |
 | `/api/water-boards/:coach_no/status` | PUT | 更新水牌状态 |
+| `/api/coaches/:coach_no/clock-in` | POST | 助教点上班 |
+| `/api/coaches/:coach_no/clock-out` | POST | 助教点下班 |
 
 #### 获取所有水牌状态
 
@@ -940,6 +942,7 @@
         "stage_name": "芝芝",
         "status": "早班空闲",
         "table_no": null,
+        "clock_in_time": "2026-04-14 08:00:00",
         "shift": "早班",
         "photos": ["https://..."],
         "employee_id": "1005"
@@ -947,7 +950,40 @@
     ]
   }
   ```
-- **说明**: 返回所有助教的水牌状态，`photos` 字段已解析为数组格式
+- **说明**: 返回所有助教的水牌状态，`photos` 字段已解析为数组格式。`clock_in_time` 为上班时间（北京时间）。
+
+#### 助教点上班
+
+- **路径**: `POST /api/coaches/:coach_no/clock-in`
+- **权限**: `coachManagement`（助教只能打自己的卡）
+- **说明**: 根据班次将状态从非在班状态变为 `早班空闲` 或 `晚班空闲`，同时写入 `clock_in_time`
+- **返回**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "coach_no": "10005",
+      "stage_name": "芝芝",
+      "status": "早班空闲"
+    }
+  }
+  ```
+
+#### 助教点下班
+
+- **路径**: `POST /api/coaches/:coach_no/clock-out`
+- **权限**: `coachManagement`（助教只能打自己的卡）
+- **说明**: 将状态变为 `下班`，清空 `clock_in_time`
+- **返回**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "coach_no": "10005",
+      "status": "下班"
+    }
+  }
+  ```
 
 #### 更新水牌状态
 

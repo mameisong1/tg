@@ -1,4 +1,35 @@
 
+## 2026-04-14 助教上班时间记录 + 水牌排序优化
+
+### 需求
+- 助教点上班后，记录具体的上班时间
+- 水牌页面各状态分段的助教按时间排序
+
+### 变更内容
+
+#### 数据库
+- **water_boards 表新增 `clock_in_time` 字段**（DATETIME，北京时间）
+- 存量数据初始化为 `updated_at` 值
+
+#### 后端 API
+- **POST /api/coaches/:coach_no/clock-in**（上班）：写入 `clock_in_time = TimeUtil.nowDB()`
+- **POST /api/coaches/:coach_no/clock-out**（下班）：清空 `clock_in_time = NULL`
+- **PUT /api/water-boards/:coach_no/status**：从下班状态变为工作状态时写入 `clock_in_time`，变为下班时清空
+- **GET /api/water-boards**：返回 `clock_in_time` 字段
+- **server.js**：CORS 新增 `127.0.0.1:8088/8089` 地址
+
+#### 前端排序
+- **water-board-view.vue**（H5 水牌查看）：
+  - 早班空闲/晚班空闲：按 `clock_in_time` 倒序
+  - 其他状态：按 `updated_at` 倒序
+- **water-board.vue**（水牌管理）：同上
+
+### 测试结果
+- 所有状态排序验证通过（clock_in_time 倒序 / updated_at 倒序）
+- 生产环境发布成功（镜像 `mameisong/tgservice:20260414-v3`）
+
+---
+
 ## 2026-04-14 时区统一改造
 
 ### 问题

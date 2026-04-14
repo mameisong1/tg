@@ -63,6 +63,7 @@ const d = new Date(dbTime + '+08:00');
 | `product_categories` | 商品分类表 | name |
 | `products` | 商品表 | name |
 | `coaches` | 助教表 | coach_no |
+| `water_boards` | 水牌状态表 | coach_no |
 | `carts` | 购物车表 | id (自增) |
 | `orders` | 订单表 | id (自增) |
 | `tables` | 台桌表 | id (自增) |
@@ -149,6 +150,46 @@ const d = new Date(dbTime + '+08:00');
 **业务规则**:
 - 助教登录凭证: `coach_no` + `id_card_last6`（身份证后6位）
 - 第一张照片作为头像展示
+
+---
+
+### 4.5 water_boards - 水牌状态表
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | INTEGER | PRIMARY KEY AUTOINCREMENT | 水牌记录ID |
+| coach_no | TEXT | NOT NULL, UNIQUE | 助教工号（关联coaches.coach_no） |
+| stage_name | TEXT | NOT NULL | 助教艺名（冗余字段，便于查询） |
+| status | TEXT | DEFAULT '下班' | 当前水牌状态 |
+| table_no | TEXT | | 当前关联台桌号 |
+| clock_in_time | DATETIME | | 上班时间（点上班时写入，下班时清空） |
+| updated_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 状态最后变更时间 |
+| created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 记录创建时间 |
+
+**状态枚举值**:
+| 状态 | 说明 |
+|------|------|
+| 早班上桌 | 早班 + 已上桌 |
+| 早班空闲 | 早班 + 空闲（点上班后进入此状态） |
+| 晚班上桌 | 晚班 + 已上桌 |
+| 晚班空闲 | 晚班 + 空闲（点上班后进入此状态） |
+| 早加班 | 早班加班 |
+| 晚加班 | 晚班加班 |
+| 休息 | 休息 |
+| 公休 | 公休 |
+| 请假 | 请假 |
+| 乐捐 | 乐捐 |
+| 下班 | 已下班 |
+
+**业务规则**:
+- 创建助教时自动创建水牌记录，初始状态为 `下班`
+- 点上班（POST `/api/coaches/:coach_no/clock-in`）：根据班次变为 `早班空闲` 或 `晚班空闲`，同时写入 `clock_in_time`
+- 点下班（POST `/api/coaches/:coach_no/clock-out`）：状态变为 `下班`，清空 `clock_in_time`
+- 手动更新状态（PUT `/api/water-boards/:coach_no/status`）：从非工作状态变为工作状态时写入 `clock_in_time`
+- 上班时间记录：`clock_in_time` 用于前端水牌页面空闲状态按上班时间倒序排序
+
+**关联关系**:
+- `coach_no` → `coaches.coach_no`
 
 ---
 
