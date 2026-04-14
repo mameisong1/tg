@@ -156,9 +156,29 @@ const addPhoto = () => {
   uni.chooseImage({
     count: 1, sizeType: ['compressed'], sourceType: ['album', 'camera'],
     success: async (res) => {
-      const fileInfo = await uni.getFileInfo({ filePath: res.tempFilePaths[0] })
-      if (fileInfo.size > 10 * 1024 * 1024) return uni.showToast({ title: '照片不能超过10M', icon: 'none' })
-      uploadFile(res.tempFilePaths[0], 'image')
+      const checkSizeAndUpload = async (fileSize) => {
+        if (fileSize > 10 * 1024 * 1024) return uni.showToast({ title: '照片不能超过10M', icon: 'none' })
+        uploadFile(res.tempFilePaths[0], 'image')
+      }
+      
+      // #ifdef H5
+      // H5端：tempFiles[0] 是 File 对象，直接取 size 属性
+      if (res.tempFiles && res.tempFiles[0] && res.tempFiles[0].size !== undefined) {
+        checkSizeAndUpload(res.tempFiles[0].size)
+      } else {
+        uni.showToast({ title: '无法获取文件大小，请重试', icon: 'none' })
+      }
+      // #endif
+      
+      // #ifndef H5
+      // 小程序端：使用 uni.getFileInfo 获取文件大小
+      try {
+        const fileInfo = await uni.getFileInfo({ filePath: res.tempFilePaths[0] })
+        checkSizeAndUpload(fileInfo.size)
+      } catch (e) {
+        uni.showToast({ title: '无法获取文件信息', icon: 'none' })
+      }
+      // #endif
     }
   })
 }
