@@ -1460,8 +1460,8 @@ app.post('/api/member/login-sms', async (req, res) => {
     if (!member) {
       // 新用户注册
       const result = await dbRun(
-        'INSERT INTO members (phone, created_at, updated_at) VALUES (?, datetime("now", "localtime"), datetime("now", "localtime"))',
-        [phone]
+        'INSERT INTO members (phone, created_at, updated_at) VALUES (?, ?, ?)',
+        [phone, TimeUtil.nowDB(), TimeUtil.nowDB()]
       );
       member = await dbGet('SELECT * FROM members WHERE member_no = ?', [result.id]);
       operationLog.info(`新会员注册(H5): ${phone}`);
@@ -1569,15 +1569,15 @@ app.post('/api/member/login', async (req, res) => {
     if (!member) {
       // 新用户注册
       const result = await dbRun(
-        'INSERT INTO members (phone, openid, created_at, updated_at) VALUES (?, ?, datetime("now", "localtime"), datetime("now", "localtime"))',
-        [phone, openid]
+        'INSERT INTO members (phone, openid, created_at, updated_at) VALUES (?, ?, ?, ?)',
+        [phone, openid, TimeUtil.nowDB(), TimeUtil.nowDB()]
       );
       member = await dbGet('SELECT * FROM members WHERE member_no = ?', [result.id]);
       operationLog.info(`新会员注册: ${phone}`);
     } else {
       // 更新openid(可能用户换手机了)
       if (member.openid !== openid) {
-        await dbRun('UPDATE members SET openid = ?, updated_at = datetime("now", "localtime") WHERE member_no = ?', [openid, member.member_no]);
+        await dbRun('UPDATE members SET openid = ?, updated_at = ? WHERE member_no = ?', [openid, TimeUtil.nowDB(), member.member_no]);
         member.openid = openid;
       }
     }
@@ -1780,8 +1780,8 @@ app.put('/api/member/profile', async (req, res) => {
     const { name, gender } = req.body;
 
     await dbRun(
-      'UPDATE members SET name = ?, gender = ?, updated_at = datetime("now", "localtime") WHERE member_no = ?',
-      [name, gender, decoded.memberNo]
+      'UPDATE members SET name = ?, gender = ?, updated_at = ? WHERE member_no = ?',
+      [name, gender, TimeUtil.nowDB(), decoded.memberNo]
     );
 
     res.json({ success: true });
@@ -1802,8 +1802,8 @@ app.post('/api/member/logout', async (req, res) => {
 
     // 清除openid,防止自动登录
     await dbRun(
-      'UPDATE members SET openid = NULL, updated_at = datetime("now", "localtime") WHERE member_no = ?',
-      [decoded.memberNo]
+      'UPDATE members SET openid = NULL, updated_at = ? WHERE member_no = ?',
+      [TimeUtil.nowDB(), decoded.memberNo]
     );
 
     operationLog.info(`会员退出登录: ${decoded.memberNo}`);
@@ -2385,7 +2385,7 @@ app.post('/api/admin/categories', authMiddleware, requireBackendPermission(['pro
   try {
     const { name, sortOrder } = req.body;
     const order = sortOrder || 0;
-    await dbRun('INSERT INTO product_categories (name, creator, sort_order, created_at) VALUES (?, ?, ?, datetime("now", "localtime"))', [name, req.user.username, order]);
+    await dbRun('INSERT INTO product_categories (name, creator, sort_order, created_at) VALUES (?, ?, ?, ?)', [name, req.user.username, order, TimeUtil.nowDB()]);
     operationLog.info(`创建商品分类: ${name}`);
     res.json({ success: true });
   } catch (err) {
@@ -2602,8 +2602,8 @@ app.post('/api/admin/products', authMiddleware, requireBackendPermission(['produ
 
     await dbRun(
       `INSERT INTO products (name, category, image_url, price, stock_total, stock_available, status, creator, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime("now", "localtime"), datetime("now", "localtime"))`,
-      [name, category, imageUrl, price, stockTotal, stockAvailable, status, req.user.username]
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [name, category, imageUrl, price, stockTotal, stockAvailable, status, req.user.username, TimeUtil.nowDB(), TimeUtil.nowDB()]
     );
     operationLog.info(`创建商品: ${name}`);
     res.json({ success: true });
@@ -2620,8 +2620,8 @@ app.put('/api/admin/products/:name', authMiddleware, requireBackendPermission(['
     const { category, imageUrl, price, stockTotal, stockAvailable, status } = req.body;
 
     await dbRun(
-      `UPDATE products SET category = ?, image_url = ?, price = ?, stock_total = ?, stock_available = ?, status = ?, updated_at = datetime("now", "localtime") WHERE name = ?`,
-      [category, imageUrl, price, stockTotal, stockAvailable, status, req.params.name]
+      `UPDATE products SET category = ?, image_url = ?, price = ?, stock_total = ?, stock_available = ?, status = ?, updated_at = ? WHERE name = ?`,
+      [category, imageUrl, price, stockTotal, stockAvailable, status, TimeUtil.nowDB(), req.params.name]
     );
     operationLog.info(`更新商品: ${req.params.name}`);
     res.json({ success: true });
@@ -2678,16 +2678,16 @@ app.post('/api/admin/coaches', authMiddleware, requireBackendPermission(['coachM
     try {
       const result = await dbRun(
         `INSERT INTO coaches (employee_id, stage_name, real_name, phone, level, price, age, height, photos, video, intro, is_popular, status, shift, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime("now", "localtime"), datetime("now", "localtime"))`,
-        [employeeId, stageName, realName, phone || null, level, price, age, height, JSON.stringify(photos || []), video, intro, isPopular ? 1 : 0, status || '全职', finalShift]
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [employeeId, stageName, realName, phone || null, level, price, age, height, JSON.stringify(photos || []), video, intro, isPopular ? 1 : 0, status || '全职', finalShift, TimeUtil.nowDB(), TimeUtil.nowDB()]
       );
       const newCoachNo = result.id;
 
       // 同步创建 water_boards 记录（必须成功，否则回滚）
       await dbRun(
         `INSERT INTO water_boards (coach_no, stage_name, status, created_at, updated_at)
-         VALUES (?, ?, '下班', datetime("now", "localtime"), datetime("now", "localtime"))`,
-        [newCoachNo, stageName]
+         VALUES (?, ?, '下班', ?, ?)`,
+        [newCoachNo, stageName, TimeUtil.nowDB(), TimeUtil.nowDB()]
       );
 
       // 验证水牌记录是否创建成功
@@ -2747,8 +2747,8 @@ app.put('/api/admin/coaches/:coachNo', authMiddleware, requireBackendPermission(
     let resolvedShift = finalShift !== undefined ? finalShift : (currentCoach?.shift || '早班');
 
     await dbRun(
-      `UPDATE coaches SET employee_id = ?, stage_name = ?, real_name = ?, phone = ?, level = ?, price = ?, age = ?, height = ?, photos = ?, video = ?, intro = ?, videos = ?, is_popular = ?, status = ?, shift = ?, updated_at = datetime("now", "localtime") WHERE coach_no = ?`,
-      [employeeId, stageName, realName, phone || null, level, price, finalAge, finalHeight, JSON.stringify(finalPhotos || []), video, finalIntro, JSON.stringify(finalVideos || []), isPopular ? 1 : 0, status || '全职', resolvedShift, req.params.coachNo]
+      `UPDATE coaches SET employee_id = ?, stage_name = ?, real_name = ?, phone = ?, level = ?, price = ?, age = ?, height = ?, photos = ?, video = ?, intro = ?, videos = ?, is_popular = ?, status = ?, shift = ?, updated_at = ? WHERE coach_no = ?`,
+      [employeeId, stageName, realName, phone || null, level, price, finalAge, finalHeight, JSON.stringify(finalPhotos || []), video, finalIntro, JSON.stringify(finalVideos || []), isPopular ? 1 : 0, status || '全职', resolvedShift, TimeUtil.nowDB(), req.params.coachNo]
     );
     operationLog.info(`更新助教: ${req.params.coachNo}`);
     res.json({ success: true });
@@ -2804,7 +2804,7 @@ app.put('/api/admin/coaches/:coachNo/shift', authMiddleware, requireBackendPermi
     const oldShift = coach.shift || '早班';
 
     // 只更新班次字段
-    await dbRun('UPDATE coaches SET shift = ?, updated_at = datetime("now", "localtime") WHERE coach_no = ?', [shift, req.params.coachNo]);
+    await dbRun('UPDATE coaches SET shift = ?, updated_at = ? WHERE coach_no = ?', [shift, TimeUtil.nowDB(), req.params.coachNo]);
 
     operationLog.info(`修改班次: ${coach.stage_name}(${req.params.coachNo}) ${oldShift} → ${shift}`);
     res.json({ success: true, coach_no: req.params.coachNo, old_shift: oldShift, new_shift: shift });
@@ -2842,8 +2842,8 @@ app.post('/api/admin/members', authMiddleware, requireBackendPermission(['coachM
     }
 
     await dbRun(
-      'INSERT INTO members (phone, name, gender, remark, created_at, updated_at) VALUES (?, ?, ?, ?, datetime("now", "localtime"), datetime("now", "localtime"))',
-      [phone, name, gender, remark]
+      'INSERT INTO members (phone, name, gender, remark, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [phone, name, gender, remark, TimeUtil.nowDB(), TimeUtil.nowDB()]
     );
 
     operationLog.info(`新增会员: ${phone}`);
@@ -2865,8 +2865,8 @@ app.put('/api/admin/members/:memberNo', authMiddleware, requireBackendPermission
     }
 
     await dbRun(
-      'UPDATE members SET phone = ?, name = ?, gender = ?, remark = ?, updated_at = datetime("now", "localtime") WHERE member_no = ?',
-      [phone, name, gender, remark, req.params.memberNo]
+      'UPDATE members SET phone = ?, name = ?, gender = ?, remark = ?, updated_at = ? WHERE member_no = ?',
+      [phone, name, gender, remark, TimeUtil.nowDB(), req.params.memberNo]
     );
 
     operationLog.info(`更新会员: ${req.params.memberNo}`);
@@ -3055,8 +3055,8 @@ app.post('/api/admin/blacklist', authMiddleware, requireBackendPermission(['all'
     }
 
     await dbRun(
-      'INSERT INTO device_blacklist (device_fingerprint, reason, created_by, created_at) VALUES (?, ?, ?, datetime("now", "localtime"))',
-      [deviceFingerprint, reason || '', req.user.username]
+      'INSERT INTO device_blacklist (device_fingerprint, reason, created_by, created_at) VALUES (?, ?, ?, ?)',
+      [deviceFingerprint, reason || '', req.user.username, TimeUtil.nowDB()]
     );
 
     operationLog.info(`添加设备黑名单: ${deviceFingerprint}, 原因: ${reason || '无'}, 操作人: ${req.user.username}`);
@@ -3109,8 +3109,8 @@ app.put('/api/admin/home-config', authMiddleware, requireBackendPermission(['all
     } catch (e) { /* 列已存在 */ }
 
     await dbRun(
-      `UPDATE home_config SET banner_image = ?, banner_title = ?, banner_desc = ?, hot_products = ?, popular_coaches = ?, hot_vip_rooms = ?, notice = ?, updated_at = datetime("now", "localtime") WHERE id = 1`,
-      [bannerImage, bannerTitle, bannerDesc, JSON.stringify(hotProducts || []), JSON.stringify(popularCoaches || []), JSON.stringify(hotVipRooms || []), notice || '']
+      `UPDATE home_config SET banner_image = ?, banner_title = ?, banner_desc = ?, hot_products = ?, popular_coaches = ?, hot_vip_rooms = ?, notice = ?, updated_at = ? WHERE id = 1`,
+      [bannerImage, bannerTitle, bannerDesc, JSON.stringify(hotProducts || []), JSON.stringify(popularCoaches || []), JSON.stringify(hotVipRooms || []), notice || '', TimeUtil.nowDB()]
     );
     operationLog.info(`更新首页配置`);
     res.json({ success: true });
@@ -3235,8 +3235,8 @@ app.post('/api/admin/tables', authMiddleware, requireBackendPermission(['vipRoom
 
     await dbRun(
       `INSERT INTO tables (area, name, name_pinyin, status, created_at, updated_at)
-       VALUES (?, ?, ?, ?, datetime("now", "localtime"), datetime("now", "localtime"))`,
-      [area, name, namePinyin, status || '空闲']
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [area, name, namePinyin, status || '空闲', TimeUtil.nowDB(), TimeUtil.nowDB()]
     );
     operationLog.info(`新增台桌: ${area} - ${name} (${namePinyin})`);
     res.json({ success: true, namePinyin });
@@ -3255,8 +3255,8 @@ app.put('/api/admin/tables/:id', authMiddleware, requireBackendPermission(['vipR
     const namePinyin = toPinyin(name);
 
     await dbRun(
-      `UPDATE tables SET area = ?, name = ?, name_pinyin = ?, status = ?, updated_at = datetime("now", "localtime") WHERE id = ?`,
-      [area, name, namePinyin, status, req.params.id]
+      `UPDATE tables SET area = ?, name = ?, name_pinyin = ?, status = ?, updated_at = ? WHERE id = ?`,
+      [area, name, namePinyin, status, TimeUtil.nowDB(), req.params.id]
     );
     operationLog.info(`更新台桌: ${req.params.id} -> ${name}`);
     res.json({ success: true });
@@ -3449,8 +3449,8 @@ app.post('/api/admin/vip-rooms', authMiddleware, requireBackendPermission(['vipR
 
     const result = await dbRun(
       `INSERT INTO vip_rooms (name, status, intro, photos, videos, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, datetime("now", "localtime"), datetime("now", "localtime"))`,
-      [name, status || '空闲', intro || '', JSON.stringify(photos || []), JSON.stringify(videos || [])]
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [name, status || '空闲', intro || '', JSON.stringify(photos || []), JSON.stringify(videos || []), TimeUtil.nowDB(), TimeUtil.nowDB()]
     );
     operationLog.info(`新增包房: ${name} (ID: ${result.id})`);
     res.json({ success: true, id: result.id });
@@ -3468,8 +3468,8 @@ app.put('/api/admin/vip-rooms/:id', authMiddleware, requireBackendPermission(['v
     const { name, status, intro, photos, videos } = req.body;
 
     await dbRun(
-      `UPDATE vip_rooms SET name = ?, status = ?, intro = ?, photos = ?, videos = ?, updated_at = datetime("now", "localtime") WHERE id = ?`,
-      [name, status, intro, JSON.stringify(photos || []), JSON.stringify(videos || []), req.params.id]
+      `UPDATE vip_rooms SET name = ?, status = ?, intro = ?, photos = ?, videos = ?, updated_at = ? WHERE id = ?`,
+      [name, status, intro, JSON.stringify(photos || []), JSON.stringify(videos || []), TimeUtil.nowDB(), req.params.id]
     );
     operationLog.info(`更新包房: ${req.params.id}`);
     res.json({ success: true });
@@ -3557,8 +3557,8 @@ app.delete('/api/admin/vip-rooms/:id/photo', authMiddleware, requireBackendPermi
       if (objectKey) await client.delete(objectKey);
     }
 
-    await dbRun('UPDATE vip_rooms SET photos = ?, updated_at = datetime("now", "localtime") WHERE id = ?',
-      [JSON.stringify(photos), req.params.id]);
+    await dbRun('UPDATE vip_rooms SET photos = ?, updated_at = ? WHERE id = ?',
+      [JSON.stringify(photos), TimeUtil.nowDB(), req.params.id]);
 
     res.json({ success: true, photos });
   } catch (err) {
@@ -3592,8 +3592,8 @@ app.delete('/api/admin/vip-rooms/:id/video', authMiddleware, requireBackendPermi
       if (objectKey) await client.delete(objectKey);
     }
 
-    await dbRun('UPDATE vip_rooms SET videos = ?, updated_at = datetime("now", "localtime") WHERE id = ?',
-      [JSON.stringify(videos), req.params.id]);
+    await dbRun('UPDATE vip_rooms SET videos = ?, updated_at = ? WHERE id = ?',
+      [JSON.stringify(videos), TimeUtil.nowDB(), req.params.id]);
 
     res.json({ success: true, videos });
   } catch (err) {
@@ -3619,8 +3619,8 @@ app.put('/api/admin/vip-rooms/:id/avatar', authMiddleware, requireBackendPermiss
     const targetPhoto = photos.splice(photoIndex, 1)[0];
     photos.unshift(targetPhoto);
 
-    await dbRun('UPDATE vip_rooms SET photos = ?, updated_at = datetime("now", "localtime") WHERE id = ?',
-      [JSON.stringify(photos), req.params.id]);
+    await dbRun('UPDATE vip_rooms SET photos = ?, updated_at = ? WHERE id = ?',
+      [JSON.stringify(photos), TimeUtil.nowDB(), req.params.id]);
 
     operationLog.info(`设置包房头像: ${req.params.id}, 照片索引: ${photoIndex}`);
     res.json({ success: true, photos });
@@ -3963,8 +3963,8 @@ app.put('/api/coach/avatar', async (req, res) => {
     photos.unshift(targetPhoto);
 
     // 更新数据库
-    await dbRun('UPDATE coaches SET photos = ?, updated_at = datetime("now", "localtime") WHERE coach_no = ?',
-      [JSON.stringify(photos), coachNo]);
+    await dbRun('UPDATE coaches SET photos = ?, updated_at = ? WHERE coach_no = ?',
+      [JSON.stringify(photos), TimeUtil.nowDB(), coachNo]);
 
     operationLog.info(`助教设置头像: ${coachNo}, 照片索引: ${photoIndex}`);
     res.json({ success: true, photos });
