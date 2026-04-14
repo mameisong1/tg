@@ -192,6 +192,10 @@
           <text class="internal-btn-icon">🌙</text>
           <text class="internal-btn-text">晚班约客</text>
         </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/switch-control')">
+          <text class="internal-btn-icon">💡</text>
+          <text class="internal-btn-text">智能开关</text>
+        </view>
 
       </view>
     </view>
