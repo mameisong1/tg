@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const { runInTransaction } = require('../db');
 const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const TimeUtil = require('../utils/time');
@@ -103,35 +104,26 @@ router.get('/:coach_no', auth.required, requireBackendPermission(['waterBoardMan
  * 更新水牌状态
  */
 router.put('/:coach_no/status', auth.required, requireBackendPermission(['waterBoardManagement']), async (req, res) => {
-  const transaction = await db.beginTransaction();
-  
   try {
+    const result = await runInTransaction(async (tx) => {
     const { coach_no } = req.params;
     const { status, table_no } = req.body;
     
-    // 验证状态枚举值
     const validStatuses = [
       '早班上桌', '早班空闲', '晚班上桌', '晚班空闲',
       '早加班', '晚加班', '休息', '公休', '请假', '乐捐', '下班'
     ];
     
     if (status && !validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        error: '无效的状态值'
-      });
+      throw { status: 400, error: '无效的状态值' };
     }
     
-    // 获取当前水牌状态
     const currentWaterBoard = await db.get(`
       SELECT * FROM water_boards WHERE coach_no = ?
     `, [coach_no]);
     
     if (!currentWaterBoard) {
-      return res.status(404).json({
-        success: false,
-        error: '水牌不存在'
-      });
+      throw { status: 404, error: '水牌不存在' };
     }
     
     const oldValue = {
@@ -139,7 +131,6 @@ router.put('/:coach_no/status', auth.required, requireBackendPermission(['waterB
       table_no: currentWaterBoard.table_no
     };
     
-    // 更新水牌状态
     const updateFields = [];
     const updateParams = [];
     
@@ -153,18 +144,15 @@ router.put('/:coach_no/status', auth.required, requireBackendPermission(['waterB
       updateParams.push(table_no);
     }
     
-    // 状态变为工作状态（非下班）时，写入 clock_in_time
     const workStatuses = ['早班空闲', '晚班空闲', '早班上桌', '晚班上桌', '早加班', '晚加班', '乐捐'];
     const offStatuses = ['下班', '休息', '公休', '请假'];
     if (status && workStatuses.includes(status)) {
-      // 从下班状态变为工作状态，写入上班时间
       const wasOff = offStatuses.includes(currentWaterBoard.status) || !currentWaterBoard.clock_in_time;
       if (wasOff) {
         updateFields.push('clock_in_time = ?');
         updateParams.push(TimeUtil.nowDB());
       }
     }
-    // 状态变为下班时，清空 clock_in_time
     if (status === '下班') {
       updateFields.push('clock_in_time = NULL');
     }
@@ -172,7 +160,7 @@ router.put('/:coach_no/status', auth.required, requireBackendPermission(['waterB
     updateFields.push('updated_at = CURRENT_TIMESTAMP');
     updateParams.push(coach_no);
     
-    await transaction.run(`
+    await tx.run(`
       UPDATE water_boards SET ${updateFields.join(', ')} WHERE coach_no = ?
     `, updateParams);
     
@@ -181,9 +169,8 @@ router.put('/:coach_no/status', auth.required, requireBackendPermission(['waterB
       table_no: table_no !== undefined ? table_no : currentWaterBoard.table_no
     };
     
-    // 记录操作日志
     const user = req.user;
-    await operationLogService.create(transaction, {
+    await operationLogService.create(tx, {
       operator_phone: user.username,
       operator_name: user.name,
       operation_type: '水牌状态变更',
@@ -194,18 +181,21 @@ router.put('/:coach_no/status', auth.required, requireBackendPermission(['waterB
       remark: `手动更新水牌状态：${oldValue.status} → ${newValue.status}`
     });
     
-    await transaction.commit();
+    return { coach_no, status: newValue.status, table_no: newValue.table_no };
+    });
     
     res.json({
       success: true,
       data: {
-        coach_no,
-        status: newValue.status,
-        table_no: newValue.table_no
+        coach_no: result.coach_no,
+        status: result.status,
+        table_no: result.table_no
       }
     });
   } catch (error) {
-    await transaction.rollback();
+    if (error.status) {
+      return res.status(error.status).json({ success: false, error: error.error });
+    }
     console.error('更新水牌状态失败:', error);
     res.status(500).json({
       success: false,

@@ -139,20 +139,45 @@ const runWriteQueue = () => {
 const dbTx = (fn) => {
   return enqueueWrite((done) => {
     db.run('BEGIN IMMEDIATE', (err) => {
-      if (err) return done(err);
-      fn(
-        db,
-        (err, result) => {
-          if (err) {
-            db.run('ROLLBACK', () => done(err));
-          } else {
-            db.run('COMMIT', (commitErr) => {
-              if (commitErr) done(commitErr);
-              else done(null, result);
+      if (err) {
+        if (err.message && err.message.includes('cannot start a transaction')) {
+          // 有残留事务，先回滚再重试
+          db.run('ROLLBACK', () => {
+            db.run('BEGIN IMMEDIATE', (err2) => {
+              if (err2) return done(err2);
+              fn(
+                db,
+                (err3, result) => {
+                  if (err3) {
+                    db.run('ROLLBACK', () => done(err3));
+                  } else {
+                    db.run('COMMIT', (commitErr) => {
+                      if (commitErr) done(commitErr);
+                      else done(null, result);
+                    });
+                  }
+                }
+              );
             });
-          }
+          });
+        } else {
+          return done(err);
         }
-      );
+      } else {
+        fn(
+          db,
+          (err, result) => {
+            if (err) {
+              db.run('ROLLBACK', () => done(err));
+            } else {
+              db.run('COMMIT', (commitErr) => {
+                if (commitErr) done(commitErr);
+                else done(null, result);
+              });
+            }
+          }
+        );
+      }
     });
   });
 };
@@ -246,6 +271,106 @@ const close = () => {
   });
 };
 
+/**
+ * 事务辅助：整个事务生命周期在一个 enqueueWrite 内完成
+ * 替代 beginTransaction()，确保不与其他写入冲突
+ * @param {Function} callback - async (tx) => { ... }
+ * @returns {Promise} callback 的返回值
+ */
+const runInTransaction = async (callback) => {
+  return new Promise((resolve, reject) => {
+    enqueueWrite((done) => {
+      db.run('BEGIN IMMEDIATE', (err) => {
+        if (err) {
+          if (err.message && err.message.includes('cannot start a transaction')) {
+            // 有残留事务，先回滚再重试
+            db.run('ROLLBACK', () => {
+              db.run('BEGIN IMMEDIATE', (err2) => {
+                if (err2) return done(err2);
+                runTxInner(done, callback, resolve, reject);
+              });
+            });
+          } else {
+            return done(err);
+          }
+        } else {
+          runTxInner(done, callback, resolve, reject);
+        }
+      });
+    }).then(resolve).catch(reject);
+  });
+};
+
+function runTxInner(done, callback, resolve, reject) {
+  const tx = {
+    run: (sql, params = []) => new Promise((res, rej) => {
+      db.run(sql, params, function(e) {
+        if (e) rej(e);
+        else res({ lastID: this.lastID, changes: this.changes });
+      });
+    }),
+    get: (sql, params = []) => new Promise((res, rej) => {
+      db.get(sql, params, (e, row) => {
+        if (e) rej(e);
+        else res(row);
+      });
+    }),
+    all: (sql, params = []) => new Promise((res, rej) => {
+      db.all(sql, params, (e, rows) => {
+        if (e) rej(e);
+        else res(rows);
+      });
+    }),
+    commit: () => new Promise((res, rej) => {
+      db.run('COMMIT', (e) => {
+        if (e) rej(e);
+        else res();
+      });
+    }),
+    rollback: () => new Promise((res) => {
+      db.run('ROLLBACK', () => res());
+    })
+  };
+
+  callback(tx)
+    .then(async (result) => {
+      try {
+        await tx.commit();
+        done(null, result);
+      } catch (commitErr) {
+        await tx.rollback().catch(() => {});
+        done(commitErr);
+      }
+    })
+    .catch(async (cbErr) => {
+      await tx.rollback().catch(() => {});
+      done(cbErr);
+    });
+}
+
+/**
+ * 将单个 db.run 操作加入写队列，替代直接调用 dbRun
+ * @param {string} sql
+ * @param {Array} params
+ * @returns {Promise<{lastID: number, changes: number}>}
+ */
+const enqueueRun = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    enqueueWrite((done) => {
+      db.run(sql, params, function(err) {
+        if (err) {
+          done(err);
+          reject(err);
+        } else {
+          const result = { lastID: this.lastID, changes: this.changes };
+          done();
+          resolve(result);
+        }
+      });
+    });
+  });
+};
+
 module.exports = {
   // 数据库实例（server.js 需要）
   db,
@@ -254,9 +379,11 @@ module.exports = {
   get,
   run,
   // 事务方法
-  beginTransaction,
+  beginTransaction,   // 保留但标记 deprecated
   dbTx,
   dbTxAsync,
+  runInTransaction,   // 新增
+  enqueueRun,         // 新增
   // Promise化辅助（server.js 用）
   dbAll: all,
   dbGet: get,

@@ -7,6 +7,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const { runInTransaction } = require('../db');
 const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const operationLogService = require('../services/operation-log');
@@ -20,9 +21,8 @@ router.use(auth.required);
  * 提交申请（加班/公休/乐捐/约客记录）- 助教可提交
  */
 router.post('/', requireBackendPermission(['all']), async (req, res) => {
-  const transaction = await db.beginTransaction();
-  
   try {
+    const result = await runInTransaction(async (tx) => {
     const {
       applicant_phone,
       application_type,
@@ -32,15 +32,10 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
       extra_data
     } = req.body;
     
-    // 验证必填字段
     if (!applicant_phone || !application_type) {
-      return res.status(400).json({
-        success: false,
-        error: '缺少必填字段'
-      });
+      throw { status: 400, error: '缺少必填字段' };
     }
     
-    // 验证申请类型
     const validTypes = [
       '早加班申请',
       '晚加班申请',
@@ -50,20 +45,15 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
     ];
     
     if (!validTypes.includes(application_type)) {
-      return res.status(400).json({
-        success: false,
-        error: '无效的申请类型'
-      });
+      throw { status: 400, error: '无效的申请类型' };
     }
     
-    // 乐捐报备和约客记录无需审批，直接设为有效状态
-    let status = 0; // 待处理
+    let status = 0;
     if (application_type === '乐捐报备') {
-      status = 1; // 有效
+      status = 1;
     }
     
-    // 创建申请记录
-    const result = await transaction.run(`
+    const insertResult = await tx.run(`
       INSERT INTO applications (
         applicant_phone,
         application_type,
@@ -81,19 +71,16 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
       extra_data ? JSON.stringify(extra_data) : null
     ]);
     
-    const applicationId = result.lastID;
+    const applicationId = insertResult.lastID;
     
-    // 如果是乐捐报备，自动更新水牌状态为"乐捐"
     if (application_type === '乐捐报备') {
-      // 获取助教信息
-      const coach = await transaction.get(
+      const coach = await tx.get(
         'SELECT coach_no, stage_name FROM coaches WHERE employee_id = ? OR phone = ?',
         [applicant_phone, applicant_phone]
       );
       
       if (coach) {
-        // 获取当前水牌状态
-        const currentWaterBoard = await transaction.get(
+        const currentWaterBoard = await tx.get(
           'SELECT * FROM water_boards WHERE coach_no = ?',
           [coach.coach_no]
         );
@@ -104,8 +91,7 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
             table_no: currentWaterBoard.table_no
           };
           
-          // 更新水牌状态为"乐捐"
-          await transaction.run(`
+          await tx.run(`
             UPDATE water_boards 
             SET status = '乐捐', updated_at = CURRENT_TIMESTAMP 
             WHERE coach_no = ?
@@ -116,9 +102,8 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
             table_no: currentWaterBoard.table_no
           };
           
-          // 记录操作日志
           const user = req.user;
-          await operationLogService.create(transaction, {
+          await operationLogService.create(tx, {
             operator_phone: user.username,
             operator_name: user.name,
             operation_type: '乐捐报备',
@@ -132,9 +117,8 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
       }
     }
     
-    // 记录操作日志
     const user = req.user;
-    await operationLogService.create(transaction, {
+    await operationLogService.create(tx, {
       operator_phone: applicant_phone,
       operator_name: req.user.name,
       operation_type: '提交申请',
@@ -148,17 +132,20 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
       remark: `提交${application_type}`
     });
     
-    await transaction.commit();
+    return { id: applicationId, status };
+    });
     
     res.json({
       success: true,
       data: {
-        id: applicationId,
-        status: status
+        id: result.id,
+        status: result.status
       }
     });
   } catch (error) {
-    await transaction.rollback();
+    if (error.status) {
+      return res.status(error.status).json({ success: false, error: error.error });
+    }
     console.error('提交申请失败:', error);
     res.status(500).json({
       success: false,
@@ -276,43 +263,29 @@ router.get('/lejuan', requireBackendPermission(['all']), async (req, res) => {
  * 审批申请
  */
 router.put('/:id/approve', requireBackendPermission(['coachManagement']), async (req, res) => {
-  const transaction = await db.beginTransaction();
-  
   try {
+    const result = await runInTransaction(async (tx) => {
     const { id } = req.params;
     const { approver_phone, status: approveStatus } = req.body;
     
-    // 验证审批状态
     if (approveStatus !== 1 && approveStatus !== 2) {
-      return res.status(400).json({
-        success: false,
-        error: '无效的审批状态'
-      });
+      throw { status: 400, error: '无效的审批状态' };
     }
     
-    // 获取申请记录
-    const application = await transaction.get(
+    const application = await tx.get(
       'SELECT * FROM applications WHERE id = ?',
       [id]
     );
     
     if (!application) {
-      return res.status(404).json({
-        success: false,
-        error: '申请记录不存在'
-      });
+      throw { status: 404, error: '申请记录不存在' };
     }
     
-    // 只能审批待处理的申请
     if (application.status !== 0) {
-      return res.status(400).json({
-        success: false,
-        error: '该申请已审批过'
-      });
+      throw { status: 400, error: '该申请已审批过' };
     }
     
-    // 更新申请状态
-    await transaction.run(`
+    await tx.run(`
       UPDATE applications
       SET status = ?,
           approver_phone = ?,
@@ -321,33 +294,24 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
       WHERE id = ?
     `, [approveStatus, approver_phone || req.user.username, id]);
     
-    // 如果审批通过，更新水牌状态
     if (approveStatus === 1) {
-      // 获取助教信息
-      const coach = await transaction.get(
+      const coach = await tx.get(
         'SELECT coach_no, stage_name, shift FROM coaches WHERE employee_id = ? OR phone = ?',
         [application.applicant_phone, application.applicant_phone]
       );
       
       if (coach) {
-        // 获取当前水牌状态
-        const currentWaterBoard = await transaction.get(
+        const currentWaterBoard = await tx.get(
           'SELECT * FROM water_boards WHERE coach_no = ?',
           [coach.coach_no]
         );
         
         if (currentWaterBoard) {
-          // 状态转换校验：检查当前状态是否允许转换
           const currentStatus = currentWaterBoard.status;
           const isOnTable = currentStatus === '早班上桌' || currentStatus === '晚班上桌';
           
-          // 如果助教正在上桌服务，不允许审批通过加班/公休申请
           if (isOnTable) {
-            await transaction.rollback();
-            return res.status(400).json({
-              success: false,
-              error: `助教${coach.stage_name}正在上桌服务（${currentStatus}），无法审批通过${application.application_type}`
-            });
+            throw { status: 400, error: `助教${coach.stage_name}正在上桌服务（${currentStatus}），无法审批通过${application.application_type}` };
           }
           
           const oldValue = {
@@ -357,7 +321,6 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
           
           let newStatus = currentWaterBoard.status;
           
-          // 根据申请类型设置新状态
           if (application.application_type === '早加班申请') {
             newStatus = '早加班';
           } else if (application.application_type === '晚加班申请') {
@@ -366,8 +329,7 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
             newStatus = '公休';
           }
           
-          // 更新水牌状态
-          await transaction.run(`
+          await tx.run(`
             UPDATE water_boards 
             SET status = ?, updated_at = CURRENT_TIMESTAMP 
             WHERE coach_no = ?
@@ -378,9 +340,8 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
             table_no: currentWaterBoard.table_no
           };
           
-          // 记录操作日志
           const user = req.user;
-          await operationLogService.create(transaction, {
+          await operationLogService.create(tx, {
             operator_phone: user.username,
             operator_name: user.name,
             operation_type: '申请审批',
@@ -394,9 +355,8 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
       }
     }
     
-    // 记录操作日志
     const user = req.user;
-    await operationLogService.create(transaction, {
+    await operationLogService.create(tx, {
       operator_phone: approver_phone || user.username,
       operator_name: user.name,
       operation_type: '申请审批',
@@ -407,19 +367,27 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
       remark: `审批${application.application_type}：${approveStatus === 1 ? '同意' : '拒绝'}`
     });
     
-    await transaction.commit();
+    return {
+      id: parseInt(id, 10),
+      status: approveStatus,
+      approver_phone: approver_phone || req.user.username,
+      approve_time: TimeUtil.nowDB()
+    };
+    });
     
     res.json({
       success: true,
       data: {
-        id: parseInt(id, 10),
-        status: approveStatus,
-        approver_phone: approver_phone || user.username,
-        approve_time: TimeUtil.nowDB()
+        id: result.id,
+        status: result.status,
+        approver_phone: result.approver_phone,
+        approve_time: result.approve_time
       }
     });
   } catch (error) {
-    await transaction.rollback();
+    if (error.status) {
+      return res.status(error.status).json({ success: false, error: error.error });
+    }
     console.error('审批申请失败:', error);
     res.status(500).json({
       success: false,

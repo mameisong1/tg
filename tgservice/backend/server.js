@@ -336,7 +336,7 @@ app.use('/api/table-action-orders', tableActionOrdersRouter);
 app.use('/api/operation-logs', operationLogsRouter);
 
 // 数据库连接 - 统一从 db/index.js 获取，确保单连接
-const { db, dbAll, dbGet, dbRun, dbTx, dbTxAsync, writeQueue } = require('./db');
+const { db, dbAll, dbGet, dbRun, dbTx, dbTxAsync, writeQueue, runInTransaction, enqueueRun } = require('./db');
 
 // 商品选项缓存
 let productOptionsCache = [];
@@ -629,9 +629,9 @@ app.put('/api/cart', async (req, res) => {
     const { sessionId, productName, quantity, options = '' } = req.body;
 
     if (quantity <= 0) {
-      await dbRun('DELETE FROM carts WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')', [sessionId, productName, options, options]);
+      await enqueueRun('DELETE FROM carts WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')', [sessionId, productName, options, options]);
     } else {
-      await dbRun('UPDATE carts SET quantity = ? WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')', [quantity, sessionId, productName, options, options]);
+      await enqueueRun('UPDATE carts SET quantity = ? WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')', [quantity, sessionId, productName, options, options]);
     }
 
     res.json({ success: true });
@@ -645,7 +645,7 @@ app.put('/api/cart', async (req, res) => {
 app.delete('/api/cart', async (req, res) => {
   try {
     const { sessionId, productName, options = '' } = req.body;
-    await dbRun('DELETE FROM carts WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')', [sessionId, productName, options, options]);
+    await enqueueRun('DELETE FROM carts WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')', [sessionId, productName, options, options]);
     res.json({ success: true });
   } catch (err) {
     logger.error(`删除购物车商品失败: ${err.message}`);
@@ -656,7 +656,7 @@ app.delete('/api/cart', async (req, res) => {
 // 清空购物车
 app.delete('/api/cart/:sessionId', async (req, res) => {
   try {
-    await dbRun('DELETE FROM carts WHERE session_id = ?', [req.params.sessionId]);
+    await enqueueRun('DELETE FROM carts WHERE session_id = ?', [req.params.sessionId]);
     res.json({ success: true });
   } catch (err) {
     logger.error(`清空购物车失败: ${err.message}`);
@@ -676,7 +676,7 @@ app.put('/api/cart/table', async (req, res) => {
     if (!table) {
       return res.status(400).json({ error: '台桌不存在' });
     }
-    await dbRun('UPDATE carts SET table_no = ? WHERE session_id = ?', [tableNo, sessionId]);
+    await enqueueRun('UPDATE carts SET table_no = ? WHERE session_id = ?', [tableNo, sessionId]);
     res.json({ success: true });
   } catch (err) {
     logger.error(`更新购物车台桌失败: ${err.message}`);
@@ -762,16 +762,16 @@ app.post('/api/order', async (req, res) => {
     // 保存订单(存UTC时间,前端显示时转换为北京时间)
     // 先尝试添加 device_fingerprint 列(如果不存在)
     try {
-      await dbRun(`ALTER TABLE orders ADD COLUMN device_fingerprint TEXT`);
+      await enqueueRun(`ALTER TABLE orders ADD COLUMN device_fingerprint TEXT`);
     } catch (e) { /* 列已存在 */ }
 
-    await dbRun(
+    await enqueueRun(
       `INSERT INTO orders (order_no, table_no, items, total_price, status, device_fingerprint, created_at) VALUES (?, ?, ?, ?, '待处理', ?, ?)`,
       [orderNo, tableNo, JSON.stringify(orderItems), totalPrice, deviceFingerprint || null, TimeUtil.nowDB()]
     );
 
     // 清空购物车
-    await dbRun('DELETE FROM carts WHERE session_id = ?', [sessionId]);
+    await enqueueRun('DELETE FROM carts WHERE session_id = ?', [sessionId]);
 
     res.json({
       success: true,
@@ -955,7 +955,7 @@ app.get('/api/coaches/:coachNo', async (req, res) => {
       if (!lastVisit || (now - lastVisit > ONE_DAY_MS)) {
         setImmediate(async () => {
           try {
-            await dbRun('UPDATE coaches SET popularity = popularity + 1 WHERE coach_no = ?', [req.params.coachNo]);
+            await enqueueRun('UPDATE coaches SET popularity = popularity + 1 WHERE coach_no = ?', [req.params.coachNo]);
             popularityCache.set(popularityCacheKey, now);
           } catch (err) {
             logger.error(`人气值更新失败 (coach_no=${req.params.coachNo}): ${err.message}`);
@@ -1087,7 +1087,7 @@ app.post('/api/coach/login', async (req, res) => {
 
     // 更新身份证后6位(首次登录时设置)
     if (!coach.id_card_last6) {
-      await dbRun('UPDATE coaches SET id_card_last6 = ? WHERE coach_no = ?', [idCardLast6, coach.coach_no]);
+      await enqueueRun('UPDATE coaches SET id_card_last6 = ? WHERE coach_no = ?', [idCardLast6, coach.coach_no]);
     } else if (coach.id_card_last6 !== idCardLast6) {
       return res.status(401).json({ error: '身份证后6位不正确' });
     }
@@ -1172,7 +1172,7 @@ app.put('/api/coach/profile', async (req, res) => {
     updates.push("updated_at = ?");
     params.push(TimeUtil.nowDB(), coachNo);
 
-    await dbRun(`UPDATE coaches SET ${updates.join(', ')} WHERE coach_no = ?`, params);
+    await enqueueRun(`UPDATE coaches SET ${updates.join(', ')} WHERE coach_no = ?`, params);
 
     operationLog.info(`助教更新信息: ${coachNo}`);
     res.json({ success: true });
@@ -1461,7 +1461,7 @@ app.post('/api/member/login-sms', async (req, res) => {
 
     if (!member) {
       // 新用户注册
-      const result = await dbRun(
+      const result = await enqueueRun(
         'INSERT INTO members (phone, created_at, updated_at) VALUES (?, ?, ?)',
         [phone, TimeUtil.nowDB(), TimeUtil.nowDB()]
       );
@@ -1570,7 +1570,7 @@ app.post('/api/member/login', async (req, res) => {
 
     if (!member) {
       // 新用户注册
-      const result = await dbRun(
+      const result = await enqueueRun(
         'INSERT INTO members (phone, openid, created_at, updated_at) VALUES (?, ?, ?, ?)',
         [phone, openid, TimeUtil.nowDB(), TimeUtil.nowDB()]
       );
@@ -1579,7 +1579,7 @@ app.post('/api/member/login', async (req, res) => {
     } else {
       // 更新openid(可能用户换手机了)
       if (member.openid !== openid) {
-        await dbRun('UPDATE members SET openid = ?, updated_at = ? WHERE member_no = ?', [openid, TimeUtil.nowDB(), member.member_no]);
+        await enqueueRun('UPDATE members SET openid = ?, updated_at = ? WHERE member_no = ?', [openid, TimeUtil.nowDB(), member.member_no]);
         member.openid = openid;
       }
     }
@@ -1781,7 +1781,7 @@ app.put('/api/member/profile', async (req, res) => {
     const decoded = jwt.verify(token, config.jwt.secret);
     const { name, gender } = req.body;
 
-    await dbRun(
+    await enqueueRun(
       'UPDATE members SET name = ?, gender = ?, updated_at = ? WHERE member_no = ?',
       [name, gender, TimeUtil.nowDB(), decoded.memberNo]
     );
@@ -1803,7 +1803,7 @@ app.post('/api/member/logout', async (req, res) => {
     const decoded = jwt.verify(token, config.jwt.secret);
 
     // 清除openid,防止自动登录
-    await dbRun(
+    await enqueueRun(
       'UPDATE members SET openid = NULL, updated_at = ? WHERE member_no = ?',
       [TimeUtil.nowDB(), decoded.memberNo]
     );
@@ -2109,7 +2109,7 @@ app.get('/api/admin/orders', authMiddleware, requireBackendPermission(['cashierD
 // 完成订单
 app.post('/api/admin/orders/:id/complete', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
   try {
-    await dbRun("UPDATE orders SET status = '已完成', updated_at = ? WHERE id = ?", [TimeUtil.nowDB(), req.params.id]);
+    await enqueueRun("UPDATE orders SET status = '已完成', updated_at = ? WHERE id = ?", [TimeUtil.nowDB(), req.params.id]);
     operationLog.info(`订单完成: ${req.params.id} by ${req.user.username}`);
     res.json({ success: true });
   } catch (err) {
@@ -2121,7 +2121,7 @@ app.post('/api/admin/orders/:id/complete', authMiddleware, requireBackendPermiss
 // 取消订单
 app.post('/api/admin/orders/:id/cancel', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
   try {
-    await dbRun("UPDATE orders SET status = '已取消', updated_at = ? WHERE id = ?", [TimeUtil.nowDB(), req.params.id]);
+    await enqueueRun("UPDATE orders SET status = '已取消', updated_at = ? WHERE id = ?", [TimeUtil.nowDB(), req.params.id]);
     operationLog.info(`订单取消: ${req.params.id} by ${req.user.username}`);
     res.json({ success: true });
   } catch (err) {
@@ -2188,7 +2188,7 @@ app.post('/api/admin/orders/:id/cancel-item', authMiddleware, requireBackendPerm
 
     // 如果订单无商品,自动取消订单
     if (items.length === 0) {
-      await dbRun(
+      await enqueueRun(
         "UPDATE orders SET status = '已取消', items = ?, total_price = 0, updated_at = ? WHERE id = ?",
         [JSON.stringify([]), TimeUtil.nowDB(), orderId]
       );
@@ -2201,7 +2201,7 @@ app.post('/api/admin/orders/:id/cancel-item', authMiddleware, requireBackendPerm
       });
     } else {
       // 更新订单
-      await dbRun(
+      await enqueueRun(
         "UPDATE orders SET items = ?, total_price = ?, updated_at = ? WHERE id = ?",
         [JSON.stringify(items), totalPrice, TimeUtil.nowDB(), orderId]
       );
@@ -2331,7 +2331,7 @@ app.post('/api/admin/users', authMiddleware, requireBackendPermission(['coachMan
     const { username, password, name, role } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await dbRun('INSERT INTO admin_users (username, password, name, role) VALUES (?, ?, ?, ?)', [username, hashedPassword, name || '', role || '管理员']);
+    await enqueueRun('INSERT INTO admin_users (username, password, name, role) VALUES (?, ?, ?, ?)', [username, hashedPassword, name || '', role || '管理员']);
     operationLog.info(`创建后台用户: ${username} (${role || '管理员'})`);
     res.json({ success: true });
   } catch (err) {
@@ -2348,9 +2348,9 @@ app.put('/api/admin/users/:username', authMiddleware, requireBackendPermission([
 
     if (password) {
       const hashedPassword = await bcrypt.hash(password, 10);
-      await dbRun('UPDATE admin_users SET password = ?, name = ?, role = ? WHERE username = ?', [hashedPassword, name || '', role || '管理员', req.params.username]);
+      await enqueueRun('UPDATE admin_users SET password = ?, name = ?, role = ? WHERE username = ?', [hashedPassword, name || '', role || '管理员', req.params.username]);
     } else {
-      await dbRun('UPDATE admin_users SET name = ?, role = ? WHERE username = ?', [name || '', role || '管理员', req.params.username]);
+      await enqueueRun('UPDATE admin_users SET name = ?, role = ? WHERE username = ?', [name || '', role || '管理员', req.params.username]);
     }
 
     operationLog.info(`更新后台用户: ${req.params.username}`);
@@ -2365,7 +2365,7 @@ app.delete('/api/admin/users/:username', authMiddleware, requireBackendPermissio
     if (req.params.username === 'tgadmin') {
       return res.status(400).json({ error: '不能删除默认管理员' });
     }
-    await dbRun('DELETE FROM admin_users WHERE username = ?', [req.params.username]);
+    await enqueueRun('DELETE FROM admin_users WHERE username = ?', [req.params.username]);
     operationLog.info(`删除后台用户: ${req.params.username}`);
     res.json({ success: true });
   } catch (err) {
@@ -2387,7 +2387,7 @@ app.post('/api/admin/categories', authMiddleware, requireBackendPermission(['pro
   try {
     const { name, sortOrder } = req.body;
     const order = sortOrder || 0;
-    await dbRun('INSERT INTO product_categories (name, creator, sort_order, created_at) VALUES (?, ?, ?, ?)', [name, req.user.username, order, TimeUtil.nowDB()]);
+    await enqueueRun('INSERT INTO product_categories (name, creator, sort_order, created_at) VALUES (?, ?, ?, ?)', [name, req.user.username, order, TimeUtil.nowDB()]);
     operationLog.info(`创建商品分类: ${name}`);
     res.json({ success: true });
   } catch (err) {
@@ -2401,7 +2401,7 @@ app.post('/api/admin/categories', authMiddleware, requireBackendPermission(['pro
 app.put('/api/admin/categories/:name', authMiddleware, requireBackendPermission(['productManagement']), async (req, res) => {
   try {
     const { sortOrder } = req.body;
-    await dbRun('UPDATE product_categories SET sort_order = ? WHERE name = ?', [sortOrder || 0, req.params.name]);
+    await enqueueRun('UPDATE product_categories SET sort_order = ? WHERE name = ?', [sortOrder || 0, req.params.name]);
     operationLog.info(`更新分类排序: ${req.params.name} -> ${sortOrder}`);
     res.json({ success: true });
   } catch (err) {
@@ -2416,7 +2416,7 @@ app.delete('/api/admin/categories/:name', authMiddleware, requireBackendPermissi
     if (count.count > 0) {
       return res.status(400).json({ error: `该分类下有${count.count}个商品,无法删除` });
     }
-    await dbRun('DELETE FROM product_categories WHERE name = ?', [req.params.name]);
+    await enqueueRun('DELETE FROM product_categories WHERE name = ?', [req.params.name]);
     operationLog.info(`删除商品分类: ${req.params.name}`);
     res.json({ success: true });
   } catch (err) {
@@ -2602,7 +2602,7 @@ app.post('/api/admin/products', authMiddleware, requireBackendPermission(['produ
   try {
     const { name, category, imageUrl, price, stockTotal, stockAvailable, status } = req.body;
 
-    await dbRun(
+    await enqueueRun(
       `INSERT INTO products (name, category, image_url, price, stock_total, stock_available, status, creator, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [name, category, imageUrl, price, stockTotal, stockAvailable, status, req.user.username, TimeUtil.nowDB(), TimeUtil.nowDB()]
@@ -2621,7 +2621,7 @@ app.put('/api/admin/products/:name', authMiddleware, requireBackendPermission(['
   try {
     const { category, imageUrl, price, stockTotal, stockAvailable, status } = req.body;
 
-    await dbRun(
+    await enqueueRun(
       `UPDATE products SET category = ?, image_url = ?, price = ?, stock_total = ?, stock_available = ?, status = ?, updated_at = ? WHERE name = ?`,
       [category, imageUrl, price, stockTotal, stockAvailable, status, TimeUtil.nowDB(), req.params.name]
     );
@@ -2634,7 +2634,7 @@ app.put('/api/admin/products/:name', authMiddleware, requireBackendPermission(['
 
 app.delete('/api/admin/products/:name', authMiddleware, requireBackendPermission(['productManagement']), async (req, res) => {
   try {
-    await dbRun('DELETE FROM products WHERE name = ?', [req.params.name]);
+    await enqueueRun('DELETE FROM products WHERE name = ?', [req.params.name]);
     operationLog.info(`删除商品: ${req.params.name}`);
     res.json({ success: true });
   } catch (err) {
@@ -2675,10 +2675,8 @@ app.post('/api/admin/coaches', authMiddleware, requireBackendPermission(['coachM
     }
 
     // 开启事务
-    await dbRun('BEGIN TRANSACTION');
-
-    try {
-      const result = await dbRun(
+    await runInTransaction(async (tx) => {
+      const result = await tx.run(
         `INSERT INTO coaches (employee_id, stage_name, real_name, phone, level, price, age, height, photos, video, intro, is_popular, status, shift, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [employeeId, stageName, realName, phone || null, level, price, age, height, JSON.stringify(photos || []), video, intro, isPopular ? 1 : 0, status || '全职', finalShift, TimeUtil.nowDB(), TimeUtil.nowDB()]
@@ -2686,27 +2684,22 @@ app.post('/api/admin/coaches', authMiddleware, requireBackendPermission(['coachM
       const newCoachNo = result.lastID;
 
       // 同步创建 water_boards 记录（必须成功，否则回滚）
-      await dbRun(
+      await tx.run(
         `INSERT INTO water_boards (coach_no, stage_name, status, created_at, updated_at)
          VALUES (?, ?, '下班', ?, ?)`,
         [newCoachNo, stageName, TimeUtil.nowDB(), TimeUtil.nowDB()]
       );
 
       // 验证水牌记录是否创建成功
-      const wbCheck = await dbGet('SELECT id FROM water_boards WHERE coach_no = ?', [newCoachNo]);
+      const wbCheck = await tx.get('SELECT id FROM water_boards WHERE coach_no = ?', [newCoachNo]);
       if (!wbCheck) {
-        await dbRun('ROLLBACK');
         logger.error(`水牌记录创建失败: coach_no=${newCoachNo}, stage_name=${stageName}`);
-        return res.status(500).json({ error: '水牌记录创建失败，请重试' });
+        throw new Error('水牌记录创建失败，请重试');
       }
 
-      await dbRun('COMMIT');
       operationLog.info(`创建助教: ${stageName} (${newCoachNo}), 水牌记录已同步创建`);
       res.json({ success: true, coachNo: newCoachNo });
-    } catch (innerErr) {
-      await dbRun('ROLLBACK');
-      throw innerErr;
-    }
+    });
   } catch (err) {
     if (err.message.includes('UNIQUE constraint failed')) {
       return res.status(400).json({ error: '该工号和艺名组合已存在,请检查是否重复添加' });
@@ -2748,7 +2741,7 @@ app.put('/api/admin/coaches/:coachNo', authMiddleware, requireBackendPermission(
     let finalHeight = height !== undefined ? height : currentCoach?.height;
     let resolvedShift = finalShift !== undefined ? finalShift : (currentCoach?.shift || '早班');
 
-    await dbRun(
+    await enqueueRun(
       `UPDATE coaches SET employee_id = ?, stage_name = ?, real_name = ?, phone = ?, level = ?, price = ?, age = ?, height = ?, photos = ?, video = ?, intro = ?, videos = ?, is_popular = ?, status = ?, shift = ?, updated_at = ? WHERE coach_no = ?`,
       [employeeId, stageName, realName, phone || null, level, price, finalAge, finalHeight, JSON.stringify(finalPhotos || []), video, finalIntro, JSON.stringify(finalVideos || []), isPopular ? 1 : 0, status || '全职', resolvedShift, TimeUtil.nowDB(), req.params.coachNo]
     );
@@ -2776,7 +2769,7 @@ app.delete('/api/admin/coaches/:coachNo', authMiddleware, requireBackendPermissi
       return res.status(400).json({ error: '只能删除离职助教' });
     }
 
-    await dbRun('DELETE FROM coaches WHERE coach_no = ?', [req.params.coachNo]);
+    await enqueueRun('DELETE FROM coaches WHERE coach_no = ?', [req.params.coachNo]);
     operationLog.info(`删除助教: ${req.params.coachNo}`);
     res.json({ success: true });
   } catch (err) {
@@ -2806,7 +2799,7 @@ app.put('/api/admin/coaches/:coachNo/shift', authMiddleware, requireBackendPermi
     const oldShift = coach.shift || '早班';
 
     // 只更新班次字段
-    await dbRun('UPDATE coaches SET shift = ?, updated_at = ? WHERE coach_no = ?', [shift, TimeUtil.nowDB(), req.params.coachNo]);
+    await enqueueRun('UPDATE coaches SET shift = ?, updated_at = ? WHERE coach_no = ?', [shift, TimeUtil.nowDB(), req.params.coachNo]);
 
     operationLog.info(`修改班次: ${coach.stage_name}(${req.params.coachNo}) ${oldShift} → ${shift}`);
     res.json({ success: true, coach_no: req.params.coachNo, old_shift: oldShift, new_shift: shift });
@@ -2843,7 +2836,7 @@ app.post('/api/admin/members', authMiddleware, requireBackendPermission(['coachM
       return res.status(400).json({ error: '手机号已存在' });
     }
 
-    await dbRun(
+    await enqueueRun(
       'INSERT INTO members (phone, name, gender, remark, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
       [phone, name, gender, remark, TimeUtil.nowDB(), TimeUtil.nowDB()]
     );
@@ -2866,7 +2859,7 @@ app.put('/api/admin/members/:memberNo', authMiddleware, requireBackendPermission
       return res.status(400).json({ error: '手机号已被其他会员使用' });
     }
 
-    await dbRun(
+    await enqueueRun(
       'UPDATE members SET phone = ?, name = ?, gender = ?, remark = ?, updated_at = ? WHERE member_no = ?',
       [phone, name, gender, remark, TimeUtil.nowDB(), req.params.memberNo]
     );
@@ -2938,7 +2931,7 @@ app.put('/api/admin/sms/config', authMiddleware, requireBackendPermission(['all'
       return res.status(400).json({ error: '无效的服务商' });
     }
 
-    await dbRun(
+    await enqueueRun(
       "INSERT OR REPLACE INTO system_config (key, value, description, updated_at) VALUES ('sms_provider', ?, '短信服务商: aliyun / kltx', ?)",
       [provider, TimeUtil.nowDB()]
     );
@@ -3021,7 +3014,7 @@ const initSystemConfigTable = async () => {
     // 初始化默认配置
     const existing = await dbGet("SELECT value FROM system_config WHERE key = 'sms_provider'");
     if (!existing) {
-      await dbRun("INSERT INTO system_config (key, value, description) VALUES ('sms_provider', 'aliyun', '短信服务商: aliyun / kltx')");
+      await enqueueRun("INSERT INTO system_config (key, value, description) VALUES ('sms_provider', 'aliyun', '短信服务商: aliyun / kltx')");
       logger.info('初始化短信服务商配置: aliyun');
     }
   } catch (err) {
@@ -3056,7 +3049,7 @@ app.post('/api/admin/blacklist', authMiddleware, requireBackendPermission(['all'
       return res.status(400).json({ error: '该设备已在黑名单中' });
     }
 
-    await dbRun(
+    await enqueueRun(
       'INSERT INTO device_blacklist (device_fingerprint, reason, created_by, created_at) VALUES (?, ?, ?, ?)',
       [deviceFingerprint, reason || '', req.user.username, TimeUtil.nowDB()]
     );
@@ -3077,7 +3070,7 @@ app.delete('/api/admin/blacklist/:id', authMiddleware, requireBackendPermission(
       return res.status(404).json({ error: '黑名单记录不存在' });
     }
 
-    await dbRun('DELETE FROM device_blacklist WHERE id = ?', [req.params.id]);
+    await enqueueRun('DELETE FROM device_blacklist WHERE id = ?', [req.params.id]);
     operationLog.info(`删除设备黑名单: ${item.device_fingerprint}, 操作人: ${req.user.username}`);
     res.json({ success: true });
   } catch (err) {
@@ -3107,10 +3100,10 @@ app.put('/api/admin/home-config', authMiddleware, requireBackendPermission(['all
 
     // 添加hot_vip_rooms字段(如果不存在则先添加列)
     try {
-      await dbRun(`ALTER TABLE home_config ADD COLUMN hot_vip_rooms TEXT DEFAULT ''`);
+      await enqueueRun(`ALTER TABLE home_config ADD COLUMN hot_vip_rooms TEXT DEFAULT ''`);
     } catch (e) { /* 列已存在 */ }
 
-    await dbRun(
+    await enqueueRun(
       `UPDATE home_config SET banner_image = ?, banner_title = ?, banner_desc = ?, hot_products = ?, popular_coaches = ?, hot_vip_rooms = ?, notice = ?, updated_at = ? WHERE id = 1`,
       [bannerImage, bannerTitle, bannerDesc, JSON.stringify(hotProducts || []), JSON.stringify(popularCoaches || []), JSON.stringify(hotVipRooms || []), notice || '', TimeUtil.nowDB()]
     );
@@ -3235,7 +3228,7 @@ app.post('/api/admin/tables', authMiddleware, requireBackendPermission(['vipRoom
     const { area, name, status } = req.body;
     const namePinyin = toPinyin(name);
 
-    await dbRun(
+    await enqueueRun(
       `INSERT INTO tables (area, name, name_pinyin, status, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?)`,
       [area, name, namePinyin, status || '空闲', TimeUtil.nowDB(), TimeUtil.nowDB()]
@@ -3256,7 +3249,7 @@ app.put('/api/admin/tables/:id', authMiddleware, requireBackendPermission(['vipR
     const { area, name, status } = req.body;
     const namePinyin = toPinyin(name);
 
-    await dbRun(
+    await enqueueRun(
       `UPDATE tables SET area = ?, name = ?, name_pinyin = ?, status = ?, updated_at = ? WHERE id = ?`,
       [area, name, namePinyin, status, TimeUtil.nowDB(), req.params.id]
     );
@@ -3273,7 +3266,7 @@ app.put('/api/admin/tables/:id', authMiddleware, requireBackendPermission(['vipR
 // 删除台桌
 app.delete('/api/admin/tables/:id', authMiddleware, requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
-    await dbRun('DELETE FROM tables WHERE id = ?', [req.params.id]);
+    await enqueueRun('DELETE FROM tables WHERE id = ?', [req.params.id]);
     operationLog.info(`删除台桌: ${req.params.id}`);
     res.json({ success: true });
   } catch (err) {
@@ -3449,13 +3442,13 @@ app.post('/api/admin/vip-rooms', authMiddleware, requireBackendPermission(['vipR
   try {
     const { name, status, intro, photos, videos } = req.body;
 
-    const result = await dbRun(
+    const result = await enqueueRun(
       `INSERT INTO vip_rooms (name, status, intro, photos, videos, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
       [name, status || '空闲', intro || '', JSON.stringify(photos || []), JSON.stringify(videos || []), TimeUtil.nowDB(), TimeUtil.nowDB()]
     );
-    operationLog.info(`新增包房: ${name} (ID: ${result.id})`);
-    res.json({ success: true, id: result.id });
+    operationLog.info(`新增包房: ${name} (ID: ${result.lastID})`);
+    res.json({ success: true, id: result.lastID });
   } catch (err) {
     if (err.message.includes('UNIQUE constraint failed')) {
       return res.status(400).json({ error: '包房名已存在' });
@@ -3469,7 +3462,7 @@ app.put('/api/admin/vip-rooms/:id', authMiddleware, requireBackendPermission(['v
   try {
     const { name, status, intro, photos, videos } = req.body;
 
-    await dbRun(
+    await enqueueRun(
       `UPDATE vip_rooms SET name = ?, status = ?, intro = ?, photos = ?, videos = ?, updated_at = ? WHERE id = ?`,
       [name, status, intro, JSON.stringify(photos || []), JSON.stringify(videos || []), TimeUtil.nowDB(), req.params.id]
     );
@@ -3525,7 +3518,7 @@ app.delete('/api/admin/vip-rooms/:id', authMiddleware, requireBackendPermission(
       }
     }
 
-    await dbRun('DELETE FROM vip_rooms WHERE id = ?', [req.params.id]);
+    await enqueueRun('DELETE FROM vip_rooms WHERE id = ?', [req.params.id]);
     operationLog.info(`删除包房: ${req.params.id}`);
     res.json({ success: true });
   } catch (err) {
@@ -3559,7 +3552,7 @@ app.delete('/api/admin/vip-rooms/:id/photo', authMiddleware, requireBackendPermi
       if (objectKey) await client.delete(objectKey);
     }
 
-    await dbRun('UPDATE vip_rooms SET photos = ?, updated_at = ? WHERE id = ?',
+    await enqueueRun('UPDATE vip_rooms SET photos = ?, updated_at = ? WHERE id = ?',
       [JSON.stringify(photos), TimeUtil.nowDB(), req.params.id]);
 
     res.json({ success: true, photos });
@@ -3594,7 +3587,7 @@ app.delete('/api/admin/vip-rooms/:id/video', authMiddleware, requireBackendPermi
       if (objectKey) await client.delete(objectKey);
     }
 
-    await dbRun('UPDATE vip_rooms SET videos = ?, updated_at = ? WHERE id = ?',
+    await enqueueRun('UPDATE vip_rooms SET videos = ?, updated_at = ? WHERE id = ?',
       [JSON.stringify(videos), TimeUtil.nowDB(), req.params.id]);
 
     res.json({ success: true, videos });
@@ -3621,7 +3614,7 @@ app.put('/api/admin/vip-rooms/:id/avatar', authMiddleware, requireBackendPermiss
     const targetPhoto = photos.splice(photoIndex, 1)[0];
     photos.unshift(targetPhoto);
 
-    await dbRun('UPDATE vip_rooms SET photos = ?, updated_at = ? WHERE id = ?',
+    await enqueueRun('UPDATE vip_rooms SET photos = ?, updated_at = ? WHERE id = ?',
       [JSON.stringify(photos), TimeUtil.nowDB(), req.params.id]);
 
     operationLog.info(`设置包房头像: ${req.params.id}, 照片索引: ${photoIndex}`);
@@ -3965,7 +3958,7 @@ app.put('/api/coach/avatar', async (req, res) => {
     photos.unshift(targetPhoto);
 
     // 更新数据库
-    await dbRun('UPDATE coaches SET photos = ?, updated_at = ? WHERE coach_no = ?',
+    await enqueueRun('UPDATE coaches SET photos = ?, updated_at = ? WHERE coach_no = ?',
       [JSON.stringify(photos), TimeUtil.nowDB(), coachNo]);
 
     operationLog.info(`助教设置头像: ${coachNo}, 照片索引: ${photoIndex}`);
@@ -3996,7 +3989,7 @@ app.post('/api/device/visit', async (req, res) => {
 
     // 插入记录(UNIQUE约束自动去重)
     try {
-      await dbRun(
+      await enqueueRun(
         'INSERT INTO device_visits (device_fp, visit_date) VALUES (?, ?)',
         [deviceFp, today]
       );
@@ -4092,7 +4085,7 @@ app.get('/api/admin/device-stats', async (req, res) => {
 const cleanOldDeviceVisits = async () => {
   try {
     const ninetyDaysAgo = TimeUtil.offsetDB(-24 * 90).split(' ')[0];
-    const result = await dbRun(
+    const result = await enqueueRun(
       "DELETE FROM device_visits WHERE visit_date < ?",
       [ninetyDaysAgo]
     );

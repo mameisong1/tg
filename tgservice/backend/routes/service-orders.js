@@ -6,6 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const { enqueueRun } = require('../db');
 const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const operationLogService = require('../services/operation-log');
@@ -40,7 +41,7 @@ router.post('/', auth.required, async (req, res) => {
     }
     
     // 直接执行操作，避免事务嵌套问题
-    const result = await db.run(`
+    const result = await enqueueRun(`
       INSERT INTO service_orders (
         table_no,
         requirement,
@@ -53,7 +54,7 @@ router.post('/', auth.required, async (req, res) => {
     // 记录操作日志（异步，不影响主流程）
     const user = req.user;
     try {
-      await db.run(`
+      await enqueueRun(`
         INSERT INTO operation_logs (
           operator_phone, operator_name, operation_type, target_type, target_id, old_value, new_value, remark, created_at
         ) VALUES (?, ?, '创建服务单', 'service_order', ?, null, ?, ?, datetime('now', 'localtime'))
@@ -184,7 +185,7 @@ router.put('/:id/status', auth.required, requireBackendPermission(['serviceOrder
     const oldStatus = serviceOrder.status;
     
     // 更新状态
-    await db.run(`
+    await enqueueRun(`
       UPDATE service_orders 
       SET status = ?, updated_at = CURRENT_TIMESTAMP 
       WHERE id = ?
@@ -193,7 +194,7 @@ router.put('/:id/status', auth.required, requireBackendPermission(['serviceOrder
     // 记录操作日志（异步，不影响主流程）
     const user = req.user;
     try {
-      await db.run(`
+      await enqueueRun(`
         INSERT INTO operation_logs (
           operator_phone, operator_name, operation_type, target_type, target_id, old_value, new_value, remark, created_at
         ) VALUES (?, ?, '服务单状态变更', 'service_order', ?, ?, ?, ?, datetime('now', 'localtime'))
