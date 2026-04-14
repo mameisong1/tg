@@ -66,27 +66,25 @@
         <text>找到 {{ filteredProducts.length }} 件商品</text>
       </view>
 
-      <!-- 横向滚动分类标签 -->
-      <scroll-view class="category-scroll" scroll-x :show-scrollbar="false">
-        <view class="category-scroll-inner">
-          <view 
-            class="category-tag" 
-            :class="{ active: currentCategory === '全部' }" 
-            @click="selectCategory('全部')"
-          >
-            <text>全部</text>
-          </view>
-          <view 
-            class="category-tag" 
-            v-for="cat in categories" 
-            :key="cat"
-            :class="{ active: currentCategory === cat }"
-            @click="selectCategory(cat)"
-          >
-            <text>{{ cat }}</text>
-          </view>
+      <!-- 分类标签（折行显示） -->
+      <view class="category-wrap">
+        <view 
+          class="category-tag" 
+          :class="{ active: currentCategory === '全部' }" 
+          @click="selectCategory('全部')"
+        >
+          <text>全部</text>
         </view>
-      </scroll-view>
+        <view 
+          class="category-tag" 
+          v-for="cat in categories" 
+          :key="cat"
+          :class="{ active: currentCategory === cat }"
+          @click="selectCategory(cat)"
+        >
+          <text>{{ cat }}</text>
+        </view>
+      </view>
 
       <!-- 台桌信息显示 -->
       <view class="table-info-wrapper">
@@ -733,22 +731,12 @@ onShow(() => {
   color: rgba(212,175,55,0.7);
 }
 
-/* ===== 横向滚动分类标签 ===== */
-.category-scroll {
-  padding: 8px 12px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-
-.category-scroll::-webkit-scrollbar {
-  display: none;
-}
-
-.category-scroll-inner {
-  display: inline-flex;
+/* ===== 分类标签（折行显示） ===== */
+.category-wrap {
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
-  white-space: nowrap;
+  padding: 8px 12px;
 }
 
 .category-tag {
