@@ -10,6 +10,7 @@ const db = require('../db');
 const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const operationLogService = require('../services/operation-log');
+const TimeUtil = require('../utils/time');
 
 // 权限中间件：需要登录
 router.use(auth.required);
@@ -414,7 +415,7 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
         id: parseInt(id, 10),
         status: approveStatus,
         approver_phone: approver_phone || user.username,
-        approve_time: new Date().toISOString()
+        approve_time: TimeUtil.nowDB()
       }
     });
   } catch (error) {

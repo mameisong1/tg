@@ -10,6 +10,7 @@ const db = require('../db');
 const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const operationLogService = require('../services/operation-log');
+const TimeUtil = require('../utils/time');
 
 // 锁定状态标记（内存变量，重启后丢失）
 const lockFlags = new Set(); // 'YYYY-MM-DD-早班' / 'YYYY-MM-DD-晚班'
@@ -443,7 +444,7 @@ router.put('/:id/review', auth.required, requireBackendPermission(['invitationRe
     
     // 时间校验：审查当日数据时，早班16:00前、晚班20:00前报错
     const now = new Date();
-    const today = now.toISOString().split('T')[0];
+    const today = TimeUtil.todayStr(); // 北京时间 YYYY-MM-DD
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
     const currentTime = currentHour * 60 + currentMinute;
@@ -494,7 +495,7 @@ router.put('/:id/review', auth.required, requireBackendPermission(['invitationRe
       data: {
         id: parseInt(id, 10),
         result,
-        reviewed_at: new Date().toISOString(),
+        reviewed_at: TimeUtil.nowDB(),
         reviewer_phone: reviewer_phone || user.username
       }
     });
@@ -636,7 +637,7 @@ router.post('/statistics', auth.required, requireBackendPermission(['invitationS
         invited_count: invitedCount,
         invalid_list: invalidList,
         missing_list: missingList,
-        generated_at: new Date().toISOString()
+        generated_at: TimeUtil.nowDB()
       }
     });
   } catch (error) {
