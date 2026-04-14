@@ -270,7 +270,8 @@ app.post('/api/coaches/:coachNo/popularity', async (req, res) => {
   // 3. 记录投票并更新人气值
   await dbRun(
     `INSERT INTO popularity_votes (session_id, coach_no, created_at) 
-     VALUES (?, ?, datetime('now'))`,
+     VALUES (?, ?, ?)`,  -- TimeUtil.nowDB() 北京时间
+    [sessionId, coachNo, TimeUtil.nowDB()]
     [sessionId, coachNo]
   );
   
@@ -355,8 +356,8 @@ app.post('/api/member/wechat-login', async (req, res) => {
     // 新用户，创建会员记录
     await dbRun(
       `INSERT INTO members (openid, created_at, updated_at) 
-       VALUES (?, datetime('now'), datetime('now'))`,
-      [openid]
+       VALUES (?, ?, ?)`,  -- TimeUtil.nowDB() 北京时间
+      [openid, TimeUtil.nowDB(), TimeUtil.nowDB()]
     );
     member = await dbGet('SELECT * FROM members WHERE openid = ?', [openid]);
   }
@@ -433,8 +434,8 @@ app.post('/api/member/sms-login', async (req, res) => {
   if (!member) {
     await dbRun(
       `INSERT INTO members (phone, created_at, updated_at) 
-       VALUES (?, datetime('now'), datetime('now'))`,
-      [phone]
+       VALUES (?, ?, ?)`,  -- TimeUtil.nowDB() 北京时间
+      [phone, TimeUtil.nowDB(), TimeUtil.nowDB()]
     );
     member = await dbGet('SELECT * FROM members WHERE phone = ?', [phone]);
   }

@@ -314,14 +314,15 @@ const d = new Date(dbTime + '+08:00');
 | 字段 | 类型 | 约束 | 说明 |
 |------|------|------|------|
 | id | INTEGER | PRIMARY KEY AUTOINCREMENT | 记录ID |
-| fingerprint | TEXT | NOT NULL | 设备指纹 |
-| platform | TEXT | | 平台（h5/mp-weixin等） |
-| user_agent | TEXT | | 用户代理 |
-| screen_size | TEXT | | 屏幕尺寸 |
-| language | TEXT | | 语言 |
-| created_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 访问时间 |
+| device_fp | TEXT | NOT NULL | 设备指纹 |
+| visit_date | TEXT | NOT NULL | 访问日期（北京时间 `YYYY-MM-DD`） |
+| first_visit_at | DATETIME | DEFAULT CURRENT_TIMESTAMP | 首次访问时间 |
 
-**用途**: 统计用户设备和访问来源
+**索引**：`idx_device_visits_date(visit_date)`  
+**唯一约束**：`UNIQUE(device_fp, visit_date)`  
+**用途**：设备访问统计、12 周趋势分析
+
+⚠️ **注意**：`visit_date` 存储北京时间日期（非 UTC），由 `TimeUtil.todayStr()` 生成。2026-04-14 修复前使用 `toISOString()` 存 UTC 导致凌晨统计异常。
 
 ---
 
