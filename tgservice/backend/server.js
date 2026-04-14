@@ -2683,7 +2683,7 @@ app.post('/api/admin/coaches', authMiddleware, requireBackendPermission(['coachM
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [employeeId, stageName, realName, phone || null, level, price, age, height, JSON.stringify(photos || []), video, intro, isPopular ? 1 : 0, status || '全职', finalShift, TimeUtil.nowDB(), TimeUtil.nowDB()]
       );
-      const newCoachNo = result.id;
+      const newCoachNo = result.lastID;
 
       // 同步创建 water_boards 记录（必须成功，否则回滚）
       await dbRun(
