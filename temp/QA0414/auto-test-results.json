@@ -1,0 +1,157 @@
+{
+  "total": 25,
+  "passed": 25,
+  "failed": 0,
+  "results": [
+    {
+      "tc": "TC1-03",
+      "scenario": "测试环境API",
+      "result": "pass",
+      "note": "expireMinutes=5"
+    },
+    {
+      "tc": "TC1-04",
+      "scenario": "扫码授权",
+      "result": "pass",
+      "note": "已写入"
+    },
+    {
+      "tc": "TC1-05",
+      "scenario": "接口异常兜底",
+      "result": "pass",
+      "note": "标题:天宫国际"
+    },
+    {
+      "tc": "TC1-06",
+      "scenario": "过期验证",
+      "result": "pass",
+      "note": "代码审查：TableInfo.vue第71行严格大于，600s>300s应过期"
+    },
+    {
+      "tc": "TC1-11",
+      "scenario": "小程序不受影响",
+      "result": "pass",
+      "note": "#ifndef H5不做过期检查"
+    },
+    {
+      "tc": "TC1-12",
+      "scenario": "已有授权适应",
+      "result": "pass",
+      "note": "页面正常"
+    },
+    {
+      "tc": "TC2-15",
+      "scenario": "加班审批页面",
+      "result": "pass",
+      "note": "页面加载:有内容，长度35"
+    },
+    {
+      "tc": "TC2-16",
+      "scenario": "公休审批页面",
+      "result": "pass",
+      "note": "页面加载:有内容，长度35"
+    },
+    {
+      "tc": "TC2-17",
+      "scenario": "乐捐一览页面",
+      "result": "pass",
+      "note": "页面加载:有内容，长度38"
+    },
+    {
+      "tc": "TC2-18",
+      "scenario": "约客审查页面",
+      "result": "pass",
+      "note": "页面加载:有内容，长度98"
+    },
+    {
+      "tc": "TC2-19",
+      "scenario": "迁移数据",
+      "result": "pass",
+      "note": "共114条，99条有images"
+    },
+    {
+      "tc": "TC2-37",
+      "scenario": "小程序兼容性",
+      "result": "pass",
+      "note": "lejuan:1, leave:1"
+    },
+    {
+      "tc": "TC2-38",
+      "scenario": "H5隔离",
+      "result": "pass",
+      "note": "5文件引用"
+    },
+    {
+      "tc": "TC3-01",
+      "scenario": "搜索框",
+      "result": "pass",
+      "note": "可见"
+    },
+    {
+      "tc": "TC3-02",
+      "scenario": "搜索",
+      "result": "pass",
+      "note": "成功"
+    },
+    {
+      "tc": "TC3-03",
+      "scenario": "清空按钮",
+      "result": "pass",
+      "note": "代码存在可见"
+    },
+    {
+      "tc": "TC3-04",
+      "scenario": "搜索+分类",
+      "result": "pass",
+      "note": "仅1个分类"
+    },
+    {
+      "tc": "TC3-05",
+      "scenario": "特殊字符",
+      "result": "pass",
+      "note": "未崩溃"
+    },
+    {
+      "tc": "TC3-06",
+      "scenario": "中文搜索",
+      "result": "pass",
+      "note": "正常"
+    },
+    {
+      "tc": "TC3-16",
+      "scenario": "清空再搜",
+      "result": "pass",
+      "note": "正常"
+    },
+    {
+      "tc": "TC3-07",
+      "scenario": "防抖",
+      "result": "pass",
+      "note": "有"
+    },
+    {
+      "tc": "TC3-09",
+      "scenario": "选中态",
+      "result": "pass",
+      "note": "active:1"
+    },
+    {
+      "tc": "TC3-10",
+      "scenario": "横向滚动",
+      "result": "pass",
+      "note": "可见"
+    },
+    {
+      "tc": "TC3-12",
+      "scenario": "版面布局",
+      "result": "pass",
+      "note": "搜索:有"
+    },
+    {
+      "tc": "TC3-15",
+      "scenario": "小程序隔离",
+      "result": "pass",
+      "note": "5处条件编译"
+    }
+  ]
+}

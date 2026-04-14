@@ -3990,7 +3990,7 @@ app.post('/api/device/visit', async (req, res) => {
       return res.status(400).json({ error: '缺少设备指纹' });
     }
 
-    const today = new Date().toISOString().split('T')[0]; // 2026-03-16
+    const today = TimeUtil.todayStr(); // 北京时间 YYYY-MM-DD
 
     // 插入记录(UNIQUE约束自动去重)
     try {
@@ -4013,17 +4013,17 @@ app.post('/api/device/visit', async (req, res) => {
 app.get('/api/admin/device-stats', async (req, res) => {
   try {
     const now = Date.now();
-    const today = new Date().toISOString().split('T')[0];
+    const today = TimeUtil.todayStr(); // 北京时间
 
-    // 计算本周开始日期(周一)
-    const getWeekStart = (date) => {
-      const d = new Date(date);
+    // 计算本周开始日期(周一) - 北京时间
+    const getWeekStart = () => {
+      const d = new Date(); // 服务器本地即北京时间
       const day = d.getDay();
       const diff = d.getDate() - day + (day === 0 ? -6 : 1);
       d.setDate(diff);
-      return d.toISOString().split('T')[0];
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     };
-    const weekStart = getWeekStart(new Date());
+    const weekStart = getWeekStart();
 
     // 当天设备数(缓存10分钟)
     if (deviceStatsCache.today.date !== today || now - deviceStatsCache.today.timestamp > 10 * 60 * 1000) {
@@ -4043,20 +4043,23 @@ app.get('/api/admin/device-stats', async (req, res) => {
     // 近12周数据(按自然周,周一~周日,缓存1天)
     if (now - deviceStatsCache.weeks12.timestamp > 24 * 60 * 60 * 1000) {
       const weeksData = [];
-      const today = new Date();
+      // 从当前北京日期计算本周日
+      const todayStr = TimeUtil.todayStr();
+      const today = new Date(todayStr);
       const dayOfWeek = today.getDay(); // 0=周日, 1=周一, ..., 6=周六
-      // 计算本周日(自然周结束日)
       const daysToSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
       const thisSunday = new Date(today);
       thisSunday.setDate(today.getDate() + daysToSunday);
 
+      const toDBDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
       for (let i = 0; i < 12; i++) {
         const weekEndDate = new Date(thisSunday);
         weekEndDate.setDate(weekEndDate.getDate() - i * 7);
-        const weekEndStr = weekEndDate.toISOString().split('T')[0];
+        const weekEndStr = toDBDate(weekEndDate);
         const weekStartDate = new Date(weekEndDate);
         weekStartDate.setDate(weekStartDate.getDate() - 6); // 周一 = 周日往前6天
-        const weekStartStr = weekStartDate.toISOString().split('T')[0];
+        const weekStartStr = toDBDate(weekStartDate);
 
         const result = await dbGet(
           "SELECT COUNT(DISTINCT device_fp) as count FROM device_visits WHERE visit_date >= ? AND visit_date <= ?",
@@ -4086,8 +4089,10 @@ app.get('/api/admin/device-stats', async (req, res) => {
 // 清理90天前的数据(每天凌晨3点执行)
 const cleanOldDeviceVisits = async () => {
   try {
+    const ninetyDaysAgo = TimeUtil.offsetDB(-24 * 90).split(' ')[0];
     const result = await dbRun(
-      "DELETE FROM device_visits WHERE date(visit_date) < date('now', '-90 days')"
+      "DELETE FROM device_visits WHERE visit_date < ?",
+      [ninetyDaysAgo]
     );
     if (result.changes > 0) {
       logger.info(`清理90天前的设备访问记录: ${result.changes} 条`);
