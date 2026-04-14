@@ -1281,7 +1281,7 @@
   ```json
   {
     "tableAuth": {
-      "expireMinutes": 30
+      "expireMinutes": 10
     },
     "env": {
       "name": "production"
