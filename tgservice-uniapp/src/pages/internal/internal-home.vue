@@ -86,6 +86,10 @@
           <text class="btn-icon">🌙</text>
           <text class="btn-label">晚班约客审查</text>
         </view>
+        <view class="action-btn" @click="navigate('/pages/internal/switch-control')">
+          <text class="btn-icon">💡</text>
+          <text class="btn-label">智能开关</text>
+        </view>
       </view>
     </view>
 

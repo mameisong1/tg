@@ -47,6 +47,9 @@ const serviceOrdersRouter = require('./routes/service-orders');
 const tableActionOrdersRouter = require('./routes/table-action-orders');
 const operationLogsRouter = require('./routes/operation-logs');
 
+// 智能开关路由模块
+const { router: switchRouter, triggerAutoOffIfEligible } = require('./routes/switch-routes');
+
 // 设备指纹访问记录(内存存储,每日过期)
 // 结构: Map<fingerprint_coachNo, timestamp>
 const popularityCache = new Map();
@@ -334,6 +337,8 @@ app.use('/api/coaches/v2', coachesV2Router);
 app.use('/api/service-orders', serviceOrdersRouter);
 app.use('/api/table-action-orders', tableActionOrdersRouter);
 app.use('/api/operation-logs', operationLogsRouter);
+
+// 智能开关路由（在 authMiddleware 之后注册）
 
 // 数据库连接 - 统一从 db/index.js 获取，确保单连接
 const { db, dbAll, dbGet, dbRun, dbTx, dbTxAsync, writeQueue, runInTransaction, enqueueRun } = require('./db');
@@ -1895,6 +1900,9 @@ const authMiddleware = (req, res, next) => {
 // V2.0: 权限中间件
 const { requireBackendPermission, hasBackendPermission } = require('./middleware/permission');
 
+// 智能开关路由（必须在 authMiddleware 之后注册）
+app.use(authMiddleware, switchRouter);
+
 // V2.0: 免扫码权限检查
 app.get('/api/auth/check-scan-permission', authMiddleware, async (req, res) => {
   try {
@@ -3370,6 +3378,12 @@ app.post('/api/admin/sync/tables', authMiddleware, requireBackendPermission(['vi
     const elapsed = Date.now() - startTime;
     logger.info(`台桌同步完成: tables更新 ${result.tablesUpdated} 条, vip_rooms更新 ${result.vipRoomsUpdated} 条, 耗时 ${elapsed}ms`);
 
+    // 触发自动关灯（当更新>=40条台桌数据时）
+    const autoOffResult = await triggerAutoOffIfEligible(result.tablesUpdated, result.vipRoomsUpdated);
+    if (autoOffResult.triggered) {
+      logger.info(`[自动关灯触发] ${JSON.stringify(autoOffResult)}`);
+    }
+
     res.json({
       success: true,
       data: {
@@ -4374,6 +4388,21 @@ app.use((err, req, res, next) => {
   logger.error(`未处理的错误: ${err.message}`);
   res.status(500).json({ error: '服务器内部错误' });
 });
+
+// ============================================================
+// 定时自动开灯 - Cron 任务（每5分钟执行一次）
+// ============================================================
+const { executeAutoOnLighting } = require('./services/auto-on-lighting');
+
+// 每5分钟执行一次定时自动开灯检查
+setInterval(async () => {
+  try {
+    await executeAutoOnLighting();
+  } catch (err) {
+    logger.error(`[定时自动开灯] 执行失败: ${err.message}`);
+  }
+}, 5 * 60 * 1000);
+console.log('[定时自动开灯] 已注册定时任务（每5分钟执行一次）');
 
 // 启动服务器
 const PORT = process.env.PORT || config.server.port || 8081;

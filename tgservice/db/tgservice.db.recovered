@@ -1,0 +1,2 @@
+BEGIN;
+PRAGMA writable_schema = on;

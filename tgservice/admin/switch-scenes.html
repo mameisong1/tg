@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>开关场景管理 - 天宫国际</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0f; font-family: 'PingFang SC', sans-serif; color: #fff; display: flex; min-height: 100vh; }
+    .sidebar { width: 220px; background: rgba(20,20,30,0.8); border-right: 1px solid rgba(218,165,32,0.1); padding: 20px 0; flex-shrink: 0; overflow-y: auto; height: 100vh; position: sticky; top: 0; }
+    .sidebar-logo { padding: 0 20px 30px; display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px; }
+    .sidebar-logo img { width: 32px; height: 32px; }
+    .sidebar-title { font-size: 16px; color: #d4af37; }
+    .sidebar-sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: rgba(255,255,255,0.6); text-decoration: none; font-size: 14px; transition: all 0.2s; }
+    .nav-item:hover, .nav-item.active { background: rgba(212,175,55,0.1); color: #d4af37; }
+    .nav-icon { font-size: 18px; }
+    .nav-group { border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .nav-group-title { display: flex; align-items: center; padding: 12px 20px; color: rgba(255,255,255,0.5); font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .nav-group-title:hover { background: rgba(212,175,55,0.05); color: rgba(255,255,255,0.8); }
+    .nav-group-title .arrow { transition: transform 0.2s; font-size: 12px; }
+    .nav-group.open .nav-group-title .arrow { transform: rotate(180deg); }
+    .nav-group-title .group-icon { font-size: 18px; margin-right: 12px; }
+    .nav-group-title .group-text { flex: 1; }
+    .nav-submenu { display: none; background: rgba(0,0,0,0.2); }
+    .nav-group.open .nav-submenu { display: block; }
+    .nav-submenu .nav-item { padding-left: 48px; font-size: 13px; }
+    .main { flex: 1; padding: 20px; overflow-y: auto; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .page-title { font-size: 22px; }
+    .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; border: none; }
+    .btn-primary { background: linear-gradient(135deg, #d4af37 0%, #ffd700 100%); color: #000; }
+    .btn-secondary { background: rgba(255,255,255,0.1); color: #fff; }
+    .btn-danger { background: rgba(231,76,60,0.2); color: #e74c3c; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th { text-align: left; padding: 12px 16px; background: rgba(218,165,32,0.1); color: #d4af37; font-size: 13px; font-weight: 500; border-bottom: 1px solid rgba(218,165,32,0.2); }
+    .data-table td { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; vertical-align: top; }
+    .data-table tr:hover td { background: rgba(212,175,55,0.05); }
+    .action-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; }
+    .action-on { background: rgba(34,197,94,0.2); color: #22c55e; }
+    .action-off { background: rgba(231,76,60,0.2); color: #e74c3c; }
+    .switches-preview { font-family: monospace; font-size: 11px; color: rgba(255,255,255,0.5); max-width: 400px; word-break: break-all; }
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
+    .modal.show { display: flex; }
+    .modal-content { background: rgba(20,20,30,0.95); border-radius: 16px; padding: 24px; width: 90%; max-width: 550px; border: 1px solid rgba(218,165,32,0.2); }
+    .modal-title { font-size: 18px; margin-bottom: 20px; }
+    .modal-form { display: flex; flex-direction: column; gap: 16px; }
+    .form-row { display: flex; flex-direction: column; gap: 8px; }
+    .form-row label { font-size: 13px; color: rgba(255,255,255,0.6); }
+    .form-row input, .form-row select, .form-row textarea { padding: 12px; background: #1a1a24; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; }
+    .form-row textarea { min-height: 120px; font-family: monospace; resize: vertical; }
+    .form-hint { font-size: 12px; color: rgba(255,255,255,0.4); }
+    .form-actions { display: flex; gap: 12px; margin-top: 8px; }
+    .radio-group { display: flex; gap: 20px; }
+    .radio-group label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+    .toast { position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 8px; z-index: 2000; font-size: 14px; display: none; }
+    .toast.success { background: rgba(34,197,94,0.9); color: #fff; }
+    .toast.error { background: rgba(231,76,60,0.9); color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="sidebar-logo"><img src="../images/logo.png" alt="logo"><div><div class="sidebar-title">天宫国际</div><div class="sidebar-sub">后台管理系统</div></div></div>
+    <a href="index.html" class="nav-item"><span class="nav-icon">📊</span> 数据概览</a>
+    <a href="members.html" class="nav-item"><span class="nav-icon">👥</span> 会员管理</a>
+    <div class="nav-group open">
+      <div class="nav-group-title" onclick="toggleGroup(this)"><span class="group-icon">🏠</span><span class="group-text">前厅</span><span class="arrow">▼</span></div>
+      <div class="nav-submenu">
+        <a href="cashier-dashboard.html" class="nav-item">💰 收银看板</a>
+        <a href="products.html" class="nav-item">📦 商品管理</a>
+        <a href="vip-rooms.html" class="nav-item">🛋️ 包房管理</a>
+        <a href="tables.html" class="nav-item">🎱 台桌管理</a>
+        <a href="categories.html" class="nav-item">🏷️ 商品分类</a>
+      </div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)"><span class="group-icon">👩‍🏫</span><span class="group-text">助教管理</span><span class="arrow">▼</span></div>
+      <div class="nav-submenu">
+        <a href="coaches.html" class="nav-item">👩 助教列表</a>
+      </div>
+    </div>
+    <div class="nav-group open">
+      <div class="nav-group-title" onclick="toggleGroup(this)"><span class="group-icon">💡</span><span class="group-text">设备管理</span><span class="arrow">▼</span></div>
+      <div class="nav-submenu">
+        <a href="switch-devices.html" class="nav-item"><span class="nav-icon">🔌</span> 设备开关管理</a>
+        <a href="table-devices.html" class="nav-item"><span class="nav-icon">🎱</span> 台桌设备关系</a>
+        <a href="switch-scenes.html" class="nav-item active"><span class="nav-icon">🎬</span> 开关场景管理</a>
+      </div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)"><span class="group-icon">⚙️</span><span class="group-text">系统</span><span class="arrow">▼</span></div>
+      <div class="nav-submenu">
+        <a href="operation-logs.html" class="nav-item">📜 操作日志</a>
+        <a href="home.html" class="nav-item">🏠 首页配置</a>
+        <a href="users.html" class="nav-item">👥 用户管理</a>
+        <a href="settings.html" class="nav-item">🛡️ 系统配置</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="page-header">
+      <div class="page-title">🎬 开关场景管理</div>
+      <button class="btn btn-primary" onclick="openAddModal()">+ 新增场景</button>
+    </div>
+
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>排序</th>
+          <th>场景名称</th>
+          <th>动作</th>
+          <th>开关列表</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        <tr><td colspan="5" style="text-align:center;color:rgba(255,255,255,0.4);">加载中...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 新增弹窗 -->
+  <div class="modal" id="formModal">
+    <div class="modal-content">
+      <div class="modal-title">新增开关场景</div>
+      <div class="modal-form">
+        <div class="form-row">
+          <label>场景名称 *</label>
+          <input type="text" id="f_scene_name" placeholder="如 深夜模式">
+        </div>
+        <div class="form-row">
+          <label>动作 *</label>
+          <div class="radio-group">
+            <label><input type="radio" name="f_action" value="ON" checked> 💡 开灯 (ON)</label>
+            <label><input type="radio" name="f_action" value="OFF"> 🌙 关灯 (OFF)</label>
+          </div>
+        </div>
+        <div class="form-row">
+          <label>开关数组 (每行一个开关，开关ID 和 开关序号之间用 TAB 分割) *</label>
+          <textarea id="f_switches" placeholder="0xa4c1380bbd942cbe	state_l1
+0xa4c1380bbd942cbe	state_l2
+0xa4c1380bbd942cbe	state_l3"></textarea>
+          <div class="form-hint">每行一个开关，格式：开关ID&lt;TAB&gt;开关序号。例如：0xa4c1380bbd942cbe[TAB]state_l1</div>
+        </div>
+        <div class="form-row">
+          <label>排序序号</label>
+          <input type="number" id="f_sort_order" value="0" min="0">
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+          <button class="btn btn-primary" onclick="saveRecord()">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const API = '/api/admin/switch-scenes';
+    let allData = [];
+
+    /**
+     * 解析多行文本输入为JSON数组
+     */
+    function parseSwitchesInput(text) {
+      const lines = text.trim().split('\n').filter(l => l.trim());
+      const switches = lines.map(line => {
+        // 支持 TAB 或逗号分割
+        let parts = line.split('\t');
+        if (parts.length < 2) parts = line.split(',');
+        if (parts.length >= 2) {
+          return {
+            switch_id: parts[0].trim(),
+            switch_seq: parts[1].trim()
+          };
+        }
+        return null;
+      }).filter(Boolean);
+      return switches;
+    }
+
+    async function loadData() {
+      try {
+        const res = await fetch(API, { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') } });
+        if (!res.ok) throw new Error('请求失败');
+        allData = await res.json();
+
+        const tbody = document.getElementById('tableBody');
+        if (allData.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:rgba(255,255,255,0.4);">暂无数据</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = allData.map(d => {
+          let switchesPreview = '';
+          try {
+            const sw = JSON.parse(d.switches);
+            switchesPreview = sw.map(s => `${s.switch_id} ${s.switch_seq}`).join(', ');
+          } catch (e) {
+            switchesPreview = d.switches;
+          }
+          return `
+          <tr>
+            <td>${d.sort_order}</td>
+            <td>${d.scene_name}</td>
+            <td><span class="action-badge ${d.action === 'ON' ? 'action-on' : 'action-off'}">${d.action === 'ON' ? '💡 开灯' : '🌙 关灯'}</span></td>
+            <td class="switches-preview">${switchesPreview}</td>
+            <td>
+              <button class="btn btn-sm btn-danger" onclick="deleteRecord(${d.id})">删除</button>
+            </td>
+          </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        document.getElementById('tableBody').innerHTML = `<tr><td colspan="5" style="text-align:center;color:#e74c3c;">加载失败: ${err.message}</td></tr>`;
+      }
+    }
+
+    function openAddModal() {
+      document.getElementById('f_scene_name').value = '';
+      document.getElementById('f_switches').value = '';
+      document.getElementById('f_sort_order').value = '0';
+      document.querySelector('input[name="f_action"][value="ON"]').checked = true;
+      document.getElementById('formModal').classList.add('show');
+    }
+
+    function closeModal() {
+      document.getElementById('formModal').classList.remove('show');
+    }
+
+    async function saveRecord() {
+      const scene_name = document.getElementById('f_scene_name').value.trim();
+      const action = document.querySelector('input[name="f_action"]:checked').value;
+      const switchesText = document.getElementById('f_switches').value;
+      const sort_order = parseInt(document.getElementById('f_sort_order').value) || 0;
+
+      if (!scene_name) {
+        showToast('请填写场景名称', 'error');
+        return;
+      }
+
+      const switches = parseSwitchesInput(switchesText);
+      if (switches.length === 0) {
+        showToast('请至少输入一个开关（格式：开关ID<TAB>开关序号）', 'error');
+        return;
+      }
+
+      try {
+        const res = await fetch(API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') },
+          body: JSON.stringify({ scene_name, action, switches, sort_order })
+        });
+        const result = await res.json();
+        if (!res.ok) throw new Error(result.error || '操作失败');
+        closeModal();
+        showToast('新增成功', 'success');
+        loadData();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function deleteRecord(id) {
+      if (!confirm('确认删除该场景？')) return;
+      try {
+        const res = await fetch(`${API}/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') }
+        });
+        if (!res.ok) throw new Error('删除失败');
+        showToast('删除成功', 'success');
+        loadData();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    function showToast(msg, type) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = 'toast ' + type;
+      t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 3000);
+    }
+
+    function toggleGroup(el) {
+      el.parentElement.classList.toggle('open');
+    }
+
+    loadData();
+  </script>
+</body>
+</html>
