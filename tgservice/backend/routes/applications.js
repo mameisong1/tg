@@ -253,6 +253,7 @@ router.get('/lejuan', requireBackendPermission(['all']), async (req, res) => {
       date: a.created_at ? a.created_at.split(' ')[0] : null,
       hours: a.extra_data ? JSON.parse(a.extra_data).hours : null,
       remark: a.remark,
+      images: a.images,
       created_at: a.created_at
     }));
     

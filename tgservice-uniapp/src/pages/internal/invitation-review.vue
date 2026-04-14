@@ -53,7 +53,16 @@
       <view class="section-title"><text>⚠️ 未约客</text><text class="count">{{ notInvitedList.length }}条</text></view>
       <view class="reviewed-list" v-if="notInvitedList.length > 0">
         <view class="reviewed-item" v-for="item in notInvitedList" :key="item.coach_no">
-          <image v-if="item.invitation_image_url" :src="item.invitation_image_url" mode="aspectFill" class="reviewed-thumb" @click="previewImage(item.invitation_image_url)" />
+          <view class="image-grid-small" v-if="getImageUrls(item).length > 0">
+            <image 
+              v-for="(url, idx) in getImageUrls(item).slice(0, 3)" 
+              :key="idx" 
+              :src="url" 
+              mode="aspectFill" 
+              class="reviewed-thumb" 
+              @click="previewAllImages(item)" 
+            />
+          </view>
           <view class="reviewed-info">
             <text class="reviewed-name">{{ item.stage_name }} ({{ item.employee_id || item.coach_no }}号)</text>
             <text class="reviewed-time">{{ formatTime(item.created_at) }}</text>
@@ -69,7 +78,16 @@
       <view class="section-title"><text>📋 {{ filterResult === '约客有效' ? '有效' : '无效' }}</text><text class="count">{{ filterList.length }}条</text></view>
       <view class="reviewed-list" v-if="filterList.length > 0">
         <view class="reviewed-item" v-for="inv in filterList" :key="inv.id">
-          <image v-if="inv.invitation_image_url" :src="inv.invitation_image_url" mode="aspectFill" class="reviewed-thumb" @click="previewImage(inv.invitation_image_url)" />
+          <view class="image-grid-small" v-if="getImageUrls(inv).length > 0">
+            <image 
+              v-for="(url, idx) in getImageUrls(inv).slice(0, 3)" 
+              :key="idx" 
+              :src="url" 
+              mode="aspectFill" 
+              class="reviewed-thumb" 
+              @click="previewAllImages(inv)" 
+            />
+          </view>
           <view class="reviewed-info">
             <text class="reviewed-name">{{ inv.stage_name }} ({{ inv.employee_id || inv.coach_no }}号)</text>
             <text class="reviewed-time">{{ formatTime(inv.created_at) }}</text>
@@ -85,7 +103,16 @@
       <view class="section-title"><text>📋 待审查</text><text class="count">{{ pendingList.length }}条</text></view>
       <view class="cards-grid" v-if="pendingList.length > 0">
         <view class="card" v-for="(inv, idx) in pendingList" :key="inv.id" @click="openReview(idx)">
-          <image v-if="inv.invitation_image_url" :src="inv.invitation_image_url" mode="aspectFill" class="card-image" />
+          <!-- 多图缩略图 -->
+          <view class="card-image-grid" v-if="getImageUrls(inv).length > 0">
+            <image 
+              v-for="(url, imgIdx) in getImageUrls(inv).slice(0, 3)" 
+              :key="imgIdx" 
+              :src="url" 
+              mode="aspectFill" 
+              class="card-thumb"
+            />
+          </view>
           <view class="card-placeholder" v-else><text>暂无截图</text></view>
           <view class="card-info">
             <text class="card-name">{{ inv.stage_name }}</text>
@@ -104,8 +131,40 @@
           <text class="review-counter">{{ reviewIndex + 1 }} / {{ pendingList.length }}</text>
           <view class="review-close" @click="closeReview"><text>✕</text></view>
         </view>
-        <image v-if="currentReview?.invitation_image_url" :src="currentReview.invitation_image_url" mode="aspectFit" class="review-image" />
-        <view class="review-placeholder" v-else><text>暂无截图</text></view>
+        
+        <!-- 图片展示区（大图 85vh） -->
+        <view class="review-image-container">
+          <!-- 左箭头 -->
+          <view v-if="currentReviewImages.length > 1" class="img-nav-arrow img-nav-left" @click="prevReviewImage">
+            <text>‹</text>
+          </view>
+          
+          <image 
+            v-if="currentReviewImages.length > 0" 
+            :src="currentReviewImages[currentImageIndex]" 
+            mode="aspectFit" 
+            class="review-image-full" 
+            @click="previewAllCurrentImages"
+          />
+          <view class="review-placeholder" v-else><text>暂无截图</text></view>
+          
+          <!-- 右箭头 -->
+          <view v-if="currentReviewImages.length > 1" class="img-nav-arrow img-nav-right" @click="nextReviewImage">
+            <text>›</text>
+          </view>
+        </view>
+        
+        <!-- 多图指示器 -->
+        <view class="indicator-dots" v-if="currentReviewImages.length > 1">
+          <view 
+            v-for="(_, idx) in currentReviewImages" 
+            :key="idx" 
+            class="indicator-dot" 
+            :class="{ active: idx === currentImageIndex }"
+          ></view>
+          <text class="image-counter-text">{{ currentImageIndex + 1 }} / {{ currentReviewImages.length }}</text>
+        </view>
+        
         <view class="review-info">
           <text class="review-name">{{ currentReview?.stage_name }} ({{ currentReview?.employee_id || currentReview?.coach_no }}号)</text>
           <text class="review-meta">{{ formatTime(currentReview?.created_at) }} · {{ shiftLabel }}</text>
@@ -140,6 +199,9 @@ const notInvitedList = ref([])
 const isLocked = ref(false)
 const lockedCount = ref(0)
 
+// 审查弹窗内的当前图片索引
+const currentImageIndex = ref(0)
+
 // 统计数据
 const reviewStats = ref({
   should_invite_count: 0,
@@ -164,6 +226,12 @@ const pendingList = computed(() => invitations.value.filter(i => i.result === '�
 const reviewedList = computed(() => invitations.value.filter(i => i.result !== '待审查'))
 const currentReview = computed(() => pendingList.value[reviewIndex.value] || null)
 
+// 当前审查记录的图片列表
+const currentReviewImages = computed(() => {
+  if (!currentReview.value) return []
+  return getImageUrls(currentReview.value)
+})
+
 const stats = computed(() => ({
   total: invitations.value.length,
   pending: invitations.value.filter(i => i.result === '待审查').length,
@@ -176,6 +244,18 @@ const filterList = computed(() => {
   if (filterResult.value === '未约客') return notInvitedList.value
   return invitations.value.filter(i => i.result === filterResult.value)
 })
+
+// 解析图片 URL 数组
+const getImageUrls = (record) => {
+  if (!record) return []
+  if (record.images) {
+    try {
+      const imgs = typeof record.images === 'string' ? JSON.parse(record.images) : record.images
+      if (Array.isArray(imgs)) return imgs
+    } catch (e) {}
+  }
+  return []
+}
 
 const formatTime = (t) => {
   if (!t) return '-'
@@ -193,7 +273,6 @@ const loadAll = async () => {
 
 const loadData = async () => {
   const today = new Date().toISOString().split('T')[0]
-  // 始终加载全部数据，统计卡片不受筛选影响
   try {
     const res = await api.guestInvitations.getList({ date: today, shift: shift.value })
     invitations.value = res.data || []
@@ -247,7 +326,6 @@ const startReview = async () => {
     uni.hideLoading()
     if (res.success) {
       isLocked.value = true
-      // 使用 total_count（该班次总人数：应约客+待审查+有效+无效）而非 locked_count
       const totalCount = res.data.total_count || 0
       lockedCount.value = totalCount
       uni.showToast({ title: `已锁定，该班次共${totalCount}人`, icon: 'success' })
@@ -261,13 +339,40 @@ const startReview = async () => {
   }
 }
 
-const previewImage = (url) => uni.previewImage({ urls: [url] })
+// 图片预览
+const previewAllImages = (record) => {
+  const urls = getImageUrls(record)
+  if (urls.length > 0) {
+    uni.previewImage({ urls: urls, current: 0 })
+  }
+}
 
-const openReview = (idx) => { reviewIndex.value = idx; showReview.value = true }
+const previewAllCurrentImages = () => {
+  const images = currentReviewImages.value
+  if (images.length > 0) {
+    uni.previewImage({ urls: images, current: currentImageIndex.value })
+  }
+}
+
+// 审查弹窗内的图片切换
+const prevReviewImage = () => {
+  if (currentImageIndex.value > 0) currentImageIndex.value--
+}
+
+const nextReviewImage = () => {
+  if (currentImageIndex.value < currentReviewImages.value.length - 1) currentImageIndex.value++
+}
+
+const openReview = (idx) => {
+  reviewIndex.value = idx
+  currentImageIndex.value = 0  // 重置图片索引
+  showReview.value = true
+}
 const closeReview = () => { showReview.value = false }
 const navigateReview = (dir) => {
   if (pendingList.value.length === 0) return
   reviewIndex.value = (reviewIndex.value + dir + pendingList.value.length) % pendingList.value.length
+  currentImageIndex.value = 0  // 切换助教时重置图片索引
 }
 
 const submitReview = async (result) => {
@@ -326,7 +431,10 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 /* 卡片网格 */
 .cards-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 0 12px 12px; }
 .card { background: rgba(20,20,30,0.8); border: 1px solid rgba(218,165,32,0.1); border-radius: 10px; overflow: hidden; }
-.card-image { width: 100%; height: 120px; }
+
+/* 多图缩略图网格 */
+.card-image-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; width: 100%; }
+.card-thumb { width: 100%; height: 80px; }
 .card-placeholder { width: 100%; height: 120px; background: #1a1a2a; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.3); font-size: 12px; }
 .card-info { padding: 8px; }
 .card-name { font-size: 13px; color: #d4af37; font-weight: 500; display: block; }
@@ -340,7 +448,8 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 /* 已审查列表 */
 .reviewed-list { padding: 0 12px; }
 .reviewed-item { display: flex; align-items: center; gap: 10px; background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.1); border-radius: 10px; padding: 10px; margin-bottom: 8px; }
-.reviewed-thumb { width: 50px; height: 50px; border-radius: 8px; flex-shrink: 0; }
+.image-grid-small { display: flex; gap: 4px; }
+.reviewed-thumb { width: 40px; height: 40px; border-radius: 6px; flex-shrink: 0; }
 .reviewed-info { flex: 1; }
 .reviewed-name { font-size: 13px; color: #fff; display: block; }
 .reviewed-time { font-size: 10px; color: rgba(255,255,255,0.4); display: block; margin-top: 2px; }
@@ -350,19 +459,34 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 
 /* 全屏审查弹窗 */
 .review-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 998; display: flex; align-items: center; justify-content: center; }
-.review-box { width: 90%; max-width: 400px; display: flex; flex-direction: column; align-items: center; }
-.review-header { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.review-box { width: 95%; max-width: 420px; display: flex; flex-direction: column; align-items: center; }
+.review-header { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .review-counter { font-size: 13px; color: #d4af37; background: rgba(20,20,30,0.8); padding: 6px 14px; border-radius: 14px; }
-.review-close { width: 32px; height: 32px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px; }
-.review-image { width: 100%; max-height: 50vh; border-radius: 10px; }
+.review-close { width: 28px; height: 28px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px; }
+
+/* 图片容器（带左右箭头） */
+.review-image-container { position: relative; width: 100%; display: flex; align-items: center; justify-content: center; }
+.review-image-full { width: 100%; max-height: 85vh; border-radius: 10px; }
 .review-placeholder { width: 100%; height: 200px; background: #1a1a2a; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.3); font-size: 14px; }
-.review-info { text-align: center; margin-top: 12px; }
-.review-name { font-size: 18px; color: #d4af37; font-weight: 600; display: block; }
+
+/* 左右切换箭头 */
+.img-nav-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 36px; height: 36px; background: rgba(0,0,0,0.6); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 22px; z-index: 10; }
+.img-nav-left { left: 8px; }
+.img-nav-right { right: 8px; }
+
+/* 多图指示器 */
+.indicator-dots { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.indicator-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.3); transition: all 0.2s; }
+.indicator-dot.active { background: #d4af37; transform: scale(1.2); }
+.image-counter-text { font-size: 12px; color: rgba(255,255,255,0.5); margin-left: 8px; }
+
+.review-info { text-align: center; margin-top: 8px; }
+.review-name { font-size: 15px; color: #d4af37; font-weight: 600; display: block; }
 .review-meta { font-size: 12px; color: rgba(255,255,255,0.5); display: block; margin-top: 4px; }
-.review-actions { display: flex; gap: 12px; margin-top: 16px; width: 100%; }
-.review-btn { flex: 1; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 600; }
+.review-actions { display: flex; gap: 10px; margin-top: 12px; width: 100%; }
+.review-btn { flex: 1; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; }
 .btn-invalid { background: rgba(231,76,60,0.2); border: 1px solid rgba(231,76,60,0.3); color: #e74c3c; }
 .btn-valid { background: linear-gradient(135deg, #d4af37, #ffd700); color: #000; }
-.review-nav { display: flex; justify-content: space-between; width: 100%; margin-top: 12px; }
-.nav-arrow { width: 40px; height: 40px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 20px; }
+.review-nav { display: flex; justify-content: space-between; width: 100%; margin-top: 10px; }
+.nav-arrow { width: 36px; height: 36px; background: rgba(255,255,255,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 18px; }
 </style>

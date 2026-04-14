@@ -33,7 +33,28 @@
         <text class="form-label">备注</text>
         <input class="input" v-model="form.remark" placeholder="请输入备注（如和客人外出）" maxlength="200" />
       </view>
+      <view class="form-item">
+        <text class="form-label">证明图片（最多3张）</text>
+        <view class="image-grid">
+          <view v-for="(url, idx) in imageUrls" :key="idx" class="image-item">
+            <image :src="url" mode="aspectFill" class="uploaded-img" @click="previewImage(idx)" />
+            <view class="remove-btn" @click.stop="removeImage(idx)"><text>✕</text></view>
+          </view>
+          <view v-if="imageUrls.length < 3" class="upload-btn" @click="chooseAndUpload">
+            <text class="upload-icon">📷</text>
+            <text class="upload-text">上传图片</text>
+          </view>
+        </view>
+      </view>
       <view class="submit-btn" :class="{ disabled: !canSubmit }" @click="submitLejuan"><text>提交乐捐报备</text></view>
+    </view>
+
+    <!-- 上传进度 -->
+    <view class="upload-progress" v-if="uploading">
+      <view class="progress-content">
+        <text class="progress-text">{{ uploadText }}</text>
+        <view class="progress-bar"><view class="progress-fill" :style="{ width: uploadProgress + '%' }"></view></view>
+      </view>
     </view>
 
     <!-- 成功弹窗 -->
@@ -44,6 +65,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import api from '@/utils/api-v2.js'
+import { useImageUpload } from '@/utils/image-upload.js'
 import SuccessModal from '@/components/SuccessModal.vue'
 
 const statusBarHeight = ref(0)
@@ -54,6 +76,9 @@ const hourOptions = [1, 2, 3, 4, 5, 6, 7, 8]
 const today = new Date().toISOString().split('T')[0]
 const form = ref({ date: today, hours: null, remark: '' })
 
+const { imageUrls, uploading, uploadProgress, uploadText, chooseAndUpload, removeImage } =
+  useImageUpload({ maxCount: 3, ossDir: 'TgTemp/', errorType: 'lejuan_proof' })
+
 onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 20
@@ -61,6 +86,10 @@ onMounted(() => {
 })
 
 const canSubmit = computed(() => form.value.date && form.value.hours)
+
+const previewImage = (idx) => {
+  uni.previewImage({ urls: imageUrls.value, current: idx })
+}
 
 const submitLejuan = async () => {
   if (!canSubmit.value) return uni.showToast({ title: '请填写完整信息', icon: 'none' })
@@ -74,11 +103,13 @@ const submitLejuan = async () => {
       applicant_phone: phone,
       application_type: '乐捐报备',
       remark: form.value.remark || `${form.value.date} 外出${form.value.hours}小时`,
+      images: imageUrls.value.length > 0 ? JSON.stringify(imageUrls.value) : null,
       extra_data: { date: form.value.date, hours: form.value.hours }
     })
     uni.hideLoading()
     form.value.remark = ''
     form.value.hours = null
+    imageUrls.value = []
     showSuccess.value = true
   } catch (e) {
     uni.hideLoading()
@@ -113,7 +144,23 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .arrow { font-size: 18px; color: rgba(255,255,255,0.3); }
 .input { width: 100%; height: 48px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 0 12px; font-size: 14px; color: #fff; box-sizing: border-box; }
 
+/* 图片网格 */
+.image-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+.image-item { position: relative; width: 90px; height: 90px; border-radius: 10px; overflow: hidden; }
+.uploaded-img { width: 100%; height: 100%; }
+.remove-btn { position: absolute; top: 2px; right: 2px; width: 22px; height: 22px; background: rgba(0,0,0,0.7); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.remove-btn text { color: #fff; font-size: 14px; }
+.upload-btn { width: 90px; height: 90px; background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.2); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.upload-icon { font-size: 28px; display: block; margin-bottom: 4px; }
+.upload-text { font-size: 11px; color: rgba(255,255,255,0.4); }
+
 .submit-btn { height: 50px; background: linear-gradient(135deg, #d4af37, #ffd700); border-radius: 25px; display: flex; align-items: center; justify-content: center; margin-top: 30px; }
 .submit-btn text { font-size: 16px; font-weight: 600; color: #000; }
 .submit-btn.disabled { opacity: 0.5; }
+
+.upload-progress { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 1001; }
+.progress-content { text-align: center; }
+.progress-text { font-size: 14px; color: rgba(255,255,255,0.6); display: block; margin-bottom: 20px; }
+.progress-bar { width: 200px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #d4af37, #ffd700); transition: width 0.3s; }
 </style>

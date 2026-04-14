@@ -33,12 +33,15 @@
         </view>
       </view>
       <view class="form-item">
-        <text class="form-label">约客截图</text>
-        <view class="upload-area" @click="uploadImage">
-          <image v-if="form.invitation_image_url" :src="form.invitation_image_url" mode="aspectFill" class="upload-img" />
-          <view v-else class="upload-placeholder">
+        <text class="form-label">约客截图（最多3张）</text>
+        <view class="image-grid">
+          <view v-for="(url, idx) in imageUrls" :key="idx" class="image-item">
+            <image :src="url" mode="aspectFill" class="uploaded-img" @click="previewImage(idx)" />
+            <view class="remove-btn" @click.stop="removeImage(idx)"><text>✕</text></view>
+          </view>
+          <view v-if="imageUrls.length < 3" class="upload-btn" @click="chooseAndUpload">
             <text class="upload-icon">📷</text>
-            <text class="upload-text">点击上传约客截图</text>
+            <text class="upload-text">上传图片</text>
           </view>
         </view>
       </view>
@@ -60,18 +63,17 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { guestInvitations } from '@/utils/api-v2.js'
-import api from '@/utils/api.js'
+import { useImageUpload } from '@/utils/image-upload.js'
 
 const statusBarHeight = ref(0)
 const coachInfo = ref({})
-const uploading = ref(false)
-const uploadText = ref('')
-const uploadProgress = ref(0)
 
 const form = ref({
-  shift: '',
-  invitation_image_url: ''
+  shift: ''
 })
+
+const { imageUrls, uploading, uploadProgress, uploadText, chooseAndUpload, removeImage, clearAll } =
+  useImageUpload({ maxCount: 3, ossDir: 'TgTemp/', errorType: 'invitation_screenshot' })
 
 // 判断是否为测试环境
 const isTestEnv = import.meta.env.VITE_API_BASE_URL?.includes('tg.tiangong.club') || 
@@ -97,106 +99,10 @@ onMounted(() => {
 })
 
 const today = computed(() => new Date().toISOString().split('T')[0])
-const canSubmit = computed(() => form.value.invitation_image_url)
+const canSubmit = computed(() => imageUrls.value.length > 0)
 
-// 错误上报函数
-const reportError = async (info) => {
-  try {
-    await uni.request({
-      url: '/api/upload-error',
-      method: 'POST',
-      data: { time: new Date().toISOString(), type: 'invitation_screenshot', ...info },
-      header: { 'Content-Type': 'application/json' }
-    })
-  } catch (e) {}
-}
-
-const uploadImage = () => {
-  uni.chooseImage({
-    count: 1, sizeType: ['compressed'], sourceType: ['album', 'camera'],
-    success: async (res) => {
-      await uploadFile(res.tempFilePaths[0], 'image')
-    }
-  })
-}
-
-const uploadFile = async (filePath, type) => {
-  uploading.value = true
-  uploadText.value = '上传图片中...'
-  uploadProgress.value = 0
-  
-  try {
-    // 先检查文件类型，推断扩展名
-    let ext = 'jpg'
-    try {
-      const blobCheck = await fetch(filePath).then(r => r.blob())
-      if (blobCheck.type) {
-        const mimeExt = blobCheck.type.split('/')[1]
-        if (mimeExt && ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(mimeExt)) {
-          ext = mimeExt === 'jpeg' ? 'jpg' : mimeExt
-        }
-      }
-    } catch (e) {}
-    
-    // 获取 OSS 签名
-    const signData = await api.getOSSSignature(type, ext, 'TgTemp/')
-    if (!signData.success) {
-      throw new Error(signData.error || '获取上传凭证失败')
-    }
-    
-    // 读取文件为 blob
-    const response = await fetch(filePath)
-    const blob = await response.blob()
-    
-    // XHR 直传 OSS
-    const xhr = new XMLHttpRequest()
-    xhr.open('PUT', signData.signedUrl, true)
-    xhr.setRequestHeader('Content-Type', 'image/jpeg')
-    
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) {
-        uploadProgress.value = Math.round((e.loaded / e.total) * 100)
-      }
-    }
-    
-    xhr.timeout = 300000
-    
-    xhr.onload = async () => {
-      uploading.value = false
-      if (xhr.status === 200) {
-        form.value.invitation_image_url = signData.accessUrl
-        uni.showToast({ title: '上传成功', icon: 'success' })
-      } else {
-        let errorMsg = `上传失败(${xhr.status})`
-        if (xhr.status === 413) errorMsg = '文件太大，请压缩后重试'
-        else if (xhr.status === 504 || xhr.status === 502) errorMsg = '服务器超时，请稍后重试'
-        else if (xhr.status === 500) errorMsg = '服务器错误，请联系管理员'
-        else if (xhr.status === 403) errorMsg = '没有上传权限'
-        else if (xhr.status === 401) errorMsg = '登录已过期，请重新登录'
-        uni.showToast({ title: errorMsg, icon: 'none' })
-        await reportError({ stage: 'XHR上传', status: xhr.status, response: xhr.responseText?.substring(0, 200) })
-      }
-    }
-    
-    xhr.onerror = async () => {
-      uploading.value = false
-      uni.showToast({ title: '网络错误，请检查网络连接', icon: 'none' })
-      await reportError({ stage: 'XHR网络错误', signedUrl: signData.signedUrl?.substring(0, 80) })
-    }
-    
-    xhr.ontimeout = async () => {
-      uploading.value = false
-      uni.showToast({ title: '上传超时，请重试', icon: 'none' })
-      await reportError({ stage: 'XHR超时' })
-    }
-    
-    xhr.send(blob)
-    
-  } catch (e) {
-    uploading.value = false
-    await reportError({ stage: '异常', error: e.message || String(e) })
-    uni.showToast({ title: e.message || '上传失败', icon: 'none' })
-  }
+const previewImage = (idx) => {
+  uni.previewImage({ urls: imageUrls.value, current: idx })
 }
 
 const submitInvitation = async () => {
@@ -224,11 +130,11 @@ const submitInvitation = async () => {
       coach_no: coachInfo.value.coachNo,
       date: today.value,
       shift: form.value.shift,
-      invitation_image_url: form.value.invitation_image_url
+      images: imageUrls.value.length > 0 ? JSON.stringify(imageUrls.value) : null
     })
     uni.hideLoading()
     uni.showToast({ title: '提交成功', icon: 'success' })
-    form.value.invitation_image_url = ''
+    clearAll()
   } catch (e) {
     uni.hideLoading()
     uni.showToast({ title: e.error || '提交失败', icon: 'none' })
@@ -262,11 +168,15 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .shift-display { height: 44px; background: rgba(212,175,55,0.1); border: 1px solid rgba(212,175,55,0.3); border-radius: 10px; display: flex; align-items: center; justify-content: center; }
 .shift-value { font-size: 15px; color: #d4af37; font-weight: 500; }
 
-.upload-area { width: 140px; height: 140px; background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-.upload-img { width: 100%; height: 100%; }
-.upload-placeholder { text-align: center; }
-.upload-icon { font-size: 36px; display: block; margin-bottom: 4px; }
-.upload-text { font-size: 12px; color: rgba(255,255,255,0.4); }
+/* 图片网格 */
+.image-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+.image-item { position: relative; width: 90px; height: 90px; border-radius: 10px; overflow: hidden; }
+.uploaded-img { width: 100%; height: 100%; }
+.remove-btn { position: absolute; top: 2px; right: 2px; width: 22px; height: 22px; background: rgba(0,0,0,0.7); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.remove-btn text { color: #fff; font-size: 14px; }
+.upload-btn { width: 90px; height: 90px; background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.2); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.upload-icon { font-size: 28px; display: block; margin-bottom: 4px; }
+.upload-text { font-size: 11px; color: rgba(255,255,255,0.4); }
 
 .submit-btn { height: 50px; background: linear-gradient(135deg, #d4af37, #ffd700); border-radius: 25px; display: flex; align-items: center; justify-content: center; margin-top: 30px; }
 .submit-btn text { font-size: 16px; font-weight: 600; color: #000; }

@@ -19,7 +19,7 @@
 | 用例ID | 测试场景 | 前置条件 | 操作步骤 | 预期结果 | 实际结果 |
 |--------|---------|---------|---------|---------|---------|
 | TC1-04 | 扫码台桌号后授权有效期验证（H5端） | 1. 生产环境已重启并生效<br>2. 用户未扫码，localStorage 中无 `tableAuth` 记录<br>3. 使用手机浏览器访问 `https://www.tiangong.club` | 1. 用手机扫描台桌二维码<br>2. 扫码成功后页面跳转并记录 `tableAuth.time = Date.now()`<br>3. 打开浏览器开发者工具 → Application → Local Storage<br>4. 查看 `tableAuth` 中的 `time` 值和后端返回的 `tableAuthExpireMinutes`<br>5. 等待 5 分钟，刷新页面 | 1. `tableAuth` 正确写入，包含 `tableName`、`tableId`、`time`<br>2. 前端 `tableAuthExpireMinutes` 值为 `10`（来自 `/api/front-config` 接口）<br>3. 5分钟后刷新页面，`tableStatus` 仍为 `valid`（台桌授权有效） | 待执行 |
-| TC1-05 | 前端默认值兜底场景（接口异常） | 1. 生产环境后端服务异常或网络中断<br>2. `/api/front-config` 接口不可达 | 1. 用户扫码进入 H5 页面<br>2. 在浏览器控制台执行 `uni.getStorageSync('tableAuth')`<br>3. 检查 `TableInfo.vue` 中 `tableAuthExpireMinutes` 的值 | `tableAuthExpireMinutes` 回退为默认值 `30`（TableInfo.vue 第50行初始值），页面仍可正常使用但有效期兜底为30分钟（可选防御性修改未执行时的预期行为） | 待执行 |
+| TC1-05 | 前端默认值兜底场景（接口异常） | 1. 生产环境后端服务异常或网络中断<br>2. `/api/front-config` 接口不可达 | 1. 用户扫码进入 H5 页面<br>2. 在浏览器控制台执行 `uni.getStorageSync('tableAuth')`<br>3. 检查 `TableInfo.vue` 中 `tableAuthExpireMinutes` 的值 | `tableAuthExpireMinutes` 回退为默认值 `30`（TableInfo.vue 第50行初始值，**当前代码仍为30，未改为10**），页面仍可正常使用但有效期兜底为30分钟。<br>**注：此预期仅在「后端接口异常且前端默认值未修改为10」的情况下成立。若后续将默认值改为10，则兜底为10分钟。** | 待执行 |
 
 ---
 
@@ -36,7 +36,7 @@
 | 用例ID | 测试场景 | 前置条件 | 操作步骤 | 预期结果 | 实际结果 |
 |--------|---------|---------|---------|---------|---------|
 | TC1-07 | 9分钟时台桌号仍有效（边界内） | 1. 生产环境已生效<br>2. 用户刚完成扫码，`tableAuth.time` 已写入 | 1. 扫码成功后记录当前时间 T0<br>2. 等待 9 分钟（T0 + 9min）<br>3. 刷新页面<br>4. 检查台桌状态 | 1. `checkAuth()` 计算：`(Date.now() - auth.time) = 9min < 10min` → 未过期<br>2. `tableAuthExpired` 为 `false`<br>3. 台桌状态为 `valid`，可正常显示台桌信息 | 待执行 |
-| TC1-08 | 10分钟整点边界验证 | 1. 生产环境已生效<br>2. 用户刚完成扫码，`tableAuth.time` 已写入 | 1. 扫码成功后记录当前时间 T0<br>2. 在 T0 + 10min 整点（尽可能精确）刷新页面<br>3. 检查台桌状态 | 1. `checkAuth()` 计算：`(Date.now() - auth.time) >= 10 * 60 * 1000` → 临界值，判定为过期<br>2. `tableAuthExpired` 为 `true`<br>3. 页面显示"台桌授权已过期，请用手机相机重新扫码" | 待执行 |
+| TC1-08 | 10分钟整点边界验证 | 1. 生产环境已生效<br>2. 用户刚完成扫码，`tableAuth.time` 已写入 | 1. 扫码成功后记录当前时间 T0<br>2. 在 T0 + 10min 整点（尽可能精确）刷新页面<br>3. 检查台桌状态 | 1. `checkAuth()` 计算：`(Date.now() - auth.time) === 10 * 60 * 1000`，使用严格大于（`>`）判定 → **10分钟整时仍有效，不触发过期**<br>2. `tableAuthExpired` 为 `false`<br>3. 台桌状态为 `valid`<br>**注：只有超过10分钟（如10分1秒）时 `(Date.now() - auth.time) > 10 * 60 * 1000` 才为 `true`，台桌号才会过期。** | 待执行 |
 | TC1-09 | 11分钟时台桌号已过期（边界外） | 1. 生产环境已生效<br>2. 用户刚完成扫码，`tableAuth.time` 已写入 | 1. 扫码成功后记录当前时间 T0<br>2. 等待 11 分钟（T0 + 11min）<br>3. 刷新页面<br>4. 检查台桌状态 | 1. `checkAuth()` 计算：`(Date.now() - auth.time) = 11min > 10min` → 已过期<br>2. `tableAuthExpired` 为 `true`<br>3. 页面显示过期提示 | 待执行 |
 
 ---
@@ -76,8 +76,8 @@
    ```javascript
    tableAuthExpired.value = (Date.now() - auth.time) > tableAuthExpireMinutes.value * 60 * 1000
    ```
-   判断条件是 **严格大于（`>`）**，因此恰好10分钟时 `Date.now() - auth.time === 10 * 60 * 1000` 不会触发过期，只有超过10分钟才会过期。TC1-08 的实际预期应为：**10分钟整时仍有效，超过10毫秒即过期**。
+   判断条件是 **严格大于（`>`）**，因此恰好10分钟时 `Date.now() - auth.time === 10 * 60 * 1000` 不会触发过期，**只有超过10分钟（如10分1秒）才会判定为过期**。TC1-08 的预期：**10分钟整时仍有效，超过10分钟才过期**。TC1-06/TC1-09 等过期用例使用11分钟，不受此边界影响。
 
-2. **前端默认值30分钟**：设计稿标注 TableInfo.vue 第50行的默认值 `30` 为 P2 可选修改，当前未修改。TC1-05 用于验证兜底行为。
+2. **前端默认值30分钟**（TableInfo.vue 第50行）：当前代码为 `ref(30)`，**未改为10**。设计稿标注此项为 P2 可选修改。TC1-05 验证兜底行为：当后端接口异常时，`tableAuthExpireMinutes` 回退为默认值30分钟。**若后续将默认值改为10，TC1-05的预期需同步更新。**
 
 3. **所有边界测试用例的实际执行时间需精确到秒**，建议在操作时记录 `Date.now()` 精确时间戳，以便验证计算结果。

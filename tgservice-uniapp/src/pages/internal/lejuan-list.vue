@@ -19,6 +19,17 @@
         <text class="lj-phone">{{ item.applicant_phone }}</text>
         <text class="lj-date">{{ item.date }}</text>
         <text class="lj-remark" v-if="item.remark">{{ item.remark }}</text>
+        <!-- 图片（多图横向滚动） -->
+        <scroll-view v-if="getImageUrls(item).length > 0" class="image-scroll" scroll-x>
+          <image 
+            v-for="(url, idx) in getImageUrls(item)" 
+            :key="idx" 
+            :src="url" 
+            mode="aspectFill" 
+            class="lj-image" 
+            @click="previewImages(item, idx)" 
+          />
+        </scroll-view>
       </view>
     </view>
     <view class="empty" v-else><text>暂无乐捐报备记录</text></view>
@@ -45,6 +56,21 @@ const loadData = async () => {
   } catch (e) { uni.showToast({ title: '加载失败', icon: 'none' }) }
 }
 
+// 解析图片 URL 数组
+const getImageUrls = (record) => {
+  if (record.images) {
+    try {
+      const imgs = typeof record.images === 'string' ? JSON.parse(record.images) : record.images
+      if (Array.isArray(imgs)) return imgs
+    } catch (e) {}
+  }
+  return []
+}
+
+const previewImages = (record, idx) => {
+  uni.previewImage({ urls: getImageUrls(record), current: idx })
+}
+
 const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { uni.navigateBack() } else { uni.switchTab({ url: '/pages/member/member' }) } }
 </script>
 
@@ -67,5 +93,7 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .lj-phone { font-size: 12px; color: rgba(255,255,255,0.4); display: block; margin-bottom: 2px; }
 .lj-date { font-size: 12px; color: rgba(255,255,255,0.4); display: block; margin-bottom: 2px; }
 .lj-remark { font-size: 13px; color: rgba(255,255,255,0.6); display: block; }
+.lj-image { width: 70px; height: 70px; border-radius: 8px; margin-right: 8px; margin-top: 8px; }
+.image-scroll { white-space: nowrap; }
 .empty { text-align: center; padding: 60px 20px; color: rgba(255,255,255,0.3); }
 </style>

@@ -21,8 +21,17 @@
           <text class="app-phone">{{ app.applicant_phone }}</text>
           <text class="app-remark" v-if="app.remark">{{ app.remark }}</text>
           <text class="app-time">{{ app.created_at }}</text>
-          <!-- 截图 -->
-          <image v-if="app.proof_image_url" :src="app.proof_image_url" mode="widthFix" class="app-image" @click="previewImage(app.proof_image_url)" />
+          <!-- 截图（多图横向滚动） -->
+          <scroll-view v-if="getImageUrls(app).length > 0" class="image-scroll" scroll-x>
+            <image 
+              v-for="(url, idx) in getImageUrls(app)" 
+              :key="idx" 
+              :src="url" 
+              mode="widthFix" 
+              class="app-image" 
+              @click="previewImages(app, idx)" 
+            />
+          </scroll-view>
         </view>
         <view class="app-actions" v-if="app.status === 0">
           <view class="action-btn reject" @click="approve(app.id, 2)"><text>拒绝</text></view>
@@ -58,7 +67,21 @@ const loadData = async () => {
 }
 
 const statusText = (s) => s === 0 ? '待处理' : s === 1 ? '已同意' : '已拒绝'
-const previewImage = (url) => uni.previewImage({ urls: [url] })
+
+// 解析图片 URL 数组
+const getImageUrls = (record) => {
+  if (record.images) {
+    try {
+      const imgs = typeof record.images === 'string' ? JSON.parse(record.images) : record.images
+      if (Array.isArray(imgs)) return imgs
+    } catch (e) {}
+  }
+  return []
+}
+
+const previewImages = (record, idx) => {
+  uni.previewImage({ urls: getImageUrls(record), current: idx })
+}
 
 const approve = async (id, status) => {
   const msg = status === 1 ? '同意' : '拒绝'
@@ -102,7 +125,8 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .app-phone { font-size: 12px; color: rgba(255,255,255,0.4); }
 .app-remark { font-size: 13px; color: rgba(255,255,255,0.6); }
 .app-time { font-size: 11px; color: rgba(255,255,255,0.3); }
-.app-image { margin-top: 8px; border-radius: 8px; max-width: 200px; }
+.app-image { margin-top: 8px; border-radius: 8px; max-width: 200px; margin-right: 8px; }
+.image-scroll { margin-top: 8px; white-space: nowrap; }
 .app-actions { display: flex; gap: 12px; margin-top: 12px; }
 .action-btn { flex: 1; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500; }
 .action-btn.reject { background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3); color: #e74c3c; }
