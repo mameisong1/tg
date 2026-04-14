@@ -8,6 +8,7 @@ const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
+const TimeUtil = require('../utils/time');
 const operationLogService = require('../services/operation-log');
 
 /**
@@ -66,11 +67,12 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
     }
     
     // 更新水牌状态
+    const nowDB = TimeUtil.nowDB();
     await transaction.run(`
       UPDATE water_boards 
-      SET status = ?, table_no = NULL, updated_at = CURRENT_TIMESTAMP 
+      SET status = ?, table_no = NULL, clock_in_time = ?, updated_at = ?
       WHERE coach_no = ?
-    `, [newStatus, coach_no]);
+    `, [newStatus, nowDB, nowDB, coach_no]);
     
     // 记录操作日志
     const user = req.user;
@@ -148,11 +150,12 @@ router.post('/:coach_no/clock-out', auth.required, requireBackendPermission(['co
     const newStatus = '下班';
     
     // 更新水牌状态
+    const nowDB = TimeUtil.nowDB();
     await transaction.run(`
       UPDATE water_boards 
-      SET status = ?, table_no = NULL, updated_at = CURRENT_TIMESTAMP 
+      SET status = ?, table_no = NULL, clock_in_time = NULL, updated_at = ?
       WHERE coach_no = ?
-    `, [newStatus, coach_no]);
+    `, [newStatus, nowDB, coach_no]);
     
     // 记录操作日志
     const user = req.user;

@@ -154,6 +154,27 @@ const groupedBoards = computed(() => {
   waterBoards.value.forEach(board => {
     if (groups[board.status]) groups[board.status].push(board)
   })
+  
+  // 对每组内排序
+  const freeStatuses = ['早班空闲', '晚班空闲']
+  statusList.forEach(s => {
+    if (freeStatuses.includes(s)) {
+      // 空闲状态：按 clock_in_time 倒序
+      groups[s].sort((a, b) => {
+        const ta = a.clock_in_time ? new Date(a.clock_in_time + '+08:00').getTime() : 0
+        const tb = b.clock_in_time ? new Date(b.clock_in_time + '+08:00').getTime() : 0
+        return tb - ta
+      })
+    } else {
+      // 其他状态：按 updated_at 倒序
+      groups[s].sort((a, b) => {
+        const ta = a.updated_at ? new Date(a.updated_at + '+08:00').getTime() : 0
+        const tb = b.updated_at ? new Date(b.updated_at + '+08:00').getTime() : 0
+        return tb - ta
+      })
+    }
+  })
+  
   return statusList.filter(s => groups[s].length > 0).map(s => ({ status: s, coaches: groups[s] }))
 })
 

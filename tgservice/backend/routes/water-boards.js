@@ -8,6 +8,7 @@ const router = express.Router();
 const db = require('../db');
 const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
+const TimeUtil = require('../utils/time');
 const operationLogService = require('../services/operation-log');
 
 /**
@@ -19,7 +20,7 @@ router.get('/', auth.required, requireBackendPermission(['waterBoardManagement']
     const { status, shift } = req.query;
     
     let sql = `
-      SELECT wb.coach_no, wb.stage_name, wb.status, wb.table_no, wb.updated_at, c.shift, c.photos, c.employee_id
+      SELECT wb.coach_no, wb.stage_name, wb.status, wb.table_no, wb.updated_at, wb.clock_in_time, c.shift, c.photos, c.employee_id
       FROM water_boards wb
       LEFT JOIN coaches c ON wb.coach_no = c.coach_no
       WHERE 1=1
@@ -68,7 +69,7 @@ router.get('/:coach_no', auth.required, requireBackendPermission(['waterBoardMan
     const { coach_no } = req.params;
     
     const waterBoard = await db.get(`
-      SELECT wb.coach_no, wb.stage_name, wb.status, wb.table_no, wb.updated_at, c.shift, c.photos, c.employee_id
+      SELECT wb.coach_no, wb.stage_name, wb.status, wb.table_no, wb.updated_at, wb.clock_in_time, c.shift, c.photos, c.employee_id
       FROM water_boards wb
       LEFT JOIN coaches c ON wb.coach_no = c.coach_no
       WHERE wb.coach_no = ?
@@ -150,6 +151,22 @@ router.put('/:coach_no/status', auth.required, requireBackendPermission(['waterB
     if (table_no !== undefined) {
       updateFields.push('table_no = ?');
       updateParams.push(table_no);
+    }
+    
+    // 状态变为工作状态（非下班）时，写入 clock_in_time
+    const workStatuses = ['早班空闲', '晚班空闲', '早班上桌', '晚班上桌', '早加班', '晚加班', '乐捐'];
+    const offStatuses = ['下班', '休息', '公休', '请假'];
+    if (status && workStatuses.includes(status)) {
+      // 从下班状态变为工作状态，写入上班时间
+      const wasOff = offStatuses.includes(currentWaterBoard.status) || !currentWaterBoard.clock_in_time;
+      if (wasOff) {
+        updateFields.push('clock_in_time = ?');
+        updateParams.push(TimeUtil.nowDB());
+      }
+    }
+    // 状态变为下班时，清空 clock_in_time
+    if (status === '下班') {
+      updateFields.push('clock_in_time = NULL');
     }
     
     updateFields.push('updated_at = CURRENT_TIMESTAMP');
