@@ -7,23 +7,36 @@
  */
 
 const { chromium } = require('playwright');
-const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs');
 const path = require('path');
 const { execSync, spawn } = require('child_process');
+
+// 北京时间工具函数
+function nowDB() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  const s = String(d.getSeconds()).padStart(2, '0');
+  return `${y}-${m}-${day} ${h}:${min}:${s}`;
+}
 
 // ==================== 配置 ====================
 const CONFIG = {
   chromePort: 9998,
   chromeStartCmd: 'bash /root/chrome-sync',
   targetUrl: 'http://admin.taikeduo.com/#/productManagement/productList',
-  dbPath: '/TG/tgservice/db/tgservice.db',
-  logFile: '/TG/tgservice/scripts/sync-products.log',
-  dataFile: '/TG/tgservice/data/taikeduo-products.json',
+  logFile: '/TG/run/scripts/sync-products.log',
+  dataFile: '/TG/run/data/taikeduo-products.json',
   minProducts: 100,  // 最少采集数量
   pageTimeout: 300000, // 页面加载超时5分钟
   excludeCategories: ['美女教练'], // 排除的分类
   credentialsPath: '/root/.openclaw/credentials.json',
+  // API 配置
+  // apiBaseUrl: 'https://tg.tiangong.club/api',  // 测试环境
+  apiBaseUrl: 'https://tiangong.club/api',  // 生产环境
 };
 
 // 随机停顿函数（防止操作过快导致网络异常）
@@ -536,7 +549,92 @@ class ProductCollector {
   }
 }
 
-// ==================== 数据库操作 ====================
+// ==================== API 同步工具 ====================
+class ApiSync {
+  constructor(logger) {
+    this.logger = logger;
+  }
+
+  async getAdminToken() {
+    try {
+      const credentials = JSON.parse(fs.readFileSync(CONFIG.credentialsPath, 'utf8'));
+      const tgservice = credentials.tgservice_admin;
+      if (!tgservice) {
+        throw new Error('缺少天宫国际管理员凭证');
+      }
+      
+      const loginUrl = `${CONFIG.apiBaseUrl}/admin/login`;
+      const response = await fetch(loginUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: tgservice.username,
+          password: tgservice.password
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`登录失败: HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      if (!data.success || !data.token) {
+        throw new Error(`登录失败: ${data.error || '未知错误'}`);
+      }
+      
+      this.logger.info('获取 admin token 成功');
+      return data.token;
+    } catch (err) {
+      this.logger.error(`获取 admin token 失败: ${err.message}`);
+      throw err;
+    }
+  }
+
+  async syncProducts(products) {
+    const startTime = Date.now();
+    try {
+      const token = await this.getAdminToken();
+      const syncUrl = `${CONFIG.apiBaseUrl}/admin/sync/products`;
+      
+      const response = await fetch(syncUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ products })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`API 返回错误: HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.error || '同步失败');
+      }
+      
+      const elapsed = Date.now() - startTime;
+      this.logger.info(`API 同步耗时: ${elapsed}ms`);
+      this.logger.info(`API 返回: 新增 ${data.data.productsInserted} 条, 更新 ${data.data.productsUpdated} 条, 跳过 ${data.data.productsSkipped} 条`);
+      
+      return {
+        inserted: data.data.productsInserted,
+        updated: data.data.productsUpdated,
+        skipped: data.data.productsSkipped,
+        elapsedMs: elapsed,
+        categoriesInserted: data.data.categoriesInserted,
+        categoriesExisting: data.data.categoriesExisting
+      };
+    } catch (err) {
+      const elapsed = Date.now() - startTime;
+      this.logger.error(`API 同步失败: ${err.message}, 耗时 ${elapsed}ms`);
+      throw err;
+    }
+  }
+}
+
+// ==================== 数据库操作（已废弃，改用 API） ====================
 class DatabaseSync {
   constructor(logger) {
     this.logger = logger;
@@ -610,16 +708,16 @@ class DatabaseSync {
               category = ?, 
               status = ?, 
               creator = ?,
-              updated_at = datetime('now', 'localtime')
+              updated_at = ?
             WHERE name = ?`,
-            [p.imageUrl, p.price, p.stockTotal, p.stockAvailable, p.category, p.status, p.creator, p.name]
+            [p.imageUrl, p.price, p.stockTotal, p.stockAvailable, p.category, p.status, p.creator, nowDB(), p.name]
           );
           updated++;
         } else {
           await this.run(
             `INSERT INTO products (name, image_url, price, stock_total, stock_available, category, status, creator, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now', 'localtime'), datetime('now', 'localtime'))`,
-            [p.name, p.imageUrl, p.price, p.stockTotal, p.stockAvailable, p.category, p.status, p.creator]
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [p.name, p.imageUrl, p.price, p.stockTotal, p.stockAvailable, p.category, p.status, p.creator, nowDB(), nowDB()]
           );
           inserted++;
         }
@@ -651,8 +749,8 @@ class DatabaseSync {
           existing++;
         } else {
           await this.run(
-            `INSERT INTO product_categories (name, creator, created_at) VALUES (?, 'sync-script', datetime('now', 'localtime'))`,
-            [cat]
+            `INSERT INTO product_categories (name, creator, created_at) VALUES (?, 'sync-script', ?)`,
+            [cat, nowDB()]
           );
           inserted++;
         }
@@ -683,7 +781,6 @@ async function main() {
   logger.info(`页面超时: ${CONFIG.pageTimeout}ms`);
   
   let chrome = null;
-  let db = null;
   
   try {
     // 1. 连接 Chrome
@@ -724,16 +821,13 @@ async function main() {
       process.exit(1);
     }
     
-    // 6. 同步到数据库
-    logger.info('步骤4: 同步到数据库...');
-    db = new DatabaseSync(logger);
-    await db.connect();
+    // 6. 同步到数据库（通过 API）
+    logger.info('步骤4: 同步到数据库（通过 API）...');
+    const apiSync = new ApiSync(logger);
     
-    const productResult = await db.syncProducts(products);
+    const productResult = await apiSync.syncProducts(products);
     logger.success(`商品表同步完成: 新增 ${productResult.inserted} 条，更新 ${productResult.updated} 条，跳过 ${productResult.skipped} 条`);
-    
-    const categoryResult = await db.syncCategories(products);
-    logger.success(`分类表同步完成: 新增 ${categoryResult.inserted} 个，已存在 ${categoryResult.existing} 个`);
+    logger.success(`分类表同步完成: 新增 ${productResult.categoriesInserted} 个，已存在 ${productResult.categoriesExisting} 个`);
     
     // 7. 最终报告
     const elapsed = Date.now() - startTime;
@@ -743,7 +837,7 @@ async function main() {
       台客多商品总数: products.length,
       过滤分类: CONFIG.excludeCategories,
       导入商品数: productResult.inserted + productResult.updated,
-      分类统计: report.byCategory,
+      API同步耗时: productResult.elapsedMs,
       图片统计: { 有图: report.withImages, 无图: report.withoutImages }
     };
     
@@ -783,9 +877,6 @@ async function main() {
     logger.error('========== 错误日志结束 ==========');
     logger.info('========== 商品数据同步结束（异常） ==========');
     process.exit(1);
-  } finally {
-    if (db) db.close();
-    // 注意：不关闭 chrome，保持运行状态
   }
 }
 
