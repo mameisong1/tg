@@ -10,7 +10,8 @@
     </view>
     <view class="header-placeholder" :style="{ height: (statusBarHeight + 44) + 'px' }"></view>
 
-    <view class="info-section">
+    <!-- 测试环境下隐藏时间提示 -->
+    <view class="info-section" v-if="!isTestEnv">
       <text class="info-text">早班上传时间：14:00 - 18:00</text>
       <text class="info-text">晚班上传时间：18:00 - 22:00</text>
       <text class="info-hint">（仅限时间段内可提交）</text>
@@ -108,19 +109,21 @@ const previewImage = (idx) => {
 const submitInvitation = async () => {
   if (!canSubmit.value) return uni.showToast({ title: '请上传截图', icon: 'none' })
   
-  // 检查提交时间限制
-  const hour = new Date().getHours()
-  const shift = form.value.shift
-  
-  if (shift === '早班') {
-    // 早班限制在14:00-18:00（16点前后2小时）
-    if (hour < 14 || hour >= 18) {
-      return uni.showToast({ title: '早班上传时间为14:00-18:00', icon: 'none' })
-    }
-  } else if (shift === '晚班') {
-    // 晚班限制在18:00-22:00（20点前后2小时）
-    if (hour < 18 || hour >= 22) {
-      return uni.showToast({ title: '晚班上传时间为18:00-22:00', icon: 'none' })
+  // 测试环境下跳过时间限制检查
+  if (!isTestEnv) {
+    const hour = new Date().getHours()
+    const shift = form.value.shift
+    
+    if (shift === '早班') {
+      // 早班限制在14:00-18:00（16点前后2小时）
+      if (hour < 14 || hour >= 18) {
+        return uni.showToast({ title: '早班上传时间为14:00-18:00', icon: 'none' })
+      }
+    } else if (shift === '晚班') {
+      // 晚班限制在18:00-22:00（20点前后2小时）
+      if (hour < 18 || hour >= 22) {
+        return uni.showToast({ title: '晚班上传时间为18:00-22:00', icon: 'none' })
+      }
     }
   }
   
