@@ -73,26 +73,60 @@ router.post('/api/admin/switches', requireBackendPermission(['vipRoomManagement'
   }
 });
 
-// 更新开关
+// 更新开关（支持部分更新：只传要改的字段）
 router.put('/api/admin/switches/:id', requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
     const { switch_id, switch_seq, switch_label, auto_off_start, auto_off_end, auto_on_start, auto_on_end } = req.body;
-    if (!switch_id || !switch_seq || !switch_label) {
-      return res.status(400).json({ error: '缺少必填字段' });
+
+    // 动态构建 SET 子句：只更新传入的字段
+    const allowedFields = {
+      switch_id,
+      switch_seq,
+      switch_label,
+      auto_off_start,
+      auto_off_end,
+      auto_on_start,
+      auto_on_end
+    };
+    const updates = [];
+    const params = [];
+    for (const [key, value] of Object.entries(allowedFields)) {
+      if (value !== undefined) {
+        updates.push(`${key} = ?`);
+        params.push(value);
+      }
     }
+    if (updates.length === 0) {
+      return res.status(400).json({ error: '没有要更新的字段' });
+    }
+    // 校验 NOT NULL 字段：如果传了空值则报错
+    if (updates.some(u => u.startsWith('switch_id = ?')) && !switch_id) {
+      return res.status(400).json({ error: 'switch_id 不能为空' });
+    }
+    if (updates.some(u => u.startsWith('switch_seq = ?')) && !switch_seq) {
+      return res.status(400).json({ error: 'switch_seq 不能为空' });
+    }
+    if (updates.some(u => u.startsWith('switch_label = ?')) && !switch_label) {
+      return res.status(400).json({ error: 'switch_label 不能为空' });
+    }
+
     const now = TimeUtil.nowDB();
     await runInTransaction(async (tx) => {
       const existing = await tx.get('SELECT id FROM switch_device WHERE id = ?', [req.params.id]);
-      if (!existing) return res.status(404).json({ error: '记录不存在' });
+      if (!existing) {
+        throw new Error('NOT_FOUND');
+      }
+      params.push(now, req.params.id);
       await tx.run(
-        `UPDATE switch_device SET switch_id = ?, switch_seq = ?, switch_label = ?, 
-         auto_off_start = ?, auto_off_end = ?, auto_on_start = ?, auto_on_end = ?, updated_at = ?
-         WHERE id = ?`,
-        [switch_id, switch_seq, switch_label, auto_off_start || '', auto_off_end || '', auto_on_start || '', auto_on_end || '', now, req.params.id]
+        `UPDATE switch_device SET ${updates.join(', ')}, updated_at = ? WHERE id = ?`,
+        params
       );
     });
     res.json({ success: true });
   } catch (err) {
+    if (err.message === 'NOT_FOUND') {
+      return res.status(404).json({ error: '记录不存在' });
+    }
     if (err.message && err.message.includes('UNIQUE constraint')) {
       return res.status(400).json({ error: '该开关ID+开关序号已存在' });
     }
