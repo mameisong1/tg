@@ -141,13 +141,55 @@ async function checkPermission() {
   }
 }
 
+/**
+ * 错误日志上报
+ */
+async function reportError(action, error, extra = {}) {
+  try {
+    const adminToken = uni.getStorageSync('adminToken')
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api'
+    uni.request({
+      url: baseUrl + '/admin/frontend-error-log',
+      method: 'POST',
+      data: {
+        action,
+        timestamp: new Date().toISOString(),
+        url: window?.location?.href || '',
+        userAgent: navigator?.userAgent || '',
+        userToken: adminToken || '',
+        state: JSON.stringify({
+          autoOffEnabled: autoOffEnabled.value,
+          autoOnEnabled: autoOnEnabled.value,
+          scenesCount: scenes.value.length,
+          labelsCount: labels.value.length,
+          selectedLabel: selectedLabel.value,
+          pendingAction: pendingAction
+        }),
+        errorMessage: error?.message || String(error),
+        errorStack: error?.stack || '',
+        ...extra
+      },
+      header: {
+        'Content-Type': 'application/json',
+        'Authorization': adminToken ? `Bearer ${adminToken}` : ''
+      },
+      fail: () => console.error('[错误上报] 上报失败')
+    })
+    console.log('[错误上报]', action, error?.message || error)
+  } catch (e) {
+    console.error('[错误上报] 上报函数异常:', e)
+  }
+}
+
 async function apiRequest(url, method = 'GET', data = null) {
   const adminToken = uni.getStorageSync('adminToken')
   const coachToken = uni.getStorageSync('coachToken')
   const token = adminToken || coachToken
+  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api'
+  
+  console.log('[API请求]', method, baseUrl + url)
   
   return new Promise((resolve, reject) => {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api'
     uni.request({
       url: baseUrl + url,
       method,
@@ -157,6 +199,7 @@ async function apiRequest(url, method = 'GET', data = null) {
         'Authorization': token ? `Bearer ${token}` : ''
       },
       success: (res) => {
+        console.log('[API响应]', url, 'status:', res.statusCode, 'data:', JSON.stringify(res.data).substring(0, 200))
         if (res.statusCode === 200) resolve(res.data)
         else if (res.statusCode === 401) {
           uni.showToast({ title: '请先登录', icon: 'none' })
@@ -164,6 +207,8 @@ async function apiRequest(url, method = 'GET', data = null) {
         } else reject(new Error(res.data?.error || '请求失败'))
       },
       fail: (err) => {
+        console.error('[API失败]', url, err)
+        reportError('api_request_fail', err, { url, method })
         uni.showToast({ title: '网络请求失败', icon: 'none' })
         reject(err)
       }
@@ -212,6 +257,7 @@ async function toggleAutoOn() {
 }
 
 function executeScene(scene) {
+  console.log('[执行场景]', scene.scene_name, scene.action, 'id:', scene.id)
   confirmText.value = `确认执行场景"${scene.scene_name}"？（${scene.action === 'ON' ? '开灯' : '关灯'}）`
   pendingAction = { type: 'scene', scene }
   showConfirm.value = true
@@ -230,30 +276,39 @@ function labelControl(action) {
 }
 
 async function confirmAction() {
+  // 先保存 pendingAction 的副本，避免 closeConfirm() 将其置为 null
+  const action = pendingAction
   closeConfirm()
   try {
-    if (pendingAction === 'toggleAutoOff') {
+    console.log('[执行操作]', JSON.stringify(action))
+    if (action === 'toggleAutoOff') {
       await apiRequest('/switch/auto-off-toggle', 'POST')
       autoOffEnabled.value = !autoOffEnabled.value
       uni.showToast({ title: autoOffEnabled.value ? '已开启' : '已关闭', icon: 'success' })
-    } else if (pendingAction === 'toggleAutoOn') {
+    } else if (action === 'toggleAutoOn') {
       await apiRequest('/switch/auto-on-toggle', 'POST')
       autoOnEnabled.value = !autoOnEnabled.value
       uni.showToast({ title: autoOnEnabled.value ? '已开启' : '已关闭', icon: 'success' })
-    } else if (pendingAction.type === 'scene') {
-      await apiRequest(`/switch/scene/${pendingAction.scene.id}`, 'POST')
+    } else if (action.type === 'scene') {
+      const scene = action.scene
+      console.log('[场景执行] scene.id:', scene.id, 'scene.action:', scene.action)
+      if (!scene || !scene.id) {
+        throw new Error('场景数据无效: scene=' + JSON.stringify(scene))
+      }
+      await apiRequest(`/switch/scene/${scene.id}`, 'POST')
       uni.showToast({ title: '场景执行成功', icon: 'success' })
-    } else if (pendingAction.type === 'label') {
+    } else if (action.type === 'label') {
       await apiRequest('/switch/label-control', 'POST', {
         label: selectedLabel.value,
-        action: pendingAction.action
+        action: action.action
       })
       uni.showToast({ title: '操作成功', icon: 'success' })
     }
   } catch (e) {
+    console.error('[执行操作异常]', e)
+    reportError('confirmAction', e, { pendingAction: JSON.stringify(action) })
     uni.showToast({ title: e.message || '操作失败', icon: 'none' })
   }
-  pendingAction = null
 }
 
 function closeConfirm() {
