@@ -136,7 +136,7 @@ async function checkPermission() {
   const role = adminInfo.role
   const allowed = ['店长', '助教管理', '管理员']
   if (!allowed.includes(role)) {
-    uni.showToast({ title: '权限不足，仅店长和助教管理可用', icon: 'none' })
+    uni.showToast({ title: '权限不足，仅店长/助教管理/管理员可用', icon: 'none' })
     setTimeout(() => uni.navigateBack(), 1500)
   }
 }

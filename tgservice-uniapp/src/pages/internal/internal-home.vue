@@ -138,7 +138,7 @@ const isCoach = computed(() => {
 
 const isManager = computed(() => {
   const role = adminInfo.value.role
-  return ['店长', '助教管理'].includes(role)
+  return ['店长', '助教管理', '管理员'].includes(role)
 })
 
 const isCoachViewer = computed(() => {
