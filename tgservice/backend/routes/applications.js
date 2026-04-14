@@ -27,6 +27,7 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
       application_type,
       remark,
       proof_image_url,
+      images,
       extra_data
     } = req.body;
     
@@ -66,7 +67,7 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
         applicant_phone,
         application_type,
         remark,
-        proof_image_url,
+        images,
         status,
         extra_data
       ) VALUES (?, ?, ?, ?, ?, ?)
@@ -74,7 +75,7 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
       applicant_phone,
       application_type,
       remark || null,
-      proof_image_url || null,
+      images || null,
       status,
       extra_data ? JSON.stringify(extra_data) : null
     ]);

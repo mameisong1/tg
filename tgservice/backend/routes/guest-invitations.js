@@ -219,7 +219,8 @@ router.post('/', auth.required, requireBackendPermission(['all']), async (req, r
       coach_no,
       date,
       shift,
-      invitation_image_url
+      invitation_image_url,
+      images
     } = req.body;
     
     // 验证必填字段
@@ -287,13 +288,13 @@ router.post('/', auth.required, requireBackendPermission(['all']), async (req, r
       // 更新现有记录（允许重新上传覆盖）
       result = await transaction.run(`
         UPDATE guest_invitation_results
-        SET invitation_image_url = ?,
+        SET images = ?,
             result = '待审查',
             reviewed_at = NULL,
             reviewer_phone = NULL,
             updated_at = CURRENT_TIMESTAMP
         WHERE date = ? AND shift = ? AND coach_no = ?
-      `, [invitation_image_url, date, shift, coach_no]);
+      `, [images || null, date, shift, coach_no]);
     } else {
       // 创建新记录
       result = await transaction.run(`
@@ -302,10 +303,10 @@ router.post('/', auth.required, requireBackendPermission(['all']), async (req, r
           shift,
           coach_no,
           stage_name,
-          invitation_image_url,
+          images,
           result
         ) VALUES (?, ?, ?, ?, ?, '待审查')
-      `, [date, shift, coach_no, coach.stage_name, invitation_image_url]);
+      `, [date, shift, coach_no, coach.stage_name, images || null]);
     }
     
     // 记录操作日志

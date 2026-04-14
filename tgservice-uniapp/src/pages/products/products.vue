@@ -44,36 +44,50 @@
     <view class="h5-title-bar">
       <text class="h5-title-text">商品点单</text>
     </view>
-    <!-- 分类按钮（不固定） -->
+    <!-- 搜索 + 分类筛选区域 -->
     <view class="h5-filter-area">
-      <view class="category-bar">
-        <view class="category-grid">
+      <!-- 搜索栏 -->
+      <view class="search-bar">
+        <text class="search-icon">🔍</text>
+        <input 
+          class="search-input" 
+          v-model="searchKeyword" 
+          placeholder="输入商品名称搜索"
+          placeholder-class="search-placeholder"
+          confirm-type="search"
+          @input="onSearchInput"
+          @confirm="onSearchConfirm"
+        />
+        <text class="search-clear" v-if="searchKeyword" @click="clearSearch">✕</text>
+      </view>
+
+      <!-- 搜索结果提示 -->
+      <view class="search-result-tip" v-if="searchKeyword && !loading">
+        <text>找到 {{ filteredProducts.length }} 件商品</text>
+      </view>
+
+      <!-- 横向滚动分类标签 -->
+      <scroll-view class="category-scroll" scroll-x :show-scrollbar="false">
+        <view class="category-scroll-inner">
           <view 
-            class="category-btn" 
+            class="category-tag" 
             :class="{ active: currentCategory === '全部' }" 
             @click="selectCategory('全部')"
           >
-            <view class="icon-wrapper">
-              <text class="category-icon">📋</text>
-              <view class="count-badge" v-if="categoryCounts['全部']">{{ categoryCounts['全部'] }}</view>
-            </view>
-            <text class="category-text">全部</text>
+            <text>全部</text>
           </view>
           <view 
-            class="category-btn" 
+            class="category-tag" 
             v-for="cat in categories" 
             :key="cat"
             :class="{ active: currentCategory === cat }"
             @click="selectCategory(cat)"
           >
-            <view class="icon-wrapper">
-              <text class="category-icon">{{ getCategoryIcon(cat) }}</text>
-              <view class="count-badge" v-if="categoryCounts[cat]">{{ categoryCounts[cat] }}</view>
-            </view>
-            <text class="category-text">{{ cat }}</text>
+            <text>{{ cat }}</text>
           </view>
         </view>
-      </view>
+      </scroll-view>
+
       <!-- 台桌信息显示 -->
       <view class="table-info-wrapper">
         <!-- 员工模式 -->
@@ -93,7 +107,7 @@
         <view
           class="product-card"
           :class="{ 'highlight': highlightProductName === item.name }"
-          v-for="(item, index) in products"
+          v-for="(item, index) in filteredProducts"
           :key="item.name"
           :id="'product-' + index"
         >
@@ -109,8 +123,9 @@
             </view>
           </view>
         </view>
-        <view class="empty-tip" v-if="products.length === 0 && !loading">
-          <text>暂无商品</text>
+        <view class="empty-tip" v-if="filteredProducts.length === 0 && !loading">
+          <text v-if="searchKeyword">未找到「{{ searchKeyword }}」相关商品</text>
+          <text v-else>暂无商品</text>
         </view>
         <view class="loading-tip" v-if="loading">
           <text>加载中...</text>
@@ -213,6 +228,50 @@ const categoryCounts = ref({}) // 分类商品数量
 
 // 回到顶部
 const showBackToTop = ref(false)
+
+// ===== 搜索功能 =====
+const searchKeyword = ref('')
+let searchDebounceTimer = null
+
+// 过滤后的商品列表（前端实时过滤）
+const filteredProducts = computed(() => {
+  if (!searchKeyword.value.trim()) {
+    return products.value
+  }
+  const keyword = searchKeyword.value.trim().toLowerCase()
+  return products.value.filter(p =>
+    p.name.toLowerCase().includes(keyword)
+  )
+})
+
+// 搜索输入（300ms 防抖）
+const onSearchInput = () => {
+  clearTimeout(searchDebounceTimer)
+  searchDebounceTimer = setTimeout(() => {
+    // 搜索词变化时，如果当前分类下无匹配，自动切到"全部"
+    if (searchKeyword.value.trim()) {
+      if (currentCategory.value !== '全部' &&
+          !products.value.some(p => p.name.toLowerCase().includes(searchKeyword.value.trim().toLowerCase()))) {
+        currentCategory.value = '全部'
+        loadProducts()
+      }
+    }
+  }, 300)
+}
+
+// 搜索确认
+const onSearchConfirm = () => {
+  clearTimeout(searchDebounceTimer)
+  if (searchKeyword.value.trim() && currentCategory.value !== '全部') {
+    currentCategory.value = '全部'
+    loadProducts()
+  }
+}
+
+// 清除搜索
+const clearSearch = () => {
+  searchKeyword.value = ''
+}
 
 // 分类图标映射
 const categoryIcons = {
@@ -628,6 +687,95 @@ onShow(() => {
 /* 台桌信息容器 */
 .table-info-wrapper {
   padding: 12px 16px;
+}
+
+/* ===== 搜索栏 ===== */
+.search-bar {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  margin: 8px 12px 0;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+}
+
+.search-icon {
+  font-size: 16px;
+  margin-right: 8px;
+  opacity: 0.5;
+}
+
+.search-input {
+  flex: 1;
+  font-size: 14px;
+  color: #fff;
+  background: transparent;
+  border: none;
+  padding: 4px 0;
+}
+
+.search-placeholder {
+  color: rgba(255,255,255,0.3);
+}
+
+.search-clear {
+  font-size: 16px;
+  color: rgba(255,255,255,0.4);
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+/* 搜索结果提示 */
+.search-result-tip {
+  padding: 6px 16px;
+  font-size: 12px;
+  color: rgba(212,175,55,0.7);
+}
+
+/* ===== 横向滚动分类标签 ===== */
+.category-scroll {
+  padding: 8px 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.category-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.category-scroll-inner {
+  display: inline-flex;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.category-tag {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(218,175,32,0.15);
+  color: rgba(255,255,255,0.7);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+.category-tag:active {
+  transform: scale(0.95);
+}
+
+.category-tag.active {
+  background: rgba(212,175,55,0.2);
+  border-color: rgba(218,165,32,0.5);
+  color: #d4af37;
+  font-weight: 600;
 }
 
 /* 员工模式台桌信息 */
