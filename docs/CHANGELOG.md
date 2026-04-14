@@ -1,4 +1,26 @@
 
+## 2026-04-14 时区统一改造
+
+### 问题
+- 后台数据概览页面“今日订单”在 00:00-08:00 显示为 0
+- orders 表使用 `datetime('now')` 存储 UTC 时间，其他表存储北京时间，时区不一致
+- 前端多处使用 `+ 8h` 手动偏移和 `+ ' UTC'` 拼接，存在重复偏移 bug
+
+### 改造内容
+- **新增工具类**：`backend/utils/time.js`（后端）+ `admin/js/time-util.js`（前端）
+- **后端**：server.js 全部 60+ 处 `datetime()` 调用改为 `TimeUtil.nowDB()` 参数化
+- **前端**：7 个页面统一使用 `TimeUtil`，删除手动偏移和 `' UTC'` 拼接
+- **数据迁移**：orders / service_orders / table_action_orders 存量 UTC 时间转为北京时间
+- **同步脚本**：`sync-products.js` SQL 时间参数化
+
+### 修复结果
+- 后台数据概览“今日订单”正常显示（测试：11 条）
+- 所有表时间字段统一为北京时间 `YYYY-MM-DD HH:MM:SS`
+- 前端页面全部正确加载，无 JavaScript 错误
+- 单元测试 32/32 通过
+
+---
+
 ## 2026-04-11 台桌选择器优化 + 助教台桌号一致性检查
 
 ### 需求1：台桌选择后统一更新 storage

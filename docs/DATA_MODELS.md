@@ -12,6 +12,49 @@
 
 ---
 
+## 时间与时区规范
+
+### 存储格式
+
+- **数据库所有时间字段**（`created_at`、`updated_at` 等）统一存储为 **北京时间**（Asia/Shanghai, UTC+8）
+- **格式**：`YYYY-MM-DD HH:MM:SS`（纯文本，无时区标记）
+- **示例**：`2026-04-14 08:30:00`（表示北京时间 8:30）
+
+### 时间生成
+
+- **禁止**在 SQL 中使用 `datetime('now')` 或 `datetime('now', 'localtime')`
+- **统一**使用 Node.js 工具类生成时间，作为参数传入 SQL
+
+```javascript
+// 后端: backend/utils/time.js
+const TimeUtil = require('./utils/time');
+const time = TimeUtil.nowDB();       // "2026-04-14 08:30:00"
+const time5hAgo = TimeUtil.offsetDB(-5);  // 5小时前
+const today = TimeUtil.todayStr();   // "2026-04-14"
+```
+
+### 时间解析
+
+- 数据库中的时间字符串解析为 JavaScript Date 时，**必须**显式指定 `+08:00` 时区：
+```javascript
+const d = new Date(dbTime + '+08:00');
+```
+
+### 历史数据
+
+- **2026-04-14 数据迁移**：orders、service_orders、table_action_orders 三张表的存量 UTC 时间已统一转为北京时间
+- 迁移后所有表时间字段均为北京时间，格式一致
+
+### 容器时区
+
+- Docker 容器环境变量：`TZ=Asia/Shanghai`
+- 服务器时区：`Asia/Shanghai`（CST, UTC+8）
+
+> **注意**：虽然容器和服务器时区已设为 Asia/Shanghai，但代码中所有时间操作仍通过工具类进行，
+> 不依赖系统时区设置，确保在任何环境下行为一致。
+
+---
+
 ## 数据表一览
 
 | 表名 | 说明 | 主键 |

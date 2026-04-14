@@ -817,8 +817,11 @@
   | 参数 | 类型 | 必填 | 说明 |
   |------|------|------|------|
   | status | string | 否 | 状态筛选（待处理/已完成/已取消/全部），不传时默认排除已取消 |
-  | date | string | 否 | 日期过滤（格式：YYYY-MM-DD），按 `DATE(created_at)` 匹配 |
+  | date | string | 否 | 日期过滤（格式：YYYY-MM-DD），按 `DATE(created_at)` 匹配（**北京时间**） |
 - **说明**: 获取订单列表，支持按状态和日期过滤。**2026-04-13 更新**：新增 `date` 参数；不传 `status` 时默认排除已取消订单。
+
+> **时区说明**：所有时间字段（`created_at`、`updated_at`）存储为北京时间（Asia/Shanghai, UTC+8）。
+> 日期过滤参数 `date` 按北京时间解析。API 返回的时间格式为 `YYYY-MM-DD HH:MM:SS`（北京时间）。
 
 #### 取消订单中的单个商品
 
