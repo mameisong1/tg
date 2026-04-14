@@ -30,25 +30,6 @@
         </view>
       </view>
 
-      <!-- 定时自动开灯启停卡片 -->
-      <view class="card auto-on-card">
-        <view class="card-header">
-          <text class="card-icon">🌅</text>
-          <text class="card-title">定时自动开灯功能</text>
-        </view>
-        <view class="card-body">
-          <view class="toggle-row" @click="toggleAutoOn">
-            <text class="toggle-status" :class="autoOnEnabled ? 'on' : 'off'">
-              {{ autoOnEnabled ? '已开启' : '已关闭' }}
-            </text>
-            <view class="toggle-switch" :class="{ active: autoOnEnabled }">
-              <view class="toggle-thumb"></view>
-            </view>
-          </view>
-          <text class="toggle-desc">开启后，空闲台桌在开灯时段内将自动开灯（每5分钟检查一次，支持跨午夜时段）</text>
-        </view>
-      </view>
-
       <!-- 快捷场景卡片 -->
       <view class="card scene-card" v-if="scenes.length > 0">
         <view class="card-header">
@@ -154,7 +135,6 @@ import { onLoad } from '@dcloudio/uni-app'
 
 const statusBarHeight = ref(20)
 const autoOffEnabled = ref(false)
-const autoOnEnabled = ref(false)
 const scenes = ref([])
 const labels = ref([])
 const labelNames = computed(() => labels.value.map(l => l.switch_label))
@@ -348,13 +328,6 @@ async function toggleAutoOff() {
   showConfirm.value = true
 }
 
-async function toggleAutoOn() {
-  const action = autoOnEnabled.value ? '关闭' : '开启'
-  confirmText.value = `确认${action}定时自动开灯功能？`
-  pendingAction = 'toggleAutoOn'
-  showConfirm.value = true
-}
-
 function executeScene(scene) {
   console.log('[执行场景]', scene.scene_name, scene.action, 'id:', scene.id)
   confirmText.value = `确认执行场景"${scene.scene_name}"？（${scene.action === 'ON' ? '开灯' : '关灯'}）`
@@ -384,10 +357,6 @@ async function confirmAction() {
       await apiRequest('/switch/auto-off-toggle', 'POST')
       autoOffEnabled.value = !autoOffEnabled.value
       uni.showToast({ title: autoOffEnabled.value ? '已开启' : '已关闭', icon: 'success' })
-    } else if (action === 'toggleAutoOn') {
-      await apiRequest('/switch/auto-on-toggle', 'POST')
-      autoOnEnabled.value = !autoOnEnabled.value
-      uni.showToast({ title: autoOnEnabled.value ? '已开启' : '已关闭', icon: 'success' })
     } else if (action.type === 'scene') {
       const scene = action.scene
       console.log('[场景执行] scene.id:', scene.id, 'scene.action:', scene.action)

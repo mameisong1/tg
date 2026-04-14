@@ -15,7 +15,6 @@ const { all, get, run, enqueueRun, runInTransaction } = require('../db/index');
 const { requireBackendPermission } = require('../middleware/permission');
 const { sendBatchCommand, executeScene, controlByLabel, controlByTable } = require('../services/mqtt-switch');
 const { executeAutoOffLighting } = require('../services/auto-off-lighting');
-const { executeAutoOnLighting } = require('../services/auto-on-lighting');
 
 // ============================================================
 // 前台权限中间件 - 仅店长/助教管理/管理员
@@ -263,10 +262,8 @@ router.delete('/api/admin/switch-scenes/:id', requireBackendPermission(['vipRoom
 router.get('/api/switch/auto-status', requireSwitchPermission, async (req, res) => {
   try {
     const offSetting = await get("SELECT value FROM system_settings WHERE key = 'switch_auto_off_enabled'");
-    const onSetting = await get("SELECT value FROM system_settings WHERE key = 'switch_auto_on_enabled'");
     res.json({
-      auto_off_enabled: offSetting?.value === '1',
-      auto_on_enabled: onSetting?.value === '1'
+      auto_off_enabled: offSetting?.value === '1'
     });
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
@@ -281,22 +278,6 @@ router.post('/api/switch/auto-off-toggle', requireSwitchPermission, async (req, 
     const now = TimeUtil.nowDB();
     await enqueueRun(
       `INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES ('switch_auto_off_enabled', ?, ?)`,
-      [newValue, now]
-    );
-    res.json({ success: true, enabled: newValue === '1' });
-  } catch (err) {
-    res.status(500).json({ error: '服务器错误' });
-  }
-});
-
-// 切换定时自动开灯启停
-router.post('/api/switch/auto-on-toggle', requireSwitchPermission, async (req, res) => {
-  try {
-    const current = await get("SELECT value FROM system_settings WHERE key = 'switch_auto_on_enabled'");
-    const newValue = current?.value === '1' ? '0' : '1';
-    const now = TimeUtil.nowDB();
-    await enqueueRun(
-      `INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES ('switch_auto_on_enabled', ?, ?)`,
       [newValue, now]
     );
     res.json({ success: true, enabled: newValue === '1' });

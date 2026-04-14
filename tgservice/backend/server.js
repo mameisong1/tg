@@ -4389,21 +4389,6 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: '服务器内部错误' });
 });
 
-// ============================================================
-// 定时自动开灯 - Cron 任务（每5分钟执行一次）
-// ============================================================
-const { executeAutoOnLighting } = require('./services/auto-on-lighting');
-
-// 每5分钟执行一次定时自动开灯检查
-setInterval(async () => {
-  try {
-    await executeAutoOnLighting();
-  } catch (err) {
-    logger.error(`[定时自动开灯] 执行失败: ${err.message}`);
-  }
-}, 5 * 60 * 1000);
-console.log('[定时自动开灯] 已注册定时任务（每5分钟执行一次）');
-
 // 启动服务器
 const PORT = process.env.PORT || config.server.port || 8081;
 app.listen(PORT, () => {
