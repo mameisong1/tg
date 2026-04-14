@@ -184,11 +184,38 @@ async function controlByLabel(label, action) {
   return sendBatchCommand(devices, action);
 }
 
+/**
+ * 按台桌批量控制开关
+ * @param {string} tableNameEn - 台桌英文名（如 putai1, vip1, boss1）
+ * @param {string} action - 'ON' 或 'OFF'
+ */
+async function controlByTable(tableNameEn, action) {
+  const { all } = require('../db/index');
+
+  // 查询该台桌关联的所有开关
+  const devices = await all(
+    'SELECT DISTINCT sd.switch_id, sd.switch_seq ' +
+    'FROM table_device td ' +
+    'JOIN switch_device sd ON td.switch_seq = sd.switch_seq AND td.switch_label = sd.switch_label ' +
+    'WHERE td.table_name_en = ?',
+    [tableNameEn]
+  );
+
+  if (devices.length === 0) {
+    console.warn(`[MQTT] 台桌 "${tableNameEn}" 下没有关联开关`);
+    return 0;
+  }
+
+  console.log(`[MQTT] 台桌控制: ${tableNameEn}, 找到 ${devices.length} 个开关, action=${action}`);
+  return sendBatchCommand(devices, action);
+}
+
 module.exports = {
   getClient,
   sendSwitchCommand,
   sendBatchCommand,
   executeScene,
   controlByLabel,
+  controlByTable,
   isTestEnv
 };

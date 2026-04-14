@@ -13,7 +13,7 @@ const router = express.Router();
 const TimeUtil = require('../utils/time');
 const { all, get, run, enqueueRun, runInTransaction } = require('../db/index');
 const { requireBackendPermission } = require('../middleware/permission');
-const { sendBatchCommand, executeScene, controlByLabel } = require('../services/mqtt-switch');
+const { sendBatchCommand, executeScene, controlByLabel, controlByTable } = require('../services/mqtt-switch');
 const { executeAutoOffLighting } = require('../services/auto-off-lighting');
 const { executeAutoOnLighting } = require('../services/auto-on-lighting');
 
@@ -354,6 +354,68 @@ router.get('/api/switch/scenes', requireSwitchPermission, async (req, res) => {
   try {
     const rows = await all('SELECT * FROM switch_scene ORDER BY sort_order, id');
     res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 获取台桌列表及其关联开关（前台用）
+router.get('/api/switch/tables', requireSwitchPermission, async (req, res) => {
+  try {
+    const tableDevices = await all(
+      'SELECT td.table_name_en, td.switch_seq, td.switch_label, sd.switch_id, sd.switch_label AS device_label ' +
+      'FROM table_device td LEFT JOIN switch_device sd ON td.switch_seq = sd.switch_seq AND td.switch_label = sd.switch_label ' +
+      'ORDER BY td.table_name_en'
+    );
+
+    const tableMap = {};
+    for (const td of tableDevices) {
+      if (!tableMap[td.table_name_en]) {
+        tableMap[td.table_name_en] = {
+          table_name_en: td.table_name_en,
+          switches: []
+        };
+      }
+      if (td.switch_id) {
+        tableMap[td.table_name_en].switches.push({
+          switch_id: td.switch_id,
+          switch_seq: td.switch_seq
+        });
+      }
+    }
+
+    const tables = await all('SELECT name, area FROM tables ORDER BY area, name');
+    const tableInfoMap = {};
+    for (const t of tables) {
+      tableInfoMap[t.name.toLowerCase()] = { name: t.name, area: t.area };
+    }
+
+    const result = [];
+    for (const [key, table] of Object.entries(tableMap)) {
+      const info = tableInfoMap[key] || { name: key, area: '' };
+      result.push({
+        table_name_en: key,
+        table_name_cn: info.name,
+        area: info.area,
+        switches: table.switches
+      });
+    }
+
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 按台桌控制开关
+router.post('/api/switch/table-control', requireSwitchPermission, async (req, res) => {
+  try {
+    const { table_name_en, action } = req.body;
+    if (!table_name_en || !action) return res.status(400).json({ error: '缺少参数' });
+    if (!['ON', 'OFF'].includes(action)) return res.status(400).json({ error: '动作只能是 ON 或 OFF' });
+
+    const successCount = await controlByTable(table_name_en, action);
+    res.json({ success: true, count: successCount, table_name_en });
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
   }

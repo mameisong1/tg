@@ -69,6 +69,33 @@
         </view>
       </view>
 
+      <!-- 台桌控制卡片 -->
+      <view class="card table-card">
+        <view class="card-header">
+          <text class="card-icon">🎱</text>
+          <text class="card-title">台桌控制</text>
+        </view>
+        <view class="card-body">
+          <!-- 区域筛选 -->
+          <scroll-view class="area-scroll" scroll-x>
+            <view class="area-btns">
+              <view class="area-btn" :class="{ active: selectedArea === '全部' }" @click="selectArea('全部')">
+                <text>全部</text>
+              </view>
+              <view class="area-btn" v-for="area in areas" :key="area" :class="{ active: selectedArea === area }" @click="selectArea(area)">
+                <text>{{ area }}</text>
+              </view>
+            </view>
+          </scroll-view>
+          <!-- 台桌网格 -->
+          <view class="table-grid">
+            <view class="table-btn" v-for="t in filteredTables" :key="t.table_name_en" @click="selectTable(t)">
+              <text class="table-btn-text">{{ t.table_name_cn }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
       <!-- 标签控制卡片 -->
       <view class="card label-card">
         <view class="card-header">
@@ -94,7 +121,7 @@
       </view>
     </scroll-view>
 
-    <!-- 操作确认弹窗 -->
+    <!-- 操作确认弹窗（场景/标签） -->
     <view class="confirm-overlay" v-if="showConfirm" @click="closeConfirm">
       <view class="confirm-box" @click.stop>
         <text class="confirm-title">确认操作</text>
@@ -102,6 +129,19 @@
         <view class="confirm-buttons">
           <view class="confirm-btn cancel" @click="closeConfirm"><text>取消</text></view>
           <view class="confirm-btn ok" @click="confirmAction"><text>确认</text></view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 台桌控制弹窗 -->
+    <view class="confirm-overlay" v-if="showTableConfirm" @click="closeTableConfirm">
+      <view class="confirm-box table-confirm" @click.stop>
+        <text class="confirm-title">{{ selectedTable?.table_name_cn || '' }}</text>
+        <text class="confirm-text">选择操作</text>
+        <view class="confirm-buttons">
+          <view class="confirm-btn cancel" @click="closeTableConfirm"><text>取消</text></view>
+          <view class="confirm-btn ok btn-on-action" @click="tableControlAction('ON')"><text>💡 开灯</text></view>
+          <view class="confirm-btn cancel btn-off-action" @click="tableControlAction('OFF')"><text>🌙 关灯</text></view>
         </view>
       </view>
     </view>
@@ -123,6 +163,17 @@ const selectedLabel = ref('')
 const showConfirm = ref(false)
 const confirmText = ref('')
 let pendingAction = null
+
+// 台桌控制
+const tables = ref([])
+const areas = computed(() => [...new Set(tables.value.map(t => t.area).filter(Boolean))])
+const selectedArea = ref('全部')
+const filteredTables = computed(() => {
+  if (selectedArea.value === '全部') return tables.value
+  return tables.value.filter(t => t.area === selectedArea.value)
+})
+const showTableConfirm = ref(false)
+const selectedTable = ref(null)
 
 onLoad(() => {
   const systemInfo = uni.getSystemInfoSync()
@@ -217,7 +268,7 @@ async function apiRequest(url, method = 'GET', data = null) {
 }
 
 async function loadAllData() {
-  await Promise.all([loadAutoStatus(), loadScenes(), loadLabels()])
+  await Promise.all([loadAutoStatus(), loadScenes(), loadLabels(), loadTables()])
 }
 
 async function loadAutoStatus() {
@@ -240,6 +291,54 @@ async function loadLabels() {
     const res = await apiRequest('/switch/labels')
     labels.value = res || []
   } catch (e) { /* ignore */ }
+}
+
+async function loadTables() {
+  try {
+    const res = await apiRequest('/switch/tables')
+    tables.value = res || []
+    console.log('[台桌列表] 加载', tables.value.length, '个台桌')
+  } catch (e) { console.error('[台桌列表] 加载失败', e) }
+}
+
+// 区域筛选
+function selectArea(area) {
+  selectedArea.value = area
+  console.log('[区域筛选]', area)
+}
+
+// 选择台桌
+function selectTable(table) {
+  console.log('[选择台桌]', table.table_name_cn, table.table_name_en, '开关数:', table.switches?.length)
+  if (!table.switches || table.switches.length === 0) {
+    uni.showToast({ title: '该台桌未关联开关设备', icon: 'none' })
+    return
+  }
+  selectedTable.value = table
+  showTableConfirm.value = true
+}
+
+function closeTableConfirm() {
+  showTableConfirm.value = false
+  selectedTable.value = null
+}
+
+async function tableControlAction(action) {
+  const table = selectedTable.value
+  if (!table) return
+  closeTableConfirm()
+  try {
+    console.log('[台桌控制]', table.table_name_cn, table.table_name_en, action)
+    await apiRequest('/switch/table-control', 'POST', {
+      table_name_en: table.table_name_en,
+      action
+    })
+    uni.showToast({ title: `${table.table_name_cn} ${action === 'ON' ? '开灯' : '关灯'}成功`, icon: 'success' })
+  } catch (e) {
+    console.error('[台桌控制异常]', e)
+    reportError('tableControl', e, { table_name_en: table.table_name_en, action })
+    uni.showToast({ title: e.message || '操作失败', icon: 'none' })
+  }
 }
 
 async function toggleAutoOff() {
@@ -317,7 +416,12 @@ function closeConfirm() {
 }
 
 function goBack() {
-  uni.navigateBack()
+  const pages = getCurrentPages()
+  if (pages.length > 1) {
+    uni.navigateBack()
+  } else {
+    uni.switchTab({ url: '/pages/member/member' })
+  }
 }
 </script>
 
@@ -394,6 +498,32 @@ function goBack() {
 .scene-btn:active { transform: scale(0.96); }
 .scene-btn-icon { font-size: 24px; }
 .scene-btn-text { font-size: 14px; }
+
+/* 标签选择器 */
+.area-scroll { overflow-x: auto; margin-bottom: 12px; }
+.area-btns { display: flex; gap: 8px; padding-bottom: 4px; }
+.area-btn {
+  flex-shrink: 0; padding: 6px 14px; border-radius: 16px;
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);
+  font-size: 13px; color: rgba(255,255,255,0.7);
+}
+.area-btn.active {
+  background: rgba(218,165,32,0.25); border-color: rgba(218,165,32,0.5); color: #d4af37;
+}
+.area-btn text { white-space: nowrap; }
+
+.table-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.table-btn {
+  padding: 10px 12px; border-radius: 8px;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+  min-width: calc(25% - 6px); text-align: center;
+}
+.table-btn:active { transform: scale(0.95); }
+.table-btn-text { font-size: 13px; color: #fff; white-space: nowrap; }
+
+.table-confirm .confirm-buttons { flex-wrap: wrap; gap: 8px; }
+.btn-on-action { background: rgba(218,165,32,0.3) !important; color: #d4af37 !important; }
+.btn-off-action { background: rgba(100,100,150,0.3) !important; color: #aaa !important; }
 
 /* 标签选择器 */
 .label-picker {
