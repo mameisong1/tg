@@ -368,6 +368,30 @@ router.get('/api/switch/tables', requireSwitchPermission, async (req, res) => {
       'ORDER BY td.table_name_en'
     );
 
+    // 中英文台桌名映射
+    const nameMap = {
+      'boss1': { name: 'BOSS1', area: '包厢区' },
+      'boss2': { name: 'BOSS2', area: '包厢区' },
+      'boss3': { name: 'BOSS3', area: '包厢区' },
+      'vip1': { name: 'VIP1', area: '包厢区' },
+      'vip2': { name: 'VIP2', area: '包厢区' },
+      'vip3': { name: 'VIP3', area: '包厢区' },
+      'vip5': { name: 'VIP5', area: '包厢区' },
+      'vip6': { name: 'VIP6', area: '包厢区' },
+      'vip7': { name: 'VIP7', area: '包厢区' },
+      'vip8': { name: 'VIP8', area: '包厢区' },
+      'tvtai': { name: 'TV台', area: 'TV区' },
+      'sinuoke30': { name: '斯诺克30', area: '斯诺克区' },
+      'sinuoke31': { name: '斯诺克31', area: '斯诺克区' },
+      'que1': { name: '雀1', area: '棋牌区' },
+      'que2': { name: '雀2', area: '棋牌区' },
+    };
+    // 普台1-30 映射
+    for (let i = 1; i <= 30; i++) {
+      nameMap['putai' + i] = { name: '普台' + i, area: '大厅区' };
+    }
+
+    // 按台桌分组
     const tableMap = {};
     for (const td of tableDevices) {
       if (!tableMap[td.table_name_en]) {
@@ -384,15 +408,10 @@ router.get('/api/switch/tables', requireSwitchPermission, async (req, res) => {
       }
     }
 
-    const tables = await all('SELECT name, area FROM tables ORDER BY area, name');
-    const tableInfoMap = {};
-    for (const t of tables) {
-      tableInfoMap[t.name.toLowerCase()] = { name: t.name, area: t.area };
-    }
-
+    // 合并数据
     const result = [];
     for (const [key, table] of Object.entries(tableMap)) {
-      const info = tableInfoMap[key] || { name: key, area: '' };
+      const info = nameMap[key] || { name: key, area: '' };
       result.push({
         table_name_en: key,
         table_name_cn: info.name,
