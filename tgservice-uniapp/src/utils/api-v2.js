@@ -130,6 +130,20 @@ export const authV2 = {
   checkPermission: (phone) => request({ url: `/auth/check-permission?phone=${phone}` })
 }
 
+// ========== 乐捐记录 ==========
+export const lejuanRecords = {
+  // 提交乐捐报备
+  create: (data) => request({ url: '/lejuan-records', method: 'POST', data }),
+  // 我的乐捐记录（近2天）
+  getMyList: (params) => request({ url: '/lejuan-records/my', data: params }),
+  // 提交/修改付款截图
+  updateProof: (id, data) => request({ url: `/lejuan-records/${id}/proof`, method: 'PUT', data }),
+  // 乐捐一览（管理）
+  getList: (params) => request({ url: '/lejuan-records/list', data: params }),
+  // 乐捐归来（管理）
+  returnRecord: (id, data) => request({ url: `/lejuan-records/${id}/return`, method: 'POST', data }),
+}
+
 export default {
   waterBoards,
   serviceOrders,
@@ -138,5 +152,6 @@ export default {
   guestInvitations,
   coachesV2,
   operationLogs,
-  authV2
+  authV2,
+  lejuanRecords
 }

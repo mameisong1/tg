@@ -244,6 +244,15 @@
       }
     },
     {
+      "path": "pages/internal/lejuan-proof",
+      "style": {
+        "navigationBarTitleText": "提交付款截图",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/internal/invitation-review",
       "style": {
         "navigationBarTitleText": "约客审查",
