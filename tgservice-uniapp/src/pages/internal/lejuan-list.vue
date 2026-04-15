@@ -226,10 +226,10 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .stat-returned .stat-num { color: #2ecc71; }
 
 /* 筛选栏 */
-.filter-bar { display: flex; gap: 10px; padding: 0 16px 12px; align-items: center; }
-.filter-picker { flex: 1; height: 36px; display: flex; align-items: center; justify-content: center; gap: 6px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; }
-.filter-text { font-size: 13px; color: rgba(255,255,255,0.8); }
-.filter-arrow { font-size: 10px; color: rgba(255,255,255,0.3); }
+.filter-bar { display: flex; gap: 8px; padding: 0 16px 12px; align-items: center; }
+.filter-picker { flex: 1; height: 36px; display: flex; align-items: center; justify-content: center; gap: 4px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; overflow: hidden; padding: 0 8px; min-width: 0; }
+.filter-text { font-size: 13px; color: rgba(255,255,255,0.8); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.filter-arrow { font-size: 10px; color: rgba(255,255,255,0.3); flex-shrink: 0; }
 .filter-refresh { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: rgba(212,175,55,0.15); border: 1px solid rgba(212,175,55,0.3); border-radius: 8px; }
 .refresh-icon { font-size: 18px; color: #d4af37; }
 
