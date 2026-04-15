@@ -29,7 +29,9 @@
             <image class="coach-avatar" :src="getAvatar(coach)" mode="aspectFill" />
             <text class="coach-id">{{ coach.employee_id || coach.coach_no }}</text>
             <text class="coach-name">{{ coach.stage_name }}</text>
-            <text class="coach-table" v-if="coach.table_no">{{ coach.table_no }}</text>
+            <view class="coach-table-tags" v-if="coach.table_no_list && coach.table_no_list.length">
+              <text class="coach-table-tag" v-for="(t, i) in coach.table_no_list" :key="i">{{ t }}</text>
+            </view>
           </view>
         </view>
       </view>
@@ -49,7 +51,9 @@
               <image class="expand-avatar" :src="getAvatar(coach)" mode="aspectFill" />
               <text class="expand-id">{{ coach.employee_id || coach.coach_no }}</text>
               <text class="expand-name">{{ coach.stage_name }}</text>
-              <text class="expand-table" v-if="coach.table_no">{{ coach.table_no }}</text>
+              <view class="expand-table-tags" v-if="coach.table_no_list && coach.table_no_list.length">
+                <text class="expand-table-tag" v-for="(t, i) in coach.table_no_list" :key="i">{{ t }}</text>
+              </view>
             </view>
           </view>
         </scroll-view>
@@ -222,7 +226,8 @@ const closeExpand = () => {
 }
 .coach-id { font-size: 12px; color: #d4af37; font-weight: 600; }
 .coach-name { font-size: 12px; color: rgba(255,255,255,0.8); text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 72px; }
-.coach-table { font-size: 10px; color: rgba(255,255,255,0.4); }
+.coach-table-tags { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; margin-top: 2px; }
+.coach-table-tag { font-size: 10px; color: #d4af37; background: rgba(212,175,55,0.12); border-radius: 4px; padding: 1px 4px; }
 
 /* 状态颜色 */
 .status-section[data-status="早班上桌"] { border-color: rgba(52,152,219,0.3); }
@@ -263,7 +268,8 @@ const closeExpand = () => {
 .expand-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(218,165,32,0.3); margin-bottom: 6px; }
 .expand-id { font-size: 12px; color: #d4af37; font-weight: 600; }
 .expand-name { font-size: 12px; color: rgba(255,255,255,0.8); text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90px; }
-.expand-table { font-size: 11px; color: rgba(255,255,255,0.5); }
+.expand-table-tags { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 4px; }
+.expand-table-tag { font-size: 10px; color: #d4af37; background: rgba(212,175,55,0.12); border-radius: 4px; padding: 1px 5px; }
 
 /* === 窄屏响应式优化 === */
 
@@ -276,7 +282,8 @@ const closeExpand = () => {
   .coach-avatar { width: 40px; height: 40px; }
   .coach-id { font-size: 11px; }
   .coach-name { font-size: 11px; max-width: 60px; }
-  .coach-table { font-size: 9px; }
+  .coach-table-tags { gap: 2px; }
+  .coach-table-tag { font-size: 8px; padding: 1px 3px; }
   .status-section { padding: 8px; margin-bottom: 8px; }
 }
 
@@ -289,7 +296,7 @@ const closeExpand = () => {
   .coach-avatar { width: 34px; height: 34px; border-width: 1px; }
   .coach-id { font-size: 10px; }
   .coach-name { font-size: 10px; max-width: 52px; }
-  .coach-table { font-size: 8px; }
+  .coach-table-tag { font-size: 7px; padding: 0 2px; }
   .board-list { padding: 0 8px 8px; }
 }
 </style>

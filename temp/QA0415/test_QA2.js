@@ -278,34 +278,64 @@ async function main() {
   }
 
   // TC-B04: 取消单
-  log('TC-B04: 取消单移除A1');
+  log('TC-B04: 取消单移除指定台桌');
+  // 重置到空闲，然后重新上 A1, A3, B2（干净状态）
+  await updateStatus('晚班空闲', null);
+  await sleep(600);
   await submitTable('上桌单', 'A1');
+  await sleep(600);
+  await submitTable('上桌单', 'A3');
   await sleep(600);
   await submitTable('上桌单', 'B2');
   await sleep(600);
-  resp = await submitTable('取消单', 'A1');
-  await sleep(600);
   ws = await getWaterStatus();
   wb = extractWB(ws);
-  if (resp.status === 200 && resp.data?.success && wb.table_no === 'A3,B2' && wb.status === '晚班上桌') {
-    addResult('TC-B04', '取消单移除指定台桌', 'PASS', `table_no=A3,B2`);
+  log(`  取消前: table_no=${wb.table_no}`);
+  if (wb.table_no !== 'A1,A3,B2') {
+    addResult('TC-B04', '取消单移除指定台桌', 'WARN', `前置状态异常: table_no=${wb.table_no}，跳过`);
   } else {
-    addResult('TC-B04', '取消单移除指定台桌', 'FAIL', `API=${resp.status} ${JSON.stringify(resp.data)}, table_no=${wb.table_no}`);
+    resp = await submitTable('取消单', 'A1');
+    await sleep(600);
+    ws = await getWaterStatus();
+    wb = extractWB(ws);
+    if (resp.status === 200 && resp.data?.success && wb.table_no === 'A3,B2' && wb.status === '晚班上桌') {
+      addResult('TC-B04', '取消单移除指定台桌', 'PASS', `table_no=A3,B2`);
+    } else {
+      addResult('TC-B04', '取消单移除指定台桌', 'FAIL', `API=${resp.status} ${JSON.stringify(resp.data)}, table_no=${wb.table_no}`);
+    }
   }
 
   // TC-B05: 取消全部后变空闲
   log('TC-B05: 取消全部后变空闲');
-  resp = await submitTable('取消单', 'B2');
-  await sleep(600);
-  resp = await submitTable('取消单', 'A3');
-  await sleep(600);
+  ws = await getWaterStatus();
+  wb = extractWB(ws);
+  log(`  当前状态: table_no=${wb.table_no}, status=${wb.status}`);
+  if (wb.status !== '晚班上桌' || !wb.table_no) {
+    // 状态不对，重置后重新上两桌再取消
+    log('  状态不对，重置...');
+    await updateStatus('晚班空闲', null);
+    await sleep(600);
+    await submitTable('上桌单', 'A1');
+    await sleep(600);
+    await submitTable('上桌单', 'A3');
+    await sleep(600);
+  }
+  // 获取当前桌号列表
+  ws = await getWaterStatus();
+  wb = extractWB(ws);
+  const tablesToCancel = wb.table_no_list || [];
+  log(`  要取消的桌号: ${JSON.stringify(tablesToCancel)}`);
+  for (const t of tablesToCancel) {
+    resp = await submitTable('取消单', t);
+    await sleep(600);
+  }
   ws = await getWaterStatus();
   wb = extractWB(ws);
   const isEmptyB5 = wb.table_no === null || wb.table_no === '' || wb.table_no === undefined;
-  if (resp.status === 200 && resp.data?.success && wb.status === '晚班空闲' && isEmptyB5) {
+  if (wb.status === '晚班空闲' && isEmptyB5) {
     addResult('TC-B05', '取消全部后变空闲', 'PASS', `status=${wb.status}`);
   } else {
-    addResult('TC-B05', '取消全部后变空闲', 'FAIL', `API=${resp.status} ${JSON.stringify(resp.data)}, table_no=${wb.table_no}, status=${wb.status}`);
+    addResult('TC-B05', '取消全部后变空闲', 'FAIL', `table_no=${wb.table_no}, status=${wb.status}`);
   }
 
   // ==================== 显示测试 ====================

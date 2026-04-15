@@ -22,7 +22,12 @@
       <view class="status-badge" :class="statusClass(waterBoard.status)">
         <text>{{ waterBoard.status }}</text>
       </view>
-      <text class="table-info" v-if="waterBoard.table_no">台桌: {{ waterBoard.table_no }}</text>
+      <template v-if="waterBoard.table_no_list && waterBoard.table_no_list.length">
+        <text class="table-info-label">台桌</text>
+        <view class="table-tags">
+          <text class="table-tag" v-for="(t, i) in waterBoard.table_no_list" :key="i">{{ t }}</text>
+        </view>
+      </template>
     </view>
 
     <!-- 操作选项卡 -->
@@ -243,7 +248,9 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .status-on-table { background: rgba(46,204,113,0.2); border: 1px solid rgba(46,204,113,0.3); color: #2ecc71; }
 .status-free { background: rgba(52,152,219,0.2); border: 1px solid rgba(52,152,219,0.3); color: #3498db; }
 .status-other { background: rgba(241,196,15,0.2); border: 1px solid rgba(241,196,15,0.3); color: #f1c40f; }
-.table-info { font-size: 13px; color: rgba(255,255,255,0.4); display: block; margin-top: 6px; }
+.table-info-label { font-size: 13px; color: rgba(255,255,255,0.5); display: block; margin-bottom: 6px; }
+.table-tags { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.table-tag { font-size: 13px; font-weight: 600; color: #d4af37; background: rgba(212,175,55,0.15); border: 1px solid rgba(212,175,55,0.3); border-radius: 8px; padding: 3px 10px; }
 
 .tabs { display: flex; padding: 0 16px; gap: 8px; margin-bottom: 16px; }
 .tab { flex: 1; height: 40px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: rgba(255,255,255,0.6); }

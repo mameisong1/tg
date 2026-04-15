@@ -29,7 +29,9 @@
             <image class="coach-chip-avatar" :src="getCoachPhoto(coach)" mode="aspectFill" />
             <text class="coach-chip-id">{{ coach.employee_id || coach.coach_no }}</text>
             <text class="coach-chip-name">{{ coach.stage_name }}</text>
-            <text class="coach-chip-table" v-if="coach.table_no">{{ coach.table_no }}</text>
+            <view class="coach-chip-table-tags" v-if="coach.table_no_list && coach.table_no_list.length">
+              <text class="coach-chip-table-tag" v-for="(t, i) in coach.table_no_list" :key="i">{{ t }}</text>
+            </view>
           </view>
           <view class="empty-chip" v-if="group.coaches.length === 0"><text>暂无</text></view>
         </view>
@@ -50,7 +52,9 @@
               <image class="expand-avatar" :src="getCoachPhoto(coach)" mode="aspectFill" />
               <text class="expand-id">{{ coach.employee_id || coach.coach_no }}</text>
               <text class="expand-name">{{ coach.stage_name }}</text>
-              <text class="expand-table" v-if="coach.table_no">{{ coach.table_no }}</text>
+              <view class="expand-table-tags" v-if="coach.table_no_list && coach.table_no_list.length">
+                <text class="expand-table-tag" v-for="(t, i) in coach.table_no_list" :key="i">{{ t }}</text>
+              </view>
             </view>
           </view>
         </scroll-view>
@@ -323,7 +327,8 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .coach-chip-avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(218,165,32,0.3); margin-bottom: 4px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; pointer-events: none; }
 .coach-chip-id { font-size: 12px; color: #d4af37; font-weight: 600; user-select: none; -webkit-user-select: none; pointer-events: none; }
 .coach-chip-name { font-size: 12px; color: rgba(255,255,255,0.8); text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 72px; user-select: none; -webkit-user-select: none; pointer-events: none; }
-.coach-chip-table { font-size: 10px; color: rgba(255,255,255,0.4); user-select: none; -webkit-user-select: none; pointer-events: none; }
+.coach-chip-table-tags { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; margin-top: 2px; }
+.coach-chip-table-tag { font-size: 9px; color: #d4af37; background: rgba(212,175,55,0.12); border-radius: 4px; padding: 1px 4px; }
 .empty-chip { text-align: center; padding: 16px; color: rgba(255,255,255,0.15); font-size: 12px; }
 
 /* 分段放大弹窗 */
@@ -338,7 +343,8 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .expand-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(218,165,32,0.3); margin-bottom: 6px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; pointer-events: none; }
 .expand-id { font-size: 12px; color: #d4af37; font-weight: 600; user-select: none; -webkit-user-select: none; pointer-events: none; }
 .expand-name { font-size: 12px; color: rgba(255,255,255,0.8); text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90px; user-select: none; -webkit-user-select: none; pointer-events: none; }
-.expand-table { font-size: 11px; color: rgba(255,255,255,0.5); user-select: none; -webkit-user-select: none; pointer-events: none; }
+.expand-table-tags { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 4px; }
+.expand-table-tag { font-size: 10px; color: #d4af37; background: rgba(212,175,55,0.12); border-radius: 4px; padding: 1px 5px; }
 
 /* 修改状态弹窗 */
 .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; align-items: center; justify-content: center; }
@@ -363,7 +369,8 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
   .coach-chip-avatar { width: 40px; height: 40px; }
   .coach-chip-id { font-size: 11px; }
   .coach-chip-name { font-size: 11px; max-width: 60px; }
-  .coach-chip-table { font-size: 9px; }
+  .coach-chip-table-tags { gap: 2px; }
+  .coach-chip-table-tag { font-size: 8px; padding: 1px 3px; }
   .status-section { padding: 8px; margin-bottom: 8px; }
 }
 
@@ -376,7 +383,7 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
   .coach-chip-avatar { width: 34px; height: 34px; border-width: 1px; }
   .coach-chip-id { font-size: 10px; }
   .coach-chip-name { font-size: 10px; max-width: 52px; }
-  .coach-chip-table { font-size: 8px; }
+  .coach-chip-table-tag { font-size: 7px; padding: 0 2px; }
   .board-list { padding: 0 8px 8px; }
 }
 </style>

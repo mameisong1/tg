@@ -26,7 +26,12 @@
       <view class="status-badge" :class="statusClass(waterBoard.status)">
         <text>{{ waterBoard.status }}</text>
       </view>
-      <text class="table-info" v-if="waterBoard.table_no">台桌: {{ waterBoard.table_no }}</text>
+      <template v-if="waterBoard.table_no_list && waterBoard.table_no_list.length">
+        <text class="table-info-label">台桌</text>
+        <view class="table-tags">
+          <text class="table-tag" v-for="(t, i) in waterBoard.table_no_list" :key="i">{{ t }}</text>
+        </view>
+      </template>
     </view>
 
     <!-- 操作按钮 -->
@@ -163,7 +168,9 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .status-free { background: rgba(52,152,219,0.2); border: 1px solid rgba(52,152,219,0.3); color: #3498db; }
 .status-off { background: rgba(231,76,60,0.2); border: 1px solid rgba(231,76,60,0.3); color: #e74c3c; }
 .status-other { background: rgba(241,196,15,0.2); border: 1px solid rgba(241,196,15,0.3); color: #f1c40f; }
-.table-info { font-size: 13px; color: rgba(255,255,255,0.4); display: block; margin-top: 8px; }
+.table-info-label { font-size: 13px; color: rgba(255,255,255,0.5); display: block; margin-bottom: 6px; }
+.table-tags { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.table-tag { font-size: 13px; font-weight: 600; color: #d4af37; background: rgba(212,175,55,0.15); border: 1px solid rgba(212,175,55,0.3); border-radius: 8px; padding: 3px 10px; }
 
 .action-section { display: flex; gap: 16px; padding: 20px 16px; }
 .action-btn { flex: 1; height: 100px; border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
