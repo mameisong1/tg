@@ -90,9 +90,18 @@
         <text class="lj-remark" v-if="item.remark">{{ item.remark }}</text>
 
         <!-- 付款截图 -->
-        <view class="lj-proof" v-if="item.proof_image_url" @click="previewProof(item.proof_image_url)">
-          <text class="lj-proof-label">付款截图</text>
-          <image :src="item.proof_image_url" mode="aspectFill" class="lj-proof-thumb" />
+        <view class="lj-proof" v-if="getProofUrls(item).length > 0">
+          <text class="lj-proof-label">付款截图 ({{ getProofUrls(item).length }}张)</text>
+          <view class="proof-thumbs">
+            <image
+              v-for="(url, idx) in getProofUrls(item)"
+              :key="idx"
+              :src="url"
+              mode="aspectFill"
+              class="lj-proof-thumb"
+              @click="previewProofImages(item, idx)"
+            />
+          </view>
         </view>
 
       </view>
@@ -171,6 +180,23 @@ const formatTimeShort = (t) => {
   return t.replace('T', ' ').substring(5, 16)
 }
 
+// 解析 proof_image_url 为 URL 数组
+const getProofUrls = (item) => {
+  if (!item.proof_image_url) return []
+  try {
+    const parsed = JSON.parse(item.proof_image_url)
+    return Array.isArray(parsed) ? parsed : [item.proof_image_url]
+  } catch (e) {
+    return [item.proof_image_url]
+  }
+}
+
+// 预览多张截图
+const previewProofImages = (item, idx) => {
+  const urls = getProofUrls(item)
+  uni.previewImage({ urls, current: idx })
+}
+
 const previewProof = (url) => {
   uni.previewImage({ urls: [url] })
 }
@@ -231,8 +257,9 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .lj-remark { font-size: 12px; color: rgba(255,255,255,0.5); display: block; margin-bottom: 8px; line-height: 1.4; }
 
 /* 付款截图 */
-.lj-proof { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 8px; }
+.lj-proof { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 8px; }
 .lj-proof-label { font-size: 11px; color: rgba(255,255,255,0.4); }
+.proof-thumbs { display: flex; gap: 6px; margin-top: 4px; }
 .lj-proof-thumb { width: 50px; height: 50px; border-radius: 6px; }
 
 /* 操作按钮 */

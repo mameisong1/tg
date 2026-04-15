@@ -70,7 +70,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import api from '@/utils/api-v2.js'
 import { useImageUpload } from '@/utils/image-upload.js'
 import SuccessModal from '@/components/SuccessModal.vue'

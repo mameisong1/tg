@@ -59,7 +59,19 @@
           <text class="record-detail" v-if="rec.actual_start_time">生效: {{ rec.actual_start_time.substring(11, 16) }}</text>
           <text class="record-detail" v-if="rec.lejuan_hours !== null">外出: {{ rec.lejuan_hours }}小时</text>
           <text class="record-detail" v-if="rec.remark">{{ rec.remark }}</text>
-          <text class="record-detail" v-if="rec.proof_image_url">✅ 已传截图</text>
+          <view class="record-detail proof-images" v-if="getProofUrls(rec).length > 0">
+            <text>✅ 已传截图 ({{ getProofUrls(rec).length }}张)</text>
+            <view class="proof-thumbs">
+              <image
+                v-for="(url, idx) in getProofUrls(rec)"
+                :key="idx"
+                :src="url"
+                mode="aspectFill"
+                class="proof-thumb"
+                @click.stop="previewProofImages(rec, idx)"
+              />
+            </view>
+          </view>
           <text class="record-detail proof-hint" v-else-if="canUploadProof(rec)">📷 点击传截图</text>
         </view>
       </view>
@@ -224,10 +236,34 @@ const submitLejuan = async () => {
   }
 }
 
+// 解析 proof_image_url 为 URL 数组（兼容单URL和JSON数组）
+const getProofUrls = (rec) => {
+  if (!rec.proof_image_url) return []
+  try {
+    const parsed = JSON.parse(rec.proof_image_url)
+    return Array.isArray(parsed) ? parsed : [rec.proof_image_url]
+  } catch (e) {
+    return [rec.proof_image_url]
+  }
+}
+
+// 预览多张截图
+const previewProofImages = (rec, idx) => {
+  const urls = getProofUrls(rec)
+  uni.previewImage({ urls, current: idx })
+}
+
 const goToProof = (rec) => {
   if (rec.proof_image_url) {
     // 已有截图，预览
-    uni.previewImage({ urls: [rec.proof_image_url] })
+    let urls = []
+    try {
+      const parsed = JSON.parse(rec.proof_image_url)
+      urls = Array.isArray(parsed) ? parsed : [rec.proof_image_url]
+    } catch (e) {
+      urls = [rec.proof_image_url]
+    }
+    uni.previewImage({ urls })
     return
   }
   if (canUploadProof(rec)) {
@@ -289,4 +325,7 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .record-body { display: flex; flex-direction: column; gap: 4px; }
 .record-detail { font-size: 12px; color: rgba(255,255,255,0.4); }
 .proof-hint { color: #d4af37 !important; }
+.proof-images { display: flex; flex-direction: column; gap: 4px; }
+.proof-thumbs { display: flex; gap: 6px; margin-top: 4px; }
+.proof-thumb { width: 50px; height: 50px; border-radius: 6px; }
 </style>
