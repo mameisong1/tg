@@ -87,7 +87,16 @@ const REFRESH_INTERVAL = 30000 // 30秒
 // H5 环境下阻止浏览器长按菜单
 let contextmenuHandler = null
 let selectstartHandler = null
+// #endif
+
+// 合并 onMounted：所有环境共享初始化 + H5 长按阻止
 onMounted(() => {
+  const systemInfo = uni.getSystemInfoSync()
+  statusBarHeight.value = systemInfo.statusBarHeight || 20
+  const adminInfo = uni.getStorageSync('adminInfo') || {}
+  isEditable.value = ['店长', '助教管理'].includes(adminInfo.role)
+
+  // #ifdef H5
   // 在 capture 阶段捕获并阻止 contextmenu
   contextmenuHandler = (e) => {
     const chip = e.target.closest('.coach-chip, .expand-chip')
@@ -107,37 +116,27 @@ onMounted(() => {
   }
   document.addEventListener('contextmenu', contextmenuHandler, true)
   document.addEventListener('selectstart', selectstartHandler, true)
-})
-onUnmounted(() => {
-  document.removeEventListener('contextmenu', contextmenuHandler, true)
-  document.removeEventListener('selectstart', selectstartHandler, true)
-  if (refreshTimer) {
-    clearInterval(refreshTimer)
-    refreshTimer = null
-  }
-})
-// #endif
+  // #endif
 
-// #ifndef H5
-onUnmounted(() => {
-  if (refreshTimer) {
-    clearInterval(refreshTimer)
-    refreshTimer = null
-  }
-})
-// #endif
-
-// 共享初始化：所有环境都执行
-onMounted(() => {
-  const systemInfo = uni.getSystemInfoSync()
-  statusBarHeight.value = systemInfo.statusBarHeight || 20
-  const adminInfo = uni.getStorageSync('adminInfo') || {}
-  isEditable.value = ['店长', '助教管理'].includes(adminInfo.role)
   loadData()
-  // 启动30秒自动刷新
+
+  // 启动30秒自动刷新（所有环境）
   refreshTimer = setInterval(() => {
     loadData() // 静默刷新，不弹提示
   }, REFRESH_INTERVAL)
+})
+
+// 合并 onUnmounted：H5 长按清理 + 所有环境定时器清理
+onUnmounted(() => {
+  // #ifdef H5
+  document.removeEventListener('contextmenu', contextmenuHandler, true)
+  document.removeEventListener('selectstart', selectstartHandler, true)
+  // #endif
+
+  if (refreshTimer) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
 })
 
 const statusBarHeight = ref(0)
