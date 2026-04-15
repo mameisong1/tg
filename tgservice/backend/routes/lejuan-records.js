@@ -320,9 +320,11 @@ router.put('/:id/proof', requireBackendPermission(['all']), async (req, res) => 
             employeeId = coach?.employee_id;
         } else {
             employeeId = req.body.employee_id;
-            // 兜底：如果用户同时是助教（手机号匹配），用手机号查 coaches 表
-            if (!employeeId && user.phone) {
-                const coach = await get('SELECT employee_id FROM coaches WHERE phone = ? AND status != ?', [user.phone, '离职']);
+            // 兜底：如果用户同时是助教，用手机号查 coaches 表
+            // 支持 memberToken(user.phone) 和 adminToken(user.username=手机号)
+            const phone = user.phone || user.username;
+            if (!employeeId && phone) {
+                const coach = await get('SELECT employee_id FROM coaches WHERE phone = ? AND status != ?', [phone, '离职']);
                 employeeId = coach?.employee_id;
             }
         }
