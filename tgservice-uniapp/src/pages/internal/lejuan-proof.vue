@@ -40,19 +40,21 @@
 
     <!-- 上传区域 -->
     <view class="upload-section">
-      <text class="upload-title">上传付款截图</text>
-      <view v-if="!currentProofUrl" class="upload-btn" @click="chooseAndUpload">
-        <text class="upload-icon">📷</text>
-        <text class="upload-text">点击拍照/选择图片</text>
-      </view>
-      <view v-else class="upload-btn replace-btn" @click="chooseAndUpload">
-        <text class="upload-icon">🔄</text>
-        <text class="upload-text">替换截图</text>
+      <text class="upload-title">上传付款截图（最多3张）</text>
+      <view class="image-grid">
+        <view v-for="(url, idx) in imageUrls" :key="idx" class="image-item">
+          <image :src="url" mode="aspectFill" class="uploaded-img" @click="previewImage(idx)" />
+          <view class="remove-btn" @click.stop="removeImage(idx)"><text>✕</text></view>
+        </view>
+        <view v-if="imageUrls.length < 3" class="upload-btn" @click="chooseAndUpload">
+          <text class="upload-icon">📷</text>
+          <text class="upload-text">上传图片</text>
+        </view>
       </view>
     </view>
 
     <!-- 提交按钮 -->
-    <view class="submit-btn" :class="{ disabled: !currentProofUrl }" @click="submitProof"><text>提交截图</text></view>
+    <view class="submit-btn" :class="{ disabled: imageUrls.length === 0 }" @click="submitProof"><text>提交截图</text></view>
 
     <!-- 上传进度 -->
     <view class="upload-progress" v-if="uploading">
@@ -81,7 +83,7 @@ const actualStartTime = ref('未出发')
 const returnTime = ref('未归来')
 const lejuanHours = ref('-')
 const proofUrl = ref('')
-const currentProofUrl = ref('')
+const proofUrls = ref([])
 const showSuccess = ref(false)
 
 onMounted(async () => {
@@ -112,23 +114,39 @@ const loadRecordDetail = async () => {
       returnTime.value = record.return_time || '未归来'
       lejuanHours.value = record.lejuan_hours !== null ? record.lejuan_hours + '小时' : '-'
       proofUrl.value = record.proof_image_url || ''
+      // 解析多张图片（JSON数组或单URL）
+      if (record.proof_image_url) {
+        try {
+          const parsed = JSON.parse(record.proof_image_url)
+          proofUrls.value = Array.isArray(parsed) ? parsed : [record.proof_image_url]
+        } catch (e) {
+          proofUrls.value = [record.proof_image_url]
+        }
+      }
     }
   } catch (e) {
     console.error('获取记录详情失败:', e)
   }
 }
 
-const { imageUrls, uploading, uploadProgress, uploadText, chooseAndUpload } =
-  useImageUpload({ maxCount: 1, ossDir: 'TgTemp/', errorType: 'lejuan_proof' })
+const { imageUrls, uploading, uploadProgress, uploadText, chooseAndUpload, removeImage } =
+  useImageUpload({ maxCount: 3, ossDir: 'TgTemp/', errorType: 'lejuan_proof' })
+
+// 初始化已有图片
+watch(proofUrls, (urls) => {
+  if (urls && urls.length > 0) {
+    imageUrls.value = [...urls]
+  }
+}, { immediate: true })
 
 const submitProof = async () => {
-  if (!currentProofUrl.value) return uni.showToast({ title: '请先选择图片', icon: 'none' })
+  if (imageUrls.value.length === 0) return uni.showToast({ title: '请先选择图片', icon: 'none' })
   if (!recordId.value) return uni.showToast({ title: '记录ID缺失', icon: 'none' })
 
   try {
     uni.showLoading({ title: '提交中...' })
     await api.lejuanRecords.updateProof(recordId.value, {
-      proof_image_url: currentProofUrl.value
+      proof_image_url: JSON.stringify(imageUrls.value)
     })
     uni.hideLoading()
     showSuccess.value = true
@@ -138,18 +156,8 @@ const submitProof = async () => {
   }
 }
 
-// 监听 imageUrls 变化
-import { watch } from 'vue'
-watch(imageUrls, (urls) => {
-  if (urls && urls.length > 0) {
-    currentProofUrl.value = urls[0]
-  }
-})
-
-const previewProof = () => {
-  if (proofUrl.value) {
-    uni.previewImage({ urls: [proofUrl.value] })
-  }
+const previewImage = (idx) => {
+  uni.previewImage({ urls: imageUrls.value, current: idx })
 }
 
 const handleSuccessConfirm = () => {
@@ -178,12 +186,18 @@ const goBack = () => { uni.navigateBack() }
 .info-value { font-size: 14px; color: #fff; }
 .proof-preview { width: 80px; height: 80px; border-radius: 8px; }
 
-.upload-section { margin: 16px; text-align: center; }
-.upload-title { font-size: 14px; color: rgba(255,255,255,0.6); margin-bottom: 16px; display: block; }
-.upload-btn { width: 100%; height: 120px; background: rgba(255,255,255,0.05); border: 2px dashed rgba(218,165,32,0.3); border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.upload-icon { font-size: 36px; margin-bottom: 8px; }
-.upload-text { font-size: 14px; color: rgba(255,255,255,0.4); }
-.replace-btn { border-color: rgba(218,165,32,0.5); background: rgba(212,175,55,0.05); }
+.upload-section { margin: 16px; }
+.upload-title { font-size: 14px; color: rgba(255,255,255,0.6); margin-bottom: 12px; display: block; }
+
+/* 图片网格 */
+.image-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+.image-item { position: relative; width: 90px; height: 90px; border-radius: 10px; overflow: hidden; }
+.uploaded-img { width: 100%; height: 100%; }
+.remove-btn { position: absolute; top: 2px; right: 2px; width: 22px; height: 22px; background: rgba(0,0,0,0.7); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.remove-btn text { color: #fff; font-size: 14px; }
+.upload-btn { width: 90px; height: 90px; background: rgba(255,255,255,0.05); border: 1px dashed rgba(218,165,32,0.3); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.upload-icon { font-size: 28px; display: block; margin-bottom: 4px; }
+.upload-text { font-size: 11px; color: rgba(255,255,255,0.4); }
 
 .submit-btn { height: 50px; background: linear-gradient(135deg, #d4af37, #ffd700); border-radius: 25px; display: flex; align-items: center; justify-content: center; margin: 20px 16px; }
 .submit-btn text { font-size: 16px; font-weight: 600; color: #000; }

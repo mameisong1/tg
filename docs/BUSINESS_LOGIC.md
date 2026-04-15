@@ -846,3 +846,113 @@ JOIN table_device td ON LOWER(td.table_name_en) = LOWER(t.name_pinyin)
 3. 台桌控制（区域筛选折行 + 台桌按钮折行）
 4. 标签控制
 5. 全部开灯/全部关灯（底部，一行2个缩小版）
+
+---
+
+## 9. 乐捐流程（2026-04-15 更新）
+
+### 9.1 乐捐报备流程
+
+**页面路径**: `/pages/internal/lejuan`
+
+**流程步骤**:
+1. 助教选择日期和整点时间（当前小时可选）
+2. 填写备注（可选）
+3. 提交乐捐预约
+4. 到时间后，定时器自动将水牌状态改为"乐捐"
+5. **助教自己点"上班"按钮结束乐捐**（2026-04-15 变更：不再需要找助教管理/店长操作）
+6. 回到空闲状态后，提交付款截图
+
+**重复报备检查**:
+- 提交时检查是否有 `pending`（待出发）或 `active`（乐捐中）状态的记录
+- 如果有，弹提示"已有待出发/乐捐中的乐捐记录，请先处理"，阻止提交
+
+**表单字段**（2026-04-15 删除 `extra_hours`）:
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| scheduled_date | date | 是 | 预约日期 |
+| scheduled_hour | number | 是 | 预约整点（0-23） |
+| remark | text | 否 | 备注（如"和客人外出"） |
+
+**已删除字段**:
+- ~~`extra_hours`~~ - 预计外出小时数（2026-04-15 删除，不再录入）
+
+### 9.2 乐捐状态流转
+
+```
+pending（待出发） → active（乐捐中） → returned（已归来）
+         ↓                    ↓
+   到时间自动激活      助教点"上班"按钮自动结束
+```
+
+**状态说明**:
+| 状态 | 说明 | 水牌显示 |
+|------|------|----------|
+| pending | 预约乐捐，尚未到时间 | 原状态 |
+| active | 乐捐进行中 | 乐捐 |
+| returned | 乐捐已结束 | 早班空闲/晚班空闲 |
+
+### 9.3 乐捐结束机制（2026-04-15 更新）
+
+**原流程**（已废弃）:
+- 助教回店后找助教管理/店长
+- 管理员在乐捐一览页面点击"乐捐归来"按钮
+- 手动计算外出小时数并恢复空闲状态
+
+**新流程**（当前实现）:
+1. 助教在乐捐状态下，直接点击"上班"按钮（clock-in）
+2. 后端 `POST /api/coaches/v2/:coach_no/clock-in` 检测到水牌状态为"乐捐"
+3. 自动查询该助教是否有 `active` 状态的乐捐记录
+4. 如果有，自动计算乐捐时长：
+   ```javascript
+   const diffMs = nowTime.getTime() - actualStartTime.getTime();
+   const lejuanHours = Math.max(1, Math.ceil(diffMs / (60 * 60 * 1000)));
+   ```
+5. 更新乐捐记录：
+   - `lejuan_status = 'returned'`
+   - `return_time = 当前时间`
+   - `lejuan_hours = 计算结果`
+   - `returned_by = 'system'`
+6. 水牌状态自动恢复为对应班次的空闲状态
+
+### 9.4 乐捐一览页面（管理）
+
+**页面路径**: `/pages/internal/lejuan-list`
+
+**功能**:
+- 显示所有乐捐记录（可按状态筛选：pending/active/returned/all）
+- **显示乐捐付款截图**（默认小图 50x50，点击可放大预览）
+- **已删除"乐捐归来"按钮**（2026-04-15 变更）
+- 列表排序：active → pending → returned
+
+**截图显示规则**:
+- `proof_image_url` 不为空时显示截图区域
+- 点击小图调用 `uni.previewImage()` 放大预览
+
+### 9.5 记录排序规则
+
+**我的乐捐记录**（报备页面）:
+```javascript
+const statusPriority = { active: 0, pending: 1, returned: 2 }
+records.sort((a, b) => {
+  const pa = statusPriority[a.lejuan_status] ?? 9
+  const pb = statusPriority[b.lejuan_status] ?? 9
+  if (pa !== pb) return pa - pb
+  return b.scheduled_start_time.localeCompare(a.scheduled_start_time)
+})
+```
+
+**排序逻辑**:
+1. 乐捐中（active）最优先
+2. 待出发（pending）次之
+3. 已归来（returned）最后
+4. 同状态内按预约时间倒序（新的在前）
+
+### 9.6 乐捐定时器
+
+**文件**: `backend/services/lejuan-timer.js`
+
+**工作机制**:
+- 每分钟检查一次是否有 `pending` 状态且 `scheduled_start_time <= 当前时间` 的记录
+- 自动将符合条件的记录状态改为 `active`
+- 同时更新对应助教的水牌状态为"乐捐"
