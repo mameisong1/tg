@@ -299,8 +299,18 @@ router.post('/api/switch/scene/:id', requireSwitchPermission, async (req, res) =
       return res.status(400).json({ error: '场景开关数据格式错误' });
     }
 
-    const successCount = await executeScene(switches, scene.action);
-    res.json({ success: true, count: successCount });
+    const result = await executeScene(switches, scene.action);
+    if (result.totalCount === 0) {
+      return res.status(400).json({ error: '场景中没有可执行的开关' });
+    }
+    if (result.failures.length > 0) {
+      const errors = result.failures.map(f => f.error);
+      return res.status(502).json({
+        error: `MQTT 发送失败：${result.failures.length}/${result.totalCount} 个失败`,
+        details: errors
+      });
+    }
+    res.json({ success: true, count: result.successCount });
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
   }
@@ -313,8 +323,18 @@ router.post('/api/switch/label-control', requireSwitchPermission, async (req, re
     if (!label || !action) return res.status(400).json({ error: '缺少参数' });
     if (!['ON', 'OFF'].includes(action)) return res.status(400).json({ error: '动作只能是 ON 或 OFF' });
 
-    const successCount = await controlByLabel(label, action);
-    res.json({ success: true, count: successCount });
+    const result = await controlByLabel(label, action);
+    if (result.totalCount === 0) {
+      return res.status(400).json({ error: `标签 "${label}" 下没有关联开关` });
+    }
+    if (result.failures.length > 0) {
+      const errors = result.failures.map(f => f.error);
+      return res.status(502).json({
+        error: `MQTT 发送失败：${result.failures.length}/${result.totalCount} 个失败`,
+        details: errors
+      });
+    }
+    res.json({ success: true, count: result.successCount });
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
   }
@@ -414,8 +434,18 @@ router.post('/api/switch/table-control', requireSwitchPermission, async (req, re
     if (!table_name_en || !action) return res.status(400).json({ error: '缺少参数' });
     if (!['ON', 'OFF'].includes(action)) return res.status(400).json({ error: '动作只能是 ON 或 OFF' });
 
-    const successCount = await controlByTable(table_name_en, action);
-    res.json({ success: true, count: successCount, table_name_en });
+    const result = await controlByTable(table_name_en, action);
+    if (result.totalCount === 0) {
+      return res.status(400).json({ error: `台桌 "${table_name_en}" 下没有关联开关` });
+    }
+    if (result.failures.length > 0) {
+      const errors = result.failures.map(f => f.error);
+      return res.status(502).json({
+        error: `MQTT 发送失败：${result.failures.length}/${result.totalCount} 个失败`,
+        details: errors
+      });
+    }
+    res.json({ success: true, count: result.successCount, table_name_en });
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
   }

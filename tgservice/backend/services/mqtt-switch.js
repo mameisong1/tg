@@ -99,12 +99,14 @@ async function getClient() {
  * @param {string} switchId - 开关ID
  * @param {string} switchSeq - 开关序号
  * @param {string} action - 'ON' 或 'OFF'
+ * @returns {Object} { ok: boolean, error?: string }
  */
 async function sendSwitchCommand(switchId, switchSeq, action) {
   const mqttConfig = config.mqtt;
   if (!mqttConfig) {
-    console.warn(`[MQTT] 未配置 MQTT，跳过指令: ${switchId} ${switchSeq} ${action}`);
-    return false;
+    const msg = `未配置 MQTT，跳过指令: ${switchId} ${switchSeq} ${action}`;
+    console.warn(`[MQTT] ${msg}`);
+    return { ok: true, error: null }; // 测试/未配置环境不算失败
   }
 
   const payload = JSON.stringify({
@@ -115,20 +117,25 @@ async function sendSwitchCommand(switchId, switchSeq, action) {
   // 测试环境：只写日志，不真实发送
   if (isTestEnv) {
     console.log(`[MQTT-TEST] 模拟发送指令: topic=${mqttConfig.topic}, payload=${payload}`);
-    return true;
+    return { ok: true, error: null };
   }
 
   // 生产环境：真实发送
   try {
     const mqttClient = await getClient();
-    if (!mqttClient) return false;
+    if (!mqttClient) {
+      const msg = `MQTT 客户端不可用 (${switchId} ${switchSeq} ${action})`;
+      console.error(`[MQTT] ${msg}`);
+      return { ok: false, error: msg };
+    }
 
     mqttClient.publish(mqttConfig.topic, payload, { qos: 1 });
     console.log(`[MQTT] 指令已发送: ${switchId} ${switchSeq} ${action}`);
-    return true;
+    return { ok: true, error: null };
   } catch (err) {
-    console.error(`[MQTT] 发送失败 (${switchId} ${switchSeq} ${action}): ${err.message}`);
-    return false;
+    const msg = `MQTT 发送失败 (${switchId} ${switchSeq} ${action}): ${err.message}`;
+    console.error(`[MQTT] ${msg}`);
+    return { ok: false, error: msg };
   }
 }
 
@@ -136,28 +143,38 @@ async function sendSwitchCommand(switchId, switchSeq, action) {
  * 批量发送指令（带100ms间隔）
  * @param {Array} switches - [{switch_id, switch_seq}]
  * @param {string} action - 'ON' 或 'OFF'
+ * @returns {Object} { successCount, totalCount, failures: [{ switch_id, switch_seq, error }] }
  */
 async function sendBatchCommand(switches, action) {
+  const failures = [];
   let successCount = 0;
   for (const sw of switches) {
-    const ok = await sendSwitchCommand(sw.switch_id, sw.switch_seq, action);
-    if (ok) successCount++;
+    const result = await sendSwitchCommand(sw.switch_id, sw.switch_seq, action);
+    if (result.ok) {
+      successCount++;
+    } else {
+      failures.push({ switch_id: sw.switch_id, switch_seq: sw.switch_seq, error: result.error });
+    }
     // 每个指令间隔 100ms，避免 MQTT broker 过载
     await new Promise(r => setTimeout(r, 100));
   }
   console.log(`[MQTT] 批量发送完成: ${successCount}/${switches.length} 成功, action=${action}`);
-  return successCount;
+  if (failures.length > 0) {
+    console.error(`[MQTT] 失败 ${failures.length} 个:`, failures.map(f => f.error).join('; '));
+  }
+  return { successCount, totalCount: switches.length, failures };
 }
 
 /**
  * 根据场景执行开关操作
  * @param {Array} switches - [{switch_id, switch_seq}]
  * @param {string} action - 'ON' 或 'OFF'
+ * @returns {Object} { successCount, totalCount, failures }
  */
 async function executeScene(switches, action) {
   if (!switches || switches.length === 0) {
     console.warn('[MQTT] 场景开关列表为空');
-    return 0;
+    return { successCount: 0, totalCount: 0, failures: [] };
   }
   return sendBatchCommand(switches, action);
 }
@@ -166,6 +183,7 @@ async function executeScene(switches, action) {
  * 按标签批量控制开关
  * @param {string} label - 开关标签
  * @param {string} action - 'ON' 或 'OFF'
+ * @returns {Object} { successCount, totalCount, failures }
  */
 async function controlByLabel(label, action) {
   const { all } = require('../db/index');
@@ -178,7 +196,7 @@ async function controlByLabel(label, action) {
 
   if (devices.length === 0) {
     console.warn(`[MQTT] 标签 "${label}" 下没有开关`);
-    return 0;
+    return { successCount: 0, totalCount: 0, failures: [] };
   }
 
   return sendBatchCommand(devices, action);
@@ -188,6 +206,7 @@ async function controlByLabel(label, action) {
  * 按台桌批量控制开关
  * @param {string} tableNameEn - 台桌英文名（如 putai1, vip1, boss1）
  * @param {string} action - 'ON' 或 'OFF'
+ * @returns {Object} { successCount, totalCount, failures }
  */
 async function controlByTable(tableNameEn, action) {
   const { all } = require('../db/index');
@@ -203,7 +222,7 @@ async function controlByTable(tableNameEn, action) {
 
   if (devices.length === 0) {
     console.warn(`[MQTT] 台桌 "${tableNameEn}" 下没有关联开关`);
-    return 0;
+    return { successCount: 0, totalCount: 0, failures: [] };
   }
 
   console.log(`[MQTT] 台桌控制: ${tableNameEn}, 找到 ${devices.length} 个开关, action=${action}`);
