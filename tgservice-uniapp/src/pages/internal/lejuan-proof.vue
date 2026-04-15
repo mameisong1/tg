@@ -165,7 +165,14 @@ const handleSuccessConfirm = () => {
   uni.navigateBack()
 }
 
-const goBack = () => { uni.navigateBack() }
+const goBack = () => {
+  const pages = getCurrentPages()
+  if (pages.length > 1) {
+    uni.navigateBack()
+  } else {
+    uni.redirectTo({ url: '/pages/internal/lejuan' })
+  }
+}
 </script>
 
 <style scoped>
