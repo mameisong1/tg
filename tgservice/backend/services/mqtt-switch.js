@@ -114,13 +114,8 @@ async function sendSwitchCommand(switchId, switchSeq, action) {
     [switchSeq]: action
   });
 
-  // 测试环境：只写日志，不真实发送
-  if (isTestEnv) {
-    console.log(`[MQTT-TEST] 模拟发送指令: topic=${mqttConfig.topic}, payload=${payload}`);
-    return { ok: true, error: null };
-  }
-
-  // 生产环境：真实发送
+  // 真实发送（测试/生产环境统一）
+  try {
   try {
     const mqttClient = await getClient();
     if (!mqttClient) {
