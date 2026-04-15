@@ -1365,4 +1365,83 @@
 
 ---
 
-*文档更新时间：2026年4月9日*
+## 智能开关接口
+
+所有智能开关接口需要权限验证（店长/助教管理/管理员）。
+
+### 获取场景列表
+
+- **路径**: `GET /api/switch/scenes`
+- **返回**: 场景数组
+  ```json
+  [
+    { "id": 1, "scene_name": "全部开灯", "action": "ON", "switches": "[{\"switch_id\":\"0x...\",\"switch_seq\":\"state_l1\"}]", "sort_order": 1 },
+    { "id": 2, "scene_name": "全部关灯", "action": "OFF", "switches": "[...]", "sort_order": 2 }
+  ]
+  ```
+
+### 获取开关标签列表
+
+- **路径**: `GET /api/switch/labels`
+- **返回**: 标签数组
+  ```json
+  [{ "switch_label": "普台区" }, { "switch_label": "VIP区" }]
+  ```
+
+### 获取台桌列表及关联开关
+
+- **路径**: `GET /api/switch/tables`
+- **返回**: 台桌数组（含关联的 switch_id 和 switch_seq）
+  ```json
+  [{ "table_name_en": "putai1", "table_name_cn": "普台1", "area": "大厅区", "switches": [{ "switch_id": "0x...", "switch_seq": "state_l1" }] }]
+  ```
+
+### 获取自动关灯状态
+
+- **路径**: `GET /api/switch/auto-status`
+- **返回**:
+  ```json
+  { "auto_off_enabled": true }
+  ```
+
+### 切换自动关灯启停
+
+- **路径**: `POST /api/switch/auto-off-toggle`
+- **返回**: `{ "success": true, "enabled": true }`
+
+### 手动执行智能省电
+
+- **路径**: `POST /api/switch/auto-off-manual`
+- **说明**: 手动触发一次自动关灯逻辑，对当前空闲台桌发送关灯指令
+- **返回**:
+  ```json
+  { "success": true, "turnedOffCount": 40, "maybeOffCount": 50, "cannotOffCount": 47 }
+  ```
+
+### 执行场景
+
+- **路径**: `POST /api/switch/scene/:id`
+- **返回**: `{ "success": true, "count": 5 }`（成功发送的 MQTT 指令数）
+
+### 按标签批量控制
+
+- **路径**: `POST /api/switch/label-control`
+- **请求体**: `{ "label": "普台区", "action": "ON" }`（ON 或 OFF）
+- **返回**: `{ "success": true, "count": 10 }`
+
+### 按台桌控制
+
+- **路径**: `POST /api/switch/table-control`
+- **请求体**: `{ "table_name_en": "putai1", "action": "OFF" }`
+- **返回**: `{ "success": true, "count": 4, "table_name_en": "putai1" }`
+
+### 错误返回
+
+MQTT 发送失败时返回 HTTP 502：
+```json
+{ "error": "MQTT 发送失败：2/5 个失败", "details": ["MQTT 发送失败...", "..."] }
+```
+
+---
+
+*文档更新时间：2026年4月15日*
