@@ -487,6 +487,41 @@
   ```
 - **说明**: 助教查询自己的水牌状态（含当前台桌号），用于H5员工下单时默认选台
 
+### 同步水牌预览
+
+- **路径**: `GET /api/admin/coaches/sync-water-boards/preview`
+- **权限**: `authMiddleware` + `requireBackendPermission(['coachManagement'])`
+- **说明**: 检测孤儿数据（水牌中存在但教练表不存在或已离职）和缺失数据（教练表中在职但水牌中不存在），用于同步前预览
+- **响应**:
+  ```json
+  {
+    "orphanRecords": [
+      { "coach_no": "10010", "stage_name": "小怡", "wb_status": "下班", "reason": "coaches.status=离职" }
+    ],
+    "missingRecords": [
+      { "coach_no": "10125", "stage_name": "测试小A", "status": "全职", "shift": "早班" }
+    ],
+    "summary": { "orphanCount": 1, "missingCount": 1 }
+  }
+  ```
+
+### 同步水牌执行
+
+- **路径**: `POST /api/admin/coaches/sync-water-boards/execute`
+- **权限**: `authMiddleware` + `requireBackendPermission(['coachManagement'])`
+- **参数**:
+  ```json
+  {
+    "deleteOrphanIds": ["10010"],
+    "addMissingIds": ["10125"]
+  }
+  ```
+- **说明**: 按用户勾选执行同步。孤儿数据删除（从 water_boards 表），缺失数据添加（自动根据班次设置初始状态：早班→早班空闲，晚班→晚班空闲）。事务保证原子性。
+- **响应**:
+  ```json
+  { "success": true, "deleted": 1, "added": 1, "errors": [] }
+  ```
+
 ### 助教登录
 
 - **路径**: `POST /api/coach/login`
