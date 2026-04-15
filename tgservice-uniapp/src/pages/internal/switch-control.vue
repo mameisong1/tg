@@ -50,7 +50,7 @@
           <!-- 智能省电-手动按钮 -->
           <view class="manual-btn" @click="executeManualOff">
             <text class="manual-btn-icon">⏻</text>
-            <text class="manual-btn-text">智能省电-手动</text>
+            <text class="manual-btn-text">智能省电-手动（测试专用）</text>
           </view>
         </view>
       </view>
