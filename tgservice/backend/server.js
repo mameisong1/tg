@@ -2916,21 +2916,21 @@ app.get('/api/admin/coaches/sync-water-boards/preview', authMiddleware, requireB
     // 注意：coaches.coach_no 是 INTEGER，water_boards.coach_no 是 TEXT
     // 需要用 CAST 统一类型
     const orphanRecords = await dbAll(`
-      SELECT wb.coach_no, wb.stage_name, wb.status AS wb_status,
-             'coaches表不存在' AS reason
-      FROM water_boards wb
-      LEFT JOIN coaches c ON wb.coach_no = CAST(c.coach_no AS TEXT)
-      WHERE c.coach_no IS NULL
+      SELECT * FROM (
+        SELECT wb.coach_no, wb.stage_name, wb.status AS wb_status,
+               'coaches表不存在' AS reason
+        FROM water_boards wb
+        LEFT JOIN coaches c ON wb.coach_no = CAST(c.coach_no AS TEXT)
+        WHERE c.coach_no IS NULL
 
-      UNION ALL
+        UNION ALL
 
-      SELECT wb.coach_no, wb.stage_name, wb.status AS wb_status,
-             'coaches.status=离职' AS reason
-      FROM water_boards wb
-      INNER JOIN coaches c ON wb.coach_no = CAST(c.coach_no AS TEXT)
-      WHERE c.status = '离职'
-
-      ORDER BY CAST(coach_no AS INTEGER)
+        SELECT wb.coach_no, wb.stage_name, wb.status AS wb_status,
+               'coaches.status=离职' AS reason
+        FROM water_boards wb
+        INNER JOIN coaches c ON wb.coach_no = CAST(c.coach_no AS TEXT)
+        WHERE c.status = '离职'
+      ) ORDER BY CAST(coach_no AS INTEGER)
     `);
 
     // 缺失数据检测
