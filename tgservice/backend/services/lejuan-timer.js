@@ -14,6 +14,7 @@ const lejuanTimers = {};
  * 激活乐捐：到时间后自动设为乐捐状态
  */
 async function activateLejuan(recordId) {
+    let stageName = '未知';
     try {
         await runInTransaction(async (tx) => {
             const record = await tx.get(
@@ -24,6 +25,8 @@ async function activateLejuan(recordId) {
                 console.log(`[乐捐定时器] 记录 ${recordId} 已不是 pending，跳过激活`);
                 return;
             }
+
+            stageName = record.stage_name || '未知';
 
             const now = TimeUtil.nowDB();
 
@@ -67,7 +70,7 @@ async function activateLejuan(recordId) {
         });
 
         delete lejuanTimers[recordId];
-        console.log(`[乐捐定时器] 记录 ${recordId} 已激活: ${record ? record.stage_name : '未知'}`);
+        console.log(`[乐捐定时器] 记录 ${recordId} 已激活: ${stageName}`);
     } catch (err) {
         console.error(`[乐捐定时器] 激活记录 ${recordId} 失败:`, err);
     }
