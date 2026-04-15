@@ -2704,11 +2704,12 @@ app.post('/api/admin/coaches', authMiddleware, requireBackendPermission(['coachM
       );
       const newCoachNo = result.lastID;
 
-      // 同步创建 water_boards 记录（必须成功，否则回滚）
+      // 同步创建 water_boards 记录（根据班次设置初始状态）
+      const initialWbStatus = finalShift === '晚班' ? '晚班空闲' : '早班空闲';
       await tx.run(
         `INSERT INTO water_boards (coach_no, stage_name, status, created_at, updated_at)
-         VALUES (?, ?, '下班', ?, ?)`,
-        [newCoachNo, stageName, TimeUtil.nowDB(), TimeUtil.nowDB()]
+         VALUES (?, ?, ?, ?, ?)`,
+        [newCoachNo, stageName, initialWbStatus, TimeUtil.nowDB(), TimeUtil.nowDB()]
       );
 
       // 验证水牌记录是否创建成功
@@ -2765,26 +2766,36 @@ app.put('/api/admin/coaches/:coachNo', authMiddleware, requireBackendPermission(
     const newStatus = status || '全职';
     const oldStatus = currentCoach?.status || '全职';
 
-    await enqueueRun(
-      `UPDATE coaches SET employee_id = ?, stage_name = ?, real_name = ?, phone = ?, level = ?, price = ?, age = ?, height = ?, photos = ?, video = ?, intro = ?, videos = ?, is_popular = ?, status = ?, shift = ?, updated_at = ? WHERE coach_no = ?`,
-      [employeeId, stageName, realName, phone || null, level, price, finalAge, finalHeight, JSON.stringify(finalPhotos || []), video, finalIntro, JSON.stringify(finalVideos || []), isPopular ? 1 : 0, newStatus, resolvedShift, TimeUtil.nowDB(), req.params.coachNo]
-    );
-
-    // 联动 water_boards 处理
-    if (newStatus === '离职' && oldStatus !== '离职') {
-      // 改为离职 → 删除水牌
-      await enqueueRun('DELETE FROM water_boards WHERE coach_no = ?', [req.params.coachNo]);
-      operationLog.info(`助教改为离职: ${req.params.coachNo}, 水牌记录已同步删除`);
-    } else if ((newStatus === '全职' || newStatus === '兼职') && oldStatus === '离职') {
-      // 从离职改为全职/兼职 → 创建水牌（先删再插，防止 UNIQUE 冲突）
-      await enqueueRun('DELETE FROM water_boards WHERE coach_no = ?', [req.params.coachNo]);
-      await enqueueRun(
-        `INSERT INTO water_boards (coach_no, stage_name, status, created_at, updated_at)
-         VALUES (?, ?, '下班', ?, ?)`,
-        [req.params.coachNo, stageName, TimeUtil.nowDB(), TimeUtil.nowDB()]
+    // 使用事务确保 coaches 更新和 water_boards 联动原子执行
+    await runInTransaction(async (tx) => {
+      await tx.run(
+        `UPDATE coaches SET employee_id = ?, stage_name = ?, real_name = ?, phone = ?, level = ?, price = ?, age = ?, height = ?, photos = ?, video = ?, intro = ?, videos = ?, is_popular = ?, status = ?, shift = ?, updated_at = ? WHERE coach_no = ?`,
+        [employeeId, stageName, realName, phone || null, level, price, finalAge, finalHeight, JSON.stringify(finalPhotos || []), video, finalIntro, JSON.stringify(finalVideos || []), isPopular ? 1 : 0, newStatus, resolvedShift, TimeUtil.nowDB(), req.params.coachNo]
       );
-      operationLog.info(`助教恢复为${newStatus}: ${req.params.coachNo}, 水牌记录已同步创建`);
-    }
+
+      // 联动 water_boards 处理
+      if (newStatus === '离职' && oldStatus !== '离职') {
+        // 改为离职 → 删除水牌
+        await tx.run('DELETE FROM water_boards WHERE coach_no = ?', [req.params.coachNo]);
+        // 验证水牌是否已删除
+        const wbCheck = await tx.get('SELECT id FROM water_boards WHERE coach_no = ?', [req.params.coachNo]);
+        if (wbCheck) {
+          logger.error(`水牌删除验证失败: coach_no=${req.params.coachNo}, 水牌记录仍然存在`);
+          throw new Error('水牌记录删除失败');
+        }
+        operationLog.info(`助教改为离职: ${req.params.coachNo}, 水牌记录已同步删除`);
+      } else if ((newStatus === '全职' || newStatus === '兼职') && oldStatus === '离职') {
+        // 从离职改为全职/兼职 → 创建水牌（先删再插，防止 UNIQUE 冲突）
+        await tx.run('DELETE FROM water_boards WHERE coach_no = ?', [req.params.coachNo]);
+        const initialWbStatus = resolvedShift === '晚班' ? '晚班空闲' : '早班空闲';
+        await tx.run(
+          `INSERT INTO water_boards (coach_no, stage_name, status, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?)`,
+          [req.params.coachNo, stageName, initialWbStatus, TimeUtil.nowDB(), TimeUtil.nowDB()]
+        );
+        operationLog.info(`助教恢复为${newStatus}: ${req.params.coachNo}, 水牌记录已同步创建`);
+      }
+    });
     // 全职↔兼职互切：水牌已存在，无需额外操作
 
     operationLog.info(`更新助教: ${req.params.coachNo}`);
@@ -2810,16 +2821,26 @@ app.delete('/api/admin/coaches/:coachNo', authMiddleware, requireBackendPermissi
       return res.status(400).json({ error: '只能删除离职助教' });
     }
 
-    // 先删除 water_boards 记录
-    await enqueueRun('DELETE FROM water_boards WHERE coach_no = ?', [req.params.coachNo]);
+    // 使用事务确保 water_boards 和 coaches 删除原子执行
+    await runInTransaction(async (tx) => {
+      // 先删除 water_boards 记录
+      await tx.run('DELETE FROM water_boards WHERE coach_no = ?', [req.params.coachNo]);
+      // 验证水牌是否已删除
+      const wbCheck = await tx.get('SELECT id FROM water_boards WHERE coach_no = ?', [req.params.coachNo]);
+      if (wbCheck) {
+        logger.error(`水牌删除验证失败: coach_no=${req.params.coachNo}`);
+        throw new Error('水牌记录删除失败');
+      }
 
-    // 再删除 coaches 记录
-    await enqueueRun('DELETE FROM coaches WHERE coach_no = ?', [req.params.coachNo]);
+      // 再删除 coaches 记录
+      await tx.run('DELETE FROM coaches WHERE coach_no = ?', [req.params.coachNo]);
+    });
 
     operationLog.info(`删除助教: ${coach.stage_name}(${req.params.coachNo}), 水牌记录已同步删除`);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: '服务器错误' });
+    logger.error(`删除助教失败: ${err.message}`);
+    res.status(500).json({ error: `服务器错误: ${err.message}` });
   }
 });
 
@@ -2844,33 +2865,36 @@ app.put('/api/admin/coaches/:coachNo/shift', authMiddleware, requireBackendPermi
 
     const oldShift = coach.shift || '早班';
 
-    // 只更新班次字段
-    await enqueueRun('UPDATE coaches SET shift = ?, updated_at = ? WHERE coach_no = ?', [shift, TimeUtil.nowDB(), req.params.coachNo]);
+    // 使用事务确保 coaches 班次更新和水牌状态映射原子执行
+    await runInTransaction(async (tx) => {
+      // 只更新班次字段
+      await tx.run('UPDATE coaches SET shift = ?, updated_at = ? WHERE coach_no = ?', [shift, TimeUtil.nowDB(), req.params.coachNo]);
 
-    // 联动水牌状态映射（参考 routes/coaches.js v2 接口）
-    const waterBoard = await dbGet('SELECT id, status FROM water_boards WHERE coach_no = ?', [req.params.coachNo]);
-    if (waterBoard) {
-      const statusMap = {
-        '早班空闲': '晚班空闲',
-        '晚班空闲': '早班空闲',
-        '早班上桌': '晚班上桌',
-        '晚班上桌': '早班上桌',
-        '早加班': '晚加班',
-        '晚加班': '早加班'
-      };
+      // 联动水牌状态映射（参考 routes/coaches.js v2 接口）
+      const waterBoard = await tx.get('SELECT id, status FROM water_boards WHERE coach_no = ?', [req.params.coachNo]);
+      if (waterBoard) {
+        const statusMap = {
+          '早班空闲': '晚班空闲',
+          '晚班空闲': '早班空闲',
+          '早班上桌': '晚班上桌',
+          '晚班上桌': '早班上桌',
+          '早加班': '晚加班',
+          '晚加班': '早加班'
+        };
 
-      const wbOldStatus = waterBoard.status;
-      const wbNewStatus = statusMap[wbOldStatus];
+        const wbOldStatus = waterBoard.status;
+        const wbNewStatus = statusMap[wbOldStatus];
 
-      if (wbNewStatus) {
-        await enqueueRun(
-          'UPDATE water_boards SET status = ?, updated_at = ? WHERE coach_no = ?',
-          [wbNewStatus, TimeUtil.nowDB(), req.params.coachNo]
-        );
-        operationLog.info(`班次变更联动: ${coach.stage_name}(${req.params.coachNo}) 水牌 ${wbOldStatus}→${wbNewStatus}`);
+        if (wbNewStatus) {
+          await tx.run(
+            'UPDATE water_boards SET status = ?, updated_at = ? WHERE coach_no = ?',
+            [wbNewStatus, TimeUtil.nowDB(), req.params.coachNo]
+          );
+          operationLog.info(`班次变更联动: ${coach.stage_name}(${req.params.coachNo}) 水牌 ${wbOldStatus}→${wbNewStatus}`);
+        }
       }
-    }
-    // 水牌不存在的情况（如离职助教）：静默跳过
+      // 水牌不存在的情况（如离职助教）：静默跳过
+    });
 
     operationLog.info(`修改班次: ${coach.stage_name}(${req.params.coachNo}) ${oldShift} → ${shift}`);
     res.json({ success: true, coach_no: req.params.coachNo, old_shift: oldShift, new_shift: shift });
