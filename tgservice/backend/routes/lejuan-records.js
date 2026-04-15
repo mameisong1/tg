@@ -159,10 +159,12 @@ router.get('/my', requireBackendPermission(['all']), async (req, res) => {
         const twoDaysAgo = TimeUtil.offsetDB(-48).split(' ')[0]; // YYYY-MM-DD
 
         const records = await all(`
-            SELECT * FROM lejuan_records 
-            WHERE employee_id = ? 
+            SELECT * FROM lejuan_records
+            WHERE employee_id = ?
                 AND date(created_at) >= ?
-            ORDER BY scheduled_start_time DESC
+            ORDER BY
+                CASE lejuan_status WHEN 'active' THEN 0 WHEN 'pending' THEN 1 ELSE 2 END,
+                scheduled_start_time DESC
         `, [employeeId, twoDaysAgo]);
 
         res.json({ success: true, data: records });

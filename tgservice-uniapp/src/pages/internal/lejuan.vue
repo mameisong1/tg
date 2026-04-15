@@ -13,7 +13,7 @@
     <!-- 流程提示栏 -->
     <view class="hint-banner">
       <text class="hint-title">📌 乐捐流程</text>
-      <text class="hint-text">1.选择日期时间提交预约 → 2.到时间自动变为乐捐状态 → 3.回店后找助教管理/店长点击乐捐归来 → 4.提交付款截图</text>
+      <text class="hint-text">1.选择日期时间提交预约 → 2.到时间自动变为乐捐状态 → 3.助教自己点"上班"按钮结束乐捐 → 4.提交付款截图</text>
     </view>
 
     <!-- 预约表单 -->
@@ -33,15 +33,6 @@
         <picker :range="hourOptions" @change="e => form.scheduledHour = hourOptions[e.detail.value]">
           <view class="picker-value">
             <text :class="{ placeholder: form.scheduledHour === null }">{{ form.scheduledHour !== null ? String(form.scheduledHour).padStart(2, '0') + ':00' : '选择整点时间' }}</text>
-            <text class="arrow">›</text>
-          </view>
-        </picker>
-      </view>
-      <view class="form-item">
-        <text class="form-label">预计外出小时数（可选）</text>
-        <picker :range="hourOptions2" @change="e => form.extraHours = hourOptions2[e.detail.value]">
-          <view class="picker-value">
-            <text :class="{ placeholder: !form.extraHours }">{{ form.extraHours ? form.extraHours + '小时' : '选择小时数' }}</text>
             <text class="arrow">›</text>
           </view>
         </picker>
@@ -97,7 +88,6 @@ const today = getBeijingDate()
 const form = ref({
   scheduledDate: today,
   scheduledHour: null,
-  extraHours: null,
   remark: ''
 })
 
@@ -112,7 +102,7 @@ const hourOptions = computed(() => {
   return options
 })
 
-const hourOptions2 = [1, 2, 3, 4, 5, 6, 7, 8]
+
 
 onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
@@ -175,7 +165,16 @@ const deleteRecord = async (rec) => {
 const loadMyRecords = async () => {
   try {
     const res = await api.lejuanRecords.getMyList({ employee_id: coachInfo.value.employeeId })
-    myRecords.value = res.data || []
+    let records = res.data || []
+    // 排序：乐捐中 > 待出发 > 已归来
+    const statusPriority = { active: 0, pending: 1, returned: 2 }
+    records.sort((a, b) => {
+      const pa = statusPriority[a.lejuan_status] ?? 9
+      const pb = statusPriority[b.lejuan_status] ?? 9
+      if (pa !== pb) return pa - pb
+      return b.scheduled_start_time.localeCompare(a.scheduled_start_time)
+    })
+    myRecords.value = records
   } catch (e) {
     // 静默失败，不影响页面
   }
@@ -184,6 +183,19 @@ const loadMyRecords = async () => {
 const submitLejuan = async () => {
   if (!canSubmit.value) return uni.showToast({ title: '请选择日期和时间', icon: 'none' })
 
+  // 检查是否有待出发或乐捐中的记录
+  const activeRecord = myRecords.value.find(r =>
+    r.lejuan_status === 'pending' || r.lejuan_status === 'active'
+  )
+  if (activeRecord) {
+    const statusText = activeRecord.lejuan_status === 'pending' ? '待出发' : '乐捐中'
+    return uni.showToast({
+      title: `已有${statusText}的乐捐记录，请先处理`,
+      icon: 'none',
+      duration: 3000
+    })
+  }
+
   const scheduledTime = `${form.value.scheduledDate} ${String(form.value.scheduledHour).padStart(2, '0')}:00:00`
 
   try {
@@ -191,12 +203,10 @@ const submitLejuan = async () => {
     const res = await api.lejuanRecords.create({
       employee_id: coachInfo.value.employeeId,
       scheduled_start_time: scheduledTime,
-      extra_hours: form.value.extraHours,
       remark: form.value.remark
     })
     uni.hideLoading()
     form.value.remark = ''
-    form.value.extraHours = null
     form.value.scheduledHour = null
     
     if (res.data.immediate) {

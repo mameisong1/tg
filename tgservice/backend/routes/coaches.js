@@ -42,8 +42,36 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
     
     // 根据班次和当前状态确定新状态
     let newStatus;
+    let lejuanEnded = false;
     if (waterBoard.status === '乐捐') {
-      throw { status: 400, error: '乐捐状态无法自行上班，请联系助教管理或店长' };
+      // 自动结束乐捐，然后进入空闲
+      const activeLejuan = await tx.get(
+        `SELECT id, actual_start_time FROM lejuan_records
+         WHERE coach_no = ? AND lejuan_status = 'active'
+         ORDER BY actual_start_time DESC LIMIT 1`,
+        [coach_no]
+      );
+
+      if (activeLejuan) {
+        const nowDB = TimeUtil.nowDB();
+        const actualStart = new Date(activeLejuan.actual_start_time + '+08:00');
+        const nowTime = new Date(nowDB + '+08:00');
+        const diffMs = nowTime.getTime() - actualStart.getTime();
+        const lejuanHours = Math.max(1, Math.ceil(diffMs / (60 * 60 * 1000)));
+
+        await tx.run(
+          `UPDATE lejuan_records
+           SET lejuan_status = 'returned',
+               return_time = ?,
+               lejuan_hours = ?,
+               returned_by = ?,
+               updated_at = ?
+           WHERE id = ? AND lejuan_status = 'active'`,
+          [nowDB, lejuanHours, req.user.username || 'system', nowDB, activeLejuan.id]
+        );
+        lejuanEnded = true;
+      }
+      newStatus = coach.shift === '早班' ? '早班空闲' : '晚班空闲';
     } else if (['早加班', '休息', '公休', '请假', '下班'].includes(waterBoard.status)) {
       newStatus = coach.shift === '早班' ? '早班空闲' : '晚班空闲';
     } else if (waterBoard.status === '早班空闲' || waterBoard.status === '晚班空闲') {

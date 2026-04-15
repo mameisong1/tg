@@ -89,8 +89,7 @@ const loadWaterBoard = async () => {
 const canClockIn = computed(() => {
   if (!waterBoard.value) return false
   const status = waterBoard.value.status
-  // 乐捐状态不能自行上班，必须由助教管理/店长操作乐捐归来
-  return ['早加班', '晚加班', '休息', '公休', '请假', '下班'].includes(status)
+  return ['早加班', '晚加班', '休息', '公休', '请假', '下班', '乐捐'].includes(status)
 })
 
 const canClockOut = computed(() => {

@@ -95,12 +95,6 @@
           <image :src="item.proof_image_url" mode="aspectFill" class="lj-proof-thumb" />
         </view>
 
-        <!-- 操作按钮 -->
-        <view class="lj-actions" v-if="item.lejuan_status === 'active'">
-          <view class="lj-btn-return" @click="handleReturn(item)">
-            <text class="lj-btn-text">乐捐归来</text>
-          </view>
-        </view>
       </view>
     </view>
     <view class="empty" v-else-if="!loading"><text>暂无乐捐记录</text></view>
@@ -179,27 +173,6 @@ const formatTimeShort = (t) => {
 
 const previewProof = (url) => {
   uni.previewImage({ urls: [url] })
-}
-
-const handleReturn = (item) => {
-  uni.showModal({
-    title: '确认归来',
-    content: `确认「${item.stage_name}」乐捐归来？将自动计算外出小时数并恢复水牌为空闲。`,
-    success: async (res) => {
-      if (res.confirm) {
-        try {
-          uni.showLoading({ title: '处理中...' })
-          const result = await api.lejuanRecords.returnRecord(item.id, { operator: 'h5-admin' })
-          uni.hideLoading()
-          uni.showToast({ title: `归来成功！${result.data.lejuan_hours}小时`, icon: 'success' })
-          await loadData()
-        } catch (e) {
-          uni.hideLoading()
-          uni.showToast({ title: e.error || '操作失败', icon: 'none' })
-        }
-      }
-    }
-  })
 }
 
 const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { uni.navigateBack() } else { uni.switchTab({ url: '/pages/member/member' }) } }
