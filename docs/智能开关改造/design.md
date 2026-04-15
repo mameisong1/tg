@@ -274,7 +274,7 @@ cron.schedule('*/5 * * * *', async () => {
 ```sql
 SELECT DISTINCT sd.switch_id, sd.switch_seq
 FROM tables t
-JOIN table_device td ON td.table_name_en = t.name
+JOIN table_device td ON LOWER(td.table_name_en) = LOWER(t.name_pinyin)
 JOIN switch_device sd ON sd.switch_seq = td.switch_seq AND sd.switch_label = td.switch_label
 WHERE t.status = '空闲'
   AND sd.auto_off_start != ''
@@ -298,7 +298,7 @@ WHERE t.status = '空闲'
 ```sql
 SELECT DISTINCT sd.switch_id, sd.switch_seq
 FROM tables t
-JOIN table_device td ON td.table_name_en = t.name
+JOIN table_device td ON LOWER(td.table_name_en) = LOWER(t.name_pinyin)
 JOIN switch_device sd ON sd.switch_seq = td.switch_seq AND sd.switch_label = td.switch_label
 WHERE t.status != '空闲'
   AND sd.auto_off_start != ''
@@ -387,7 +387,7 @@ API 接口：
 ```sql
 SELECT DISTINCT sd.switch_id, sd.switch_seq
 FROM tables t
-JOIN table_device td ON td.table_name_en = t.name
+JOIN table_device td ON LOWER(td.table_name_en) = LOWER(t.name_pinyin)
 JOIN switch_device sd ON sd.switch_seq = td.switch_seq AND sd.switch_label = td.switch_label
 WHERE t.status = '空闲'
   AND sd.auto_on_start != ''
@@ -488,7 +488,7 @@ async function executeAutoOnLighting() {
   const maybeOn = await all(`
     SELECT DISTINCT sd.switch_id, sd.switch_seq
     FROM tables t
-    JOIN table_device td ON td.table_name_en = t.name
+    JOIN table_device td ON LOWER(td.table_name_en) = LOWER(t.name_pinyin)
     JOIN switch_device sd ON sd.switch_seq = td.switch_seq AND sd.switch_label = td.switch_label
     WHERE t.status = '空闲'
       AND sd.auto_on_start != ''
