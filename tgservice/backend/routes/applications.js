@@ -47,6 +47,8 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
       throw { status: 400, error: '无效的申请类型' };
     }
     
+    const status = 0; // 新申请状态为待处理
+    
     const insertResult = await tx.run(`
       INSERT INTO applications (
         applicant_phone,
