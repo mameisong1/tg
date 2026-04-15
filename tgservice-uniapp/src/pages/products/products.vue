@@ -365,20 +365,14 @@ const showTableSelector = ref(false)
 const defaultTableNo = ref('')
 
 // 加载默认台桌号（已上桌助教）
+// 2026-04-15 修改：不再从水牌加载默认值（需求5）
 const loadDefaultTableNo = async () => {
   if (tableName.value) {
     defaultTableNo.value = tableName.value
     return
   }
-  const coachInfo = uni.getStorageSync('coachInfo')
-  if (coachInfo?.coachNo) {
-    try {
-      const res = await api.getCoachWaterStatus(coachInfo.coachNo)
-      if (res.data?.table_no) {
-        defaultTableNo.value = res.data.table_no
-      }
-    } catch (e) {}
-  }
+  // 不再从水牌加载默认值，默认值为空
+  defaultTableNo.value = ''
 }
 
 // 台桌选择回调（商品页）
