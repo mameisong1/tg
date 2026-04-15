@@ -61,34 +61,48 @@
       <view class="submit-btn" @click="submitTableIn"><text>提交上桌单</text></view>
     </view>
 
-    <!-- 下桌单 -->
+    <!-- 下桌单：增加台桌号选择器 -->
     <view class="form-section" v-if="currentTab === 'table-out'">
-      <view class="confirm-section">
-        <text class="confirm-text">确认下桌</text>
-        <text class="confirm-hint" v-if="waterBoard?.table_no">当前台桌: {{ waterBoard.table_no }}</text>
-        <text class="confirm-hint">当前状态: {{ waterBoard?.status }}</text>
+      <view class="form-item" @click="showTableOutSelector = true">
+        <text class="form-label">选择下桌台桌号</text>
+        <view class="form-value">
+          <text :class="{ placeholder: !form.table_out_no }">
+            {{ form.table_out_no || '请选择要下桌的台桌' }}
+          </text>
+          <text class="arrow">›</text>
+        </view>
       </view>
       <view class="submit-btn danger" @click="submitTableOut"><text>提交下桌单</text></view>
     </view>
 
-    <!-- 取消单 -->
+    <!-- 取消单：增加台桌号选择器 -->
     <view class="form-section" v-if="currentTab === 'table-cancel'">
-      <view class="confirm-section">
-        <text class="confirm-text">取消上桌</text>
-        <text class="confirm-hint" v-if="waterBoard?.table_no">当前台桌: {{ waterBoard.table_no }}</text>
-        <text class="confirm-hint">当前状态: {{ waterBoard?.status }}</text>
+      <view class="form-item" @click="showTableCancelSelector = true">
+        <text class="form-label">选择取消台桌号</text>
+        <view class="form-value">
+          <text :class="{ placeholder: !form.table_cancel_no }">
+            {{ form.table_cancel_no || '请选择要取消的台桌' }}
+          </text>
+          <text class="arrow">›</text>
+        </view>
       </view>
       <view class="submit-btn warning" @click="submitTableCancel"><text>提交取消单</text></view>
     </view>
 
-    <!-- 台桌选择器 -->
-    <TableSelector :visible="showTableSelector" :default-table="waterBoard?.table_no || ''"
+    <!-- 台桌选择器（上桌单用）：过滤掉已在桌上的台桌号 -->
+    <TableSelector :visible="showTableSelector" :default-table="''" :exclude-tables="currentTables"
       @confirm="onTableSelected" @cancel="showTableSelector = false" />
+    
+    <!-- 台桌选择器（下桌单/取消单用）：只显示当前在桌上的台桌号 -->
+    <TableSelector :visible="showTableOutSelector" :default-table="''" :only-tables="currentTables"
+      @confirm="onTableOutSelected" @cancel="showTableOutSelector = false" />
+    <TableSelector :visible="showTableCancelSelector" :default-table="''" :only-tables="currentTables"
+      @confirm="onTableCancelSelected" @cancel="showTableCancelSelector = false" />
   </view>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import api from '@/utils/api-v2.js'
 import TableSelector from '@/components/TableSelector.vue'
 
@@ -97,8 +111,17 @@ const coachInfo = ref({})
 const waterBoard = ref(null)
 const currentTab = ref('table-in')
 const showTableSelector = ref(false)
+const showTableOutSelector = ref(false)
+const showTableCancelSelector = ref(false)
 
-const form = ref({ table_no: '', action_category: '普通课' })
+const form = ref({ table_no: '', action_category: '普通课', table_out_no: '', table_cancel_no: '' })
+
+// 解析当前在桌上的台桌号列表（逗号分隔字符串 → 数组）
+const currentTables = computed(() => {
+  const tableNo = waterBoard.value?.table_no
+  if (!tableNo || tableNo.trim() === '') return []
+  return tableNo.split(',').map(t => t.trim()).filter(t => t)
+})
 
 onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
@@ -125,6 +148,16 @@ const onTableSelected = (tableNo) => {
   showTableSelector.value = false
 }
 
+const onTableOutSelected = (tableNo) => {
+  form.value.table_out_no = tableNo
+  showTableOutSelector.value = false
+}
+
+const onTableCancelSelected = (tableNo) => {
+  form.value.table_cancel_no = tableNo
+  showTableCancelSelector.value = false
+}
+
 const submitTableIn = async () => {
   if (!form.value.table_no) return uni.showToast({ title: '请选择台桌', icon: 'none' })
   try {
@@ -138,6 +171,7 @@ const submitTableIn = async () => {
     })
     uni.hideLoading()
     uni.showToast({ title: '上桌单已提交', icon: 'success' })
+    form.value.table_no = ''
     await loadWaterBoard()
   } catch (e) {
     uni.hideLoading()
@@ -146,18 +180,18 @@ const submitTableIn = async () => {
 }
 
 const submitTableOut = async () => {
-  const isOnTable = waterBoard.value?.status === '早班上桌' || waterBoard.value?.status === '晚班上桌'
-  if (!isOnTable) return uni.showToast({ title: '当前未在桌上', icon: 'none' })
+  if (!form.value.table_out_no) return uni.showToast({ title: '请选择要下桌的台桌', icon: 'none' })
   try {
     uni.showLoading({ title: '提交中...' })
     await api.tableActionOrders.create({
-      table_no: waterBoard.value.table_no || '',
+      table_no: form.value.table_out_no,
       coach_no: coachInfo.value.coachNo,
       order_type: '下桌单',
       stage_name: coachInfo.value.stageName
     })
     uni.hideLoading()
     uni.showToast({ title: '下桌单已提交', icon: 'success' })
+    form.value.table_out_no = ''
     await loadWaterBoard()
   } catch (e) {
     uni.hideLoading()
@@ -166,18 +200,18 @@ const submitTableOut = async () => {
 }
 
 const submitTableCancel = async () => {
-  const isOnTable = waterBoard.value?.status === '早班上桌' || waterBoard.value?.status === '晚班上桌'
-  if (!isOnTable) return uni.showToast({ title: '当前未在桌上', icon: 'none' })
+  if (!form.value.table_cancel_no) return uni.showToast({ title: '请选择要取消的台桌', icon: 'none' })
   try {
     uni.showLoading({ title: '提交中...' })
     await api.tableActionOrders.create({
-      table_no: waterBoard.value.table_no || '',
+      table_no: form.value.table_cancel_no,
       coach_no: coachInfo.value.coachNo,
       order_type: '取消单',
       stage_name: coachInfo.value.stageName
     })
     uni.hideLoading()
     uni.showToast({ title: '取消单已提交', icon: 'success' })
+    form.value.table_cancel_no = ''
     await loadWaterBoard()
   } catch (e) {
     uni.hideLoading()

@@ -222,24 +222,15 @@ const onTableSelected = async (tableNo) => {
 }
 
 // 加载默认台桌号（已上桌助教）
+// 2026-04-15 修改：不再从水牌加载默认值（需求5）
 const loadDefaultTableNo = async () => {
   // 如果已经有台桌号，用它作为默认值
   if (tableName.value) {
     defaultTableNo.value = tableName.value
     return
   }
-  
-  const coachInfo = uni.getStorageSync('coachInfo')
-  if (coachInfo?.coachNo) {
-    try {
-      const res = await api.getCoachWaterStatus(coachInfo.coachNo)
-      if (res.data?.table_no) {
-        defaultTableNo.value = res.data.table_no
-      }
-    } catch (e) {
-      console.log('获取水牌状态失败', e)
-    }
-  }
+  // 不再从水牌加载默认值，默认值为空
+  defaultTableNo.value = ''
 }
 
 // 下单
@@ -277,6 +268,7 @@ const submitOrder = async () => {
 }
 
 // 检查助教水牌台桌号与购物车台桌号是否一致
+// 2026-04-15 修改：改用列表匹配（支持多桌上桌）
 const checkCoachTableConsistency = async () => {
   const coachInfo = uni.getStorageSync('coachInfo')
   if (!coachInfo?.coachNo) {
@@ -293,8 +285,11 @@ const checkCoachTableConsistency = async () => {
     // 判断是否为上桌状态
     const isOnTable = waterStatus === '早班上桌' || waterStatus === '晚班上桌'
     
-    if (isOnTable && waterTableNo && waterTableNo !== tableName.value) {
-      // 水牌台桌号与当前选择台桌号不一致，弹出警告
+    // 解析水牌台桌号列表（逗号分隔字符串 → 数组）
+    const waterTableList = waterTableNo ? waterTableNo.split(',').map(t => t.trim()).filter(t => t) : []
+    
+    if (isOnTable && waterTableList.length > 0 && !waterTableList.includes(tableName.value)) {
+      // 水牌台桌号列表不包含当前选择台桌号，弹出警告
       coachWaterTableNo.value = waterTableNo
       showCoachTableWarning.value = true
       return

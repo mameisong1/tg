@@ -77,7 +77,11 @@ import { ref, computed, watch } from 'vue'
 
 const props = defineProps({
   visible: { type: Boolean, default: false },
-  defaultTable: { type: String, default: '' }
+  defaultTable: { type: String, default: '' },
+  // 排除这些台桌号（上桌单用：过滤掉已在桌上的台桌号）
+  excludeTables: { type: Array, default: () => [] },
+  // 只显示这些台桌号（下桌单/取消单用：只显示当前在桌上的台桌号）
+  onlyTables: { type: Array, default: () => [] }
 })
 
 const emit = defineEmits(['confirm', 'cancel'])
@@ -144,6 +148,17 @@ watch(areas, (newAreas) => {
 
 const filteredTables = computed(() => {
   let tables = allTables.value.filter(t => t.area === currentArea.value)
+  
+  // 如果设置了 onlyTables，只显示指定台桌号
+  if (props.onlyTables && props.onlyTables.length > 0) {
+    tables = tables.filter(t => props.onlyTables.includes(t.name))
+  }
+  
+  // 如果设置了 excludeTables，排除指定台桌号
+  if (props.excludeTables && props.excludeTables.length > 0) {
+    tables = tables.filter(t => !props.excludeTables.includes(t.name))
+  }
+  
   // 大厅区按数字排序，其他区域按字符串排序
   if (currentArea.value === '大厅区' || currentArea.value === '大厅' || currentArea.value === '普台区') {
     return tables.sort((a, b) => {
@@ -157,7 +172,7 @@ const filteredTables = computed(() => {
   }
 })
 
-// 大厅区分段显示
+// 大厅区分段显示（基于 filteredTables，已包含 onlyTables/excludeTables 过滤）
 const hallSegments = computed(() => {
   if (currentArea.value !== '大厅区' && currentArea.value !== '大厅' && currentArea.value !== '普台区') return []
   
