@@ -258,7 +258,7 @@
         <view class="order-card" v-for="order in pendingOrders" :key="order.id">
           <view class="order-header">
             <text class="order-no">{{ order.order_no }}</text>
-            <text class="order-time">{{ formatTime(order.created_at) }}</text>
+            <text class="order-time">{{ formatOrderTime(order.created_at) }}</text>
           </view>
           <view class="order-items">
             <view class="order-item" v-for="(item, idx) in order.items" :key="idx">
@@ -473,6 +473,14 @@
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import api from '@/utils/api.js'
+import { format, toDate } from '@/utils/time-util.js'
+
+// 格式化订单时间：M/D HH:mm
+const formatOrderTime = (timeStr) => {
+  const d = toDate(timeStr);
+  if (!d) return '';
+  return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
 
 
 // 员工识别
@@ -971,12 +979,8 @@ const loadPendingOrders = async () => {
   }
 }
 
-// 格式化时间
-const formatTime = (timeStr) => {
-  if (!timeStr) return ''
-  const d = new Date(timeStr + ' UTC')
-  return `${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}`
-}
+// 格式化时间（使用 TimeUtil）
+// 格式化时间：formatOrderTime 已定义（使用 TimeUtil.toDate）
 
 // 检查教练登录
 const checkCoachLogin = () => {

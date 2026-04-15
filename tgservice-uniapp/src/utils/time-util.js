@@ -35,3 +35,39 @@ export function getBeijingTimestamp() {
     String(now.getMinutes()).padStart(2, '0') + ':' +
     String(now.getSeconds()).padStart(2, '0') + '+08:00';
 }
+
+/**
+ * 把数据库时间字符串转成 JavaScript Date 对象
+ * @param {string} dbTime - "YYYY-MM-DD HH:MM:SS"
+ * @returns {Date|null}
+ */
+export function toDate(dbTime) {
+  if (!dbTime) return null;
+  return new Date(dbTime + '+08:00');
+}
+
+/**
+ * 格式化数据库时间字符串
+ * @param {string} dbTime - "YYYY-MM-DD HH:MM:SS"
+ * @param {string} formatStr - 格式："MM/DD HH:mm" | "YYYY-MM-DD" | "YYYY-MM-DD HH:mm" | "YYYY-MM-DD HH:mm:ss"
+ * @returns {string}
+ */
+export function format(dbTime, formatStr = 'YYYY-MM-DD HH:mm') {
+  const d = toDate(dbTime);
+  if (!d) return '-';
+  
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  const s = String(d.getSeconds()).padStart(2, '0');
+  
+  return formatStr
+    .replace('YYYY', y)
+    .replace('MM', m)
+    .replace('DD', day)
+    .replace('HH', h)
+    .replace('mm', min)
+    .replace('ss', s);
+}
