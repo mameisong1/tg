@@ -59,7 +59,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import api from '@/utils/api-v2.js'
 
 const statusBarHeight = ref(0)
@@ -77,10 +77,25 @@ const statusColors = {
   '请假': '#7f8c8d', '乐捐': '#f39c12', '下班': '#bdc3c7'
 }
 
+// ===== 自动刷新机制 =====
+let refreshTimer = null
+const REFRESH_INTERVAL = 30000 // 30秒
+
 onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 20
   loadData()
+  // 启动30秒自动刷新
+  refreshTimer = setInterval(() => {
+    loadData() // 静默刷新，不弹提示
+  }, REFRESH_INTERVAL)
+})
+
+onUnmounted(() => {
+  if (refreshTimer) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
 })
 
 const loadData = async () => {
@@ -249,4 +264,32 @@ const closeExpand = () => {
 .expand-id { font-size: 12px; color: #d4af37; font-weight: 600; }
 .expand-name { font-size: 12px; color: rgba(255,255,255,0.8); text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90px; }
 .expand-table { font-size: 11px; color: rgba(255,255,255,0.5); }
+
+/* === 窄屏响应式优化 === */
+
+/* 窄屏：≤420px */
+@media (max-width: 420px) {
+  .filter-bar { gap: 4px; padding: 6px 8px; }
+  .filter-item { padding: 5px 8px; font-size: 11px; }
+  .coach-chips { gap: 6px; }
+  .coach-chip { width: 68px; padding: 6px 2px; }
+  .coach-avatar { width: 40px; height: 40px; }
+  .coach-id { font-size: 11px; }
+  .coach-name { font-size: 11px; max-width: 60px; }
+  .coach-table { font-size: 9px; }
+  .status-section { padding: 8px; margin-bottom: 8px; }
+}
+
+/* 极窄屏：≤360px */
+@media (max-width: 360px) {
+  .filter-bar { gap: 3px; padding: 4px 6px; }
+  .filter-item { padding: 4px 6px; font-size: 10px; border-radius: 12px; }
+  .coach-chips { gap: 4px; }
+  .coach-chip { width: 60px; padding: 4px 2px; }
+  .coach-avatar { width: 34px; height: 34px; border-width: 1px; }
+  .coach-id { font-size: 10px; }
+  .coach-name { font-size: 10px; max-width: 52px; }
+  .coach-table { font-size: 8px; }
+  .board-list { padding: 0 8px 8px; }
+}
 </style>

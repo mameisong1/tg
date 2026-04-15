@@ -371,6 +371,23 @@ const enqueueRun = (sql, params = []) => {
   });
 };
 
+/**
+ * 解析 table_no 字符串 → 数组
+ * 用于多桌上桌功能，table_no 存逗号分隔字符串 "A1,A3,B2"
+ */
+const parseTables = (tableNoStr) => {
+  if (!tableNoStr || tableNoStr.trim() === '') return [];
+  return tableNoStr.split(',').map(t => t.trim()).filter(t => t);
+};
+
+/**
+ * 数组 → table_no 字符串
+ */
+const joinTables = (tableArr) => {
+  if (!tableArr || tableArr.length === 0) return null;
+  return tableArr.join(',');
+};
+
 module.exports = {
   // 数据库实例（server.js 需要）
   db,
@@ -392,5 +409,8 @@ module.exports = {
   close,
   // 监控数据（只读，供 API 导出）
   queueStats,
-  writeQueue
+  writeQueue,
+  // 台桌号解析工具（多桌上桌功能）
+  parseTables,
+  joinTables
 };

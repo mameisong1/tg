@@ -1,12 +1,17 @@
 /**
  * 上下桌单 API
  * 路径：/api/table-action-orders
+ * 
+ * 2026-04-15: 支持多桌上桌功能
+ * table_no 存逗号分隔字符串 "A1,A3,B2"
+ * 上桌：追加到列表；下桌：从列表移除指定台桌号
+ * 列表为空 → 状态变空闲
  */
 
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
-const { runInTransaction } = require('../db');
+const { runInTransaction, parseTables, joinTables } = require('../db');
 const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const operationLogService = require('../services/operation-log');
@@ -50,17 +55,36 @@ router.post('/', auth.required, requireBackendPermission(['cashierDashboard']), 
     let newTableNo = waterBoard.table_no;
     
     if (order_type === '上桌单') {
-      if (!['早班空闲', '晚班空闲'].includes(waterBoard.status)) {
-        throw { status: 400, error: `当前状态（${waterBoard.status}）不允许上桌` };
+      // 支持重复上桌：空闲或上桌状态都允许，但不能重复上已有台桌
+      const currentTables = parseTables(waterBoard.table_no);
+      
+      if (currentTables.includes(table_no)) {
+        throw { status: 400, error: `已在台桌 ${table_no} 上，不能重复上桌` };
       }
-      newStatus = waterBoard.status === '早班空闲' ? '早班上桌' : '晚班上桌';
-      newTableNo = table_no;
+      
+      currentTables.push(table_no);
+      newTableNo = joinTables(currentTables);
+      
+      if (['早班空闲', '晚班空闲'].includes(waterBoard.status)) {
+        newStatus = waterBoard.status === '早班空闲' ? '早班上桌' : '晚班上桌';
+      }
     } else if (order_type === '下桌单' || order_type === '取消单') {
       if (!['早班上桌', '晚班上桌'].includes(waterBoard.status)) {
         throw { status: 400, error: `当前状态（${waterBoard.status}）不允许下桌` };
       }
-      newStatus = waterBoard.status === '早班上桌' ? '早班空闲' : '晚班空闲';
-      newTableNo = null;
+      
+      const currentTables = parseTables(waterBoard.table_no);
+      
+      const idx = currentTables.indexOf(table_no);
+      if (idx === -1) {
+        throw { status: 400, error: `当前不在台桌 ${table_no} 上` };
+      }
+      currentTables.splice(idx, 1);
+      newTableNo = joinTables(currentTables);
+      
+      if (currentTables.length === 0) {
+        newStatus = waterBoard.status === '早班上桌' ? '早班空闲' : '晚班空闲';
+      }
     }
     
     const currentUpdatedAt = waterBoard.updated_at;
@@ -98,7 +122,7 @@ router.post('/', auth.required, requireBackendPermission(['cashierDashboard']), 
       remark: `${order_type}: ${waterBoard.stage_name} ${oldStatus} → ${newStatus} ${newTableNo ? '(' + newTableNo + ')' : ''}`
     });
     
-    return { id: insertResult.lastID, status: '待处理', water_board_status: newStatus };
+    return { id: insertResult.lastID, status: '待处理', water_board_status: newStatus, water_board_table_no: newTableNo };
     });
     
     res.json({

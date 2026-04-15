@@ -79,6 +79,10 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import api from '@/utils/api-v2.js'
 
+// ===== 自动刷新机制 =====
+let refreshTimer = null
+const REFRESH_INTERVAL = 30000 // 30秒
+
 // #ifdef H5
 // H5 环境下阻止浏览器长按菜单
 let contextmenuHandler = null
@@ -107,8 +111,34 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('contextmenu', contextmenuHandler, true)
   document.removeEventListener('selectstart', selectstartHandler, true)
+  if (refreshTimer) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
 })
 // #endif
+
+// #ifndef H5
+onUnmounted(() => {
+  if (refreshTimer) {
+    clearInterval(refreshTimer)
+    refreshTimer = null
+  }
+})
+// #endif
+
+// 共享初始化：所有环境都执行
+onMounted(() => {
+  const systemInfo = uni.getSystemInfoSync()
+  statusBarHeight.value = systemInfo.statusBarHeight || 20
+  const adminInfo = uni.getStorageSync('adminInfo') || {}
+  isEditable.value = ['店长', '助教管理'].includes(adminInfo.role)
+  loadData()
+  // 启动30秒自动刷新
+  refreshTimer = setInterval(() => {
+    loadData() // 静默刷新，不弹提示
+  }, REFRESH_INTERVAL)
+})
 
 const statusBarHeight = ref(0)
 const waterBoards = ref([])
@@ -129,13 +159,7 @@ const statusColors = {
   '请假': '#7f8c8d', '乐捐': '#f39c12', '下班': '#bdc3c7'
 }
 
-onMounted(() => {
-  const systemInfo = uni.getSystemInfoSync()
-  statusBarHeight.value = systemInfo.statusBarHeight || 20
-  const adminInfo = uni.getStorageSync('adminInfo') || {}
-  isEditable.value = ['店长', '助教管理'].includes(adminInfo.role)
-  loadData()
-})
+
 
 const loadData = async () => {
   try {
@@ -328,4 +352,32 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .modal-cancel { text-align: center; padding: 12px; margin-top: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 14px; color: rgba(255,255,255,0.6); }
 
 .empty { text-align: center; padding: 60px 20px; color: rgba(255,255,255,0.3); }
+
+/* === 窄屏响应式优化 === */
+
+/* 窄屏：≤420px */
+@media (max-width: 420px) {
+  .filter-bar { gap: 4px; padding: 6px 8px; }
+  .filter-item { padding: 5px 8px; font-size: 11px; }
+  .coach-chips { gap: 6px; }
+  .coach-chip { width: 68px; padding: 6px 2px; }
+  .coach-chip-avatar { width: 40px; height: 40px; }
+  .coach-chip-id { font-size: 11px; }
+  .coach-chip-name { font-size: 11px; max-width: 60px; }
+  .coach-chip-table { font-size: 9px; }
+  .status-section { padding: 8px; margin-bottom: 8px; }
+}
+
+/* 极窄屏：≤360px */
+@media (max-width: 360px) {
+  .filter-bar { gap: 3px; padding: 4px 6px; }
+  .filter-item { padding: 4px 6px; font-size: 10px; border-radius: 12px; }
+  .coach-chips { gap: 4px; }
+  .coach-chip { width: 60px; padding: 4px 2px; }
+  .coach-chip-avatar { width: 34px; height: 34px; border-width: 1px; }
+  .coach-chip-id { font-size: 10px; }
+  .coach-chip-name { font-size: 10px; max-width: 52px; }
+  .coach-chip-table { font-size: 8px; }
+  .board-list { padding: 0 8px 8px; }
+}
 </style>

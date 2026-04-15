@@ -89,7 +89,10 @@ const canSubmit = computed(() => {
   return imageUrls.value.length > 0 && form.value.remark
 })
 
+const selectedHours = ref(0)
+
 const setHours = (hours) => {
+  selectedHours.value = hours
   form.value.remark = `加班${hours}小时`
 }
 
@@ -109,7 +112,8 @@ const submitApply = async () => {
       applicant_phone: phone,
       application_type: applicationType.value,
       remark: form.value.remark,
-      images: imageUrls.value.length > 0 ? JSON.stringify(imageUrls.value) : null
+      images: imageUrls.value.length > 0 ? JSON.stringify(imageUrls.value) : null,
+      extra_data: selectedHours.value > 0 ? { hours: selectedHours.value } : undefined
     })
     uni.hideLoading()
     form.value.remark = ''

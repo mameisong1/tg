@@ -75,7 +75,10 @@ onMounted(() => {
 
 const canSubmit = computed(() => imageUrls.value.length > 0 && form.value.remark)
 
+const selectedHours = ref(0)
+
 const setHours = (hours) => {
+  selectedHours.value = hours
   form.value.remark = `通宵加班到${hours}点以后`
 }
 
@@ -93,7 +96,8 @@ const submitApply = async () => {
       applicant_phone: phone,
       application_type: '公休申请',
       remark: form.value.remark,
-      images: imageUrls.value.length > 0 ? JSON.stringify(imageUrls.value) : null
+      images: imageUrls.value.length > 0 ? JSON.stringify(imageUrls.value) : null,
+      extra_data: selectedHours.value > 0 ? { hours: selectedHours.value } : undefined
     })
     uni.hideLoading()
     form.value.remark = ''

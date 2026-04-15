@@ -155,14 +155,91 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
 });
 
 /**
+ * GET /api/applications/approved-recent
+ * 获取近N天内已审批（同意/拒绝）的申请记录
+ * 参数：
+ *   - application_types: 逗号分隔的申请类型，如 "早加班申请,晚加班申请"
+ *   - days: 天数，默认2
+ *   - status: 1=已同意, 2=已拒绝
+ */
+router.get('/approved-recent', requireBackendPermission(['coachManagement']), async (req, res) => {
+  try {
+    const { application_types, days = 2, status } = req.query;
+    const daysNum = parseInt(days, 10);
+    const sinceTime = TimeUtil.offsetDB(-daysNum * 24);
+    
+    let sql = `
+      SELECT a.id, a.applicant_phone, a.application_type, a.remark, 
+             a.status, a.approver_phone, a.approve_time, a.extra_data, a.created_at,
+             c.stage_name, c.coach_no, c.shift
+      FROM applications a
+      LEFT JOIN coaches c ON a.applicant_phone = c.employee_id OR a.applicant_phone = c.phone
+      WHERE a.status IN (1, 2)
+        AND a.created_at >= ?
+    `;
+    const params = [sinceTime];
+    
+    if (application_types) {
+      const types = application_types.split(',').map(t => t.trim());
+      sql += ' AND a.application_type IN (' + types.map(() => '?').join(',') + ')';
+      params.push(...types);
+    }
+    
+    if (status !== undefined) {
+      sql += ' AND a.status = ?';
+      params.push(parseInt(status, 10));
+    }
+    
+    sql += ' ORDER BY a.approve_time DESC';
+    
+    const records = await db.all(sql, params);
+    
+    // 格式化返回：提取小时数
+    const formatted = records.map(r => {
+      let hours = null;
+      if (r.extra_data) {
+        try {
+          const extra = JSON.parse(r.extra_data);
+          hours = extra.hours || null;
+        } catch (e) {}
+      }
+      // 如果 extra_data 没有，尝试从 remark 解析
+      if (hours === null && r.remark) {
+        const match = r.remark.match(/(\d+)小时/);
+        if (match) hours = parseInt(match[1], 10);
+      }
+      
+      return {
+        id: r.id,
+        applicant_phone: r.applicant_phone,
+        coach_no: r.coach_no || '-',
+        stage_name: r.stage_name || '未知',
+        shift: r.shift || '-',
+        application_type: r.application_type,
+        hours: hours,
+        status: r.status,
+        approve_time: r.approve_time,
+        created_at: r.created_at
+      };
+    });
+    
+    res.json({ success: true, data: formatted });
+  } catch (error) {
+    console.error('获取近期审批记录失败:', error);
+    res.status(500).json({ success: false, error: '获取近期审批记录失败' });
+  }
+});
+
+/**
  * GET /api/applications
- * 获取申请列表
+ * 获取申请列表（支持 since 参数和 status 多值）
  */
 router.get('/', requireBackendPermission(['all']), async (req, res) => {
   try {
     const {
       application_type,
       status,
+      since,
       applicant_phone,
       approver_phone,
       limit = 50
@@ -182,8 +259,20 @@ router.get('/', requireBackendPermission(['all']), async (req, res) => {
     }
     
     if (status !== undefined) {
-      sql += ' AND a.status = ?';
-      params.push(status);
+      // 支持逗号分隔的多状态，如 "1,2"
+      const statusList = String(status).split(',').map(s => parseInt(s.trim()));
+      if (statusList.length > 1) {
+        sql += ' AND a.status IN (' + statusList.map(() => '?').join(',') + ')';
+        params.push(...statusList);
+      } else {
+        sql += ' AND a.status = ?';
+        params.push(statusList[0]);
+      }
+    }
+    
+    if (since) {
+      sql += ' AND a.created_at >= ?';
+      params.push(since);
     }
     
     if (applicant_phone) {

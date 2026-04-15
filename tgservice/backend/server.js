@@ -47,6 +47,9 @@ const serviceOrdersRouter = require('./routes/service-orders');
 const tableActionOrdersRouter = require('./routes/table-action-orders');
 const operationLogsRouter = require('./routes/operation-logs');
 
+// 乐捐记录路由
+const lejuanRecordsRouter = require('./routes/lejuan-records');
+
 // 智能开关路由模块
 const { router: switchRouter, triggerAutoOffIfEligible } = require('./routes/switch-routes');
 
@@ -337,6 +340,9 @@ app.use('/api/coaches/v2', coachesV2Router);
 app.use('/api/service-orders', serviceOrdersRouter);
 app.use('/api/table-action-orders', tableActionOrdersRouter);
 app.use('/api/operation-logs', operationLogsRouter);
+
+// 乐捐记录路由
+app.use('/api/lejuan-records', lejuanRecordsRouter);
 
 // 智能开关路由（在 authMiddleware 之后注册）
 
@@ -2735,7 +2741,7 @@ app.put('/api/admin/coaches/:coachNo', authMiddleware, requireBackendPermission(
     }
 
     // 获取原有数据,用于保留前台可编辑字段
-    const currentCoach = await dbGet('SELECT photos, videos, intro, age, height, shift FROM coaches WHERE coach_no = ?', [req.params.coachNo]);
+    const currentCoach = await dbGet('SELECT photos, videos, intro, age, height, shift, status FROM coaches WHERE coach_no = ?', [req.params.coachNo]);
 
     // 对于前台可编辑的字段,如果后台没有传值,保留原有数据
     let finalPhotos = photos;
@@ -2749,10 +2755,31 @@ app.put('/api/admin/coaches/:coachNo', authMiddleware, requireBackendPermission(
     let finalHeight = height !== undefined ? height : currentCoach?.height;
     let resolvedShift = finalShift !== undefined ? finalShift : (currentCoach?.shift || '早班');
 
+    const newStatus = status || '全职';
+    const oldStatus = currentCoach?.status || '全职';
+
     await enqueueRun(
       `UPDATE coaches SET employee_id = ?, stage_name = ?, real_name = ?, phone = ?, level = ?, price = ?, age = ?, height = ?, photos = ?, video = ?, intro = ?, videos = ?, is_popular = ?, status = ?, shift = ?, updated_at = ? WHERE coach_no = ?`,
-      [employeeId, stageName, realName, phone || null, level, price, finalAge, finalHeight, JSON.stringify(finalPhotos || []), video, finalIntro, JSON.stringify(finalVideos || []), isPopular ? 1 : 0, status || '全职', resolvedShift, TimeUtil.nowDB(), req.params.coachNo]
+      [employeeId, stageName, realName, phone || null, level, price, finalAge, finalHeight, JSON.stringify(finalPhotos || []), video, finalIntro, JSON.stringify(finalVideos || []), isPopular ? 1 : 0, newStatus, resolvedShift, TimeUtil.nowDB(), req.params.coachNo]
     );
+
+    // 联动 water_boards 处理
+    if (newStatus === '离职' && oldStatus !== '离职') {
+      // 改为离职 → 删除水牌
+      await enqueueRun('DELETE FROM water_boards WHERE coach_no = ?', [req.params.coachNo]);
+      operationLog.info(`助教改为离职: ${req.params.coachNo}, 水牌记录已同步删除`);
+    } else if ((newStatus === '全职' || newStatus === '兼职') && oldStatus === '离职') {
+      // 从离职改为全职/兼职 → 创建水牌（先删再插，防止 UNIQUE 冲突）
+      await enqueueRun('DELETE FROM water_boards WHERE coach_no = ?', [req.params.coachNo]);
+      await enqueueRun(
+        `INSERT INTO water_boards (coach_no, stage_name, status, created_at, updated_at)
+         VALUES (?, ?, '下班', ?, ?)`,
+        [req.params.coachNo, stageName, TimeUtil.nowDB(), TimeUtil.nowDB()]
+      );
+      operationLog.info(`助教恢复为${newStatus}: ${req.params.coachNo}, 水牌记录已同步创建`);
+    }
+    // 全职↔兼职互切：水牌已存在，无需额外操作
+
     operationLog.info(`更新助教: ${req.params.coachNo}`);
     res.json({ success: true });
   } catch (err) {
@@ -2766,8 +2793,7 @@ app.put('/api/admin/coaches/:coachNo', authMiddleware, requireBackendPermission(
 
 app.delete('/api/admin/coaches/:coachNo', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
-    // 检查助教状态
-    const coach = await dbGet('SELECT status FROM coaches WHERE coach_no = ?', [req.params.coachNo]);
+    const coach = await dbGet('SELECT stage_name, status FROM coaches WHERE coach_no = ?', [req.params.coachNo]);
     if (!coach) {
       return res.status(404).json({ error: '助教不存在' });
     }
@@ -2777,8 +2803,13 @@ app.delete('/api/admin/coaches/:coachNo', authMiddleware, requireBackendPermissi
       return res.status(400).json({ error: '只能删除离职助教' });
     }
 
+    // 先删除 water_boards 记录
+    await enqueueRun('DELETE FROM water_boards WHERE coach_no = ?', [req.params.coachNo]);
+
+    // 再删除 coaches 记录
     await enqueueRun('DELETE FROM coaches WHERE coach_no = ?', [req.params.coachNo]);
-    operationLog.info(`删除助教: ${req.params.coachNo}`);
+
+    operationLog.info(`删除助教: ${coach.stage_name}(${req.params.coachNo}), 水牌记录已同步删除`);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
@@ -2808,6 +2839,31 @@ app.put('/api/admin/coaches/:coachNo/shift', authMiddleware, requireBackendPermi
 
     // 只更新班次字段
     await enqueueRun('UPDATE coaches SET shift = ?, updated_at = ? WHERE coach_no = ?', [shift, TimeUtil.nowDB(), req.params.coachNo]);
+
+    // 联动水牌状态映射（参考 routes/coaches.js v2 接口）
+    const waterBoard = await dbGet('SELECT id, status FROM water_boards WHERE coach_no = ?', [req.params.coachNo]);
+    if (waterBoard) {
+      const statusMap = {
+        '早班空闲': '晚班空闲',
+        '晚班空闲': '早班空闲',
+        '早班上桌': '晚班上桌',
+        '晚班上桌': '早班上桌',
+        '早加班': '晚加班',
+        '晚加班': '早加班'
+      };
+
+      const wbOldStatus = waterBoard.status;
+      const wbNewStatus = statusMap[wbOldStatus];
+
+      if (wbNewStatus) {
+        await enqueueRun(
+          'UPDATE water_boards SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE coach_no = ?',
+          [wbNewStatus, req.params.coachNo]
+        );
+        operationLog.info(`班次变更联动: ${coach.stage_name}(${req.params.coachNo}) 水牌 ${wbOldStatus}→${wbNewStatus}`);
+      }
+    }
+    // 水牌不存在的情况（如离职助教）：静默跳过
 
     operationLog.info(`修改班次: ${coach.stage_name}(${req.params.coachNo}) ${oldShift} → ${shift}`);
     res.json({ success: true, coach_no: req.params.coachNo, old_shift: oldShift, new_shift: shift });
@@ -3006,6 +3062,42 @@ const initBlacklistTable = async () => {
   }
 };
 initBlacklistTable();
+
+// 创建乐捐记录表(如果不存在)
+const initLejuanRecordsTable = async () => {
+    try {
+        await dbRun(`CREATE TABLE IF NOT EXISTS lejuan_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            coach_no TEXT NOT NULL,
+            employee_id TEXT NOT NULL,
+            stage_name TEXT,
+            scheduled_start_time TEXT NOT NULL,
+            extra_hours INTEGER,
+            remark TEXT,
+            lejuan_status TEXT DEFAULT 'pending',
+            scheduled INTEGER DEFAULT 0,
+            actual_start_time TEXT,
+            return_time TEXT,
+            lejuan_hours INTEGER,
+            proof_image_url TEXT,
+            proof_image_updated_at TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            created_by TEXT,
+            returned_by TEXT
+        )`);
+        await dbRun(`CREATE INDEX IF NOT EXISTS idx_lejuan_coach ON lejuan_records(coach_no)`);
+        await dbRun(`CREATE INDEX IF NOT EXISTS idx_lejuan_status ON lejuan_records(lejuan_status)`);
+        await dbRun(`CREATE INDEX IF NOT EXISTS idx_lejuan_scheduled ON lejuan_records(scheduled_start_time)`);
+        await dbRun(`CREATE INDEX IF NOT EXISTS idx_lejuan_status_time ON lejuan_records(lejuan_status, scheduled_start_time)`);
+        console.log('✅ lejuan_records 表初始化完成');
+    } catch (err) {
+        if (!err.message.includes('already exists')) {
+            console.error('lejuan_records 表初始化失败:', err.message);
+        }
+    }
+};
+initLejuanRecordsTable();
 
 // 创建系统配置表(如果不存在)
 const initSystemConfigTable = async () => {
@@ -4394,6 +4486,9 @@ const PORT = process.env.PORT || config.server.port || 8081;
 app.listen(PORT, () => {
   logger.info(`天宫国际线上服务已启动: http://localhost:${PORT}`);
   console.log(`🚀 服务已启动: http://localhost:${PORT}`);
+
+  // 初始化乐捐定时器（恢复 + 轮询）
+  require('./services/lejuan-timer').init();
 });
 
 // 优雅关闭

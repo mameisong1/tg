@@ -42,7 +42,9 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
     
     // 根据班次和当前状态确定新状态
     let newStatus;
-    if (['早加班', '休息', '公休', '请假', '乐捐', '下班'].includes(waterBoard.status)) {
+    if (waterBoard.status === '乐捐') {
+      throw { status: 400, error: '乐捐状态无法自行上班，请联系助教管理或店长' };
+    } else if (['早加班', '休息', '公休', '请假', '下班'].includes(waterBoard.status)) {
       newStatus = coach.shift === '早班' ? '早班空闲' : '晚班空闲';
     } else if (waterBoard.status === '早班空闲' || waterBoard.status === '晚班空闲') {
       throw { status: 400, error: '助教已在班状态，无需重复上班' };
