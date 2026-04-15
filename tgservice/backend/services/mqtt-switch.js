@@ -116,7 +116,6 @@ async function sendSwitchCommand(switchId, switchSeq, action) {
 
   // 真实发送（测试/生产环境统一）
   try {
-  try {
     const mqttClient = await getClient();
     if (!mqttClient) {
       const msg = `MQTT 客户端不可用 (${switchId} ${switchSeq} ${action})`;
