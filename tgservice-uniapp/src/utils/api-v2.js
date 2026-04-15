@@ -80,8 +80,6 @@ export const applications = {
   getList: (params) => request({ url: '/applications', data: params }),
   // 审批申请
   approve: (id, data) => request({ url: `/applications/${id}/approve`, method: 'PUT', data }),
-  // 获取乐捐报备一览
-  getLejuanList: (params) => request({ url: '/applications/lejuan', data: params }),
   // 获取近期已审批记录
   getApprovedRecent: (params) => request({ url: '/applications/approved-recent', data: params })
 }

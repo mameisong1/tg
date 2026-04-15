@@ -1,7 +1,7 @@
 /**
  * 申请事项 API
  * 路径：/api/applications
- * 功能：加班申请、公休申请、乐捐报备、约客记录提交与审批
+ * 功能：加班申请、公休申请、约客记录提交与审批
  */
 
 const express = require('express');
@@ -40,17 +40,11 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
       '早加班申请',
       '晚加班申请',
       '公休申请',
-      '乐捐报备',
       '约客记录'
     ];
     
     if (!validTypes.includes(application_type)) {
       throw { status: 400, error: '无效的申请类型' };
-    }
-    
-    let status = 0;
-    if (application_type === '乐捐报备') {
-      status = 1;
     }
     
     const insertResult = await tx.run(`
@@ -72,50 +66,6 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
     ]);
     
     const applicationId = insertResult.lastID;
-    
-    if (application_type === '乐捐报备') {
-      const coach = await tx.get(
-        'SELECT coach_no, stage_name FROM coaches WHERE employee_id = ? OR phone = ?',
-        [applicant_phone, applicant_phone]
-      );
-      
-      if (coach) {
-        const currentWaterBoard = await tx.get(
-          'SELECT * FROM water_boards WHERE coach_no = ?',
-          [coach.coach_no]
-        );
-        
-        if (currentWaterBoard) {
-          const oldValue = {
-            status: currentWaterBoard.status,
-            table_no: currentWaterBoard.table_no
-          };
-          
-          await tx.run(`
-            UPDATE water_boards 
-            SET status = '乐捐', updated_at = ? 
-            WHERE coach_no = ?
-          `, [TimeUtil.nowDB(), coach.coach_no]);
-          
-          const newValue = {
-            status: '乐捐',
-            table_no: currentWaterBoard.table_no
-          };
-          
-          const user = req.user;
-          await operationLogService.create(tx, {
-            operator_phone: user.username,
-            operator_name: user.name,
-            operation_type: '乐捐报备',
-            target_type: 'water_board',
-            target_id: currentWaterBoard.id,
-            old_value: JSON.stringify(oldValue),
-            new_value: JSON.stringify(newValue),
-            remark: `乐捐报备自动更新水牌状态：${oldValue.status} → 乐捐`
-          });
-        }
-      }
-    }
     
     const user = req.user;
     await operationLogService.create(tx, {
@@ -299,50 +249,6 @@ router.get('/', requireBackendPermission(['all']), async (req, res) => {
     res.status(500).json({
       success: false,
       error: '获取申请列表失败'
-    });
-  }
-});
-
-/**
- * GET /api/applications/lejuan
- * 获取乐捐报备一览
- */
-router.get('/lejuan', requireBackendPermission(['all']), async (req, res) => {
-  try {
-    const { days = 10 } = req.query;
-    
-    const daysNum = parseInt(days, 10);
-    const applications = await db.all(`
-      SELECT a.*, c.stage_name
-      FROM applications a
-      LEFT JOIN coaches c ON a.applicant_phone = c.employee_id OR a.applicant_phone = c.phone
-      WHERE a.application_type = '乐捐报备'
-        AND a.status = 1
-        AND date(a.created_at) >= date('now', ?)
-      ORDER BY a.created_at DESC
-    `, ['-' + daysNum + ' days']);
-    
-    // 格式化返回数据
-    const formattedData = applications.map(a => ({
-      id: a.id,
-      applicant_phone: a.applicant_phone,
-      stage_name: a.stage_name,
-      date: a.created_at ? a.created_at.split(' ')[0] : null,
-      hours: a.extra_data ? JSON.parse(a.extra_data).hours : null,
-      remark: a.remark,
-      images: a.images,
-      created_at: a.created_at
-    }));
-    
-    res.json({
-      success: true,
-      data: formattedData
-    });
-  } catch (error) {
-    console.error('获取乐捐报备一览失败:', error);
-    res.status(500).json({
-      success: false,
-      error: '获取乐捐报备一览失败'
     });
   }
 });

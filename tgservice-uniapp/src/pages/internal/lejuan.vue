@@ -188,7 +188,7 @@ const submitLejuan = async () => {
 
   try {
     uni.showLoading({ title: '提交中...' })
-    await api.lejuanRecords.create({
+    const res = await api.lejuanRecords.create({
       employee_id: coachInfo.value.employeeId,
       scheduled_start_time: scheduledTime,
       extra_hours: form.value.extraHours,
