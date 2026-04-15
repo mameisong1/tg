@@ -2904,6 +2904,133 @@ app.put('/api/admin/coaches/:coachNo/shift', authMiddleware, requireBackendPermi
   }
 });
 
+// =============== 同步水牌 API ===============
+
+/**
+ * GET /api/admin/coaches/sync-water-boards/preview
+ * 预览同步差异：检测孤儿数据和缺失数据
+ */
+app.get('/api/admin/coaches/sync-water-boards/preview', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
+  try {
+    // 孤儿数据检测
+    const orphanRecords = await dbAll(`
+      SELECT wb.coach_no, wb.stage_name, wb.status AS wb_status,
+             'coaches表不存在' AS reason
+      FROM water_boards wb
+      LEFT JOIN coaches c ON wb.coach_no = c.coach_no
+      WHERE c.coach_no IS NULL
+
+      UNION ALL
+
+      SELECT wb.coach_no, wb.stage_name, wb.status AS wb_status,
+             'coaches.status=离职' AS reason
+      FROM water_boards wb
+      INNER JOIN coaches c ON wb.coach_no = c.coach_no
+      WHERE c.status = '离职'
+
+      ORDER BY coach_no
+    `);
+
+    // 缺失数据检测
+    const missingRecords = await dbAll(`
+      SELECT c.coach_no, c.stage_name, c.status, c.shift
+      FROM coaches c
+      LEFT JOIN water_boards wb ON c.coach_no = wb.coach_no
+      WHERE c.status IN ('全职', '兼职')
+        AND wb.coach_no IS NULL
+      ORDER BY c.coach_no
+    `);
+
+    res.json({
+      orphanRecords: orphanRecords || [],
+      missingRecords: missingRecords || [],
+      summary: {
+        orphanCount: orphanRecords ? orphanRecords.length : 0,
+        missingCount: missingRecords ? missingRecords.length : 0
+      }
+    });
+  } catch (err) {
+    logger.error(`预览水牌同步失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+/**
+ * POST /api/admin/coaches/sync-water-boards/execute
+ * 执行同步：删除孤儿记录 + 添加缺失记录
+ */
+app.post('/api/admin/coaches/sync-water-boards/execute', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
+  try {
+    const { deleteOrphanIds, addMissingIds } = req.body;
+
+    if (!Array.isArray(deleteOrphanIds) || !Array.isArray(addMissingIds)) {
+      return res.status(400).json({ error: '参数格式错误' });
+    }
+
+    const errors = [];
+    let deleted = 0;
+    let added = 0;
+
+    await runInTransaction(async (tx) => {
+      // 1. 批量删除孤儿记录
+      for (const coachNo of deleteOrphanIds) {
+        try {
+          await tx.run('DELETE FROM water_boards WHERE coach_no = ?', [coachNo]);
+          // 验证删除
+          const wbCheck = await tx.get('SELECT id FROM water_boards WHERE coach_no = ?', [coachNo]);
+          if (wbCheck) {
+            throw new Error(`coach_no=${coachNo} 删除验证失败`);
+          }
+          deleted++;
+        } catch (e) {
+          errors.push(`coach_no=${coachNo}: 删除失败 - ${e.message}`);
+        }
+      }
+
+      // 2. 批量添加缺失记录
+      for (const coachNo of addMissingIds) {
+        try {
+          const coach = await tx.get('SELECT stage_name, shift FROM coaches WHERE coach_no = ?', [coachNo]);
+          if (!coach) {
+            throw new Error(`coach_no=${coachNo} 在coaches表中不存在`);
+          }
+          const initialStatus = coach.shift === '晚班' ? '晚班空闲' : '早班空闲';
+          await tx.run(
+            'INSERT INTO water_boards (coach_no, stage_name, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+            [coachNo, coach.stage_name, initialStatus, TimeUtil.nowDB(), TimeUtil.nowDB()]
+          );
+          // 验证插入
+          const wbCheck = await tx.get('SELECT id FROM water_boards WHERE coach_no = ?', [coachNo]);
+          if (!wbCheck) {
+            throw new Error(`coach_no=${coachNo} 插入验证失败`);
+          }
+          added++;
+        } catch (e) {
+          errors.push(`coach_no=${coachNo}: 添加失败 - ${e.message}`);
+        }
+      }
+
+      // 3. 记录操作日志
+      operationLog.info(`同步水牌: 删除${deleted}条孤儿记录, 添加${added}条缺失记录`);
+    });
+
+    if (errors.length > 0) {
+      return res.json({
+        success: false,
+        error: '部分操作失败',
+        deleted,
+        added,
+        errors
+      });
+    }
+
+    res.json({ success: true, deleted, added, errors: [] });
+  } catch (err) {
+    logger.error(`执行水牌同步失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
 // =============== 会员管理 API ===============
 
 // 获取会员列表

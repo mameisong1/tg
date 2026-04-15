@@ -205,7 +205,10 @@
     <div id="mainView">
       <div class="page-header">
         <div class="page-title">助教管理</div>
-        <button class="btn btn-primary" onclick="showModal()">+ 添加助教</button>
+        <div style="display:flex;gap:12px">
+          <button class="btn btn-primary" style="background:linear-gradient(135deg,#3498db,#2980b9);color:#fff" onclick="openSyncModal()">🔄 同步水牌</button>
+          <button class="btn btn-primary" onclick="showModal()">+ 添加助教</button>
+        </div>
       </div>
       
       <div class="toolbar">
@@ -267,6 +270,68 @@
       <div class="modal-actions">
         <button class="btn btn-cancel" onclick="closeModal()">取消</button>
         <button class="btn btn-primary" onclick="saveCoach()">保存</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 同步水牌弹窗 -->
+  <div class="modal" id="syncModal">
+    <div class="modal-content" style="max-width:600px">
+      <div class="modal-title">🔄 同步水牌</div>
+      
+      <!-- 加载中 -->
+      <div id="syncLoading" style="text-align:center;padding:40px;display:none">
+        <div>⏳ 检测中...</div>
+      </div>
+      
+      <!-- 检测结果 -->
+      <div id="syncResult" style="display:none">
+        <!-- 孤儿数据区 -->
+        <div id="orphanSection" style="display:none;margin-bottom:16px">
+          <div style="font-size:14px;color:#e74c3c;margin-bottom:8px">⚠️ 孤儿数据（<span id="orphanCount">0</span>条）— 将从水牌删除：</div>
+          <table style="width:100%;font-size:13px;border-collapse:collapse">
+            <thead><tr style="color:rgba(255,255,255,0.5);border-bottom:1px solid rgba(255,255,255,0.1)">
+              <th style="padding:8px;text-align:left"><input type="checkbox" id="orphanSelectAll" onchange="toggleOrphanAll(this.checked)"></th>
+              <th style="padding:8px;text-align:left">编号</th>
+              <th style="padding:8px;text-align:left">艺名</th>
+              <th style="padding:8px;text-align:left">当前状态</th>
+              <th style="padding:8px;text-align:left">原因</th>
+            </tr></thead>
+            <tbody id="orphanTableBody"></tbody>
+          </table>
+        </div>
+        
+        <!-- 缺失数据区 -->
+        <div id="missingSection" style="display:none;margin-bottom:16px">
+          <div style="font-size:14px;color:#2ecc71;margin-bottom:8px">➕ 缺失数据（<span id="missingCount">0</span>条）— 将添加到水牌：</div>
+          <table style="width:100%;font-size:13px;border-collapse:collapse">
+            <thead><tr style="color:rgba(255,255,255,0.5);border-bottom:1px solid rgba(255,255,255,0.1)">
+              <th style="padding:8px;text-align:left"><input type="checkbox" id="missingSelectAll" onchange="toggleMissingAll(this.checked)"></th>
+              <th style="padding:8px;text-align:left">编号</th>
+              <th style="padding:8px;text-align:left">艺名</th>
+              <th style="padding:8px;text-align:left">状态</th>
+              <th style="padding:8px;text-align:left">班次</th>
+              <th style="padding:8px;text-align:left">初始状态</th>
+            </tr></thead>
+            <tbody id="missingTableBody"></tbody>
+          </table>
+        </div>
+        
+        <!-- 摘要 -->
+        <div id="syncSummary" style="padding:12px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:13px">
+          将删除 <span id="summaryDelete">0</span> 条，添加 <span id="summaryAdd">0</span> 条
+        </div>
+      </div>
+      
+      <!-- 无需同步提示 -->
+      <div id="syncNoDiff" style="display:none;text-align:center;padding:40px">
+        <div style="font-size:48px;margin-bottom:16px">✅</div>
+        <div style="font-size:16px;color:#2ecc71">水牌数据已同步，无需操作</div>
+      </div>
+      
+      <div class="modal-actions">
+        <button class="btn btn-cancel" onclick="closeSyncModal()">关闭</button>
+        <button class="btn btn-primary" id="syncConfirmBtn" onclick="executeSync()" style="display:none">确认同步</button>
       </div>
     </div>
   </div>
@@ -455,6 +520,147 @@
           loadCoaches();
         }
       } catch (err) { showToast('删除失败'); }
+    }
+    
+    // ===== 同步水牌功能 =====
+    let syncData = { orphans: [], missing: [] };
+
+    async function openSyncModal() {
+      document.getElementById('syncModal').classList.add('show');
+      document.getElementById('syncLoading').style.display = 'block';
+      document.getElementById('syncResult').style.display = 'none';
+      document.getElementById('syncNoDiff').style.display = 'none';
+      document.getElementById('syncConfirmBtn').style.display = 'none';
+      
+      try {
+        const data = await api('/api/admin/coaches/sync-water-boards/preview');
+        document.getElementById('syncLoading').style.display = 'none';
+        
+        if (data.orphanRecords.length === 0 && data.missingRecords.length === 0) {
+          document.getElementById('syncNoDiff').style.display = 'block';
+          return;
+        }
+        
+        syncData = { orphans: data.orphanRecords, missing: data.missingRecords };
+        renderSyncResult();
+        document.getElementById('syncResult').style.display = 'block';
+        document.getElementById('syncConfirmBtn').style.display = 'inline-block';
+      } catch (err) {
+        document.getElementById('syncLoading').style.display = 'none';
+        showToast('❌ 检测失败：' + (err.message || '网络错误'));
+        setTimeout(closeSyncModal, 2000);
+      }
+    }
+
+    function renderSyncResult() {
+      // 渲染孤儿表格
+      const orphanSection = document.getElementById('orphanSection');
+      if (syncData.orphans.length > 0) {
+        orphanSection.style.display = 'block';
+        document.getElementById('orphanCount').textContent = syncData.orphans.length;
+        document.getElementById('orphanTableBody').innerHTML = syncData.orphans.map((o, i) => `
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+            <td style="padding:8px"><input type="checkbox" class="orphan-check" data-index="${i}" checked onchange="updateSyncSummary()"></td>
+            <td style="padding:8px">${o.coach_no}</td>
+            <td style="padding:8px">${o.stage_name}</td>
+            <td style="padding:8px">${o.wb_status}</td>
+            <td style="padding:8px;color:rgba(255,255,255,0.5)">${o.reason}</td>
+          </tr>
+        `).join('');
+      } else {
+        orphanSection.style.display = 'none';
+      }
+      
+      // 渲染缺失表格
+      const missingSection = document.getElementById('missingSection');
+      if (syncData.missing.length > 0) {
+        missingSection.style.display = 'block';
+        document.getElementById('missingCount').textContent = syncData.missing.length;
+        document.getElementById('missingTableBody').innerHTML = syncData.missing.map((m, i) => {
+          const initStatus = m.shift === '晚班' ? '晚班空闲' : '早班空闲';
+          return `
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+              <td style="padding:8px"><input type="checkbox" class="missing-check" data-index="${i}" checked onchange="updateSyncSummary()"></td>
+              <td style="padding:8px">${m.coach_no}</td>
+              <td style="padding:8px">${m.stage_name}</td>
+              <td style="padding:8px">${m.status}</td>
+              <td style="padding:8px">${m.shift}</td>
+              <td style="padding:8px;color:#2ecc71">${initStatus}</td>
+            </tr>
+          `;
+        }).join('');
+      } else {
+        missingSection.style.display = 'none';
+      }
+      
+      // 全选checkbox状态
+      document.getElementById('orphanSelectAll').checked = true;
+      document.getElementById('missingSelectAll').checked = true;
+      
+      updateSyncSummary();
+    }
+
+    function toggleOrphanAll(checked) {
+      document.querySelectorAll('.orphan-check').forEach(cb => cb.checked = checked);
+      updateSyncSummary();
+    }
+
+    function toggleMissingAll(checked) {
+      document.querySelectorAll('.missing-check').forEach(cb => cb.checked = checked);
+      updateSyncSummary();
+    }
+
+    function updateSyncSummary() {
+      const deleteCount = document.querySelectorAll('.orphan-check:checked').length;
+      const addCount = document.querySelectorAll('.missing-check:checked').length;
+      document.getElementById('summaryDelete').textContent = deleteCount;
+      document.getElementById('summaryAdd').textContent = addCount;
+    }
+
+    async function executeSync() {
+      const deleteOrphanIds = [];
+      document.querySelectorAll('.orphan-check:checked').forEach(cb => {
+        deleteOrphanIds.push(syncData.orphans[parseInt(cb.dataset.index)].coach_no);
+      });
+      
+      const addMissingIds = [];
+      document.querySelectorAll('.missing-check:checked').forEach(cb => {
+        addMissingIds.push(syncData.missing[parseInt(cb.dataset.index)].coach_no);
+      });
+      
+      if (deleteOrphanIds.length === 0 && addMissingIds.length === 0) {
+        showToast('请至少选择一条操作');
+        return;
+      }
+      
+      const btn = document.getElementById('syncConfirmBtn');
+      btn.disabled = true;
+      btn.textContent = '同步中...';
+      
+      try {
+        const result = await api('/api/admin/coaches/sync-water-boards/execute', {
+          method: 'POST',
+          body: JSON.stringify({ deleteOrphanIds, addMissingIds })
+        });
+        
+        if (result.error) {
+          showToast('❌ 同步失败：' + result.error);
+        } else {
+          showToast(`✅ 同步完成：删除${result.deleted}条，添加${result.added}条`);
+          closeSyncModal();
+          loadCoaches(); // 刷新助教列表
+        }
+      } catch (err) {
+        showToast('❌ 同步失败：网络错误');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '确认同步';
+      }
+    }
+
+    function closeSyncModal() {
+      document.getElementById('syncModal').classList.remove('show');
+      syncData = { orphans: [], missing: [] };
     }
     
     loadCoaches();
