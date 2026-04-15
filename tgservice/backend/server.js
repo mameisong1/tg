@@ -2913,11 +2913,13 @@ app.put('/api/admin/coaches/:coachNo/shift', authMiddleware, requireBackendPermi
 app.get('/api/admin/coaches/sync-water-boards/preview', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
     // 孤儿数据检测
+    // 注意：coaches.coach_no 是 INTEGER，water_boards.coach_no 是 TEXT
+    // 需要用 CAST 统一类型
     const orphanRecords = await dbAll(`
       SELECT wb.coach_no, wb.stage_name, wb.status AS wb_status,
              'coaches表不存在' AS reason
       FROM water_boards wb
-      LEFT JOIN coaches c ON wb.coach_no = c.coach_no
+      LEFT JOIN coaches c ON wb.coach_no = CAST(c.coach_no AS TEXT)
       WHERE c.coach_no IS NULL
 
       UNION ALL
@@ -2925,17 +2927,17 @@ app.get('/api/admin/coaches/sync-water-boards/preview', authMiddleware, requireB
       SELECT wb.coach_no, wb.stage_name, wb.status AS wb_status,
              'coaches.status=离职' AS reason
       FROM water_boards wb
-      INNER JOIN coaches c ON wb.coach_no = c.coach_no
+      INNER JOIN coaches c ON wb.coach_no = CAST(c.coach_no AS TEXT)
       WHERE c.status = '离职'
 
-      ORDER BY coach_no
+      ORDER BY CAST(coach_no AS INTEGER)
     `);
 
     // 缺失数据检测
     const missingRecords = await dbAll(`
-      SELECT c.coach_no, c.stage_name, c.status, c.shift
+      SELECT CAST(c.coach_no AS TEXT) AS coach_no, c.stage_name, c.status, c.shift
       FROM coaches c
-      LEFT JOIN water_boards wb ON c.coach_no = wb.coach_no
+      LEFT JOIN water_boards wb ON CAST(c.coach_no AS TEXT) = wb.coach_no
       WHERE c.status IN ('全职', '兼职')
         AND wb.coach_no IS NULL
       ORDER BY c.coach_no
@@ -2990,7 +2992,7 @@ app.post('/api/admin/coaches/sync-water-boards/execute', authMiddleware, require
       // 2. 批量添加缺失记录
       for (const coachNo of addMissingIds) {
         try {
-          const coach = await tx.get('SELECT stage_name, shift FROM coaches WHERE coach_no = ?', [coachNo]);
+          const coach = await tx.get('SELECT stage_name, shift FROM coaches WHERE CAST(coach_no AS TEXT) = ?', [coachNo]);
           if (!coach) {
             throw new Error(`coach_no=${coachNo} 在coaches表中不存在`);
           }
