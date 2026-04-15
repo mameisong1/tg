@@ -378,10 +378,10 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
       UPDATE applications
       SET status = ?,
           approver_phone = ?,
-          approve_time = CURRENT_TIMESTAMP,
-          updated_at = CURRENT_TIMESTAMP
+          approve_time = ?,
+          updated_at = ?
       WHERE id = ?
-    `, [approveStatus, approver_phone || req.user.username, id]);
+    `, [approveStatus, approver_phone || req.user.username, TimeUtil.nowDB(), TimeUtil.nowDB(), id]);
     
     if (approveStatus === 1) {
       const coach = await tx.get(
@@ -420,9 +420,9 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
           
           await tx.run(`
             UPDATE water_boards 
-            SET status = ?, updated_at = CURRENT_TIMESTAMP 
+            SET status = ?, updated_at = ? 
             WHERE coach_no = ?
-          `, [newStatus, coach.coach_no]);
+          `, [newStatus, TimeUtil.nowDB(), coach.coach_no]);
           
           const newValue = {
             status: newStatus,

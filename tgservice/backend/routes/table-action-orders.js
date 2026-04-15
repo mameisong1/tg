@@ -12,6 +12,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { runInTransaction, parseTables, joinTables } = require('../db');
+const TimeUtil = require('../utils/time');
 const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const operationLogService = require('../services/operation-log');
@@ -102,9 +103,9 @@ router.post('/', auth.required, requireBackendPermission(['cashierDashboard']), 
     
     const updateResult = await tx.run(`
       UPDATE water_boards 
-      SET status = ?, table_no = ?, updated_at = CURRENT_TIMESTAMP 
+      SET status = ?, table_no = ?, updated_at = ? 
       WHERE coach_no = ? AND updated_at = ?
-    `, [newStatus, newTableNo, coach_no, currentUpdatedAt]);
+    `, [newStatus, newTableNo, TimeUtil.nowDB(), coach_no, currentUpdatedAt]);
     
     if (updateResult.changes === 0) {
       throw { status: 409, error: '数据已被其他请求修改，请重试' };
@@ -250,9 +251,9 @@ router.put('/:id/status', auth.required, requireBackendPermission(['cashierDashb
     
     await tx.run(`
       UPDATE table_action_orders 
-      SET status = ?, updated_at = CURRENT_TIMESTAMP 
+      SET status = ?, updated_at = ? 
       WHERE id = ?
-    `, [status, id]);
+    `, [status, TimeUtil.nowDB(), id]);
     
     const user = req.user;
     await operationLogService.create(tx, {
