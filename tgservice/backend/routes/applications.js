@@ -93,9 +93,9 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
           
           await tx.run(`
             UPDATE water_boards 
-            SET status = '乐捐', updated_at = CURRENT_TIMESTAMP 
+            SET status = '乐捐', updated_at = ? 
             WHERE coach_no = ?
-          `, [coach.coach_no]);
+          `, [TimeUtil.nowDB(), coach.coach_no]);
           
           const newValue = {
             status: '乐捐',
