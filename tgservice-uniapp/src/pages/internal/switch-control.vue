@@ -410,19 +410,19 @@ function goBack() {
 
 <style scoped>
 /* 页面基础 */
-.page { background: #0a0a0f; min-height: 100vh; color: #fff; }
+.page { background: #0a0a0f; min-height: 100vh; color: #fff; overflow-x: hidden; box-sizing: border-box; max-width: 100vw; }
 
 /* 固定顶部 */
-.fixed-header { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(10,10,15,0.95); backdrop-filter: blur(10px); }
+.fixed-header { position: fixed; top: 0; left: 0; right: 0; z-index: 100; background: rgba(10,10,15,0.95); backdrop-filter: blur(10px); box-sizing: border-box; }
 .status-bar-bg { background: rgba(10,10,15,0.95); }
-.header-content { display: flex; align-items: center; height: 44px; padding: 0 16px; }
+.header-content { display: flex; align-items: center; height: 44px; padding: 0 16px; box-sizing: border-box; }
 .back-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
 .back-icon { font-size: 24px; color: #d4af37; }
 .header-title { flex: 1; text-align: center; font-size: 17px; font-weight: 500; }
 .header-placeholder { width: 100%; }
 
 /* 内容区 */
-.content { padding: 16px; padding-bottom: 40px; }
+.content { padding: 16px; padding-bottom: 40px; box-sizing: border-box; overflow-x: hidden; }
 
 /* 卡片通用样式 */
 .card {
@@ -431,6 +431,7 @@ function goBack() {
   border: 1px solid rgba(218,165,32,0.15);
   margin-bottom: 16px;
   overflow: hidden;
+  box-sizing: border-box;
 }
 .card-header {
   display: flex; align-items: center; gap: 8px;
@@ -438,7 +439,7 @@ function goBack() {
 }
 .card-icon { font-size: 20px; }
 .card-title { font-size: 16px; font-weight: 500; color: #d4af37; }
-.card-body { padding: 12px 16px 16px; }
+.card-body { padding: 12px 16px 16px; box-sizing: border-box; }
 
 /* 智能省电卡片 */
 .toggle-row {
@@ -476,26 +477,31 @@ function goBack() {
 .manual-btn-text { font-size: 14px; color: #22c55e; font-weight: 500; }
 
 /* 区域筛选 */
-.area-scroll { overflow-x: auto; margin-bottom: 12px; }
+.area-scroll { overflow-x: auto; margin-bottom: 12px; -webkit-overflow-scrolling: touch; }
 .area-btns { display: flex; gap: 8px; padding-bottom: 4px; }
 .area-btn {
   flex-shrink: 0; padding: 6px 14px; border-radius: 16px;
   background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);
   font-size: 13px; color: rgba(255,255,255,0.7);
+  box-sizing: border-box;
 }
 .area-btn.active {
   background: rgba(218,165,32,0.25); border-color: rgba(218,165,32,0.5); color: #d4af37;
 }
 .area-btn text { white-space: nowrap; }
 
-.table-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.table-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .table-btn {
-  padding: 10px 12px; border-radius: 8px;
+  padding: 10px 8px; border-radius: 8px;
   background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
-  min-width: calc(25% - 6px); text-align: center;
+  flex: 1;
+  min-width: 0;
+  max-width: calc(25% - 5px);
+  text-align: center;
+  overflow: hidden;
 }
 .table-btn:active { transform: scale(0.95); }
-.table-btn-text { font-size: 13px; color: #fff; white-space: nowrap; }
+.table-btn-text { font-size: 13px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
 
 .table-confirm .confirm-buttons { flex-wrap: wrap; gap: 8px; }
 .btn-on-action { background: rgba(218,165,32,0.3) !important; color: #d4af37 !important; }
@@ -506,13 +512,15 @@ function goBack() {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 16px; background: rgba(255,255,255,0.05);
   border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);
+  box-sizing: border-box;
 }
 .label-picker-text { font-size: 15px; color: #fff; }
 .label-picker-arrow { font-size: 12px; color: rgba(255,255,255,0.4); }
-.label-actions { display: flex; gap: 12px; margin-top: 12px; }
+.label-actions { display: flex; gap: 12px; margin-top: 12px; box-sizing: border-box; }
 .action-btn {
   flex: 1; padding: 14px; border-radius: 10px;
   text-align: center; font-size: 15px; font-weight: 500;
+  box-sizing: border-box;
 }
 .btn-on { background: rgba(218,165,32,0.2); color: #d4af37; }
 .btn-off { background: rgba(100,100,150,0.2); color: #aaa; }
@@ -526,14 +534,16 @@ function goBack() {
 .scene-card-bottom .card-title { color: rgba(255,255,255,0.5); font-size: 14px; }
 
 /* 场景网格（缩小） */
-.scene-grid-small { display: flex; flex-wrap: wrap; gap: 8px; }
+.scene-grid-small { display: flex; flex-wrap: wrap; gap: 6px; }
 .scene-btn-small {
-  flex: 0;
-  min-width: calc(25% - 6px);
-  padding: 8px 6px;
+  flex: 1;
+  min-width: 0;
+  max-width: calc(25% - 5px);
+  padding: 8px 4px;
   border-radius: 8px;
   display: flex; flex-direction: column; align-items: center; gap: 3px;
   transition: all 0.2s;
+  overflow: hidden;
 }
 .scene-on {
   background: rgba(218,165,32,0.15);
@@ -545,7 +555,7 @@ function goBack() {
 }
 .scene-btn-small:active { transform: scale(0.95); }
 .scene-btn-icon-small { font-size: 16px; }
-.scene-btn-text-small { font-size: 11px; }
+.scene-btn-text-small { font-size: 11px; text-align: center; word-break: break-all; max-width: 100%; }
 
 /* 确认弹窗 */
 .confirm-overlay {
