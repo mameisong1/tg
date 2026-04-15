@@ -72,6 +72,7 @@ const d = new Date(dbTime + '+08:00');
 | `members` | 会员表 | member_no |
 | `sms_codes` | 短信验证码表 | id (自增) |
 | `device_visits` | 设备访问记录表 | id (自增) |
+| `lejuan_records` | 乐捐记录表（2026-04-15新增） | id (自增) |
 
 ---
 
@@ -499,4 +500,50 @@ node init-db.js
 
 ---
 
-*文档更新时间：2026年3月*
+## 2026-04-15 新增：lejuan_records 乐捐记录表
+
+| 字段 | 类型 | 约束 | 说明 |
+|------|------|------|------|
+| id | INTEGER | PRIMARY KEY AUTOINCREMENT | 记录ID |
+| coach_no | TEXT | NOT NULL | 助教编号 |
+| employee_id | TEXT | NOT NULL | 工号（冗余） |
+| stage_name | TEXT | | 艺名（冗余） |
+| scheduled_start_time | TEXT | NOT NULL | 预约开始时间（整点） |
+| extra_hours | INTEGER | | 预计外出小时数 |
+| remark | TEXT | | 备注 |
+| lejuan_status | TEXT | DEFAULT 'pending' | pending/active/returned |
+| scheduled | INTEGER | DEFAULT 0 | 0=未调度, 1=已调度 |
+| actual_start_time | TEXT | | 实际开始时间 |
+| return_time | TEXT | | 归来时间 |
+| lejuan_hours | INTEGER | | 实际外出小时数（向上取整） |
+| proof_image_url | TEXT | | 付款截图URL |
+| proof_image_updated_at | TEXT | | 截图最后更新时间 |
+| created_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 创建时间 |
+| updated_at | TEXT | DEFAULT CURRENT_TIMESTAMP | 更新时间 |
+| created_by | TEXT | | 操作人 |
+| returned_by | TEXT | | 归来操作人 |
+
+**索引**：
+- `idx_lejuan_coach` ON (coach_no)
+- `idx_lejuan_status` ON (lejuan_status)
+- `idx_lejuan_scheduled` ON (scheduled_start_time)
+- `idx_lejuan_status_time` ON (lejuan_status, scheduled_start_time)
+
+**业务规则**：
+- 助教预约乐捐，到时间自动变乐捐状态
+- 定时器 + 启动恢复 + 每分钟轮询兜底
+- 乐捐归来时计算外出小时数（向上取整）
+- 近2天的乐捐记录可提交/修改付款截图
+
+---
+
+## 2026-04-15 变更：water_boards 表 table_no 字段
+
+- **原**：单值 TEXT，存单个台桌号
+- **现**：逗号分隔字符串，如 `"A1,A3,B2"`
+- **辅助字段**：后端API返回时增加 `table_no_list` 数组字段（如 `["A1", "A3"]`）
+- **用途**：支持助教同时上多个桌
+
+---
+
+*文档更新时间：2026年4月15日*
