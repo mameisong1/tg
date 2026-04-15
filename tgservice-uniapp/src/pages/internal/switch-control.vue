@@ -11,6 +11,26 @@
     <view class="header-placeholder" :style="{ height: (statusBarHeight + 44) + 'px' }"></view>
 
     <scroll-view class="content" scroll-y>
+      <!-- 快捷场景卡片（移到最上面） -->
+      <view class="card scene-card" v-if="scenes.length > 0">
+        <view class="card-header">
+          <text class="card-icon">🎬</text>
+          <text class="card-title">快捷场景</text>
+        </view>
+        <view class="card-body">
+          <view class="scene-grid">
+            <view class="scene-btn"
+                  v-for="scene in scenes"
+                  :key="scene.id"
+                  :class="scene.action === 'ON' ? 'scene-on' : 'scene-off'"
+                  @click="executeScene(scene)">
+              <text class="scene-btn-icon">{{ scene.action === 'ON' ? '💡' : '🌙' }}</text>
+              <text class="scene-btn-text">{{ scene.scene_name }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
       <!-- 智能省电-自动（原自动关灯） -->
       <view class="card auto-off-card">
         <view class="card-header">
@@ -42,18 +62,13 @@
           <text class="card-title">台桌控制</text>
         </view>
         <view class="card-body">
-          <!-- 区域筛选 -->
-          <scroll-view class="area-scroll" scroll-x>
-            <view class="area-btns">
-              <view class="area-btn" :class="{ active: selectedArea === '全部' }" @click="selectArea('全部')">
-                <text>全部</text>
-              </view>
-              <view class="area-btn" v-for="area in areas" :key="area" :class="{ active: selectedArea === area }" @click="selectArea(area)">
-                <text>{{ area }}</text>
-              </view>
+          <!-- 区域筛选（去掉"全部"，允许折行） -->
+          <view class="area-btns area-btns-wrap">
+            <view class="area-btn" v-for="area in areas" :key="area" :class="{ active: selectedArea === area }" @click="selectArea(area)">
+              <text>{{ area }}</text>
             </view>
-          </scroll-view>
-          <!-- 台桌网格 -->
+          </view>
+          <!-- 台桌网格（折行显示，无滚动条） -->
           <view class="table-grid">
             <view class="table-btn" v-for="t in filteredTables" :key="t.table_name_en" @click="selectTable(t)">
               <text class="table-btn-text">{{ t.table_name_cn }}</text>
@@ -86,16 +101,12 @@
         </view>
       </view>
 
-      <!-- 快捷场景卡片（移到底部，做小） -->
-      <view class="card scene-card scene-card-bottom" v-if="scenes.length > 0">
-        <view class="card-header">
-          <text class="card-icon">🎬</text>
-          <text class="card-title">快捷场景</text>
-        </view>
+      <!-- 全部开灯/全部关灯（仅这两个在底部） -->
+      <view class="card scene-card scene-card-bottom" v-if="bottomScenes.length > 0">
         <view class="card-body">
-          <view class="scene-grid scene-grid-small">
-            <view class="scene-btn scene-btn-small"
-                  v-for="scene in scenes"
+          <view class="scene-grid scene-grid-bottom">
+            <view class="scene-btn scene-btn-bottom"
+                  v-for="scene in bottomScenes"
                   :key="scene.id"
                   :class="scene.action === 'ON' ? 'scene-on' : 'scene-off'"
                   @click="executeScene(scene)">
@@ -152,13 +163,16 @@ let pendingAction = null
 // 台桌控制
 const tables = ref([])
 const areas = computed(() => [...new Set(tables.value.map(t => t.area).filter(Boolean))])
-const selectedArea = ref('全部')
+const selectedArea = ref('')  // 默认选中第一个区域
 const filteredTables = computed(() => {
-  if (selectedArea.value === '全部') return tables.value
+  if (!selectedArea.value) return tables.value
   return tables.value.filter(t => t.area === selectedArea.value)
 })
 const showTableConfirm = ref(false)
 const selectedTable = ref(null)
+
+// 底部只留"全部开灯"和"全部关灯"
+const bottomScenes = computed(() => scenes.value.filter(s => s.scene_name === '全部开灯' || s.scene_name === '全部关灯'))
 
 onLoad(() => {
   const systemInfo = uni.getSystemInfoSync()
@@ -280,7 +294,11 @@ async function loadTables() {
   try {
     const res = await apiRequest('/switch/tables')
     tables.value = res || []
-    console.log('[台桌列表] 加载', tables.value.length, '个台桌')
+    // 默认选中第一个区域
+    if (areas.value.length > 0 && !selectedArea.value) {
+      selectedArea.value = areas.value[0]
+    }
+    console.log('[台桌列表] 加载', tables.value.length, '个台桌, 区域:', areas.value.join(', '))
   } catch (e) { console.error('[台桌列表] 加载失败', e) }
 }
 
@@ -476,9 +494,8 @@ function goBack() {
 .manual-btn-icon { font-size: 16px; color: #22c55e; }
 .manual-btn-text { font-size: 14px; color: #22c55e; font-weight: 500; }
 
-/* 区域筛选 */
-.area-scroll { overflow-x: auto; margin-bottom: 12px; -webkit-overflow-scrolling: touch; }
-.area-btns { display: flex; gap: 8px; padding-bottom: 4px; }
+/* 区域筛选（折行显示，无滚动条） */
+.area-btns-wrap { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .area-btn {
   flex-shrink: 0; padding: 6px 14px; border-radius: 16px;
   background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);
@@ -490,15 +507,17 @@ function goBack() {
 }
 .area-btn text { white-space: nowrap; }
 
-.table-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+/* 台桌网格（折行显示，无滚动条） */
+.table-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .table-btn {
-  padding: 10px 8px; border-radius: 8px;
+  padding: 10px 12px; border-radius: 8px;
   background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
   flex: 1;
-  min-width: 0;
-  max-width: calc(25% - 5px);
+  min-width: calc(25% - 6px);
+  max-width: calc(25% - 6px);
   text-align: center;
   overflow: hidden;
+  box-sizing: border-box;
 }
 .table-btn:active { transform: scale(0.95); }
 .table-btn-text { font-size: 13px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
@@ -526,24 +545,13 @@ function goBack() {
 .btn-off { background: rgba(100,100,150,0.2); color: #aaa; }
 .action-btn:active { transform: scale(0.96); }
 
-/* 快捷场景卡片（底部缩小版） */
-.scene-card-bottom {
-  border-color: rgba(255,255,255,0.1);
-  background: rgba(15,15,22,0.7);
-}
-.scene-card-bottom .card-title { color: rgba(255,255,255,0.5); font-size: 14px; }
-
-/* 场景网格（缩小） */
-.scene-grid-small { display: flex; flex-wrap: wrap; gap: 6px; }
-.scene-btn-small {
-  flex: 1;
-  min-width: 0;
-  max-width: calc(25% - 5px);
-  padding: 8px 4px;
-  border-radius: 8px;
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
+/* 快捷场景（顶部正常大小） */
+.scene-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+.scene-btn {
+  flex: 1; min-width: calc(50% - 6px);
+  padding: 16px 12px; border-radius: 12px;
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
   transition: all 0.2s;
-  overflow: hidden;
 }
 .scene-on {
   background: rgba(218,165,32,0.15);
@@ -553,9 +561,31 @@ function goBack() {
   background: rgba(100,100,150,0.15);
   border: 1px solid rgba(100,100,150,0.3);
 }
-.scene-btn-small:active { transform: scale(0.95); }
-.scene-btn-icon-small { font-size: 16px; }
-.scene-btn-text-small { font-size: 11px; text-align: center; word-break: break-all; max-width: 100%; }
+.scene-btn:active { transform: scale(0.96); }
+.scene-btn-icon { font-size: 24px; }
+.scene-btn-text { font-size: 14px; }
+
+/* 快捷场景卡片（底部缩小版） */
+.scene-card-bottom {
+  border-color: rgba(255,255,255,0.1);
+  background: rgba(15,15,22,0.7);
+}
+.scene-card-bottom .card-title { color: rgba(255,255,255,0.5); font-size: 14px; }
+.scene-card-bottom .card-body { padding: 10px 16px 14px; }
+
+/* 底部场景按钮 */
+.scene-grid-bottom { display: flex; flex-wrap: wrap; gap: 8px; }
+.scene-btn-bottom {
+  flex: 1;
+  min-width: calc(50% - 4px);
+  padding: 10px 8px;
+  border-radius: 8px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  transition: all 0.2s;
+}
+.scene-btn-bottom:active { transform: scale(0.96); }
+.scene-btn-bottom .scene-btn-icon-small { font-size: 18px; }
+.scene-btn-bottom .scene-btn-text-small { font-size: 12px; text-align: center; }
 
 /* 确认弹窗 */
 .confirm-overlay {
