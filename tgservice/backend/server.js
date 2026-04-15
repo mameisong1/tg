@@ -1489,7 +1489,7 @@ app.post('/api/member/login-sms', async (req, res) => {
     const memberToken = jwt.sign({ memberNo: member.member_no, phone: member.phone }, config.jwt.secret, { expiresIn: '30d' });
 
     // 检查是否同时是助教
-    const coach = await dbGet('SELECT coach_no, stage_name, level FROM coaches WHERE phone = ? AND status != ?', [phone, '离职']);
+    const coach = await dbGet('SELECT coach_no, employee_id, stage_name, phone, level, shift, status FROM coaches WHERE phone = ? AND status != ?', [phone, '离职']);
 
     // 检查是否匹配后台用户(自动实现内部员工登录)
     const adminUser = await dbGet('SELECT username, role, name FROM admin_users WHERE username = ?', [phone]);
@@ -1518,8 +1518,11 @@ app.post('/api/member/login-sms', async (req, res) => {
       adminToken: adminToken,
       coachInfo: coach ? {
         coachNo: coach.coach_no,
+        employeeId: coach.employee_id,
         stageName: coach.stage_name,
+        phone: coach.phone,
         level: coach.level,
+        shift: coach.shift || '晚班',
         status: coach.status
       } : null
     });
