@@ -11,21 +11,21 @@
     <view class="header-placeholder" :style="{ height: (statusBarHeight + 44) + 'px' }"></view>
 
     <scroll-view class="content" scroll-y>
-      <!-- 快捷场景卡片（移到最上面） -->
-      <view class="card scene-card" v-if="scenes.length > 0">
+      <!-- 快捷场景卡片（移到最上面，排除全部开灯/关灯） -->
+      <view class="card scene-card scene-card-top" v-if="topScenes.length > 0">
         <view class="card-header">
           <text class="card-icon">🎬</text>
           <text class="card-title">快捷场景</text>
         </view>
         <view class="card-body">
-          <view class="scene-grid">
-            <view class="scene-btn"
-                  v-for="scene in scenes"
+          <view class="scene-grid scene-grid-top">
+            <view class="scene-btn scene-btn-top"
+                  v-for="scene in topScenes"
                   :key="scene.id"
                   :class="scene.action === 'ON' ? 'scene-on' : 'scene-off'"
                   @click="executeScene(scene)">
-              <text class="scene-btn-icon">{{ scene.action === 'ON' ? '💡' : '🌙' }}</text>
-              <text class="scene-btn-text">{{ scene.scene_name }}</text>
+              <text class="scene-btn-icon scene-btn-icon-top">{{ scene.action === 'ON' ? '💡' : '🌙' }}</text>
+              <text class="scene-btn-text scene-btn-text-top">{{ scene.scene_name }}</text>
             </view>
           </view>
         </view>
@@ -171,6 +171,8 @@ const filteredTables = computed(() => {
 const showTableConfirm = ref(false)
 const selectedTable = ref(null)
 
+// 顶部快捷场景（排除"全部开灯"和"全部关灯"）
+const topScenes = computed(() => scenes.value.filter(s => s.scene_name !== '全部开灯' && s.scene_name !== '全部关灯'))
 // 底部只留"全部开灯"和"全部关灯"
 const bottomScenes = computed(() => scenes.value.filter(s => s.scene_name === '全部开灯' || s.scene_name === '全部关灯'))
 
@@ -545,14 +547,22 @@ function goBack() {
 .btn-off { background: rgba(100,100,150,0.2); color: #aaa; }
 .action-btn:active { transform: scale(0.96); }
 
-/* 快捷场景（顶部正常大小） */
-.scene-grid { display: flex; flex-wrap: wrap; gap: 12px; }
-.scene-btn {
-  flex: 1; min-width: calc(50% - 6px);
-  padding: 16px 12px; border-radius: 12px;
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
+/* 快捷场景（顶部缩小，一行3个） */
+.scene-card-top .card-title { color: rgba(255,255,255,0.5); font-size: 14px; }
+.scene-grid-top { display: flex; flex-wrap: wrap; gap: 8px; }
+.scene-btn-top {
+  flex: 1;
+  min-width: 0;
+  max-width: calc(33.33% - 6px);
+  padding: 10px 6px;
+  border-radius: 8px;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
   transition: all 0.2s;
+  overflow: hidden;
 }
+.scene-btn-top:active { transform: scale(0.95); }
+.scene-btn-icon-top { font-size: 18px; }
+.scene-btn-text-top { font-size: 11px; text-align: center; word-break: break-all; }
 .scene-on {
   background: rgba(218,165,32,0.15);
   border: 1px solid rgba(218,165,32,0.3);
@@ -561,9 +571,6 @@ function goBack() {
   background: rgba(100,100,150,0.15);
   border: 1px solid rgba(100,100,150,0.3);
 }
-.scene-btn:active { transform: scale(0.96); }
-.scene-btn-icon { font-size: 24px; }
-.scene-btn-text { font-size: 14px; }
 
 /* 快捷场景卡片（底部缩小版） */
 .scene-card-bottom {
