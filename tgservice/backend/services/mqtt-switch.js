@@ -122,7 +122,6 @@ async function sendSwitchCommand(switchId, switchSeq, action) {
       console.error(`[MQTT] ${msg}`);
       return { ok: false, error: msg };
     }
-
     mqttClient.publish(mqttConfig.topic, payload, { qos: 1 });
     console.log(`[MQTT] 指令已发送: ${switchId} ${switchSeq} ${action}`);
     return { ok: true, error: null };

@@ -286,6 +286,21 @@ router.post('/api/switch/auto-off-toggle', requireSwitchPermission, async (req, 
   }
 });
 
+// 手动执行一次智能省电（自动关灯）
+router.post('/api/switch/auto-off-manual', requireSwitchPermission, async (req, res) => {
+  try {
+    const result = await executeAutoOffLighting();
+    res.json({
+      success: true,
+      turnedOffCount: result.turnedOffCount || 0,
+      maybeOffCount: result.maybeOffCount || 0,
+      cannotOffCount: result.cannotOffCount || 0
+    });
+  } catch (err) {
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
 // 执行场景
 router.post('/api/switch/scene/:id', requireSwitchPermission, async (req, res) => {
   try {

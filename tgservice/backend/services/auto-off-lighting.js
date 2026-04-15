@@ -86,13 +86,14 @@ async function executeAutoOffLighting() {
   }
 
   // 5. 发送 MQTT 关灯指令
-  const successCount = await sendBatchCommand(toTurnOff, 'OFF');
+  const sendResult = await sendBatchCommand(toTurnOff, 'OFF');
+  const turnedOffCount = sendResult?.successCount ?? sendResult ?? 0;
 
   return {
     status: 'ok',
     maybeOffCount: maybeOff.length,
     cannotOffCount: cannotOff.length,
-    turnedOffCount: successCount
+    turnedOffCount
   };
 }
 

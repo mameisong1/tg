@@ -11,11 +11,11 @@
     <view class="header-placeholder" :style="{ height: (statusBarHeight + 44) + 'px' }"></view>
 
     <scroll-view class="content" scroll-y>
-      <!-- 自动关灯启停卡片 -->
+      <!-- 智能省电-自动（原自动关灯） -->
       <view class="card auto-off-card">
         <view class="card-header">
           <text class="card-icon">⚡</text>
-          <text class="card-title">自动关灯功能</text>
+          <text class="card-title">智能省电-自动</text>
         </view>
         <view class="card-body">
           <view class="toggle-row" @click="toggleAutoOff">
@@ -27,25 +27,10 @@
             </view>
           </view>
           <text class="toggle-desc">开启后，台桌空闲且处于自动关灯时段时将自动关灯（支持跨午夜时段）</text>
-        </view>
-      </view>
-
-      <!-- 快捷场景卡片 -->
-      <view class="card scene-card" v-if="scenes.length > 0">
-        <view class="card-header">
-          <text class="card-icon">🎬</text>
-          <text class="card-title">快捷场景</text>
-        </view>
-        <view class="card-body">
-          <view class="scene-grid">
-            <view class="scene-btn"
-                  v-for="scene in scenes"
-                  :key="scene.id"
-                  :class="scene.action === 'ON' ? 'scene-on' : 'scene-off'"
-                  @click="executeScene(scene)">
-              <text class="scene-btn-icon">{{ scene.action === 'ON' ? '💡' : '🌙' }}</text>
-              <text class="scene-btn-text">{{ scene.scene_name }}</text>
-            </view>
+          <!-- 智能省电-手动按钮 -->
+          <view class="manual-btn" @click="executeManualOff">
+            <text class="manual-btn-icon">⏻</text>
+            <text class="manual-btn-text">智能省电-手动</text>
           </view>
         </view>
       </view>
@@ -100,9 +85,29 @@
           </view>
         </view>
       </view>
+
+      <!-- 快捷场景卡片（移到底部，做小） -->
+      <view class="card scene-card scene-card-bottom" v-if="scenes.length > 0">
+        <view class="card-header">
+          <text class="card-icon">🎬</text>
+          <text class="card-title">快捷场景</text>
+        </view>
+        <view class="card-body">
+          <view class="scene-grid scene-grid-small">
+            <view class="scene-btn scene-btn-small"
+                  v-for="scene in scenes"
+                  :key="scene.id"
+                  :class="scene.action === 'ON' ? 'scene-on' : 'scene-off'"
+                  @click="executeScene(scene)">
+              <text class="scene-btn-icon scene-btn-icon-small">{{ scene.action === 'ON' ? '💡' : '🌙' }}</text>
+              <text class="scene-btn-text scene-btn-text-small">{{ scene.scene_name }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
     </scroll-view>
 
-    <!-- 操作确认弹窗（场景/标签） -->
+    <!-- 操作确认弹窗（场景/标签/手动省电） -->
     <view class="confirm-overlay" v-if="showConfirm" @click="closeConfirm">
       <view class="confirm-box" @click.stop>
         <text class="confirm-title">确认操作</text>
@@ -190,7 +195,6 @@ async function reportError(action, error, extra = {}) {
         userToken: adminToken || '',
         state: JSON.stringify({
           autoOffEnabled: autoOffEnabled.value,
-          autoOnEnabled: autoOnEnabled.value,
           scenesCount: scenes.value.length,
           labelsCount: labels.value.length,
           selectedLabel: selectedLabel.value,
@@ -217,9 +221,9 @@ async function apiRequest(url, method = 'GET', data = null) {
   const coachToken = uni.getStorageSync('coachToken')
   const token = adminToken || coachToken
   const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api'
-  
+
   console.log('[API请求]', method, baseUrl + url)
-  
+
   return new Promise((resolve, reject) => {
     uni.request({
       url: baseUrl + url,
@@ -255,7 +259,6 @@ async function loadAutoStatus() {
   try {
     const res = await apiRequest('/switch/auto-status')
     autoOffEnabled.value = res?.auto_off_enabled === true
-    autoOnEnabled.value = res?.auto_on_enabled === true
   } catch (e) { /* ignore */ }
 }
 
@@ -323,8 +326,15 @@ async function tableControlAction(action) {
 
 async function toggleAutoOff() {
   const action = autoOffEnabled.value ? '关闭' : '开启'
-  confirmText.value = `确认${action}自动关灯功能？`
+  confirmText.value = `确认${action}智能省电-自动？`
   pendingAction = 'toggleAutoOff'
+  showConfirm.value = true
+}
+
+// 智能省电-手动
+function executeManualOff() {
+  confirmText.value = '确认执行一次智能省电（手动）？将关闭当前空闲台桌的灯。'
+  pendingAction = 'manualOff'
   showConfirm.value = true
 }
 
@@ -357,6 +367,10 @@ async function confirmAction() {
       await apiRequest('/switch/auto-off-toggle', 'POST')
       autoOffEnabled.value = !autoOffEnabled.value
       uni.showToast({ title: autoOffEnabled.value ? '已开启' : '已关闭', icon: 'success' })
+    } else if (action === 'manualOff') {
+      const res = await apiRequest('/switch/auto-off-manual', 'POST')
+      const count = res?.turnedOffCount || 0
+      uni.showToast({ title: `智能省电执行完成，实际关灯 ${count} 个`, icon: 'success', duration: 3000 })
     } else if (action.type === 'scene') {
       const scene = action.scene
       console.log('[场景执行] scene.id:', scene.id, 'scene.action:', scene.action)
@@ -426,7 +440,7 @@ function goBack() {
 .card-title { font-size: 16px; font-weight: 500; color: #d4af37; }
 .card-body { padding: 12px 16px 16px; }
 
-/* 自动关灯/开灯卡片 */
+/* 智能省电卡片 */
 .toggle-row {
   display: flex; align-items: center; justify-content: space-between;
   padding: 12px 0;
@@ -448,27 +462,20 @@ function goBack() {
 .toggle-switch.active .toggle-thumb { transform: translateX(20px); }
 .toggle-desc { font-size: 12px; color: rgba(255,255,255,0.4); display: block; margin-top: 8px; line-height: 1.4; }
 
-/* 场景按钮网格 */
-.scene-grid { display: flex; flex-wrap: wrap; gap: 12px; }
-.scene-btn {
-  flex: 1; min-width: calc(50% - 6px);
-  padding: 16px 12px; border-radius: 12px;
-  display: flex; flex-direction: column; align-items: center; gap: 6px;
+/* 手动省电按钮 */
+.manual-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  margin-top: 14px; padding: 12px;
+  background: rgba(34,197,94,0.12);
+  border: 1px solid rgba(34,197,94,0.3);
+  border-radius: 10px;
   transition: all 0.2s;
 }
-.scene-on {
-  background: rgba(218,165,32,0.15);
-  border: 1px solid rgba(218,165,32,0.3);
-}
-.scene-off {
-  background: rgba(100,100,150,0.15);
-  border: 1px solid rgba(100,100,150,0.3);
-}
-.scene-btn:active { transform: scale(0.96); }
-.scene-btn-icon { font-size: 24px; }
-.scene-btn-text { font-size: 14px; }
+.manual-btn:active { transform: scale(0.97); background: rgba(34,197,94,0.2); }
+.manual-btn-icon { font-size: 16px; color: #22c55e; }
+.manual-btn-text { font-size: 14px; color: #22c55e; font-weight: 500; }
 
-/* 标签选择器 */
+/* 区域筛选 */
 .area-scroll { overflow-x: auto; margin-bottom: 12px; }
 .area-btns { display: flex; gap: 8px; padding-bottom: 4px; }
 .area-btn {
@@ -510,6 +517,35 @@ function goBack() {
 .btn-on { background: rgba(218,165,32,0.2); color: #d4af37; }
 .btn-off { background: rgba(100,100,150,0.2); color: #aaa; }
 .action-btn:active { transform: scale(0.96); }
+
+/* 快捷场景卡片（底部缩小版） */
+.scene-card-bottom {
+  border-color: rgba(255,255,255,0.1);
+  background: rgba(15,15,22,0.7);
+}
+.scene-card-bottom .card-title { color: rgba(255,255,255,0.5); font-size: 14px; }
+
+/* 场景网格（缩小） */
+.scene-grid-small { display: flex; flex-wrap: wrap; gap: 8px; }
+.scene-btn-small {
+  flex: 0;
+  min-width: calc(25% - 6px);
+  padding: 8px 6px;
+  border-radius: 8px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  transition: all 0.2s;
+}
+.scene-on {
+  background: rgba(218,165,32,0.15);
+  border: 1px solid rgba(218,165,32,0.3);
+}
+.scene-off {
+  background: rgba(100,100,150,0.15);
+  border: 1px solid rgba(100,100,150,0.3);
+}
+.scene-btn-small:active { transform: scale(0.95); }
+.scene-btn-icon-small { font-size: 16px; }
+.scene-btn-text-small { font-size: 11px; }
 
 /* 确认弹窗 */
 .confirm-overlay {
