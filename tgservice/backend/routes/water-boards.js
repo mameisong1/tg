@@ -160,7 +160,8 @@ router.put('/:coach_no/status', auth.required, requireBackendPermission(['waterB
       updateFields.push('clock_in_time = NULL');
     }
     
-    updateFields.push('updated_at = CURRENT_TIMESTAMP');
+    updateFields.push('updated_at = ?');
+    updateParams.push(TimeUtil.nowDB());
     updateParams.push(coach_no);
     
     await tx.run(`

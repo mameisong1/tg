@@ -7,6 +7,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { enqueueRun } = require('../db');
+const TimeUtil = require('../utils/time');
 const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const operationLogService = require('../services/operation-log');
@@ -57,8 +58,8 @@ router.post('/', auth.required, async (req, res) => {
       await enqueueRun(`
         INSERT INTO operation_logs (
           operator_phone, operator_name, operation_type, target_type, target_id, old_value, new_value, remark, created_at
-        ) VALUES (?, ?, '创建服务单', 'service_order', ?, null, ?, ?, datetime('now', 'localtime'))
-      `, [user.username, user.name, result.lastID, JSON.stringify({table_no, requirement, requester_name}), `创建服务单：${table_no} - ${requirement}`]);
+        ) VALUES (?, ?, '创建服务单', 'service_order', ?, null, ?, ?, ?)
+      `, [user.username, user.name, result.lastID, JSON.stringify({table_no, requirement, requester_name}), `创建服务单：${table_no} - ${requirement}`, TimeUtil.nowDB()]);
     } catch (logErr) {
       console.error('记录操作日志失败:', logErr);
     }
@@ -187,9 +188,9 @@ router.put('/:id/status', auth.required, requireBackendPermission(['serviceOrder
     // 更新状态
     await enqueueRun(`
       UPDATE service_orders 
-      SET status = ?, updated_at = CURRENT_TIMESTAMP 
+      SET status = ?, updated_at = ? 
       WHERE id = ?
-    `, [status, id]);
+    `, [status, TimeUtil.nowDB(), id]);
     
     // 记录操作日志（异步，不影响主流程）
     const user = req.user;
@@ -197,8 +198,8 @@ router.put('/:id/status', auth.required, requireBackendPermission(['serviceOrder
       await enqueueRun(`
         INSERT INTO operation_logs (
           operator_phone, operator_name, operation_type, target_type, target_id, old_value, new_value, remark, created_at
-        ) VALUES (?, ?, '服务单状态变更', 'service_order', ?, ?, ?, ?, datetime('now', 'localtime'))
-      `, [user.username, user.name, id, JSON.stringify({status: oldStatus}), JSON.stringify({status}), `更新服务单状态：${oldStatus} → ${status}`]);
+        ) VALUES (?, ?, '服务单状态变更', 'service_order', ?, ?, ?, ?, ?)
+      `, [user.username, user.name, id, JSON.stringify({status: oldStatus}), JSON.stringify({status}), `更新服务单状态：${oldStatus} → ${status}`, TimeUtil.nowDB()]);
     } catch (logErr) {
       console.error('记录操作日志失败:', logErr);
     }

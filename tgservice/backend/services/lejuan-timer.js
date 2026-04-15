@@ -3,7 +3,7 @@
  * 内存定时器 + 数据库持久化 + 启动恢复
  */
 
-const { all, get, run: dbRun, runInTransaction } = require('../db');
+const { all, get, enqueueRun, runInTransaction } = require('../db');
 const TimeUtil = require('../utils/time');
 const operationLogService = require('./operation-log');
 
@@ -117,7 +117,7 @@ async function recoverTimers() {
         for (const record of pendingRecords) {
             scheduleRecord(record);
             // 标记为已调度（防止重复恢复）
-            await dbRun(
+            await enqueueRun(
                 'UPDATE lejuan_records SET scheduled = 1 WHERE id = ?',
                 [record.id]
             );
@@ -146,7 +146,7 @@ async function pollCheck() {
         for (const record of missedRecords) {
             console.log(`[乐捐定时器] 轮询发现待处理记录 ${record.id} (${record.stage_name || ''})`);
             scheduleRecord(record);
-            await dbRun(
+            await enqueueRun(
                 'UPDATE lejuan_records SET scheduled = 1 WHERE id = ?',
                 [record.id]
             );
@@ -175,7 +175,7 @@ function init() {
 function addNewRecord(record) {
     scheduleRecord(record);
     // 标记为已调度
-    dbRun('UPDATE lejuan_records SET scheduled = 1 WHERE id = ?', [record.id]);
+    enqueueRun('UPDATE lejuan_records SET scheduled = 1 WHERE id = ?', [record.id]);
 }
 
 /**

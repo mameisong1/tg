@@ -236,15 +236,16 @@ router.post('/', auth.required, requireBackendPermission(['all']), async (req, r
     let txResult;
     
     if (existing) {
+      const nowDB = TimeUtil.nowDB();
       txResult = await tx.run(`
         UPDATE guest_invitation_results
         SET images = ?,
             result = '待审查',
             reviewed_at = NULL,
             reviewer_phone = NULL,
-            updated_at = CURRENT_TIMESTAMP
+            updated_at = ?
         WHERE date = ? AND shift = ? AND coach_no = ?
-      `, [images || null, date, shift, coach_no]);
+      `, [images || null, nowDB, date, shift, coach_no]);
     } else {
       txResult = await tx.run(`
         INSERT INTO guest_invitation_results (
@@ -395,14 +396,15 @@ router.put('/:id/review', auth.required, requireBackendPermission(['invitationRe
       }
     }
     
+    const nowDB = TimeUtil.nowDB();
     await tx.run(`
       UPDATE guest_invitation_results
       SET result = ?,
-          reviewed_at = CURRENT_TIMESTAMP,
+          reviewed_at = ?,
           reviewer_phone = ?,
-          updated_at = CURRENT_TIMESTAMP
+          updated_at = ?
       WHERE id = ?
-    `, [result, reviewer_phone || req.user.username, id]);
+    `, [result, nowDB, reviewer_phone || req.user.username, nowDB, id]);
     
     const user = req.user;
     await operationLogService.create(tx, {

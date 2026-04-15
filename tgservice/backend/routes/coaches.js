@@ -215,10 +215,11 @@ router.put('/batch-shift', auth.required, requireBackendPermission(['coachManage
     
     const changeDetails = [];
     
+    const nowDB = TimeUtil.nowDB();
     await tx.run(`
-      UPDATE coaches SET shift = ?, updated_at = CURRENT_TIMESTAMP 
+      UPDATE coaches SET shift = ?, updated_at = ? 
       WHERE coach_no IN (${placeholders})
-    `, [shift, ...coach_no_list]);
+    `, [shift, nowDB, ...coach_no_list]);
     
     for (const coachNo of coach_no_list) {
       const coach = coachMap[coachNo];
@@ -234,8 +235,8 @@ router.put('/batch-shift', auth.required, requireBackendPermission(['coachManage
         const newStatus = statusMap[oldStatus];
         
         await tx.run(
-          'UPDATE water_boards SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE coach_no = ?',
-          [newStatus, coachNo]
+          'UPDATE water_boards SET status = ?, updated_at = ? WHERE coach_no = ?',
+          [newStatus, nowDB, coachNo]
         );
         
         waterBoardStatusChanged = true;
@@ -319,9 +320,10 @@ router.put('/:coach_no/shift', auth.required, requireBackendPermission(['coachMa
     
     const oldShift = coach.shift;
     
+    const nowDB = TimeUtil.nowDB();
     await tx.run(
-      'UPDATE coaches SET shift = ?, updated_at = CURRENT_TIMESTAMP WHERE coach_no = ?',
-      [shift, coach_no]
+      'UPDATE coaches SET shift = ?, updated_at = ? WHERE coach_no = ?',
+      [shift, nowDB, coach_no]
     );
     
     const waterBoard = await tx.get(
@@ -345,8 +347,8 @@ router.put('/:coach_no/shift', auth.required, requireBackendPermission(['coachMa
       if (statusMap[oldStatus]) {
         newStatus = statusMap[oldStatus];
         await tx.run(
-          'UPDATE water_boards SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE coach_no = ?',
-          [newStatus, coach_no]
+          'UPDATE water_boards SET status = ?, updated_at = ? WHERE coach_no = ?',
+          [newStatus, nowDB, coach_no]
         );
         
         const user = req.user;

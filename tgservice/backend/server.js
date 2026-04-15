@@ -3079,7 +3079,7 @@ app.post('/api/admin/sms/test', authMiddleware, requireBackendPermission(['all']
 // 创建黑名单表(如果不存在)
 const initBlacklistTable = async () => {
   try {
-    await dbRun(`
+    await enqueueRun(`
       CREATE TABLE IF NOT EXISTS device_blacklist (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         device_fingerprint TEXT NOT NULL UNIQUE,
@@ -3097,7 +3097,7 @@ initBlacklistTable();
 // 创建乐捐记录表(如果不存在)
 const initLejuanRecordsTable = async () => {
     try {
-        await dbRun(`CREATE TABLE IF NOT EXISTS lejuan_records (
+        await enqueueRun(`CREATE TABLE IF NOT EXISTS lejuan_records (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             coach_no TEXT NOT NULL,
             employee_id TEXT NOT NULL,
@@ -3117,10 +3117,10 @@ const initLejuanRecordsTable = async () => {
             created_by TEXT,
             returned_by TEXT
         )`);
-        await dbRun(`CREATE INDEX IF NOT EXISTS idx_lejuan_coach ON lejuan_records(coach_no)`);
-        await dbRun(`CREATE INDEX IF NOT EXISTS idx_lejuan_status ON lejuan_records(lejuan_status)`);
-        await dbRun(`CREATE INDEX IF NOT EXISTS idx_lejuan_scheduled ON lejuan_records(scheduled_start_time)`);
-        await dbRun(`CREATE INDEX IF NOT EXISTS idx_lejuan_status_time ON lejuan_records(lejuan_status, scheduled_start_time)`);
+        await enqueueRun(`CREATE INDEX IF NOT EXISTS idx_lejuan_coach ON lejuan_records(coach_no)`);
+        await enqueueRun(`CREATE INDEX IF NOT EXISTS idx_lejuan_status ON lejuan_records(lejuan_status)`);
+        await enqueueRun(`CREATE INDEX IF NOT EXISTS idx_lejuan_scheduled ON lejuan_records(scheduled_start_time)`);
+        await enqueueRun(`CREATE INDEX IF NOT EXISTS idx_lejuan_status_time ON lejuan_records(lejuan_status, scheduled_start_time)`);
         console.log('✅ lejuan_records 表初始化完成');
     } catch (err) {
         if (!err.message.includes('already exists')) {
@@ -3133,7 +3133,7 @@ initLejuanRecordsTable();
 // 创建系统配置表(如果不存在)
 const initSystemConfigTable = async () => {
   try {
-    await dbRun(`
+    await enqueueRun(`
       CREATE TABLE IF NOT EXISTS system_config (
         key TEXT PRIMARY KEY,
         value TEXT,

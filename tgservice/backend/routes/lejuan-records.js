@@ -5,7 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { all, get, run: dbRun, runInTransaction, enqueueRun } = require('../db');
+const { all, get, runInTransaction, enqueueRun } = require('../db');
 const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const operationLogService = require('../services/operation-log');
