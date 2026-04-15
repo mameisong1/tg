@@ -10,6 +10,12 @@
     </view>
     <view class="header-placeholder" :style="{ height: (statusBarHeight + 44) + 'px' }"></view>
 
+    <!-- 流程提示栏 -->
+    <view class="hint-banner">
+      <text class="hint-title">📌 乐捐流程</text>
+      <text class="hint-text">1.选择日期时间提交预约 → 2.到时间自动变为乐捐状态 → 3.回店后找助教管理/店长点击乐捐归来 → 4.提交付款截图</text>
+    </view>
+
     <!-- 预约表单 -->
     <view class="form-section">
       <view class="section-title">📋 预约乐捐</view>
@@ -53,7 +59,10 @@
       <view v-for="rec in myRecords" :key="rec.id" class="record-card" @click="goToProof(rec)">
         <view class="record-header">
           <text class="record-status" :class="'status-' + rec.lejuan_status">{{ statusLabel(rec.lejuan_status) }}</text>
-          <text class="record-time">{{ rec.scheduled_start_time.substring(5, 16) }}</text>
+          <view class="record-actions">
+            <text class="record-time">{{ rec.scheduled_start_time.substring(5, 16) }}</text>
+            <view v-if="rec.lejuan_status === 'pending'" class="delete-btn" @click.stop="deleteRecord(rec)"><text>删除</text></view>
+          </view>
         </view>
         <view class="record-body">
           <text class="record-detail" v-if="rec.actual_start_time">生效: {{ rec.actual_start_time.substring(11, 16) }}</text>
@@ -66,7 +75,7 @@
     </view>
 
     <!-- 成功弹窗 -->
-    <SuccessModal :visible="showSuccess" title="预约成功" content="乐捐报备已提交，到时间自动生效" @confirm="handleSuccessConfirm" />
+    <SuccessModal :visible="showSuccess" :title="successTitle" :content="successContent" @confirm="handleSuccessConfirm" />
   </view>
 </template>
 
@@ -80,6 +89,8 @@ import { getBeijingDate } from '@/utils/time-util.js'
 const statusBarHeight = ref(0)
 const coachInfo = ref({})
 const showSuccess = ref(false)
+const successTitle = ref('预约成功')
+const successContent = ref('乐捐报备已提交，到时间自动生效')
 const myRecords = ref([])
 
 const today = getBeijingDate()
@@ -90,12 +101,12 @@ const form = ref({
   remark: ''
 })
 
-// 可用小时选项：从当前小时+1开始
+// 可用小时选项：从当前小时开始
 const hourOptions = computed(() => {
   const now = new Date()
   const currentHour = now.getHours()
   const options = []
-  for (let h = currentHour + 1; h <= 23; h++) {
+  for (let h = currentHour; h <= 23; h++) {
     options.push(h)
   }
   return options
@@ -139,6 +150,28 @@ const canUploadProof = (rec) => {
   return diffDays <= 2
 }
 
+const deleteRecord = async (rec) => {
+  if (rec.lejuan_status !== 'pending') return
+  uni.showModal({
+    title: '确认删除',
+    content: '确认删除该乐捐预约？',
+    success: async (res) => {
+      if (res.confirm) {
+        try {
+          uni.showLoading({ title: '删除中...' })
+          await api.lejuanRecords.delete(rec.id)
+          uni.hideLoading()
+          uni.showToast({ title: '已删除', icon: 'success' })
+          await loadMyRecords()
+        } catch (e) {
+          uni.hideLoading()
+          uni.showToast({ title: e.error || '删除失败', icon: 'none' })
+        }
+      }
+    }
+  })
+}
+
 const loadMyRecords = async () => {
   try {
     const res = await api.lejuanRecords.getMyList({ employee_id: coachInfo.value.employeeId })
@@ -165,6 +198,14 @@ const submitLejuan = async () => {
     form.value.remark = ''
     form.value.extraHours = null
     form.value.scheduledHour = null
+    
+    if (res.data.immediate) {
+      successTitle.value = '乐捐已生效'
+      successContent.value = '当前小时提交，水牌已变为乐捐状态'
+    } else {
+      successTitle.value = '预约成功'
+      successContent.value = '乐捐报备已提交，到时间自动生效'
+    }
     showSuccess.value = true
     await loadMyRecords()
   } catch (e) {
@@ -204,6 +245,11 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .header-title { font-size: 17px; font-weight: 600; color: #d4af37; letter-spacing: 2px; }
 .header-placeholder { background: #0a0a0f; }
 
+/* 流程提示栏 */
+.hint-banner { margin: 12px 16px 0; padding: 12px 16px; background: rgba(212,175,55,0.1); border: 1px solid rgba(212,175,55,0.3); border-radius: 10px; }
+.hint-title { font-size: 14px; color: #d4af37; font-weight: 600; }
+.hint-text { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 4px; display: block; line-height: 1.5; }
+
 .section-title { font-size: 15px; color: #d4af37; padding: 16px 16px 12px; font-weight: 600; }
 
 .form-section { margin: 0 16px; }
@@ -226,7 +272,10 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .status-pending { background: rgba(241,196,15,0.2); color: #f1c40f; }
 .status-active { background: rgba(231,76,60,0.2); color: #e74c3c; }
 .status-returned { background: rgba(46,204,113,0.2); color: #2ecc71; }
+.record-actions { display: flex; align-items: center; gap: 8px; }
 .record-time { font-size: 13px; color: rgba(255,255,255,0.5); }
+.delete-btn { padding: 4px 10px; background: rgba(231,76,60,0.2); border: 1px solid rgba(231,76,60,0.4); border-radius: 6px; }
+.delete-btn text { font-size: 12px; color: #e74c3c; }
 .record-body { display: flex; flex-direction: column; gap: 4px; }
 .record-detail { font-size: 12px; color: rgba(255,255,255,0.4); }
 .proof-hint { color: #d4af37 !important; }

@@ -138,6 +138,8 @@ export const lejuanRecords = {
   getMyList: (params) => request({ url: '/lejuan-records/my', data: params }),
   // 提交/修改付款截图
   updateProof: (id, data) => request({ url: `/lejuan-records/${id}/proof`, method: 'PUT', data }),
+  // 删除乐捐预约
+  delete: (id) => request({ url: `/lejuan-records/${id}`, method: 'DELETE' }),
   // 乐捐一览（管理）
   getList: (params) => request({ url: '/lejuan-records/list', data: params }),
   // 乐捐归来（管理）

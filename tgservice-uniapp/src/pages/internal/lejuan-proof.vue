@@ -18,7 +18,19 @@
       </view>
       <view class="info-row">
         <text class="info-label">预约时间</text>
-        <text class="info-value">{{ scheduledTime }}</text>
+        <text class="info-value">{{ scheduledStartTime }}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">出发时间</text>
+        <text class="info-value">{{ actualStartTime }}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">回来时间</text>
+        <text class="info-value">{{ returnTime }}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">外出小时数</text>
+        <text class="info-value">{{ lejuanHours }}</text>
       </view>
       <view class="info-row" v-if="proofUrl">
         <text class="info-label">当前截图</text>
@@ -64,12 +76,15 @@ import SuccessModal from '@/components/SuccessModal.vue'
 const statusBarHeight = ref(0)
 const recordId = ref(null)
 const stageName = ref('')
-const scheduledTime = ref('')
+const scheduledStartTime = ref('')
+const actualStartTime = ref('未出发')
+const returnTime = ref('未归来')
+const lejuanHours = ref('-')
 const proofUrl = ref('')
 const currentProofUrl = ref('')
 const showSuccess = ref(false)
 
-onMounted(() => {
+onMounted(async () => {
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 20
 
@@ -77,7 +92,31 @@ onMounted(() => {
   const currentPage = pages[pages.length - 1]
   recordId.value = currentPage.options?.id || null
   stageName.value = decodeURIComponent(currentPage.options?.stageName || '')
+  
+  // 获取记录详情
+  await loadRecordDetail()
 })
+
+const loadRecordDetail = async () => {
+  if (!recordId.value) return
+  try {
+    // 通过 my 接口获取详情（需要 employee_id）
+    const coachInfo = uni.getStorageSync('coachInfo') || {}
+    const res = await api.lejuanRecords.getMyList({ employee_id: coachInfo.employeeId })
+    const records = res.data || []
+    const record = records.find(r => r.id === parseInt(recordId.value))
+    if (record) {
+      stageName.value = record.stage_name || stageName.value
+      scheduledStartTime.value = record.scheduled_start_time || '-'
+      actualStartTime.value = record.actual_start_time || '未出发'
+      returnTime.value = record.return_time || '未归来'
+      lejuanHours.value = record.lejuan_hours !== null ? record.lejuan_hours + '小时' : '-'
+      proofUrl.value = record.proof_image_url || ''
+    }
+  } catch (e) {
+    console.error('获取记录详情失败:', e)
+  }
+}
 
 const { imageUrls, uploading, uploadProgress, uploadText, chooseAndUpload } =
   useImageUpload({ maxCount: 1, ossDir: 'TgTemp/', errorType: 'lejuan_proof' })

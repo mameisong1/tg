@@ -35,10 +35,15 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
             return res.status(400).json({ error: '预约时间必须是整点（分钟=00）' });
         }
 
-        // 校验：必须在未来
+        // 校验：必须在未来（当天的小时允许）
         const now = TimeUtil.nowDB();
-        if (scheduled_start_time < now) {
-            return res.status(400).json({ error: '预约时间必须在未来' });
+        const nowDate = now.split(' ')[0];
+        const scheduledDate = scheduled_start_time.split(' ')[0];
+        const isToday = scheduledDate === nowDate;
+        const isCurrentHour = isToday && scheduled_start_time.substring(11, 13) === now.substring(11, 13);
+        
+        if (!isCurrentHour && scheduled_start_time < now) {
+            return res.status(400).json({ error: '预约时间必须在未来或为当前小时' });
         }
 
         // 查询助教信息
@@ -63,32 +68,65 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
 
         // 创建记录
         const result = await runInTransaction(async (tx) => {
+            // 如果是当前小时，直接激活
+            const shouldActivateNow = isCurrentHour;
+            const initialStatus = shouldActivateNow ? 'active' : 'pending';
+            const actualStartTime = shouldActivateNow ? TimeUtil.nowDB() : null;
+            const scheduled = shouldActivateNow ? 1 : 0;
+
             const insertResult = await tx.run(
                 `INSERT INTO lejuan_records (
                     coach_no, employee_id, stage_name,
                     scheduled_start_time, extra_hours, remark,
-                    lejuan_status, scheduled, created_by
-                ) VALUES (?, ?, ?, ?, ?, ?, 'pending', 0, ?)`,
-                [coach.coach_no, employee_id, coach.stage_name, scheduled_start_time, extra_hours || null, remark || null, req.user.username || employee_id]
+                    lejuan_status, scheduled, actual_start_time, created_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [coach.coach_no, employee_id, coach.stage_name, scheduled_start_time, extra_hours || null, remark || null, initialStatus, scheduled, actualStartTime, req.user.username || employee_id]
             );
 
             const recordId = insertResult.lastID;
 
+            // 如果立即激活，更新水牌状态
+            if (shouldActivateNow) {
+                const waterBoard = await tx.get(
+                    'SELECT * FROM water_boards WHERE coach_no = ?',
+                    [coach.coach_no]
+                );
+                if (waterBoard) {
+                    await tx.run(
+                        `UPDATE water_boards SET status = '乐捐', updated_at = ? WHERE coach_no = ?`,
+                        [TimeUtil.nowDB(), coach.coach_no]
+                    );
+                    await operationLogService.create(tx, {
+                        operator_phone: req.user.username || employee_id,
+                        operator_name: req.user.username || employee_id,
+                        operation_type: '乐捐立即生效',
+                        target_type: 'water_board',
+                        target_id: waterBoard.id,
+                        old_value: JSON.stringify({ status: waterBoard.status }),
+                        new_value: JSON.stringify({ status: '乐捐' }),
+                        remark: `${coach.stage_name} 提交乐捐，当前小时立即生效`
+                    });
+                }
+            }
+
             // 获取刚创建的记录
             const newRecord = await tx.get('SELECT * FROM lejuan_records WHERE id = ?', [recordId]);
 
-            return newRecord;
+            return { ...newRecord, shouldActivateNow };
         });
 
-        // 调度定时器
-        lejuanTimer.addNewRecord(result);
+        // 调度定时器（仅对非立即激活的记录）
+        if (!result.shouldActivateNow) {
+            lejuanTimer.addNewRecord(result);
+        }
 
         res.json({
             success: true,
             data: {
                 id: result.id,
                 scheduled_start_time: result.scheduled_start_time,
-                lejuan_status: 'pending'
+                lejuan_status: result.lejuan_status,
+                immediate: result.shouldActivateNow
             }
         });
     } catch (err) {
@@ -195,11 +233,11 @@ router.post('/:id/return', requireBackendPermission(['coachManagement']), async 
 
             const now = TimeUtil.nowDB();
 
-            // 计算外出小时数（向上取整）
+            // 计算外出小时数（向上取整，最小1小时）
             const actualStart = new Date(record.actual_start_time + '+08:00');
             const returnTime = new Date(now + '+08:00');
             const diffMs = returnTime.getTime() - actualStart.getTime();
-            const lejuanHours = Math.ceil(diffMs / (60 * 60 * 1000));
+            const lejuanHours = Math.max(1, Math.ceil(diffMs / (60 * 60 * 1000)));
 
             // 更新乐捐记录
             await tx.run(
@@ -319,6 +357,53 @@ router.put('/:id/proof', requireBackendPermission(['all']), async (req, res) => 
 });
 
 /**
+ * DELETE /api/lejuan-records/:id — 删除乐捐预约（助教，仅pending状态）
+ */
+router.delete('/:id', requireBackendPermission(['all']), async (req, res) => {
+    try {
+        const recordId = parseInt(req.params.id);
+        const user = req.user;
+        let employeeId;
+
+        if (user.userType === 'coach') {
+            const coach = await get('SELECT employee_id FROM coaches WHERE coach_no = ?', [user.coachNo]);
+            employeeId = coach?.employee_id;
+        } else {
+            employeeId = req.query.employee_id;
+        }
+
+        if (!employeeId) {
+            return res.status(400).json({ error: '无法确定操作人身份' });
+        }
+
+        const record = await get(
+            'SELECT * FROM lejuan_records WHERE id = ? AND employee_id = ?',
+            [recordId, employeeId]
+        );
+        if (!record) {
+            return res.status(404).json({ error: '记录不存在或不是您的记录' });
+        }
+
+        if (record.lejuan_status !== 'pending') {
+            return res.status(400).json({ error: '只能删除待出发状态的乐捐记录' });
+        }
+
+        // 取消定时器
+        lejuanTimer.cancelRecord(recordId);
+
+        // 删除记录
+        await runInTransaction(async (tx) => {
+            await tx.run('DELETE FROM lejuan_records WHERE id = ?', [recordId]);
+        });
+
+        res.json({ success: true, message: '乐捐预约已删除' });
+    } catch (err) {
+        console.error('删除乐捐记录失败:', err);
+        res.status(500).json({ error: '服务器错误' });
+    }
+});
+
+/**
  * GET /api/lejuan-records/pending-timers — 获取待调度定时器（内部）
  */
 router.get('/pending-timers', requireBackendPermission(['coachManagement']), async (req, res) => {
@@ -326,9 +411,8 @@ router.get('/pending-timers', requireBackendPermission(['coachManagement']), asy
         const now = TimeUtil.nowDB();
         const records = await all(`
             SELECT * FROM lejuan_records 
-            WHERE scheduled = 0 
-                AND lejuan_status = 'pending'
-                AND scheduled_start_time <= datetime(?, '+1 minutes')
+            WHERE lejuan_status = 'pending'
+                AND scheduled_start_time <= datetime(?, '+1 hours')
             ORDER BY scheduled_start_time
         `, [now]);
 

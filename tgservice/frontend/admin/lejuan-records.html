@@ -78,6 +78,10 @@
     .stat-pending .stat-num { color: #f1c40f; }
     .stat-returned .stat-num { color: #2ecc71; }
     
+    .hint-banner { background: rgba(212,175,55,0.1); border: 1px solid rgba(212,175,55,0.3); border-radius: 10px; padding: 12px 16px; margin-bottom: 20px; }
+    .hint-banner .hint-title { font-size: 14px; color: #d4af37; font-weight: 600; }
+    .hint-banner .hint-text { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 4px; display: block; line-height: 1.5; }
+    
     .proof-thumb { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; cursor: pointer; }
   </style>
 </head>
@@ -133,6 +137,12 @@
     <div class="page-header">
       <h1 class="page-title">🎱 乐捐管理</h1>
       <button class="logout-btn" onclick="doLogout()">退出登录</button>
+    </div>
+
+    <!-- 流程提示栏 -->
+    <div class="hint-banner">
+      <div class="hint-title">📌 乐捐管理流程</div>
+      <div class="hint-text">助教提交预约 → 到时间自动生效（当前小时提交立即生效） → 助教回店后点击「乐捐归来」计算外出小时数 → 恢复水牌为空闲</div>
     </div>
 
     <!-- 统计卡片 -->
