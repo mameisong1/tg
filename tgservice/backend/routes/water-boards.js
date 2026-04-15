@@ -43,9 +43,11 @@ router.get('/', auth.required, requireBackendPermission(['waterBoardManagement']
     const waterBoards = await db.all(sql, params);
     
     // 解析 photos 字段（从 JSON 字符串转为数组）
+    // 新增 table_no_list 字段，方便前端使用
     const parsedData = waterBoards.map(item => ({
       ...item,
-      photos: item.photos ? JSON.parse(item.photos) : []
+      photos: item.photos ? JSON.parse(item.photos) : [],
+      table_no_list: parseTables(item.table_no)
     }));
     
     res.json({
@@ -83,8 +85,9 @@ router.get('/:coach_no', auth.required, requireBackendPermission(['waterBoardMan
       });
     }
     
-    // 解析 photos 字段
+    // 解析 photos 字段，新增 table_no_list 字段
     waterBoard.photos = waterBoard.photos ? JSON.parse(waterBoard.photos) : [];
+    waterBoard.table_no_list = parseTables(waterBoard.table_no);
     
     res.json({
       success: true,

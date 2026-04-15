@@ -991,7 +991,12 @@ app.get('/api/coaches/:coachNo/water-status', async (req, res) => {
     if (!waterBoard) {
       return res.status(404).json({ error: '水牌不存在' });
     }
-    res.json({ success: true, data: waterBoard });
+    // 新增 table_no_list 字段，方便前端使用
+    const { parseTables } = require('./db');
+    res.json({ success: true, data: {
+      ...waterBoard,
+      table_no_list: parseTables(waterBoard.table_no)
+    }});
   } catch (err) {
     logger.error(`查询水牌状态失败: ${err.message}`);
     res.status(500).json({ error: '服务器错误' });
@@ -1963,6 +1968,7 @@ app.get('/api/auth/check-scan-permission', authMiddleware, async (req, res) => {
     // 判断是否可免扫码:当前状态为上桌(早班上桌/晚班上桌)时,允许免扫码下单
     // 管理员查看任何助教时,返回该助教的状态
     const canSkipScan = ['早班上桌', '晚班上桌'].includes(coach.status);
+    const { parseTables } = require('./db');
 
     res.json({
       success: true,
@@ -1971,6 +1977,7 @@ app.get('/api/auth/check-scan-permission', authMiddleware, async (req, res) => {
         coach_no: coach.coach_no,
         stage_name: coach.stage_name,
         default_table_no: coach.table_no || null,
+        table_no_list: parseTables(coach.table_no),
         status: coach.status,
         is_admin: isAdmin
       }
@@ -2857,8 +2864,8 @@ app.put('/api/admin/coaches/:coachNo/shift', authMiddleware, requireBackendPermi
 
       if (wbNewStatus) {
         await enqueueRun(
-          'UPDATE water_boards SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE coach_no = ?',
-          [wbNewStatus, req.params.coachNo]
+          'UPDATE water_boards SET status = ?, updated_at = ? WHERE coach_no = ?',
+          [wbNewStatus, TimeUtil.nowDB(), req.params.coachNo]
         );
         operationLog.info(`班次变更联动: ${coach.stage_name}(${req.params.coachNo}) 水牌 ${wbOldStatus}→${wbNewStatus}`);
       }

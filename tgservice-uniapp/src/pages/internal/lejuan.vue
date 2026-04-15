@@ -10,21 +10,32 @@
     </view>
     <view class="header-placeholder" :style="{ height: (statusBarHeight + 44) + 'px' }"></view>
 
+    <!-- 预约表单 -->
     <view class="form-section">
+      <view class="section-title">📋 预约乐捐</view>
       <view class="form-item">
         <text class="form-label">日期</text>
-        <picker mode="date" :value="form.date" @change="e => form.date = e.detail.value">
+        <picker mode="date" :value="form.scheduledDate" :start="today" @change="e => { form.scheduledDate = e.detail.value; onDateChange() }">
           <view class="picker-value">
-            <text :class="{ placeholder: !form.date }">{{ form.date || '选择日期' }}</text>
+            <text :class="{ placeholder: !form.scheduledDate }">{{ form.scheduledDate || '选择日期' }}</text>
             <text class="arrow">›</text>
           </view>
         </picker>
       </view>
       <view class="form-item">
-        <text class="form-label">外出小时数</text>
-        <picker :range="hourOptions" @change="e => form.hours = hourOptions[e.detail.value]">
+        <text class="form-label">开始时间（整点）</text>
+        <picker :range="hourOptions" @change="e => form.scheduledHour = hourOptions[e.detail.value]">
           <view class="picker-value">
-            <text :class="{ placeholder: !form.hours }">{{ form.hours ? form.hours + '小时' : '选择小时数' }}</text>
+            <text :class="{ placeholder: form.scheduledHour === null }">{{ form.scheduledHour !== null ? String(form.scheduledHour).padStart(2, '0') + ':00' : '选择整点时间' }}</text>
+            <text class="arrow">›</text>
+          </view>
+        </picker>
+      </view>
+      <view class="form-item">
+        <text class="form-label">预计外出小时数（可选）</text>
+        <picker :range="hourOptions2" @change="e => form.extraHours = hourOptions2[e.detail.value]">
+          <view class="picker-value">
+            <text :class="{ placeholder: !form.extraHours }">{{ form.extraHours ? form.extraHours + '小时' : '选择小时数' }}</text>
             <text class="arrow">›</text>
           </view>
         </picker>
@@ -33,52 +44,64 @@
         <text class="form-label">备注</text>
         <input class="input" v-model="form.remark" placeholder="请输入备注（如和客人外出）" maxlength="200" />
       </view>
-      <view class="form-item">
-        <text class="form-label">证明图片（最多3张）</text>
-        <view class="image-grid">
-          <view v-for="(url, idx) in imageUrls" :key="idx" class="image-item">
-            <image :src="url" mode="aspectFill" class="uploaded-img" @click="previewImage(idx)" />
-            <view class="remove-btn" @click.stop="removeImage(idx)"><text>✕</text></view>
-          </view>
-          <view v-if="imageUrls.length < 3" class="upload-btn" @click="chooseAndUpload">
-            <text class="upload-icon">📷</text>
-            <text class="upload-text">上传图片</text>
-          </view>
-        </view>
-      </view>
-      <view class="submit-btn" :class="{ disabled: !canSubmit }" @click="submitLejuan"><text>提交乐捐报备</text></view>
+      <view class="submit-btn" :class="{ disabled: !canSubmit }" @click="submitLejuan"><text>提交预约</text></view>
     </view>
 
-    <!-- 上传进度 -->
-    <view class="upload-progress" v-if="uploading">
-      <view class="progress-content">
-        <text class="progress-text">{{ uploadText }}</text>
-        <view class="progress-bar"><view class="progress-fill" :style="{ width: uploadProgress + '%' }"></view></view>
+    <!-- 我的乐捐记录（近2天） -->
+    <view class="records-section" v-if="myRecords.length > 0">
+      <view class="section-title">📝 近2天记录</view>
+      <view v-for="rec in myRecords" :key="rec.id" class="record-card" @click="goToProof(rec)">
+        <view class="record-header">
+          <text class="record-status" :class="'status-' + rec.lejuan_status">{{ statusLabel(rec.lejuan_status) }}</text>
+          <text class="record-time">{{ rec.scheduled_start_time.substring(5, 16) }}</text>
+        </view>
+        <view class="record-body">
+          <text class="record-detail" v-if="rec.actual_start_time">生效: {{ rec.actual_start_time.substring(11, 16) }}</text>
+          <text class="record-detail" v-if="rec.lejuan_hours !== null">外出: {{ rec.lejuan_hours }}小时</text>
+          <text class="record-detail" v-if="rec.remark">{{ rec.remark }}</text>
+          <text class="record-detail" v-if="rec.proof_image_url">✅ 已传截图</text>
+          <text class="record-detail proof-hint" v-else-if="canUploadProof(rec)">📷 点击传截图</text>
+        </view>
       </view>
     </view>
 
     <!-- 成功弹窗 -->
-    <SuccessModal :visible="showSuccess" title="提交成功" content="乐捐报备已提交" @confirm="handleSuccessConfirm" />
+    <SuccessModal :visible="showSuccess" title="预约成功" content="乐捐报备已提交，到时间自动生效" @confirm="handleSuccessConfirm" />
   </view>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import api from '@/utils/api-v2.js'
-import { useImageUpload } from '@/utils/image-upload.js'
 import SuccessModal from '@/components/SuccessModal.vue'
 import { getBeijingDate } from '@/utils/time-util.js'
 
 const statusBarHeight = ref(0)
 const coachInfo = ref({})
 const showSuccess = ref(false)
-const hourOptions = [1, 2, 3, 4, 5, 6, 7, 8]
+const myRecords = ref([])
 
-const today = getBeijingDate() // 修复：使用北京时间，避免 toISOString() UTC 偏移
-const form = ref({ date: today, hours: null, remark: '' })
+const today = getBeijingDate()
+const form = ref({
+  scheduledDate: today,
+  scheduledHour: null,
+  extraHours: null,
+  remark: ''
+})
 
-const { imageUrls, uploading, uploadProgress, uploadText, chooseAndUpload, removeImage } =
-  useImageUpload({ maxCount: 3, ossDir: 'TgTemp/', errorType: 'lejuan_proof' })
+// 可用小时选项：从当前小时+1开始
+const hourOptions = computed(() => {
+  const now = new Date()
+  const currentHour = now.getHours()
+  const options = []
+  for (let h = currentHour + 1; h <= 23; h++) {
+    options.push(h)
+  }
+  return options
+})
+
+const hourOptions2 = [1, 2, 3, 4, 5, 6, 7, 8]
 
 onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
@@ -86,41 +109,85 @@ onMounted(() => {
   coachInfo.value = uni.getStorageSync('coachInfo') || {}
 })
 
-const canSubmit = computed(() => form.value.date && form.value.hours)
+onShow(() => {
+  coachInfo.value = uni.getStorageSync('coachInfo') || {}
+  loadMyRecords()
+})
 
-const previewImage = (idx) => {
-  uni.previewImage({ urls: imageUrls.value, current: idx })
+const canSubmit = computed(() => {
+  return form.value.scheduledDate && form.value.scheduledHour !== null
+})
+
+// 日期变化时重置小时选择
+const onDateChange = () => {
+  form.value.scheduledHour = null
+}
+
+const statusLabel = (status) => {
+  const map = { pending: '待出发', active: '乐捐中', returned: '已归来' }
+  return map[status] || status
+}
+
+// 判断是否可上传截图（近2天）
+const canUploadProof = (rec) => {
+  const createdDate = rec.created_at.split(' ')[0]
+  const twoDaysAgo = getBeijingDate()
+  // 简单比较：2天前
+  const d1 = new Date(createdDate + 'T00:00:00+08:00')
+  const d2 = new Date(twoDaysAgo + 'T00:00:00+08:00')
+  const diffDays = (d2 - d1) / (1000 * 60 * 60 * 24)
+  return diffDays <= 2
+}
+
+const loadMyRecords = async () => {
+  try {
+    const res = await api.lejuanRecords.getMyList({ employee_id: coachInfo.value.employeeId })
+    myRecords.value = res.data || []
+  } catch (e) {
+    // 静默失败，不影响页面
+  }
 }
 
 const submitLejuan = async () => {
-  if (!canSubmit.value) return uni.showToast({ title: '请填写完整信息', icon: 'none' })
+  if (!canSubmit.value) return uni.showToast({ title: '请选择日期和时间', icon: 'none' })
 
-  let phone = coachInfo.value.phone || coachInfo.value.employeeId
-  if (!phone) return uni.showToast({ title: '未获取到手机号', icon: 'none' })
+  const scheduledTime = `${form.value.scheduledDate} ${String(form.value.scheduledHour).padStart(2, '0')}:00:00`
 
   try {
     uni.showLoading({ title: '提交中...' })
-    await api.applications.create({
-      applicant_phone: phone,
-      application_type: '乐捐报备',
-      remark: form.value.remark || `${form.value.date} 外出${form.value.hours}小时`,
-      images: imageUrls.value.length > 0 ? JSON.stringify(imageUrls.value) : null,
-      extra_data: { date: form.value.date, hours: form.value.hours }
+    await api.lejuanRecords.create({
+      employee_id: coachInfo.value.employeeId,
+      scheduled_start_time: scheduledTime,
+      extra_hours: form.value.extraHours,
+      remark: form.value.remark
     })
     uni.hideLoading()
     form.value.remark = ''
-    form.value.hours = null
-    imageUrls.value = []
+    form.value.extraHours = null
+    form.value.scheduledHour = null
     showSuccess.value = true
+    await loadMyRecords()
   } catch (e) {
     uni.hideLoading()
     uni.showToast({ title: e.error || '提交失败', icon: 'none' })
   }
 }
 
+const goToProof = (rec) => {
+  if (rec.proof_image_url) {
+    // 已有截图，预览
+    uni.previewImage({ urls: [rec.proof_image_url] })
+    return
+  }
+  if (canUploadProof(rec)) {
+    uni.navigateTo({
+      url: `/pages/internal/lejuan-proof?id=${rec.id}&stageName=${rec.stage_name || ''}`
+    })
+  }
+}
+
 const handleSuccessConfirm = () => {
   showSuccess.value = false
-  uni.switchTab({ url: '/pages/member/member' })
 }
 
 const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { uni.navigateBack() } else { uni.switchTab({ url: '/pages/member/member' }) } }
@@ -137,7 +204,9 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .header-title { font-size: 17px; font-weight: 600; color: #d4af37; letter-spacing: 2px; }
 .header-placeholder { background: #0a0a0f; }
 
-.form-section { margin: 16px; }
+.section-title { font-size: 15px; color: #d4af37; padding: 16px 16px 12px; font-weight: 600; }
+
+.form-section { margin: 0 16px; }
 .form-item { margin-bottom: 24px; }
 .form-label { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 8px; display: block; }
 .picker-value { display: flex; justify-content: space-between; align-items: center; height: 48px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 0 16px; }
@@ -145,23 +214,20 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .arrow { font-size: 18px; color: rgba(255,255,255,0.3); }
 .input { width: 100%; height: 48px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 0 12px; font-size: 14px; color: #fff; box-sizing: border-box; }
 
-/* 图片网格 */
-.image-grid { display: flex; flex-wrap: wrap; gap: 10px; }
-.image-item { position: relative; width: 90px; height: 90px; border-radius: 10px; overflow: hidden; }
-.uploaded-img { width: 100%; height: 100%; }
-.remove-btn { position: absolute; top: 2px; right: 2px; width: 22px; height: 22px; background: rgba(0,0,0,0.7); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-.remove-btn text { color: #fff; font-size: 14px; }
-.upload-btn { width: 90px; height: 90px; background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.2); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.upload-icon { font-size: 28px; display: block; margin-bottom: 4px; }
-.upload-text { font-size: 11px; color: rgba(255,255,255,0.4); }
-
-.submit-btn { height: 50px; background: linear-gradient(135deg, #d4af37, #ffd700); border-radius: 25px; display: flex; align-items: center; justify-content: center; margin-top: 30px; }
+.submit-btn { height: 50px; background: linear-gradient(135deg, #d4af37, #ffd700); border-radius: 25px; display: flex; align-items: center; justify-content: center; margin-top: 10px; margin-bottom: 20px; }
 .submit-btn text { font-size: 16px; font-weight: 600; color: #000; }
 .submit-btn.disabled { opacity: 0.5; }
 
-.upload-progress { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 1001; }
-.progress-content { text-align: center; }
-.progress-text { font-size: 14px; color: rgba(255,255,255,0.6); display: block; margin-bottom: 20px; }
-.progress-bar { width: 200px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
-.progress-fill { height: 100%; background: linear-gradient(90deg, #d4af37, #ffd700); transition: width 0.3s; }
+/* 记录卡片 */
+.records-section { margin: 0 16px; }
+.record-card { background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.1); border-radius: 12px; padding: 14px 16px; margin-bottom: 12px; }
+.record-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.record-status { font-size: 13px; font-weight: 600; padding: 4px 10px; border-radius: 8px; }
+.status-pending { background: rgba(241,196,15,0.2); color: #f1c40f; }
+.status-active { background: rgba(231,76,60,0.2); color: #e74c3c; }
+.status-returned { background: rgba(46,204,113,0.2); color: #2ecc71; }
+.record-time { font-size: 13px; color: rgba(255,255,255,0.5); }
+.record-body { display: flex; flex-direction: column; gap: 4px; }
+.record-detail { font-size: 12px; color: rgba(255,255,255,0.4); }
+.proof-hint { color: #d4af37 !important; }
 </style>
