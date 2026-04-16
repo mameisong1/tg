@@ -17,15 +17,27 @@
         <text class="filter-label">全部</text>
         <text class="filter-count" v-if="getCount('') > 0">{{ getCount('') }}</text>
       </view>
-      <view class="filter-item" v-for="s in statusList" :key="s" :class="{ active: activeFilter === s }" @click="activeFilter = s">
+      <!-- 工作状态按钮：始终显示 -->
+      <view class="filter-item" v-for="s in workStatusList" :key="s" :class="{ active: activeFilter === s }" @click="activeFilter = s">
         <text class="filter-label">{{ s }}</text>
         <text class="filter-count" v-if="getCount(s) > 0">{{ getCount(s) }}</text>
       </view>
+      <!-- 非工作状态切换按钮 -->
+      <view class="filter-item filter-toggle" @click="offStatusVisible = !offStatusVisible">
+        <text class="filter-label">{{ offStatusVisible ? '收起 ▴' : '展开 ▾' }}</text>
+      </view>
+      <!-- 非工作状态按钮：点击展开 -->
+      <template v-if="offStatusVisible">
+        <view class="filter-item" v-for="s in offStatusList" :key="s" :class="{ active: activeFilter === s }" @click="activeFilter = s">
+          <text class="filter-label">{{ s }}</text>
+          <text class="filter-count" v-if="getCount(s) > 0">{{ getCount(s) }}</text>
+        </view>
+      </template>
     </view>
 
     <!-- 按状态分组显示 -->
     <view class="board-list" v-if="groupedBoards.length > 0">
-      <view class="status-section" v-for="group in filteredBoards" :key="group.status" :data-status="group.status">
+      <view class="status-section" v-for="group in filteredBoards" :key="group.status" :data-status="group.status" :class="{ 'free-section': freeStatuses.includes(group.status) }">
         <view class="section-header" @click="showSectionExpand(group.status, group.coaches)">
           <text class="section-title" :style="{ color: statusColors[group.status] || '#d4af37' }">{{ group.status }}</text>
           <text class="section-count">{{ group.coaches.length }}人 ⛶</text>
@@ -75,17 +87,23 @@ import api from '@/utils/api-v2.js'
 
 const statusBarHeight = ref(0)
 const waterBoards = ref([])
-const statusList = ['早班上桌', '早班空闲', '晚班上桌', '晚班空闲', '早加班', '晚加班', '休息', '公休', '请假', '乐捐', '下班']
 const showExpand = ref(false)
 const expandStatus = ref('')
 const expandCoaches = ref([])
 const expandColor = ref('#d4af37')
 const activeFilter = ref('')
+// 非工作状态筛选按钮折叠
+const offStatusVisible = ref(false)
 
 // #ifdef H5
 const floatPosition = ref('left')
 const isFullscreen = ref(false)
 // #endif
+
+const workStatusList = ['早班上桌', '早班空闲', '晚班上桌', '晚班空闲', '早加班', '晚加班']
+const offStatusList = ['休息', '公休', '请假', '乐捐', '下班']
+const statusList = [...workStatusList, ...offStatusList]
+const freeStatuses = ['早班空闲', '晚班空闲']
 
 const statusColors = {
   '早班上桌': '#3498db', '早班空闲': '#2ecc71', '晚班上桌': '#9b59b6', '晚班空闲': '#f1c40f',
@@ -152,7 +170,6 @@ const groupedBoards = computed(() => {
   })
   
   // 对每组内排序（保持不变）
-  const freeStatuses = ['早班空闲', '晚班空闲']
   statusList.forEach(s => {
     if (freeStatuses.includes(s)) {
       // 空闲状态：按 clock_in_time 倒序
@@ -244,6 +261,10 @@ const toggleFullscreen = () => {
   background: rgba(212,175,55,0.15);
   border-color: rgba(212,175,55,0.4);
 }
+.filter-item.filter-toggle {
+  background: rgba(255,255,255,0.06);
+  border-style: dashed;
+}
 .filter-label {
   font-size: 13px;
   color: rgba(255,255,255,0.5);
@@ -280,6 +301,18 @@ const toggleFullscreen = () => {
   width: 100%;
   background: rgba(255,255,255,0.02);
 }
+/* 空闲状态组：灰白色背景 */
+.status-section.free-section {
+  background: rgba(245,245,245,0.85);
+  border-color: rgba(0,0,0,0.08);
+}
+.status-section.free-section .section-header {
+  border-bottom-color: rgba(0,0,0,0.06);
+}
+.status-section.free-section .section-count {
+  color: rgba(0,0,0,0.35);
+}
+
 .section-header {
   display: flex;
   align-items: center;
@@ -295,15 +328,16 @@ const toggleFullscreen = () => {
 .coach-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
+  gap: 8px;
 }
 .coach-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 8px 4px;
-  background: rgba(20,20,30,0.5);
-  border: 1px solid rgba(218,165,32,0.1);
+  padding: 0;
+  overflow: hidden;
+  background: rgba(60,60,80,0.4);
+  border: 1px solid rgba(218,165,32,0.12);
   border-radius: 8px;
   user-select: none;
   -webkit-user-select: none;
@@ -311,36 +345,47 @@ const toggleFullscreen = () => {
   touch-action: manipulation;
 }
 .coach-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 8px;
+  width: 100%;
+  aspect-ratio: 1 / 1;
   object-fit: cover;
-  border: 2px solid rgba(218,165,32,0.2);
-  margin-bottom: 4px;
   user-select: none;
   -webkit-user-select: none;
   pointer-events: none;
 }
 .coach-id {
-  font-size: 11px;
+  font-size: 13px;
   color: #d4af37;
   font-weight: 600;
+  padding: 4px 2px 0;
   user-select: none;
   -webkit-user-select: none;
   pointer-events: none;
 }
 .coach-name {
-  font-size: 11px;
-  color: rgba(255,255,255,0.7);
+  font-size: 13px;
+  color: rgba(255,255,255,0.85);
   text-align: center;
   line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 64px;
+  max-width: 100%;
+  padding: 0 2px 6px;
   user-select: none;
   -webkit-user-select: none;
   pointer-events: none;
+}
+
+/* 空闲组中的卡片样式调整 */
+.status-section.free-section .coach-card {
+  background: rgba(255,255,255,0.7);
+  border-color: rgba(0,0,0,0.06);
+}
+.status-section.free-section .coach-id {
+  color: #b8860b;
+}
+.status-section.free-section .coach-name {
+  color: rgba(0,0,0,0.7);
 }
 
 /* ===== 分段放大弹窗 ===== */
@@ -377,16 +422,17 @@ const toggleFullscreen = () => {
 .expand-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
+  gap: 8px;
   padding-bottom: 8px;
 }
 .expand-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 8px 4px;
-  background: rgba(20,20,30,0.5);
-  border: 1px solid rgba(218,165,32,0.1);
+  padding: 0;
+  overflow: hidden;
+  background: rgba(60,60,80,0.4);
+  border: 1px solid rgba(218,165,32,0.12);
   border-radius: 8px;
   user-select: none;
   -webkit-user-select: none;
@@ -394,18 +440,36 @@ const toggleFullscreen = () => {
   touch-action: manipulation;
 }
 .expand-avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
+  width: 100%;
+  aspect-ratio: 1 / 1;
   object-fit: cover;
-  border: 2px solid rgba(218,165,32,0.2);
-  margin-bottom: 4px;
   user-select: none;
   -webkit-user-select: none;
   pointer-events: none;
 }
-.expand-id { font-size: 11px; color: #d4af37; font-weight: 600; user-select: none; -webkit-user-select: none; pointer-events: none; }
-.expand-name { font-size: 11px; color: rgba(255,255,255,0.7); text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60px; user-select: none; -webkit-user-select: none; pointer-events: none; }
+.expand-id {
+  font-size: 12px;
+  color: #d4af37;
+  font-weight: 600;
+  padding: 4px 2px 0;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+.expand-name {
+  font-size: 12px;
+  color: rgba(255,255,255,0.85);
+  text-align: center;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  padding: 0 2px 6px;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
 
 .empty { text-align: center; padding: 60px 20px; color: rgba(255,255,255,0.3); }
 
