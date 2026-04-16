@@ -803,10 +803,8 @@ app.post('/api/order', async (req, res) => {
     }
 
     // 保存订单(存UTC时间,前端显示时转换为北京时间)
-    // 先尝试添加 device_fingerprint 列(如果不存在)
-    try {
-      await enqueueRun(`ALTER TABLE orders ADD COLUMN device_fingerprint TEXT`);
-    } catch (e) { /* 列已存在 */ }
+    // 已迁移：device_fingerprint 列已存在，无需在启动路径执行 DDL
+    // await enqueueRun(`ALTER TABLE orders ADD COLUMN device_fingerprint TEXT`);
 
     await enqueueRun(
       `INSERT INTO orders (order_no, table_no, items, total_price, status, device_fingerprint, created_at) VALUES (?, ?, ?, ?, '待处理', ?, ?)`,
@@ -4313,6 +4311,9 @@ let deviceStatsCache = {
   weeks12: { data: [], timestamp: 0 }               // 近12周数据,缓存1天
 };
 
+// 内存去重集合：记录已写入的 device_fp + visit_date，防止重复写入导致 UNIQUE 冲突
+const deviceVisitSet = new Set();
+
 // 记录设备访问
 app.post('/api/device/visit', async (req, res) => {
   try {
@@ -4322,16 +4323,20 @@ app.post('/api/device/visit', async (req, res) => {
     }
 
     const today = TimeUtil.todayStr(); // 北京时间 YYYY-MM-DD
+    const key = `${deviceFp}_${today}`;
 
-    // 插入记录(UNIQUE约束自动去重)
-    try {
-      await enqueueRun(
-        'INSERT INTO device_visits (device_fp, visit_date) VALUES (?, ?)',
-        [deviceFp, today]
-      );
-    } catch (e) {
-      // 已存在则忽略
+    // 内存去重：当天已记录则跳过
+    if (deviceVisitSet.has(key)) {
+      return res.json({ success: true });
     }
+
+    // DB 兜底：INSERT OR IGNORE 防止重启后 Set 丢失
+    await enqueueRun(
+      'INSERT OR IGNORE INTO device_visits (device_fp, visit_date) VALUES (?, ?)',
+      [deviceFp, today]
+    );
+
+    deviceVisitSet.add(key);
 
     res.json({ success: true });
   } catch (err) {
