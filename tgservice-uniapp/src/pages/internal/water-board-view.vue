@@ -100,8 +100,8 @@ const floatPosition = ref('left')
 const isFullscreen = ref(false)
 // #endif
 
-const workStatusList = ['早班上桌', '早班空闲', '晚班上桌', '晚班空闲', '早加班', '晚加班']
-const offStatusList = ['休息', '公休', '请假', '乐捐', '下班']
+const workStatusList = ['早班上桌', '早班空闲', '晚班上桌', '晚班空闲', '乐捐']
+const offStatusList = ['休息', '公休', '请假', '下班', '早加班', '晚加班']
 const statusList = [...workStatusList, ...offStatusList]
 const freeStatuses = ['早班空闲', '晚班空闲']
 

@@ -181,8 +181,8 @@ const expandColor = ref('#d4af37')
 // 非工作状态筛选按钮折叠
 const offStatusVisible = ref(false)
 
-const workStatusList = ['早班上桌', '早班空闲', '晚班上桌', '晚班空闲', '早加班', '晚加班']
-const offStatusList = ['休息', '公休', '请假', '乐捐', '下班']
+const workStatusList = ['早班上桌', '早班空闲', '晚班上桌', '晚班空闲', '乐捐']
+const offStatusList = ['休息', '公休', '请假', '下班', '早加班', '晚加班']
 const statusList = [...workStatusList, ...offStatusList]
 const freeStatuses = ['早班空闲', '晚班空闲']
 const simpleStatusList = ['上桌', '空闲', '加班', '休息', '公休', '请假', '乐捐', '下班']
