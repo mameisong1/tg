@@ -111,29 +111,33 @@ function getCurrentHour() {
 const hourOptions = computed(() => {
   const h = getCurrentHour()
 
-  // 00:00 ~ 02:59: 窗口末尾，从当前小时到 02:00
-  if (h >= 0 && h <= 2) {
-    const opts = []
-    for (let i = h; i <= 2; i++) opts.push(i)
-    return opts
+  // 00:00: 窗口末尾，可选 00 和 01
+  if (h === 0) {
+    return [0, 1]
   }
 
-  // 03:00 ~ 13:59: 窗口未到，显示全部13个选项（允许提前预约）
-  if (h >= 3 && h < 14) {
-    return [14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2]
+  // 01:00: 窗口末尾，只能选 01
+  if (h === 1) {
+    return [1]
   }
 
-  // 14:00 ~ 23:59: 从当前小时到次日 02:00
+  // 02:00 ~ 13:59: 窗口未到/已过，显示全部12个选项（允许提前预约）
+  if (h >= 2 && h < 14) {
+    return [14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1]
+  }
+
+  // 14:00 ~ 23:59: 从当前小时到次日 01:00
   const opts = []
   for (let i = h; i <= 23; i++) opts.push(i)
-  opts.push(0, 1, 2)
+  opts.push(0, 1) // 次日00:00, 01:00
   return opts
 })
 
 const formatHour = (hour) => {
   const h = String(hour).padStart(2, '0')
   const currentHour = getCurrentHour()
-  if (currentHour >= 3 && hour <= 2) {
+  // 当前小时在2~23点时，0和1属于次日
+  if (currentHour >= 2 && hour <= 1) {
     return `次日${h}:00`
   }
   return `${h}:00`
@@ -142,7 +146,7 @@ const formatHour = (hour) => {
 const hourLabels = computed(() => {
   return hourOptions.value.map(h => {
     const label = `${String(h).padStart(2, '0')}:00`
-    if (getCurrentHour() >= 3 && h <= 2) {
+    if (getCurrentHour() >= 2 && h <= 1) {
       return `次日${label}`
     }
     return label
@@ -243,8 +247,8 @@ const submitLejuan = async () => {
 
   let submitDate = form.value.scheduledDate
   const currentHour = getCurrentHour()
-  // 当前在3-23点时选了0/1/2点 → 日期+1天
-  if (currentHour >= 3 && form.value.scheduledHour <= 2) {
+  // 当前在2~23点时选了0或1点 → 日期+1天（次日凌晨）
+  if (currentHour >= 2 && form.value.scheduledHour <= 1) {
     const d = new Date(submitDate + 'T00:00:00+08:00')
     d.setDate(d.getDate() + 1)
     submitDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`

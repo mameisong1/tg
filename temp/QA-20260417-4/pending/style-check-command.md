@@ -1,0 +1,1 @@
+node ~/.openclaw/skills/code-style-check/scripts/check-style.js /TG/tgservice

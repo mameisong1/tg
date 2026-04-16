@@ -16,7 +16,7 @@ const lejuanTimer = require('../services/lejuan-timer');
 router.use(auth.required);
 
 /**
- * 校验乐捐预约时间窗口（当日14:00 ~ 次日02:00）
+ * 校验乐捐预约时间窗口（当日14:00 ~ 次日01:00）
  */
 function validateLejuanTime(scheduledStartTime) {
     const now = TimeUtil.nowDB();
@@ -33,9 +33,9 @@ function validateLejuanTime(scheduledStartTime) {
         return { valid: false, error: '预约时间必须是整点（分钟=00）' };
     }
 
-    // 校验2: 小时必须在窗口内 (14~23 或 0~2)
-    if (schedHour >= 3 && schedHour <= 13) {
-        return { valid: false, error: '乐捐报备时间为每日14:00-次日02:00，请选择有效时段' };
+    // 校验2: 小时必须在窗口内 (14~23 或 0~1)
+    if (schedHour >= 2 && schedHour <= 13) {
+        return { valid: false, error: '乐捐报备时间为每日14:00-次日01:00，请选择有效时段' };
     }
 
     // 校验3: 日期与小时匹配性
