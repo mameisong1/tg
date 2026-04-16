@@ -56,15 +56,19 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
         remark,
         images,
         status,
-        extra_data
-      ) VALUES (?, ?, ?, ?, ?, ?)
+        extra_data,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       applicant_phone,
       application_type,
       remark || null,
       images || null,
       status,
-      extra_data ? JSON.stringify(extra_data) : null
+      extra_data ? JSON.stringify(extra_data) : null,
+      TimeUtil.nowDB(),
+      TimeUtil.nowDB()
     ]);
     
     const applicationId = insertResult.lastID;

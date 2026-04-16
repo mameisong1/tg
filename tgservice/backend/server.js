@@ -416,6 +416,14 @@ app.get('/api/front-config', (req, res) => {
   });
 });
 
+// 获取服务器北京时间（供前端判断早/晚班）
+app.get('/api/server-time', (req, res) => {
+  res.json({
+    serverTime: TimeUtil.nowDB(),
+    hour: parseInt(TimeUtil.nowDB().split(' ')[1].split(':')[0], 10)
+  });
+});
+
 // ------------------- 前台 API -------------------
 
 // 获取首页配置
@@ -581,27 +589,22 @@ app.post('/api/cart', async (req, res) => {
     }
 
     // 事务内完成 SELECT + INSERT/UPDATE，避免中间被其他写操作抢占锁
-    await dbTx((db, done) => {
-      db.get(
+    await runInTransaction(async (tx) => {
+      const existing = await tx.get(
         'SELECT id, quantity FROM carts WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')',
-        [sessionId, productName, options, options],
-        (err, existing) => {
-          if (err) return done(err);
-          if (existing) {
-            db.run(
-              'UPDATE carts SET quantity = quantity + ?, table_no = ? WHERE id = ?',
-              [quantity, tableNo || null, existing.id],
-              done
-            );
-          } else {
-            db.run(
-              'INSERT INTO carts (session_id, table_no, product_name, quantity, options) VALUES (?, ?, ?, ?, ?)',
-              [sessionId, tableNo || null, productName, quantity, options],
-              done
-            );
-          }
-        }
+        [sessionId, productName, options, options]
       );
+      if (existing) {
+        await tx.run(
+          'UPDATE carts SET quantity = quantity + ?, table_no = ? WHERE id = ?',
+          [quantity, tableNo || null, existing.id]
+        );
+      } else {
+        await tx.run(
+          'INSERT INTO carts (session_id, table_no, product_name, quantity, options) VALUES (?, ?, ?, ?, ?)',
+          [sessionId, tableNo || null, productName, quantity, options]
+        );
+      }
     });
 
     operationLog.info(`购物车操作: sessionId=${sessionId}, tableNo=${tableNo}, product=${productName}, qty=${quantity}, options=${options}`);
@@ -2503,20 +2506,7 @@ app.post('/api/admin/sync/products', authMiddleware, requireBackendPermission(['
     const OFFLINE_IMAGE_URL = 'https://hui-shang.oss-cn-hangzhou.aliyuncs.com/pic/GtYe33GDA60y6xWF.png';
 
     // 事务包裹: 所有商品+分类同步在一个 BEGIN/COMMIT 内执行
-    const result = await dbTxAsync(async (db) => {
-      const get = (sql, params) => new Promise((resolve, reject) => {
-        db.get(sql, params, (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        });
-      });
-      const run = (sql, params) => new Promise((resolve, reject) => {
-        db.run(sql, params, function(err) {
-          if (err) reject(err);
-          else resolve({ id: this.lastID, changes: this.changes });
-        });
-      });
-
+    const result = await runInTransaction(async (tx) => {
       let inserted = 0, updated = 0, skipped = 0;
 
       for (const p of filteredProducts) {
@@ -2529,10 +2519,10 @@ app.post('/api/admin/sync/products', authMiddleware, requireBackendPermission(['
         const finalStatus = p.imageUrl === OFFLINE_IMAGE_URL ? '下架' : (p.status || '上架');
 
         try {
-          const existing = await get('SELECT name FROM products WHERE name = ?', [p.name]);
+          const existing = await tx.get('SELECT name FROM products WHERE name = ?', [p.name]);
 
           if (existing) {
-            await run(
+            await tx.run(
               `UPDATE products SET
                 image_url = ?,
                 price = ?,
@@ -2547,7 +2537,7 @@ app.post('/api/admin/sync/products', authMiddleware, requireBackendPermission(['
             );
             updated++;
           } else {
-            await run(
+            await tx.run(
               `INSERT INTO products (name, image_url, price, stock_total, stock_available, category, status, creator, created_at, updated_at)
                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
               [p.name, p.imageUrl || '', p.price || '', p.stockTotal || 0, p.stockAvailable || 0, p.category || '', finalStatus, p.creator || '', TimeUtil.nowDB(), TimeUtil.nowDB()]
@@ -2571,12 +2561,12 @@ app.post('/api/admin/sync/products', authMiddleware, requireBackendPermission(['
 
       for (const cat of filteredCategories) {
         try {
-          const row = await get('SELECT name FROM product_categories WHERE name = ?', [cat]);
+          const row = await tx.get('SELECT name FROM product_categories WHERE name = ?', [cat]);
 
           if (row) {
             categoriesExisting++;
           } else {
-            await run(
+            await tx.run(
               `INSERT INTO product_categories (name, creator, created_at) VALUES (?, 'sync-script', ?)`,
               [cat, TimeUtil.nowDB()]
             );
@@ -3596,21 +3586,14 @@ app.post('/api/admin/sync/tables', authMiddleware, requireBackendPermission(['vi
     };
 
     // 事务包裹: 所有更新在一个 BEGIN/COMMIT 内执行
-    const result = await dbTxAsync(async (db) => {
+    const result = await runInTransaction(async (tx) => {
       let tablesUpdated = 0;
       let vipRoomsUpdated = 0;
-
-      const run = (sql, params) => new Promise((resolve, reject) => {
-        db.run(sql, params, function(err) {
-          if (err) reject(err);
-          else resolve({ changes: this.changes });
-        });
-      });
 
       // 更新 tables 表
       for (const table of tables) {
         const dbStatus = convertStatus(table.status);
-        const r = await run(
+        const r = await tx.run(
           `UPDATE tables SET status = ?, updated_at = ? WHERE name = ?`,
           [dbStatus, TimeUtil.nowDB(), table.name]
         );
@@ -3620,7 +3603,7 @@ app.post('/api/admin/sync/tables', authMiddleware, requireBackendPermission(['vi
       // 更新 vip_rooms 表(name 匹配台桌名前缀,与脚本逻辑一致)
       for (const table of tables) {
         const dbStatus = convertStatus(table.status);
-        const r = await run(
+        const r = await tx.run(
           `UPDATE vip_rooms SET status = ?, updated_at = ? WHERE name LIKE ? || '%'`,
           [dbStatus, TimeUtil.nowDB(), table.name]
         );

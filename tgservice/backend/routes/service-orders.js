@@ -48,9 +48,11 @@ router.post('/', auth.required, async (req, res) => {
         requirement,
         requester_name,
         requester_type,
-        status
-      ) VALUES (?, ?, ?, ?, '待处理')
-    `, [table_no, requirement, requester_name, requester_type || '助教']);
+        status,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, '待处理', ?, ?)
+    `, [table_no, requirement, requester_name, requester_type || '助教', TimeUtil.nowDB(), TimeUtil.nowDB()]);
     
     // 记录操作日志（异步，不影响主流程）
     const user = req.user;

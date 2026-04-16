@@ -78,9 +78,9 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
                 `INSERT INTO lejuan_records (
                     coach_no, employee_id, stage_name,
                     scheduled_start_time, extra_hours, remark,
-                    lejuan_status, scheduled, actual_start_time, created_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                [coach.coach_no, employee_id, coach.stage_name, scheduled_start_time, extra_hours || null, remark || null, initialStatus, scheduled, actualStartTime, req.user.username || employee_id]
+                    lejuan_status, scheduled, actual_start_time, created_by, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                [coach.coach_no, employee_id, coach.stage_name, scheduled_start_time, extra_hours || null, remark || null, initialStatus, scheduled, actualStartTime, req.user.username || employee_id, TimeUtil.nowDB(), TimeUtil.nowDB()]
             );
 
             const recordId = insertResult.lastID;

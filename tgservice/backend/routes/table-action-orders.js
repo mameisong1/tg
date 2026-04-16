@@ -97,9 +97,11 @@ router.post('/', auth.required, requireBackendPermission(['cashierDashboard']), 
         order_type,
         action_category,
         stage_name,
-        status
-      ) VALUES (?, ?, ?, ?, ?, '待处理')
-    `, [table_no, coach_no, order_type, action_category || null, stage_name]);
+        status,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, '待处理', ?, ?)
+    `, [table_no, coach_no, order_type, action_category || null, stage_name, TimeUtil.nowDB(), TimeUtil.nowDB()]);
     
     const updateResult = await tx.run(`
       UPDATE water_boards 

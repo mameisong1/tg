@@ -91,9 +91,9 @@ router.post('/lock-should-invite', auth.required, requireBackendPermission(['inv
       if (!existing) {
         await tx.run(`
           INSERT INTO guest_invitation_results (
-            date, shift, coach_no, stage_name, invitation_image_url, result
-          ) VALUES (?, ?, ?, ?, NULL, '应约客')
-        `, [date, shift, coach.coach_no, coach.stage_name]);
+            date, shift, coach_no, stage_name, invitation_image_url, result, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, NULL, '应约客', ?, ?)
+        `, [date, shift, coach.coach_no, coach.stage_name, TimeUtil.nowDB(), TimeUtil.nowDB()]);
         insertedCount++;
       }
     }
@@ -254,9 +254,11 @@ router.post('/', auth.required, requireBackendPermission(['all']), async (req, r
           coach_no,
           stage_name,
           images,
-          result
-        ) VALUES (?, ?, ?, ?, ?, '待审查')
-      `, [date, shift, coach_no, coach.stage_name, images || null]);
+          result,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?, '待审查', ?, ?)
+      `, [date, shift, coach_no, coach.stage_name, images || null, TimeUtil.nowDB(), TimeUtil.nowDB()]);
     }
     
     const user = req.user;
