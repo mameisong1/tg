@@ -1,5 +1,6 @@
 <template>
   <view class="page">
+    <!-- 固定标题栏 -->
     <view class="fixed-header">
       <view class="status-bar-bg" :style="{ height: statusBarHeight + 'px' }"></view>
       <view class="header-content">
@@ -12,26 +13,28 @@
 
     <!-- 状态筛选按钮 -->
     <view class="filter-bar">
-      <view class="filter-item" :class="{ active: activeFilter === '' }" @click="activeFilter = ''"><text>全部</text></view>
+      <view class="filter-item" :class="{ active: activeFilter === '' }" @click="activeFilter = ''">
+        <text class="filter-label">全部</text>
+        <text class="filter-count" v-if="getCount('') > 0">{{ getCount('') }}</text>
+      </view>
       <view class="filter-item" v-for="s in statusList" :key="s" :class="{ active: activeFilter === s }" @click="activeFilter = s">
-        <text>{{ s }}</text>
+        <text class="filter-label">{{ s }}</text>
+        <text class="filter-count" v-if="getCount(s) > 0">{{ getCount(s) }}</text>
       </view>
     </view>
 
-    <view class="board-list" v-if="filteredBoards.length > 0">
+    <!-- 按状态分组显示 -->
+    <view class="board-list" v-if="groupedBoards.length > 0">
       <view class="status-section" v-for="group in filteredBoards" :key="group.status" :data-status="group.status">
         <view class="section-header" @click="showSectionExpand(group.status, group.coaches)">
-          <text class="section-title">{{ group.status }}</text>
+          <text class="section-title" :style="{ color: statusColors[group.status] || '#d4af37' }">{{ group.status }}</text>
           <text class="section-count">{{ group.coaches.length }}人 ⛶</text>
         </view>
-        <view class="coach-chips">
-          <view class="coach-chip" v-for="coach in group.coaches" :key="coach.coach_no">
+        <view class="coach-grid">
+          <view class="coach-card" v-for="coach in group.coaches" :key="coach.coach_no">
             <image class="coach-avatar" :src="getAvatar(coach)" mode="aspectFill" />
             <text class="coach-id">{{ coach.employee_id || coach.coach_no }}</text>
             <text class="coach-name">{{ coach.stage_name }}</text>
-            <view class="coach-table-tags" v-if="coach.table_no_list && coach.table_no_list.length">
-              <text class="coach-table-tag" v-for="(t, i) in coach.table_no_list" :key="i">{{ t }}</text>
-            </view>
           </view>
         </view>
       </view>
@@ -46,19 +49,23 @@
           <text class="expand-count">{{ expandCoaches.length }}人</text>
         </view>
         <scroll-view class="expand-content" scroll-y>
-          <view class="expand-chips">
-            <view class="expand-chip" v-for="coach in expandCoaches" :key="coach.coach_no">
+          <view class="expand-grid">
+            <view class="expand-card" v-for="coach in expandCoaches" :key="coach.coach_no">
               <image class="expand-avatar" :src="getAvatar(coach)" mode="aspectFill" />
               <text class="expand-id">{{ coach.employee_id || coach.coach_no }}</text>
               <text class="expand-name">{{ coach.stage_name }}</text>
-              <view class="expand-table-tags" v-if="coach.table_no_list && coach.table_no_list.length">
-                <text class="expand-table-tag" v-for="(t, i) in coach.table_no_list" :key="i">{{ t }}</text>
-              </view>
             </view>
           </view>
         </scroll-view>
       </view>
     </view>
+
+    <!-- #ifdef H5 -->
+    <!-- 全屏悬浮按钮 -->
+    <view class="fullscreen-btn" :style="{ left: floatPosition === 'left' ? '20px' : 'auto', right: floatPosition === 'right' ? '20px' : 'auto' }" @click="toggleFullscreen">
+      <text>⛶</text>
+    </view>
+    <!-- #endif -->
   </view>
 </template>
 
@@ -75,6 +82,11 @@ const expandCoaches = ref([])
 const expandColor = ref('#d4af37')
 const activeFilter = ref('')
 
+// #ifdef H5
+const floatPosition = ref('left')
+const isFullscreen = ref(false)
+// #endif
+
 const statusColors = {
   '早班上桌': '#3498db', '早班空闲': '#2ecc71', '晚班上桌': '#9b59b6', '晚班空闲': '#f1c40f',
   '早加班': '#e67e22', '晚加班': '#e74c3c', '休息': '#95a5a6', '公休': '#1abc9c',
@@ -88,6 +100,14 @@ const REFRESH_INTERVAL = 30000 // 30秒
 onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 20
+
+  // #ifdef H5
+  document.addEventListener('fullscreenchange', () => {
+    isFullscreen.value = !!document.fullscreenElement
+  })
+  floatPosition.value = uni.getStorageSync('floatButtonPosition') || 'left'
+  // #endif
+
   loadData()
   // 启动30秒自动刷新
   refreshTimer = setInterval(() => {
@@ -109,6 +129,21 @@ const loadData = async () => {
   } catch (e) { uni.showToast({ title: '加载失败', icon: 'none' }) }
 }
 
+// 筛选按钮人数统计
+const statusCountMap = computed(() => {
+  const map = {}
+  statusList.forEach(s => { map[s] = 0 })
+  waterBoards.value.forEach(board => {
+    if (map[board.status] !== undefined) map[board.status]++
+  })
+  return map
+})
+
+const getCount = (status) => {
+  if (!status) return waterBoards.value.length
+  return statusCountMap.value[status] || 0
+}
+
 const groupedBoards = computed(() => {
   const groups = {}
   statusList.forEach(s => { groups[s] = [] })
@@ -116,7 +151,7 @@ const groupedBoards = computed(() => {
     if (groups[b.status] !== undefined) groups[b.status].push(b)
   })
   
-  // 对每组内排序
+  // 对每组内排序（保持不变）
   const freeStatuses = ['早班空闲', '晚班空闲']
   statusList.forEach(s => {
     if (freeStatuses.includes(s)) {
@@ -165,6 +200,16 @@ const showSectionExpand = (status, coaches) => {
 const closeExpand = () => {
   showExpand.value = false
 }
+
+// #ifdef H5
+const toggleFullscreen = () => {
+  if (document.fullscreenElement) {
+    document.exitFullscreen()
+  } else {
+    document.documentElement.requestFullscreen()
+  }
+}
+// #endif
 </script>
 
 <style scoped>
@@ -178,126 +223,210 @@ const closeExpand = () => {
 .header-title { font-size: 17px; font-weight: 600; color: #d4af37; letter-spacing: 2px; }
 .header-placeholder { background: #0a0a0f; }
 
-/* 状态筛选 */
-.filter-bar { display: flex; flex-wrap: wrap; padding: 12px 18px; gap: 9px; }
-.filter-item { padding: 9px 18px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 24px; font-size: 18px; color: rgba(255,255,255,0.6); }
-.filter-item.active { background: rgba(212,175,55,0.2); border-color: #d4af37; color: #d4af37; }
+/* ===== 状态筛选（新设计） ===== */
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  gap: 8px;
+}
+.filter-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 20px;
+  transition: all 0.2s;
+}
+.filter-item.active {
+  background: rgba(212,175,55,0.15);
+  border-color: rgba(212,175,55,0.4);
+}
+.filter-label {
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+  white-space: nowrap;
+}
+.filter-item.active .filter-label {
+  color: #d4af37;
+}
+.filter-count {
+  font-size: 11px;
+  color: rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 1px 6px;
+  min-width: 18px;
+  text-align: center;
+}
+.filter-item.active .filter-count {
+  background: rgba(212,175,55,0.25);
+  color: #d4af37;
+}
 
-.board-list { padding: 0 18px 18px; }
-.status-section { 
-  border: 2px solid rgba(218,165,32,0.15); 
-  border-radius: 12px; 
-  padding: 15px; 
-  margin-bottom: 18px; 
+/* ===== 列表区域 ===== */
+.board-list { padding: 0 14px 14px; }
+
+/* ===== 状态分段 ===== */
+.status-section {
+  border: 1px solid rgba(218,165,32,0.12);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 14px;
   overflow: hidden;
   box-sizing: border-box;
   width: 100%;
+  background: rgba(255,255,255,0.02);
 }
-.section-header { 
-  display: flex; 
-  align-items: center; 
-  justify-content: space-between; 
-  margin-bottom: 12px; 
-  padding-bottom: 9px; 
-  border-bottom: 1px solid rgba(255,255,255,0.05); 
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
 }
-.section-title { font-size: 21px; font-weight: 600; color: #d4af37; white-space: nowrap; }
-.section-count { font-size: 18px; color: rgba(255,255,255,0.5); }
+.section-title { font-size: 15px; font-weight: 600; color: #d4af37; }
+.section-count { font-size: 12px; color: rgba(255,255,255,0.35); }
 
-.coach-chips { display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-start; }
-
-.coach-chip { 
-  display: flex; 
-  flex-direction: column; 
-  align-items: center; 
-  width: 120px; 
-  padding: 12px 6px;
-  background: rgba(20,20,30,0.6); 
-  border: 1px solid rgba(218,165,32,0.15);
-  border-radius: 50%; 
+/* ===== 助教方格卡片 ===== */
+.coach-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
 }
-.coach-avatar { 
-  width: 72px; 
-  height: 72px; 
-  border-radius: 50%; 
+.coach-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 4px;
+  background: rgba(20,20,30,0.5);
+  border: 1px solid rgba(218,165,32,0.1);
+  border-radius: 8px;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+.coach-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
   object-fit: cover;
-  border: 3px solid rgba(218,165,32,0.3); 
-  margin-bottom: 6px; 
+  border: 2px solid rgba(218,165,32,0.2);
+  margin-bottom: 4px;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
 }
-.coach-id { font-size: 18px; color: #d4af37; font-weight: 600; }
-.coach-name { font-size: 18px; color: rgba(255,255,255,0.8); text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 108px; }
-.coach-table-tags { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin-top: 2px; }
-.coach-table-tag { font-size: 14px; color: #d4af37; background: rgba(212,175,55,0.12); border-radius: 4px; padding: 2px 6px; }
+.coach-id {
+  font-size: 11px;
+  color: #d4af37;
+  font-weight: 600;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+.coach-name {
+  font-size: 11px;
+  color: rgba(255,255,255,0.7);
+  text-align: center;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 64px;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
 
-/* 状态颜色 */
-.status-section[data-status="早班上桌"] { border-color: rgba(52,152,219,0.3); }
-.status-section[data-status="早班空闲"] { border-color: rgba(46,204,113,0.3); background: rgba(255,255,255,0.08); }
-.status-section[data-status="晚班上桌"] { border-color: rgba(155,89,182,0.3); }
-.status-section[data-status="晚班空闲"] { border-color: rgba(241,196,15,0.3); background: rgba(255,255,255,0.08); }
-.status-section[data-status="早加班"] { border-color: rgba(230,126,34,0.3); }
-.status-section[data-status="晚加班"] { border-color: rgba(231,76,60,0.3); }
-.status-section[data-status="休息"] { border-color: rgba(149,165,166,0.3); }
-.status-section[data-status="公休"] { border-color: rgba(26,188,156,0.3); }
-.status-section[data-status="请假"] { border-color: rgba(52,73,94,0.3); }
-.status-section[data-status="乐捐"] { border-color: rgba(243,156,18,0.3); }
-.status-section[data-status="下班"] { border-color: rgba(44,62,80,0.3); }
-
-.status-section[data-status="早班上桌"] .section-title { color: #3498db; }
-.status-section[data-status="早班空闲"] .section-title { color: #2ecc71; }
-.status-section[data-status="晚班上桌"] .section-title { color: #9b59b6; }
-.status-section[data-status="晚班空闲"] .section-title { color: #f1c40f; }
-.status-section[data-status="早加班"] .section-title { color: #e67e22; }
-.status-section[data-status="晚加班"] .section-title { color: #e74c3c; }
-.status-section[data-status="休息"] .section-title { color: #95a5a6; }
-.status-section[data-status="公休"] .section-title { color: #1abc9c; }
-.status-section[data-status="请假"] .section-title { color: #7f8c8d; }
-.status-section[data-status="乐捐"] .section-title { color: #f39c12; }
-.status-section[data-status="下班"] .section-title { color: #bdc3c7; }
+/* ===== 分段放大弹窗 ===== */
+.expand-overlay {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.85);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.expand-box {
+  background: rgba(20,20,30,0.95);
+  border-radius: 14px;
+  padding: 16px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  border: 1px solid rgba(218,165,32,0.2);
+}
+.expand-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.expand-title { font-size: 16px; font-weight: 600; }
+.expand-count { font-size: 12px; color: rgba(255,255,255,0.4); }
+.expand-content { max-height: 60vh; }
+.expand-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  padding-bottom: 8px;
+}
+.expand-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 4px;
+  background: rgba(20,20,30,0.5);
+  border: 1px solid rgba(218,165,32,0.1);
+  border-radius: 8px;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+.expand-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 2px solid rgba(218,165,32,0.2);
+  margin-bottom: 4px;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
+}
+.expand-id { font-size: 11px; color: #d4af37; font-weight: 600; user-select: none; -webkit-user-select: none; pointer-events: none; }
+.expand-name { font-size: 11px; color: rgba(255,255,255,0.7); text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60px; user-select: none; -webkit-user-select: none; pointer-events: none; }
 
 .empty { text-align: center; padding: 60px 20px; color: rgba(255,255,255,0.3); }
 
-/* 分段放大弹窗 */
-.expand-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 999; display: flex; align-items: center; justify-content: center; }
-.expand-box { background: rgba(20,20,30,0.95); border-radius: 16px; padding: 20px; width: 90%; max-width: 600px; max-height: 80vh; border: 2px solid rgba(218,165,32,0.3); }
-.expand-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-.expand-title { font-size: 18px; font-weight: 600; }
-.expand-count { font-size: 13px; color: rgba(255,255,255,0.4); }
-.expand-content { max-height: 60vh; }
-.expand-chips { display: flex; flex-wrap: wrap; gap: 14px; padding-bottom: 10px; }
-.expand-chip { display: flex; flex-direction: column; align-items: center; width: 100px; padding: 10px 6px; background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.15); border-radius: 50%; }
-.expand-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(218,165,32,0.3); margin-bottom: 6px; }
-.expand-id { font-size: 12px; color: #d4af37; font-weight: 600; }
-.expand-name { font-size: 12px; color: rgba(255,255,255,0.8); text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 90px; }
-.expand-table-tags { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 4px; }
-.expand-table-tag { font-size: 10px; color: #d4af37; background: rgba(212,175,55,0.12); border-radius: 4px; padding: 1px 5px; }
-
-/* === 窄屏响应式优化 === */
-
-/* 窄屏：≤420px */
-@media (max-width: 420px) {
-  .filter-bar { gap: 6px; padding: 9px 12px; }
-  .filter-item { padding: 8px 12px; font-size: 17px; }
-  .coach-chips { gap: 9px; }
-  .coach-chip { width: 96px; padding: 9px 3px; }
-  .coach-avatar { width: 57px; height: 57px; }
-  .coach-id { font-size: 17px; }
-  .coach-name { font-size: 17px; max-width: 84px; }
-  .coach-table-tags { gap: 2px; }
-  .coach-table-tag { font-size: 12px; padding: 1px 3px; }
-  .status-section { padding: 12px; margin-bottom: 12px; }
+/* #ifdef H5 */
+/* 全屏悬浮按钮 */
+.fullscreen-btn {
+  position: fixed;
+  bottom: 80px;
+  width: 44px;
+  height: 44px;
+  background: rgba(212, 175, 55, 0.9);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  z-index: 100;
 }
-
-/* 极窄屏：≤360px */
-@media (max-width: 360px) {
-  .filter-bar { gap: 5px; padding: 6px 9px; }
-  .filter-item { padding: 6px 9px; font-size: 15px; border-radius: 18px; }
-  .coach-chips { gap: 6px; }
-  .coach-chip { width: 84px; padding: 6px 3px; }
-  .coach-avatar { width: 45px; height: 45px; border-width: 2px; }
-  .coach-id { font-size: 15px; }
-  .coach-name { font-size: 15px; max-width: 72px; }
-  .coach-table-tag { font-size: 11px; padding: 0 2px; }
-  .board-list { padding: 0 6px 12px; }
-  .status-section { padding: 9px 6px; margin-bottom: 9px; }
+.fullscreen-btn text {
+  font-size: 20px;
+  color: #000;
 }
+/* #endif */
 </style>
