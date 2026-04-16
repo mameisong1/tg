@@ -1,0 +1,13 @@
+{
+  "done": true,
+  "stateUpdate": {
+    "workDir": "/TG/temp/QA-20260416-06",
+    "qaRequirement": "后台Admin左侧菜单栏公共化改造。将15个HTML页面中重复的菜单栏HTML提取为公共模板sidebar.html，通过sidebar.js动态加载+自动高亮+角色权限过滤。解决菜单不一致问题（不同页面看到的菜单项不同）。",
+    "acceptanceFocus": "点击每一个菜单项目，看到哪些目录都正常打开并截图。浏览器标签页同时不要超过3个。",
+    "designAuditRound": 0,
+    "testCasesAuditRound": 0,
+    "fixRound": 0,
+    "currentStep": "parallel-design"
+  },
+  "userMessage": "✅ QA任务已初始化\n\n工作目录：`/TG/temp/QA-20260416-06`\n需求：后台Admin左侧菜单栏公共化改造。将15个HTML页面中重复的菜单栏HTML提取为公共模板sidebar.html，通过sidebar.js动态加载+自动高亮+角色权限过滤。解决菜单不一致问题（不同页面看到的菜单项不同）。"
+}
