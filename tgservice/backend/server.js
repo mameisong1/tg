@@ -46,6 +46,7 @@ const coachesV2Router = require('./routes/coaches');
 const serviceOrdersRouter = require('./routes/service-orders');
 const tableActionOrdersRouter = require('./routes/table-action-orders');
 const operationLogsRouter = require('./routes/operation-logs');
+const operationLogService = require('./services/operation-log');
 
 // 乐捐记录路由
 const lejuanRecordsRouter = require('./routes/lejuan-records');
@@ -2936,12 +2937,35 @@ app.get('/api/admin/coaches/sync-water-boards/preview', authMiddleware, requireB
       ORDER BY c.coach_no
     `);
 
+    // 离店助教残留台桌检测
+    const offDutyWithTables = await dbAll(`
+      SELECT wb.coach_no, wb.stage_name, wb.status, wb.table_no, wb.updated_at, c.shift, c.photos
+      FROM water_boards wb
+      LEFT JOIN coaches c ON wb.coach_no = CAST(c.coach_no AS TEXT)
+      WHERE wb.status IN ('休息', '公休', '请假', '下班')
+        AND wb.table_no IS NOT NULL
+        AND wb.table_no != ''
+      ORDER BY CAST(wb.coach_no AS INTEGER)
+    `);
+
+    const { parseTables } = require('./db');
+    const offDutyData = (offDutyWithTables || []).map(r => ({
+      coach_no: r.coach_no,
+      stage_name: r.stage_name,
+      status: r.status,
+      table_no: r.table_no,
+      table_no_list: parseTables(r.table_no),
+      table_count: parseTables(r.table_no).length
+    }));
+
     res.json({
       orphanRecords: orphanRecords || [],
       missingRecords: missingRecords || [],
+      offDutyWithTables: offDutyData,
       summary: {
         orphanCount: orphanRecords ? orphanRecords.length : 0,
-        missingCount: missingRecords ? missingRecords.length : 0
+        missingCount: missingRecords ? missingRecords.length : 0,
+        offDutyCount: offDutyData.length
       }
     });
   } catch (err) {
@@ -2956,7 +2980,7 @@ app.get('/api/admin/coaches/sync-water-boards/preview', authMiddleware, requireB
  */
 app.post('/api/admin/coaches/sync-water-boards/execute', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
-    const { deleteOrphanIds, addMissingIds } = req.body;
+    const { deleteOrphanIds, addMissingIds, clearTableCoachNos } = req.body;
 
     if (!Array.isArray(deleteOrphanIds) || !Array.isArray(addMissingIds)) {
       return res.status(400).json({ error: '参数格式错误' });
@@ -2965,6 +2989,7 @@ app.post('/api/admin/coaches/sync-water-boards/execute', authMiddleware, require
     const errors = [];
     let deleted = 0;
     let added = 0;
+    let cleared = 0;
 
     await runInTransaction(async (tx) => {
       // 1. 批量删除孤儿记录
@@ -3005,8 +3030,38 @@ app.post('/api/admin/coaches/sync-water-boards/execute', authMiddleware, require
         }
       }
 
-      // 3. 记录操作日志
-      operationLog.info(`同步水牌: 删除${deleted}条孤儿记录, 添加${added}条缺失记录`);
+      // 3. 清理离店助教残留台桌号
+      if (Array.isArray(clearTableCoachNos) && clearTableCoachNos.length > 0) {
+        const nowDB = TimeUtil.nowDB();
+        for (const coachNo of clearTableCoachNos) {
+          try {
+            const wb = await tx.get('SELECT id, coach_no, stage_name, table_no, status FROM water_boards WHERE coach_no = ?', [coachNo]);
+            if (wb && wb.table_no) {
+              await tx.run(
+                'UPDATE water_boards SET table_no = NULL, updated_at = ? WHERE coach_no = ?',
+                [nowDB, coachNo]
+              );
+              const user = req.user;
+              await operationLogService.create(tx, {
+                operator_phone: user.username,
+                operator_name: user.name,
+                operation_type: '清理残留台桌',
+                target_type: 'water_board',
+                target_id: wb.id,
+                old_value: JSON.stringify({ table_no: wb.table_no, status: wb.status }),
+                new_value: JSON.stringify({ table_no: null, status: wb.status }),
+                remark: `同步水牌时清理${wb.stage_name}(${wb.coach_no})残留台桌号：${wb.table_no} → 空（状态：${wb.status}）`
+              });
+              cleared++;
+            }
+          } catch (e) {
+            errors.push(`coach_no=${coachNo}: 清理台桌失败 - ${e.message}`);
+          }
+        }
+      }
+
+      // 4. 记录操作日志
+      operationLog.info(`同步水牌: 删除${deleted}条孤儿记录, 添加${added}条缺失记录, 清理${cleared}人残留台桌`);
     });
 
     if (errors.length > 0) {
@@ -3015,11 +3070,12 @@ app.post('/api/admin/coaches/sync-water-boards/execute', authMiddleware, require
         error: '部分操作失败',
         deleted,
         added,
+        cleared,
         errors
       });
     }
 
-    res.json({ success: true, deleted, added, errors: [] });
+    res.json({ success: true, deleted, added, cleared, errors: [] });
   } catch (err) {
     logger.error(`执行水牌同步失败: ${err.message}`);
     res.status(500).json({ error: '服务器错误' });

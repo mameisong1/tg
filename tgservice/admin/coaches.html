@@ -65,6 +65,18 @@
     
     .toast { position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.9); padding: 12px 24px; border-radius: 8px; z-index: 1001; display: none; }
     .toast.show { display: block; }
+
+    /* 台桌号标签样式 */
+    .table-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      margin: 2px 4px 2px 0;
+      background: rgba(243,156,18,0.2);
+      border: 1px solid rgba(243,156,18,0.4);
+      border-radius: 4px;
+      color: #f39c12;
+      font-size: 12px;
+    }
   
     /* 折叠菜单 */
     .nav-group { border-bottom: 1px solid rgba(255,255,255,0.03); }
@@ -317,6 +329,25 @@
           </table>
         </div>
         
+        <!-- 离店残留台桌区 -->
+        <div id="offDutyTableSection" style="display:none;margin-bottom:16px">
+          <div style="font-size:14px;color:#f39c12;margin-bottom:8px">
+            ⚠️ 离店助教残留台桌（<span id="offDutyTableCount">0</span>人）— 将清空台桌号：
+          </div>
+          <table style="width:100%;font-size:13px;border-collapse:collapse">
+            <thead><tr style="color:rgba(255,255,255,0.5);border-bottom:1px solid rgba(255,255,255,0.1)">
+              <th style="padding:8px;text-align:left">
+                <input type="checkbox" id="offDutyTableSelectAll" onchange="toggleOffDutyTableAll(this.checked)">
+              </th>
+              <th style="padding:8px;text-align:left">编号</th>
+              <th style="padding:8px;text-align:left">艺名</th>
+              <th style="padding:8px;text-align:left">当前状态</th>
+              <th style="padding:8px;text-align:left">残留台桌号</th>
+            </tr></thead>
+            <tbody id="offDutyTableTableBody"></tbody>
+          </table>
+        </div>
+
         <!-- 摘要 -->
         <div id="syncSummary" style="padding:12px;background:rgba(255,255,255,0.05);border-radius:8px;font-size:13px">
           将删除 <span id="summaryDelete">0</span> 条，添加 <span id="summaryAdd">0</span> 条
@@ -523,7 +554,7 @@
     }
     
     // ===== 同步水牌功能 =====
-    let syncData = { orphans: [], missing: [] };
+    let syncData = { orphans: [], missing: [], offDutyWithTables: [] };
 
     async function openSyncModal() {
       document.getElementById('syncModal').classList.add('show');
@@ -536,12 +567,12 @@
         const data = await api('/api/admin/coaches/sync-water-boards/preview');
         document.getElementById('syncLoading').style.display = 'none';
         
-        if (data.orphanRecords.length === 0 && data.missingRecords.length === 0) {
+        if (data.orphanRecords.length === 0 && data.missingRecords.length === 0 && (!data.offDutyWithTables || data.offDutyWithTables.length === 0)) {
           document.getElementById('syncNoDiff').style.display = 'block';
           return;
         }
         
-        syncData = { orphans: data.orphanRecords, missing: data.missingRecords };
+        syncData = { orphans: data.orphanRecords, missing: data.missingRecords, offDutyWithTables: data.offDutyWithTables || [] };
         renderSyncResult();
         document.getElementById('syncResult').style.display = 'block';
         document.getElementById('syncConfirmBtn').style.display = 'inline-block';
@@ -593,6 +624,31 @@
         missingSection.style.display = 'none';
       }
       
+      // ===== 新增：离店残留台桌 =====
+      const offDutyData = syncData.offDutyWithTables || [];
+      const offDutySection = document.getElementById('offDutyTableSection');
+      if (offDutyData.length > 0) {
+        offDutySection.style.display = 'block';
+        document.getElementById('offDutyTableCount').textContent = offDutyData.length;
+        document.getElementById('offDutyTableTableBody').innerHTML = offDutyData.map((o, i) => {
+          const tableTags = o.table_no_list.map(t => `<span class="table-tag">${t}</span>`).join('');
+          return `
+            <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
+              <td style="padding:8px">
+                <input type="checkbox" class="offDutyTable-check" data-index="${i}" checked onchange="updateSyncSummary()">
+              </td>
+              <td style="padding:8px">${o.coach_no}</td>
+              <td style="padding:8px">${o.stage_name}</td>
+              <td style="padding:8px">${o.status}</td>
+              <td style="padding:8px">${tableTags}</td>
+            </tr>
+          `;
+        }).join('');
+        document.getElementById('offDutyTableSelectAll').checked = true;
+      } else {
+        offDutySection.style.display = 'none';
+      }
+      
       // 全选checkbox状态
       document.getElementById('orphanSelectAll').checked = true;
       document.getElementById('missingSelectAll').checked = true;
@@ -610,11 +666,19 @@
       updateSyncSummary();
     }
 
+    function toggleOffDutyTableAll(checked) {
+      document.querySelectorAll('.offDutyTable-check').forEach(cb => cb.checked = checked);
+      updateSyncSummary();
+    }
+
     function updateSyncSummary() {
       const deleteCount = document.querySelectorAll('.orphan-check:checked').length;
       const addCount = document.querySelectorAll('.missing-check:checked').length;
+      const clearCount = document.querySelectorAll('.offDutyTable-check:checked').length;
       document.getElementById('summaryDelete').textContent = deleteCount;
       document.getElementById('summaryAdd').textContent = addCount;
+      document.getElementById('syncSummary').innerHTML =
+        `将删除 <span id="summaryDelete">${deleteCount}</span> 条，添加 <span id="summaryAdd">${addCount}</span> 条，清空 <span id="summaryClear">${clearCount}</span> 人台桌号`;
     }
 
     async function executeSync() {
@@ -628,7 +692,13 @@
         addMissingIds.push(syncData.missing[parseInt(cb.dataset.index)].coach_no);
       });
       
-      if (deleteOrphanIds.length === 0 && addMissingIds.length === 0) {
+      // 收集要清理台桌的教练编号
+      const clearTableCoachNos = [];
+      document.querySelectorAll('.offDutyTable-check:checked').forEach(cb => {
+        clearTableCoachNos.push(syncData.offDutyWithTables[parseInt(cb.dataset.index)].coach_no);
+      });
+      
+      if (deleteOrphanIds.length === 0 && addMissingIds.length === 0 && clearTableCoachNos.length === 0) {
         showToast('请至少选择一条操作');
         return;
       }
@@ -640,13 +710,17 @@
       try {
         const result = await api('/api/admin/coaches/sync-water-boards/execute', {
           method: 'POST',
-          body: JSON.stringify({ deleteOrphanIds, addMissingIds })
+          body: JSON.stringify({ deleteOrphanIds, addMissingIds, clearTableCoachNos })
         });
         
         if (result.error) {
           showToast('❌ 同步失败：' + result.error);
         } else {
-          showToast(`✅ 同步完成：删除${result.deleted}条，添加${result.added}条`);
+          let msg = `✅ 同步完成`;
+          if (result.deleted) msg += `：删除${result.deleted}条`;
+          if (result.added) msg += `，添加${result.added}条`;
+          if (result.cleared) msg += `，清空${result.cleared}人台桌号`;
+          showToast(msg);
           closeSyncModal();
           loadCoaches(); // 刷新助教列表
         }
@@ -660,7 +734,7 @@
 
     function closeSyncModal() {
       document.getElementById('syncModal').classList.remove('show');
-      syncData = { orphans: [], missing: [] };
+      syncData = { orphans: [], missing: [], offDutyWithTables: [] };
     }
     
     loadCoaches();
