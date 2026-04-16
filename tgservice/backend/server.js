@@ -647,13 +647,16 @@ app.put('/api/cart', async (req, res) => {
 
     if (quantity <= 0) {
       await runInTransaction(async (tx) => {
-        // 先确认商品在购物车中，存在才减popularity
+        // 先确认商品在购物车中，并获取当前数量
         const existing = await tx.get(
-          'SELECT id FROM carts WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')',
+          'SELECT id, quantity FROM carts WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')',
           [sessionId, productName, options, options]
         );
         if (existing) {
-          await tx.run('UPDATE products SET popularity = MAX(popularity - 1, 0) WHERE name = ?', [productName]);
+          // 只有数量为1的商品被删除时，人气值-1
+          if (existing.quantity === 1) {
+            await tx.run('UPDATE products SET popularity = MAX(popularity - 1, 0) WHERE name = ?', [productName]);
+          }
         }
         await tx.run('DELETE FROM carts WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')', [sessionId, productName, options, options]);
       });
@@ -673,13 +676,16 @@ app.delete('/api/cart', async (req, res) => {
   try {
     const { sessionId, productName, options = '' } = req.body;
     await runInTransaction(async (tx) => {
-      // 先确认商品在购物车中，存在才减popularity
+      // 先确认商品在购物车中，并获取当前数量
       const existing = await tx.get(
-        'SELECT id FROM carts WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')',
+        'SELECT id, quantity FROM carts WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')',
         [sessionId, productName, options, options]
       );
       if (existing) {
-        await tx.run('UPDATE products SET popularity = MAX(popularity - 1, 0) WHERE name = ?', [productName]);
+        // 只有数量为1的商品被删除时，人气值-1
+        if (existing.quantity === 1) {
+          await tx.run('UPDATE products SET popularity = MAX(popularity - 1, 0) WHERE name = ?', [productName]);
+        }
       }
       await tx.run('DELETE FROM carts WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')', [sessionId, productName, options, options]);
     });
