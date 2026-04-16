@@ -18,7 +18,7 @@
     </view>
 
     <!-- 按状态分组显示 -->
-    <scroll-view class="board-list" scroll-y>
+    <view class="board-list">
       <view class="status-section" v-for="group in filteredBoards" :key="group.status" :data-status="group.status">
         <view class="section-header" @click="showSectionExpand(group.status, group.coaches)">
           <text class="section-title">{{ group.status }}</text>
@@ -37,7 +37,7 @@
         </view>
       </view>
       <view class="empty" v-if="groupedBoards.length === 0"><text>暂无数据</text></view>
-    </scroll-view>
+    </view>
 
     <!-- 分段放大弹窗 -->
     <view class="expand-overlay" v-if="showExpand" @click="closeExpand">
@@ -273,7 +273,7 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 </script>
 
 <style scoped>
-.page { min-height: 100vh; background: #0a0a0f; display: flex; flex-direction: column; }
+.page { min-height: 100vh; background: #0a0a0f; padding-bottom: 40px; }
 .fixed-header { position: fixed; top: 0; left: 0; right: 0; z-index: 999; background: #0a0a0f; }
 .status-bar-bg { background: #0a0a0f; }
 .header-content { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; }
@@ -288,7 +288,7 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .filter-item { padding: 9px 18px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); border-radius: 24px; font-size: 18px; color: rgba(255,255,255,0.6); }
 .filter-item.active { background: rgba(212,175,55,0.2); border-color: #d4af37; color: #d4af37; }
 
-.board-list { flex: 1; min-height: 0; padding: 0 18px 18px; overflow-x: hidden; }
+.board-list { padding: 0 18px 18px; }
 
 /* 状态分段 */
 .status-section { border: 2px solid rgba(218,165,32,0.15); border-radius: 12px; padding: 15px; margin-bottom: 18px; min-height: 60px; overflow: hidden; box-sizing: border-box; width: 100%; max-width: 100%; }
