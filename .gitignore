@@ -68,3 +68,6 @@ run/
 # 运行时数据
 **/sync-status.json
 **/taikeduo-products.json
+# 后台管理和二维码（Express 直接提供，不经过 frontend）
+tgservice/frontend/admin/
+tgservice/frontend/qrcode/

@@ -9,12 +9,37 @@
     body { background: #0a0a0f; font-family: 'PingFang SC', sans-serif; color: #fff; display: flex; min-height: 100vh; }
     
     /* Sidebar */
+    .sidebar { width: 220px; background: rgba(20,20,30,0.8); border-right: 1px solid rgba(218,165,32,0.1); padding: 20px 0; flex-shrink: 0; overflow-y: auto; height: 100vh; position: sticky; top: 0; }
+    .sidebar-logo { padding: 0 20px 30px; display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px; }
     .sidebar-logo img { width: 32px; height: 32px; filter: sepia(60%) saturate(200%) hue-rotate(10deg); }
+    .sidebar-title { font-size: 16px; color: #d4af37; }
+    .sidebar-sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
+    
+    .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: rgba(255,255,255,0.6); text-decoration: none; font-size: 14px; transition: all 0.2s; cursor: pointer; }
     .nav-item:hover, .nav-item.active { background: rgba(212,175,55,0.1); color: #d4af37; }
+    .nav-icon { font-size: 18px; }
+    
+    /* 折叠菜单 */
+    .nav-group { border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .nav-group-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      color: rgba(255,255,255,0.6);
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .nav-group-title:hover { background: rgba(212,175,55,0.05); color: rgba(255,255,255,0.8); }
     .nav-group-title .arrow { transition: transform 0.2s; font-size: 12px; }
     .nav-group.open .nav-group-title .arrow { transform: rotate(180deg); }
     .nav-group-title .group-icon { font-size: 18px; margin-right: 12px; }
     .nav-group-title .group-text { flex: 1; }
+    
+    .nav-submenu { display: none; background: rgba(0,0,0,0.2); }
+    .nav-group.open .nav-submenu { display: block; }
+    .nav-submenu .nav-item { padding-left: 48px; font-size: 13px; }
     
     /* Main Content */
     .main { flex: 1; padding: 20px; overflow-y: auto; }
@@ -70,27 +95,17 @@
     .chart-value { font-size: 13px; color: #d4af37; line-height: 1.4; text-align: right; }
     .chart-value .peak { font-size: 11px; color: rgba(212,175,55,0.55); }
 
-    /* 人气值卡片 - 与小程序一致 */
+    /* 人气值卡片 - 6张卡片一字排开，大小一致 */
     .popularity-section { margin-bottom: 24px; }
     .popularity-title { font-size: 15px; color: #d4af37; margin-bottom: 16px; display: block; text-align: center; }
-    .popularity-row { display: flex; justify-content: center; gap: 10px; margin-bottom: 12px; }
-    .popularity-row.first-row { justify-content: center; }
+    .popularity-row { display: flex; justify-content: center; gap: 12px; margin-bottom: 12px; }
+    .popularity-row.single-row { justify-content: center; }
     
-    /* 大卡片 - 第1名 */
-    .pop-card.large { width: 140px; padding: 16px 12px; }
-    .pop-card.large .pop-avatar { width: 72px; height: 72px; }
-    .pop-card.large .pop-name { font-size: 14px; }
-    .pop-card.large .pop-value { font-size: 20px; }
-    
-    /* 中等卡片 - 第2-3名 */
-    .pop-card.medium { width: 110px; padding: 14px 10px; }
-    .pop-card.medium .pop-avatar { width: 60px; height: 60px; }
-    
-    /* 小卡片 - 第4-6名 */
-    .pop-card.small { width: 85px; padding: 10px 6px; }
-    .pop-card.small .pop-avatar { width: 48px; height: 48px; }
-    .pop-card.small .pop-name { font-size: 11px; }
-    .pop-card.small .pop-value { font-size: 14px; }
+    /* 统一卡片大小 */
+    .pop-card { width: 140px; padding: 16px 12px; }
+    .pop-card .pop-avatar { width: 56px; height: 56px; }
+    .pop-card .pop-name { font-size: 12px; }
+    .pop-card .pop-value { font-size: 16px; }
     
     /* 金色卡片 - 第1名 */
     .pop-card.card-gold {
@@ -118,7 +133,6 @@
     
     /* 基础卡片样式 */
     .pop-card {
-      padding: 12px 8px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -159,15 +173,77 @@
     .pop-card .pop-name { font-size: 12px; color: #fff; text-align: center; margin-bottom: 4px; word-break: break-all; line-height: 1.3; }
     .pop-card .pop-value { font-size: 16px; color: #d4af37; font-weight: 600; }
   </style>
-  <link rel="stylesheet" href="sidebar.css">
 </head>
 <body>
-  <div class="sidebar"></div>
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <img src="/images/logo.png" alt="Logo">
+      <div>
+        <div class="sidebar-title">天宫国际</div>
+        <div class="sidebar-sub">后台管理系统</div>
+      </div>
+    </div>
+    
+    <a href="index.html" class="nav-item active"><span class="nav-icon">📊</span> 数据概览</a>
+    
+    <!-- 前厅 -->
+    <div class="nav-group open">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">🏠</span>
+        <span class="group-text">前厅</span>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="cashier-dashboard.html" class="nav-item"><span class="nav-icon">💰</span> 收银看板</a>
+        <a href="products.html" class="nav-item"><span class="nav-icon">📦</span> 商品管理</a>
+        <a href="vip-rooms.html" class="nav-item"><span class="nav-icon">🛋️</span> 包房管理</a>
+        <a href="tables.html" class="nav-item"><span class="nav-icon">🎱</span> 台桌管理</a>
+        <a href="categories.html" class="nav-item"><span class="nav-icon">🏷️</span> 商品分类</a>
+      </div>
+    </div>
+    
+    <!-- 助教管理 -->
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">👩‍🏫</span>
+        <span class="group-text">助教管理</span>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="coaches.html" class="nav-item"><span class="nav-icon">👩</span> 助教列表</a>
+        <a href="coaches.html#batch-shift" class="nav-item"><span class="nav-icon">🔄</span> 批量更新班次</a>
+        <a href="lejuan-records.html" class="nav-item"><span class="nav-icon">🎱</span> 乐捐管理</a>
+      </div>
+    </div>
+    
+    <!-- 系统 -->
+    <div class="nav-group">
+      <div class="nav-group-title" onclick="toggleGroup(this)">
+        <span class="group-icon">⚙️</span>
+        <span class="group-text">系统</span>
+        <span class="arrow">▼</span>
+      </div>
+      <div class="nav-submenu">
+        <a href="operation-logs.html" class="nav-item"><span class="nav-icon">📜</span> 操作日志</a>
+        <a href="home.html" class="nav-item"><span class="nav-icon">🏠</span> 首页配置</a>
+        <a href="users.html" class="nav-item"><span class="nav-icon">👥</span> 用户管理</a>
+        <a href="settings.html" class="nav-item"><span class="nav-icon">🛡️</span> 系统配置</a>
+      </div>
+    </div>
+  </div>
   
   <div class="main">
     <div class="page-header">
       <div class="page-title">数据概览</div>
       <button class="logout-btn" onclick="logout()">退出登录</button>
+    </div>
+    
+    <!-- 人气助教 TOP6（置顶） -->
+    <div class="popularity-section">
+      <h3 style="margin-bottom:16px">🔥 人气助教 TOP6</h3>
+      <div id="popularityContainer">
+        <div style="color:rgba(255,255,255,0.3)">加载中...</div>
+      </div>
     </div>
     
     <div class="stats-grid">
@@ -239,12 +315,6 @@
       <div id="deviceChart" style="height:200px;display:flex;align-items:flex-end;gap:8px;"></div>
     </div>
     
-    <div class="popularity-section">
-      <h3 style="margin-bottom:16px">🔥 人气助教 TOP6</h3>
-      <div id="popularityContainer">
-        <div style="color:rgba(255,255,255,0.3)">加载中...</div>
-      </div>
-    </div>
   </div>
   
   <div class="toast" id="toast"></div>
@@ -252,14 +322,27 @@
   <script>
     const token = localStorage.getItem('adminToken');
     if (!token) window.location.href = 'login.html';
-  </script>
-  <script src="js/time-util.js"></script>
-  <script>
+    
     function showToast(msg) {
       const toast = document.getElementById('toast');
       toast.textContent = msg;
       toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+    
+    // 格式化为北京时区时间（数据库存的是UTC，需要转换）
+    function formatBeijingTime(timeStr) {
+      if (!timeStr) return '-';
+      // 数据库存的是UTC时间，需要加8小时转为北京时间
+      const d = new Date(timeStr + ' UTC');
+      return d.toLocaleString('zh-CN', { 
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
     }
     
     async function api(url, options = {}) {
@@ -279,13 +362,10 @@
       loadOrderStats();
     }
     
-    // 加载今日订单统计（按日期过滤，不限状态）
+    // 加载订单统计（仅统计，不显示列表）
     async function loadOrderStats() {
       try {
-        // 获取今天日期（北京时间）
-        const today = TimeUtil.today();
-
-        const orders = await api(`/api/admin/orders?date=${today}`);
+        const orders = await api('/api/admin/orders?status=待处理');
         document.getElementById('statOrders').textContent = orders.length || 0;
         const totalRevenue = (orders || []).reduce((sum, o) => sum + (o.total_price || 0), 0);
         document.getElementById('statRevenue').textContent = '¥' + totalRevenue.toFixed(0);
@@ -304,59 +384,27 @@
           return;
         }
         
-        let html = '<span class="popularity-title">🔥 人气榜 TOP6</span>';
+        // 所有卡片一字排开，大小一致
+        html += '<div class="popularity-row single-row">';
         
-        // 第一行：第1名（大卡片，金色）
-        if (coaches.length > 0) {
-          html += '<div class="popularity-row first-row">';
-          const c = coaches[0];
+        const cardClasses = ['card-gold', 'card-silver', 'card-bronze', '', '', ''];
+        const medalClasses = ['gold', 'silver', 'bronze', 'normal', 'normal', 'normal'];
+        const medalIcons = ['🥇', '🥈', '🥉', '4', '5', '6'];
+        
+        for (let i = 0; i < Math.min(6, coaches.length); i++) {
+          const c = coaches[i];
+          const extraClass = cardClasses[i];
           html += `
-            <div class="pop-card large card-gold">
-              <div class="pop-medal gold">🥇</div>
+            <div class="pop-card ${extraClass}">
+              <div class="pop-medal ${medalClasses[i]}">${medalIcons[i]}</div>
               <img class="pop-avatar" src="${c.photos?.[0] || '/static/avatar-default.png'}" onerror="this.src='/static/avatar-default.png'">
               <div class="pop-name">${c.employee_id || '-'}号 ${c.stage_name || '-'}</div>
               <div class="pop-value">${c.popularity || 0}</div>
             </div>
           `;
-          html += '</div>';
         }
         
-        // 第二行：第2-3名（中等卡片，银色、铜色）
-        if (coaches.length > 1) {
-          html += '<div class="popularity-row">';
-          const cardClasses = ['card-silver', 'card-bronze'];
-          const medalClasses = ['silver', 'bronze'];
-          const medalIcons = ['🥈', '🥉'];
-          for (let i = 1; i < Math.min(3, coaches.length); i++) {
-            const c = coaches[i];
-            html += `
-              <div class="pop-card medium ${cardClasses[i-1]}">
-                <div class="pop-medal ${medalClasses[i-1]}">${medalIcons[i-1]}</div>
-                <img class="pop-avatar" src="${c.photos?.[0] || '/static/avatar-default.png'}" onerror="this.src='/static/avatar-default.png'">
-                <div class="pop-name">${c.employee_id || '-'}号 ${c.stage_name || '-'}</div>
-                <div class="pop-value">${c.popularity || 0}</div>
-              </div>
-            `;
-          }
-          html += '</div>';
-        }
-        
-        // 第三行：第4-6名（小卡片）
-        if (coaches.length > 3) {
-          html += '<div class="popularity-row">';
-          for (let i = 3; i < Math.min(6, coaches.length); i++) {
-            const c = coaches[i];
-            html += `
-              <div class="pop-card small">
-                <div class="pop-medal normal">${i + 1}</div>
-                <img class="pop-avatar" src="${c.photos?.[0] || '/static/avatar-default.png'}" onerror="this.src='/static/avatar-default.png'">
-                <div class="pop-name">${c.employee_id || '-'}号 ${c.stage_name || '-'}</div>
-                <div class="pop-value">${c.popularity || 0}</div>
-              </div>
-            `;
-          }
-          html += '</div>';
-        }
+        html += '</div>';
         
         container.innerHTML = html;
       } catch (e) {
@@ -480,13 +528,17 @@
       window.location.href = 'login.html';
     }
     
-        
+    // 折叠菜单切换
+    function toggleGroup(el) {
+      el.parentElement.classList.toggle('open');
+    }
+    
     loadStats();
     loadPopularity();
     loadDeviceStats();
     loadQueueStats();
     setInterval(loadQueueStats, 30000);
   </script>
-  <script src="sidebar.js"></script>
+  <script src="nav-control.js"></script>
 </body>
 </html>
