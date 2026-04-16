@@ -1,4 +1,30 @@
 
+## 2026-04-16 同步水牌新增离店助教残留台桌号检测与清理
+
+### 需求
+- 助教状态为离店（休息/公休/请假/下班）时，如果水牌中还有台桌号，列举出来让用户确认后清空
+- 只清空台桌号（table_no = NULL），不删除水牌记录
+
+### 变更内容
+
+#### 后端
+- **server.js**：
+  - `GET /api/admin/coaches/sync-water-boards/preview` 返回值新增 `offDutyWithTables` 字段和 `summary.offDutyCount`
+  - `POST /api/admin/coaches/sync-water-boards/execute` 新增 `clearTableCoachNos` 参数，在事务中 `UPDATE water_boards SET table_no = NULL`
+  - 清理操作记录操作日志（operation_type: '清理残留台桌'）
+
+#### 前端
+- **admin/coaches.html**：
+  - 同步弹窗新增「离店残留台桌」区域，显示助教编号、艺名、状态、残留台桌号（标签样式）
+  - 支持全选/取消勾选
+  - 摘要区增加「清空 X 人台桌号」计数
+
+### 测试结果
+- QA 测试用例 7/7 全部通过
+- 编码规范检查 63/63 文件通过
+
+---
+
 ## 2026-04-14 修复 SQLite 事务嵌套冲突（BUG-0414）
 
 ### 问题

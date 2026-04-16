@@ -491,7 +491,10 @@
 
 - **路径**: `GET /api/admin/coaches/sync-water-boards/preview`
 - **权限**: `authMiddleware` + `requireBackendPermission(['coachManagement'])`
-- **说明**: 检测孤儿数据（水牌中存在但教练表不存在或已离职）和缺失数据（教练表中在职但水牌中不存在），用于同步前预览
+- **说明**: 检测三类数据：
+  1. **孤儿数据**：水牌中存在但教练表不存在或已离职
+  2. **缺失数据**：教练表中在职但水牌中不存在
+  3. **离店残留台桌**（2026-04-16 新增）：状态为休息/公休/请假/下班且 table_no 非空的助教
 - **响应**:
   ```json
   {
@@ -501,7 +504,17 @@
     "missingRecords": [
       { "coach_no": "10125", "stage_name": "测试小A", "status": "全职", "shift": "早班" }
     ],
-    "summary": { "orphanCount": 1, "missingCount": 1 }
+    "offDutyWithTables": [
+      {
+        "coach_no": "10009",
+        "stage_name": "momo",
+        "status": "休息",
+        "table_no": "VIP1",
+        "table_no_list": ["VIP1"],
+        "shift": "晚班"
+      }
+    ],
+    "summary": { "orphanCount": 1, "missingCount": 1, "offDutyCount": 1 }
   }
   ```
 
@@ -513,13 +526,14 @@
   ```json
   {
     "deleteOrphanIds": ["10010"],
-    "addMissingIds": ["10125"]
+    "addMissingIds": ["10125"],
+    "clearTableCoachNos": ["10009"]
   }
   ```
-- **说明**: 按用户勾选执行同步。孤儿数据删除（从 water_boards 表），缺失数据添加（自动根据班次设置初始状态：早班→早班空闲，晚班→晚班空闲）。事务保证原子性。
+- **说明**: 按用户勾选执行同步。孤儿数据删除（从 water_boards 表），缺失数据添加（自动根据班次设置初始状态：早班→早班空闲，晚班→晚班空闲），残留台桌清理（2026-04-16 新增）：将指定助教的 table_no 更新为 NULL，保留水牌记录。
 - **响应**:
   ```json
-  { "success": true, "deleted": 1, "added": 1, "errors": [] }
+  { "success": true, "deleted": 1, "added": 1, "cleared": 1, "errors": [] }
   ```
 
 ### 助教登录
@@ -1050,6 +1064,10 @@
   }
   ```
 - **有效状态值**: 早班上桌、早班空闲、晚班上桌、晚班空闲、早加班、晚加班、休息、公休、请假、乐捐、下班
+- **联动规则**（2026-04-16 更新）:
+  - 当状态变更为 **休息/公休/请假/下班** 时，自动清除 `table_no = NULL`
+  - 当状态变更为 **下班** 时，额外清除 `clock_in_time = NULL`
+  - 如果请求体显式传了 `table_no` 值，则尊重用户输入，不强制清除
 
 ### 会员管理
 
@@ -1591,6 +1609,13 @@ MQTT 发送失败时返回 HTTP 502：
 | 离职改为全职/兼职 | 创建水牌记录（初始状态根据班次设置） |
 | 修改班次 | 映射水牌状态（早班↔晚班） |
 
+### 审批通过联动（2026-04-16 更新）
+
+审批通过以下类型申请时，自动清除助教的 `table_no` 和 `clock_in_time`：
+- 公休申请 → 状态改为「公休」，`table_no = NULL, clock_in_time = NULL`
+- 早加班申请 → 状态改为「早加班」，`table_no = NULL, clock_in_time = NULL`
+- 晚加班申请 → 状态改为「晚加班」，`table_no = NULL, clock_in_time = NULL`
+
 ---
 
-*文档更新时间：2026年4月15日*
+*文档更新时间：2026年4月16日*
