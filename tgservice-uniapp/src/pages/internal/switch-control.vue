@@ -148,6 +148,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
+import { getBeijingTimestamp } from '@/utils/time-util.js'
 
 const statusBarHeight = ref(20)
 const autoOffEnabled = ref(false)
@@ -205,7 +206,7 @@ async function reportError(action, error, extra = {}) {
       method: 'POST',
       data: {
         action,
-        timestamp: new Date().toISOString(),
+        timestamp: getBeijingTimestamp(),
         url: window?.location?.href || '',
         userAgent: navigator?.userAgent || '',
         userToken: adminToken || '',

@@ -69,6 +69,7 @@ import { getBeijingDate } from '@/utils/time-util.js'
 
 const statusBarHeight = ref(0)
 const coachInfo = ref({})
+const serverHour = ref(null) // 服务器北京时间小时
 
 const form = ref({
   shift: ''
@@ -77,12 +78,41 @@ const form = ref({
 const { imageUrls, uploading, uploadProgress, uploadText, chooseAndUpload, removeImage, clearAll } =
   useImageUpload({ maxCount: 3, ossDir: 'TgTemp/', errorType: 'invitation_screenshot' })
 
+/**
+ * 获取服务器北京时间小时数
+ */
+async function fetchServerHour() {
+  try {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api'
+    const res = await new Promise((resolve, reject) => {
+      uni.request({
+        url: baseUrl + '/server-time',
+        method: 'GET',
+        success: (r) => r.statusCode === 200 ? resolve(r.data) : reject(new Error('请求失败')),
+        fail: reject
+      })
+    })
+    serverHour.value = res.hour
+  } catch (e) {
+    console.error('[约客上传] 获取服务器时间失败，使用本地时间兜底:', e)
+    serverHour.value = new Date().getHours()
+  }
+}
+
+/**
+ * 根据服务器时间判断班次
+ */
+function getShiftByServerTime() {
+  const hour = serverHour.value !== null ? serverHour.value : new Date().getHours()
+  return hour < 18 ? '早班' : '晚班'
+}
+
 // 判断是否为测试环境
 const isTestEnv = import.meta.env.VITE_API_BASE_URL?.includes('tg.tiangong.club') || 
                    import.meta.env.VITE_API_BASE_URL?.includes('localhost') ||
                    window.location.hostname === 'tg.tiangong.club'
 
-onMounted(() => {
+onMounted(async () => {
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 20
   coachInfo.value = uni.getStorageSync('coachInfo') || {}
@@ -90,13 +120,16 @@ onMounted(() => {
   console.log('[约客上传] coachInfo:', JSON.stringify(coachInfo.value))
   console.log('[约客上传] shift from storage:', coachInfo.value.shift)
   
-  // 设置班次：优先从助教信息读取，如果没有则根据时间判断
+  // 先获取服务器时间，再判断班次
+  await fetchServerHour()
+  
+  // 设置班次：优先从助教信息读取，如果没有则根据服务器时间判断
   if (coachInfo.value.shift) {
     form.value.shift = coachInfo.value.shift
     console.log('[约客上传] 使用助教班次:', coachInfo.value.shift)
   } else {
-    form.value.shift = new Date().getHours() < 18 ? '早班' : '晚班'
-    console.log('[约客上传] 无助教班次，使用时间判断:', form.value.shift)
+    form.value.shift = getShiftByServerTime()
+    console.log('[约客上传] 无助教班次，使用服务器时间判断:', form.value.shift)
   }
 })
 
@@ -112,7 +145,7 @@ const submitInvitation = async () => {
   
   // 测试环境下跳过时间限制检查
   if (!isTestEnv) {
-    const hour = new Date().getHours()
+    const hour = serverHour.value !== null ? serverHour.value : new Date().getHours()
     const shift = form.value.shift
     
     if (shift === '早班') {

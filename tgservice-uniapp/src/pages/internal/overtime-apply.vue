@@ -65,23 +65,46 @@ import SuccessModal from '@/components/SuccessModal.vue'
 const statusBarHeight = ref(0)
 const coachInfo = ref({})
 const showSuccess = ref(false)
+const serverHour = ref(null) // 服务器北京时间小时
 
 const form = ref({ remark: '' })
 
 const { imageUrls, uploading, uploadProgress, uploadText, chooseAndUpload, removeImage } =
   useImageUpload({ maxCount: 3, ossDir: 'TgTemp/', errorType: 'overtime_proof' })
 
-onMounted(() => {
+/**
+ * 获取服务器北京时间小时数
+ */
+async function fetchServerHour() {
+  try {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api'
+    const res = await new Promise((resolve, reject) => {
+      uni.request({
+        url: baseUrl + '/server-time',
+        method: 'GET',
+        success: (r) => r.statusCode === 200 ? resolve(r.data) : reject(new Error('请求失败')),
+        fail: reject
+      })
+    })
+    serverHour.value = res.hour
+  } catch (e) {
+    console.error('[加班申请] 获取服务器时间失败，使用本地时间兜底:', e)
+    serverHour.value = new Date().getHours()
+  }
+}
+
+onMounted(async () => {
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 20
   coachInfo.value = uni.getStorageSync('coachInfo') || {}
+  await fetchServerHour()
 })
 
 const applicationType = computed(() => {
   if (coachInfo.value.shift) {
     return coachInfo.value.shift === '早班' ? '早加班申请' : '晚加班申请'
   }
-  const hour = new Date().getHours()
+  const hour = serverHour.value !== null ? serverHour.value : new Date().getHours()
   return hour < 18 ? '早加班申请' : '晚加班申请'
 })
 
