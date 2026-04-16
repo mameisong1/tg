@@ -1,4 +1,32 @@
 
+## 2026-04-16 修复 admin 后台侧边栏公共化迁移遗留的布局问题
+
+### 问题
+- 提交 ea5a115 将 15 个页面的内联侧边栏迁移为公共组件时，迁移不完整
+- 全部 15 个 HTML 内联 `<style>` 末尾残留截断的无效 CSS
+- 7 个页面残留孤儿 `</div>`，破坏 `<body>` 的 flex 布局
+- 收银看板 `.main` 使用 `height: 100vh` 导致全屏底部大空白
+
+### 修复内容
+
+#### Step 1：删除截断 CSS（15 个 HTML 文件）
+- 删除无效的 `.nav-group.open` 和 `.nav-submenu` 无属性值规则
+
+#### Step 2：删除孤儿 `</div>`（7 个页面）
+- 涉及：home.html, coaches.html, categories.html, members.html, products.html, tables.html, vip-rooms.html
+
+#### Step 3：修复收银看板布局
+- `cashier-dashboard.html`：`.main` 改为 `flex column` + `height: 100vh`
+- `.three-columns` 改为 `flex: 1` 自适应撑满剩余空间
+- 移除硬编码的 `calc(100vh - 180px)`
+
+### 修复问题
+1. 页面变窄靠左不居中
+2. 批量更新班次筛选条件折行乱版
+3. 收银看板全屏后底部大空白
+
+---
+
 ## 2026-04-16 同步水牌新增离店助教残留台桌号检测与清理
 
 ### 需求
