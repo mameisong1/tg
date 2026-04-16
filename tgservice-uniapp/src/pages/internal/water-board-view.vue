@@ -61,7 +61,7 @@
             <!-- 加班小时数 -->
             <text class="overtime-hours"
                   v-if="getOvertimeHours(coach) > 0">
-              {{ getOvertimeHours(coach) }}h
+              {{ getOvertimeHours(coach) }}
             </text>
           </view>
         </view>
@@ -76,7 +76,7 @@
             <!-- 加班小时数 -->
             <text class="overtime-hours"
                   v-if="getOvertimeHours(coach) > 0">
-              {{ getOvertimeHours(coach) }}h
+              {{ getOvertimeHours(coach) }}
             </text>
           </view>
         </view>
@@ -109,7 +109,7 @@
               <text class="expand-name expand-name--offduty">{{ coach.stage_name }}</text>
               <text class="overtime-hours"
                     v-if="getOvertimeHours(coach) > 0">
-                {{ getOvertimeHours(coach) }}h
+                {{ getOvertimeHours(coach) }}
               </text>
             </view>
           </view>
@@ -122,7 +122,7 @@
               <text class="expand-name expand-name--offduty">{{ coach.stage_name }}</text>
               <text class="overtime-hours"
                     v-if="getOvertimeHours(coach) > 0">
-                {{ getOvertimeHours(coach) }}h
+                {{ getOvertimeHours(coach) }}
               </text>
             </view>
           </view>

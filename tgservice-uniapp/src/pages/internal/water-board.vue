@@ -58,7 +58,7 @@
                 @longpress="showStatusChange(coach)">
             <text class="coach-id coach-id--offduty">{{ coach.employee_id || coach.coach_no }}</text>
             <text class="coach-name coach-name--offduty">{{ coach.stage_name }}</text>
-            <text class="overtime-hours" v-if="getOvertimeHours(coach) > 0">{{ getOvertimeHours(coach) }}h</text>
+            <text class="overtime-hours" v-if="getOvertimeHours(coach) > 0">{{ getOvertimeHours(coach) }}</text>
           </view>
         </view>
         <!-- 加班助教单独一行 -->
@@ -69,7 +69,7 @@
                 @longpress="showStatusChange(coach)">
             <text class="coach-id coach-id--offduty">{{ coach.employee_id || coach.coach_no }}</text>
             <text class="coach-name coach-name--offduty">{{ coach.stage_name }}</text>
-            <text class="overtime-hours" v-if="getOvertimeHours(coach) > 0">{{ getOvertimeHours(coach) }}h</text>
+            <text class="overtime-hours" v-if="getOvertimeHours(coach) > 0">{{ getOvertimeHours(coach) }}</text>
           </view>
         </view>
       </view>
@@ -100,7 +100,7 @@
                   @longpress="showStatusChange(coach)">
               <text class="expand-id expand-id--offduty">{{ coach.employee_id || coach.coach_no }}</text>
               <text class="expand-name expand-name--offduty">{{ coach.stage_name }}</text>
-              <text class="overtime-hours" v-if="getOvertimeHours(coach) > 0">{{ getOvertimeHours(coach) }}h</text>
+              <text class="overtime-hours" v-if="getOvertimeHours(coach) > 0">{{ getOvertimeHours(coach) }}</text>
             </view>
           </view>
           <!-- 加班助教单独一行 -->
@@ -111,7 +111,7 @@
                   @longpress="showStatusChange(coach)">
               <text class="expand-id expand-id--offduty">{{ coach.employee_id || coach.coach_no }}</text>
               <text class="expand-name expand-name--offduty">{{ coach.stage_name }}</text>
-              <text class="overtime-hours" v-if="getOvertimeHours(coach) > 0">{{ getOvertimeHours(coach) }}h</text>
+              <text class="overtime-hours" v-if="getOvertimeHours(coach) > 0">{{ getOvertimeHours(coach) }}</text>
             </view>
           </view>
         </scroll-view>
