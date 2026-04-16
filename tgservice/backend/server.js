@@ -1944,6 +1944,40 @@ const authMiddleware = (req, res, next) => {
 // V2.0: 权限中间件
 const { requireBackendPermission, hasBackendPermission } = require('./middleware/permission');
 
+// === 设备访问记录（必须在 authMiddleware 之前注册，否则会被拦截返回 401）===
+// 内存去重集合：记录已写入的 device_fp + visit_date，防止重复写入导致 UNIQUE 冲突
+const deviceVisitSet = new Set();
+
+app.post('/api/device/visit', async (req, res) => {
+  try {
+    const { deviceFp } = req.body;
+    if (!deviceFp) {
+      return res.status(400).json({ error: '缺少设备指纹' });
+    }
+
+    const today = TimeUtil.todayStr(); // 北京时间 YYYY-MM-DD
+    const key = `${deviceFp}_${today}`;
+
+    // 内存去重：当天已记录则跳过
+    if (deviceVisitSet.has(key)) {
+      return res.json({ success: true });
+    }
+
+    // DB 兜底：INSERT OR IGNORE 防止重启后 Set 丢失
+    await enqueueRun(
+      'INSERT OR IGNORE INTO device_visits (device_fp, visit_date) VALUES (?, ?)',
+      [deviceFp, today]
+    );
+
+    deviceVisitSet.add(key);
+
+    res.json({ success: true });
+  } catch (err) {
+    logger.error(`记录设备访问失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
 // 智能开关路由（必须在 authMiddleware 之后注册）
 app.use(authMiddleware, switchRouter);
 
@@ -4310,40 +4344,6 @@ let deviceStatsCache = {
   week: { count: 0, weekStart: '', timestamp: 0 },  // 本周设备数,缓存2小时
   weeks12: { data: [], timestamp: 0 }               // 近12周数据,缓存1天
 };
-
-// 内存去重集合：记录已写入的 device_fp + visit_date，防止重复写入导致 UNIQUE 冲突
-const deviceVisitSet = new Set();
-
-// 记录设备访问
-app.post('/api/device/visit', async (req, res) => {
-  try {
-    const { deviceFp } = req.body;
-    if (!deviceFp) {
-      return res.status(400).json({ error: '缺少设备指纹' });
-    }
-
-    const today = TimeUtil.todayStr(); // 北京时间 YYYY-MM-DD
-    const key = `${deviceFp}_${today}`;
-
-    // 内存去重：当天已记录则跳过
-    if (deviceVisitSet.has(key)) {
-      return res.json({ success: true });
-    }
-
-    // DB 兜底：INSERT OR IGNORE 防止重启后 Set 丢失
-    await enqueueRun(
-      'INSERT OR IGNORE INTO device_visits (device_fp, visit_date) VALUES (?, ?)',
-      [deviceFp, today]
-    );
-
-    deviceVisitSet.add(key);
-
-    res.json({ success: true });
-  } catch (err) {
-    logger.error(`记录设备访问失败: ${err.message}`);
-    res.status(500).json({ error: '服务器错误' });
-  }
-});
 
 // 获取设备统计数据
 app.get('/api/admin/device-stats', async (req, res) => {
