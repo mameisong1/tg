@@ -7,15 +7,8 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #0a0a0f; font-family: 'PingFang SC', sans-serif; color: #fff; display: flex; min-height: 100vh; }
-    .sidebar { width: 220px; background: rgba(20,20,30,0.8); border-right: 1px solid rgba(218,165,32,0.1); padding: 20px 0; flex-shrink: 0; overflow-y: auto; height: 100vh; position: sticky; top: 0; }
-    .sidebar-logo { padding: 0 20px 30px; display: flex; align-items: flex-start; gap: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px; }
     .sidebar-logo img { width: 32px; height: 32px; }
-    .sidebar-title { font-size: 16px; color: #d4af37; }
-    .sidebar-sub { font-size: 11px; color: rgba(255,255,255,0.4); margin-top: 2px; }
-    
-    .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 20px; color: rgba(255,255,255,0.6); text-decoration: none; font-size: 14px; transition: all 0.2s; }
     .nav-item:hover, .nav-item.active { background: rgba(212,175,55,0.1); color: #d4af37; }
-    .nav-icon { font-size: 18px; }
     
     .main { flex: 1; padding: 20px; overflow-y: auto; }
     .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
@@ -77,28 +70,12 @@
       color: #f39c12;
       font-size: 12px;
     }
-  
-    /* 折叠菜单 */
-    .nav-group { border-bottom: 1px solid rgba(255,255,255,0.03); }
-    .nav-group-title {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 20px;
-      color: rgba(255,255,255,0.6);
-      font-size: 14px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .nav-group-title:hover { background: rgba(212,175,55,0.05); color: rgba(255,255,255,0.8); }
     .nav-group-title .arrow { transition: transform 0.2s; font-size: 12px; }
     .nav-group.open .nav-group-title .arrow { transform: rotate(180deg); }
     .nav-group-title .group-icon { font-size: 18px; margin-right: 12px; }
     .nav-group-title .group-text { flex: 1; }
-    
-    .nav-submenu { display: none; background: rgba(0,0,0,0.2); }
-    .nav-group.open .nav-submenu { display: block; }
-    .nav-submenu .nav-item { padding-left: 48px; font-size: 13px; }
+    .nav-group.open
+    .nav-submenu
 
     /* 批量修改班次 */
     /* 批量班次筛选栏 */
@@ -141,59 +118,12 @@
     .batch-search { margin-bottom: 16px; }
     .batch-search input { padding: 10px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; width: 100%; max-width: 400px; }
 </style>
+  <link rel="stylesheet" href="sidebar.css">
 </head>
 <body>
-    <div class="sidebar">
-    <div class="sidebar-logo">
-      <img src="/images/logo.png" alt="Logo">
-      <div>
-        <div class="sidebar-title">天宫国际</div>
-        <div class="sidebar-sub">后台管理系统</div>
-      </div>
-    </div>
-    
-    <a href="index.html" class="nav-item"><span class="nav-icon">📊</span> 数据概览</a>
-    <a href="members.html" class="nav-item"><span class="nav-icon">👥</span> 会员管理</a>
-
-    <div class="nav-group">
-      <div class="nav-group-title" onclick="toggleGroup(this)">
-        <span class="group-icon">🏠</span><span class="group-text">前厅</span><span class="arrow">▼</span>
-      </div>
-      <div class="nav-submenu">
-        <a href="cashier-dashboard.html" class="nav-item"><span class="nav-icon">💰</span> 收银看板</a>
-        <a href="products.html" class="nav-item"><span class="nav-icon">📦</span> 商品管理</a>
-        <a href="vip-rooms.html" class="nav-item"><span class="nav-icon">🛋️</span> 包房管理</a>
-        <a href="tables.html" class="nav-item"><span class="nav-icon">🎱</span> 台桌管理</a>
-        <a href="categories.html" class="nav-item"><span class="nav-icon">🏷️</span> 商品分类</a>
-      </div>
-    </div>
-
-    <div class="nav-group open">
-      <div class="nav-group-title" onclick="toggleGroup(this)">
-        <span class="group-icon">👩‍🏫</span><span class="group-text">助教管理</span><span class="arrow">▼</span>
-      </div>
-      <div class="nav-submenu">
-        <a href="coaches.html" class="nav-item active"><span class="nav-icon">👩</span> 助教列表</a>
-        <a href="coaches.html#batch-shift" class="nav-item"><span class="nav-icon">🔄</span> 批量更新班次</a>
-      </div>
-    </div>
-
-    <div class="nav-group">
-      <div class="nav-group-title" onclick="toggleGroup(this)">
-        <span class="group-icon">⚙️</span><span class="group-text">系统</span><span class="arrow">▼</span>
-      </div>
-      <div class="nav-submenu">
-        <a href="operation-logs.html" class="nav-item"><span class="nav-icon">📜</span> 操作日志</a>
-        <a href="home.html" class="nav-item"><span class="nav-icon">🏠</span> 首页配置</a>
-        <a href="users.html" class="nav-item"><span class="nav-icon">👥</span> 用户管理</a>
-        <a href="settings.html" class="nav-item"><span class="nav-icon">🛡️</span> 系统配置</a>
-      </div>
-    </div>
-    </div>
+    <div class="sidebar"></div>
   </div>
-  
-  
-  
+
   <div class="main">
     <!-- 批量修改班次视图 -->
     <div id="batchShiftView" style="display:none">
@@ -739,13 +669,8 @@
     
     loadCoaches();
   </script>
-  <script src="nav-control.js"></script>
   <script>
-    // 折叠菜单切换
-    function toggleGroup(el) {
-      el.parentElement.classList.toggle('open');
-    }
-
+    
     // ===== 批量修改班次 =====
     const savingShifts = {}; // 记录正在保存中的教练号，防止重复提交
 
@@ -922,5 +847,6 @@
     // 页面加载时检查 hash
     checkHash();
 </script>
+  <script src="sidebar.js"></script>
 </body>
 </html>

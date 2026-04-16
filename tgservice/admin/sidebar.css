@@ -1,0 +1,105 @@
+/* 后台公共侧边栏样式 v1 */
+/* 由 sidebar.js 配合使用，15个页面共享 */
+
+/* Sidebar 容器 */
+.sidebar {
+  width: 220px;
+  background: rgba(20,20,30,0.8);
+  border-right: 1px solid rgba(218,165,32,0.1);
+  padding: 20px 0;
+  flex-shrink: 0;
+  overflow-y: auto;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+}
+
+/* Logo 区域 */
+.sidebar-logo {
+  padding: 0 20px 30px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  margin-bottom: 20px;
+}
+.sidebar-logo img {
+  width: 32px;
+  height: 32px;
+  filter: sepia(60%) saturate(200%) hue-rotate(10deg);
+}
+.sidebar-title {
+  font-size: 16px;
+  color: #d4af37;
+}
+.sidebar-sub {
+  font-size: 11px;
+  color: rgba(255,255,255,0.4);
+  margin-top: 2px;
+}
+
+/* 导航项 */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  color: rgba(255,255,255,0.6);
+  text-decoration: none;
+  font-size: 14px;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.nav-item:hover, .nav-item.active {
+  background: rgba(212,175,55,0.1);
+  color: #d4af37;
+}
+.nav-icon {
+  font-size: 18px;
+}
+
+/* 折叠菜单组 */
+.nav-group {
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+.nav-group-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  color: rgba(255,255,255,0.6);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.nav-group-title:hover {
+  background: rgba(212,175,55,0.05);
+  color: rgba(255,255,255,0.8);
+}
+.nav-group-title .arrow {
+  transition: transform 0.2s;
+  font-size: 12px;
+}
+.nav-group.open .nav-group-title .arrow {
+  transform: rotate(180deg);
+}
+.nav-group-title .group-icon {
+  font-size: 18px;
+  margin-right: 12px;
+}
+.nav-group-title .group-text {
+  flex: 1;
+}
+
+/* 子菜单 */
+.nav-submenu {
+  display: none;
+  background: rgba(0,0,0,0.2);
+}
+.nav-group.open .nav-submenu {
+  display: block;
+}
+.nav-submenu .nav-item {
+  padding-left: 48px;
+  font-size: 13px;
+}
