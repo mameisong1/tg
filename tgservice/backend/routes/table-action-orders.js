@@ -154,7 +154,7 @@ router.post('/', auth.required, requireBackendPermission(['cashierDashboard']), 
  */
 router.get('/', auth.required, requireBackendPermission(['cashierDashboard']), async (req, res) => {
   try {
-    const { status, order_type, coach_no, limit = 50 } = req.query;
+    const { status, order_type, coach_no, date, date_start, date_end, limit = 50 } = req.query;
     
     let sql = `SELECT t.*, c.employee_id FROM table_action_orders t LEFT JOIN coaches c ON t.coach_no = c.coach_no WHERE 1=1`;
     const params = [];
@@ -172,6 +172,19 @@ router.get('/', auth.required, requireBackendPermission(['cashierDashboard']), a
     if (coach_no) {
       sql += ' AND t.coach_no = ?';
       params.push(coach_no);
+    }
+    
+    if (date) {
+      sql += ' AND DATE(t.created_at) = ?';
+      params.push(date);
+    }
+    if (date_start) {
+      sql += ' AND DATE(t.created_at) >= ?';
+      params.push(date_start);
+    }
+    if (date_end) {
+      sql += ' AND DATE(t.created_at) <= ?';
+      params.push(date_end);
     }
     
     sql += ' ORDER BY t.created_at DESC LIMIT ?';

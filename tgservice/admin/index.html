@@ -91,6 +91,11 @@
     /* DB 队列监控图表 */
     .chart-container { position: relative; margin: 8px 0 4px; height: 150px; }
     .chart-container canvas { width: 100% !important; height: 100% !important; }
+    /* 日期切换标签 */
+    .date-tabs { display: flex; gap: 8px; margin-bottom: 20px; }
+    .date-tab { padding: 6px 16px; border: 1px solid rgba(218,165,32,0.3); background: rgba(20,20,30,0.6); color: rgba(255,255,255,0.6); border-radius: 6px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+    .date-tab:hover { background: rgba(218,165,32,0.15); color: rgba(255,255,255,0.9); }
+    .date-tab.active { background: rgba(218,165,32,0.25); color: #FFD700; border-color: rgba(218,165,32,0.6); }
     .chart-label { font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 4px; }
     .chart-value { font-size: 13px; color: #d4af37; line-height: 1.4; text-align: right; }
     .chart-value .peak { font-size: 11px; color: rgba(212,175,55,0.55); }
@@ -238,6 +243,14 @@
       <button class="logout-btn" onclick="logout()">退出登录</button>
     </div>
     
+    <!-- 日期切换标签 -->
+    <div class="date-tabs">
+      <button class="date-tab active" data-range="today" onclick="switchDateRange('today')">今日</button>
+      <button class="date-tab" data-range="yesterday" onclick="switchDateRange('yesterday')">昨日</button>
+      <button class="date-tab" data-range="thisWeek" onclick="switchDateRange('thisWeek')">本周</button>
+      <button class="date-tab" data-range="lastWeek" onclick="switchDateRange('lastWeek')">上周</button>
+    </div>
+    
     <!-- 人气助教 TOP6（置顶） -->
     <div class="popularity-section">
       <h3 style="margin-bottom:16px">🔥 人气助教 TOP6</h3>
@@ -262,6 +275,22 @@
       <div class="stat-card">
         <div class="stat-value" id="statRevenue">-</div>
         <div class="stat-label">今日销售额</div>
+      </div>
+    </div>
+    
+    <!-- 服务统计 -->
+    <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+      <div class="stat-card">
+        <div class="stat-value" id="statServiceOrders">-</div>
+        <div class="stat-label">今日服务单</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statTableActions">-</div>
+        <div class="stat-label">今日上下桌单</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statPlaceholder">-</div>
+        <div class="stat-label">（预留）</div>
       </div>
     </div>
     
@@ -319,6 +348,7 @@
   
   <div class="toast" id="toast"></div>
   
+  <script src="js/time-util.js"></script>
   <script>
     const token = localStorage.getItem('adminToken');
     if (!token) window.location.href = 'login.html';
@@ -352,26 +382,111 @@
       return res.json();
     }
     
+    // ============ 日期切换 ============
+    let currentRange = 'today';
+
+    function getDateParam(range) {
+      const today = TimeUtil.today(); // "2026-04-17"
+      const [y, m, d] = today.split('-').map(Number);
+      const base = new Date(y, m - 1, d);
+
+      switch (range) {
+        case 'today':   return today;
+        case 'yesterday': {
+          const b = new Date(base); b.setDate(b.getDate() - 1);
+          return formatDateObj(b);
+        }
+        case 'thisWeek': {
+          const dayOfWeek = base.getDay() || 7; // 周日变7
+          const start = new Date(base); start.setDate(start.getDate() - (dayOfWeek - 1));
+          return { start: formatDateObj(start), end: today };
+        }
+        case 'lastWeek': {
+          const dayOfWeek = base.getDay() || 7;
+          const end = new Date(base); end.setDate(end.getDate() - dayOfWeek);
+          const start = new Date(end); start.setDate(start.getDate() - 6);
+          return { start: formatDateObj(start), end: formatDateObj(end) };
+        }
+      }
+    }
+
+    function formatDateObj(d) {
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+
+    function switchDateRange(range) {
+      currentRange = range;
+      document.querySelectorAll('.date-tab').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.range === range);
+      });
+      loadAllStats();
+    }
+
+    // ============ 数据加载 ============
     async function loadStats() {
+      await loadAllStats();
+    }
+
+    async function loadAllStats() {
+      const param = getDateParam(currentRange);
+
+      // 商品数、助教数（不受日期影响）
       const products = await api('/api/admin/products');
       const coaches = await api('/api/admin/coaches');
       document.getElementById('statProducts').textContent = products.length || 0;
       document.getElementById('statCoaches').textContent = coaches.length || 0;
-      
-      // 加载订单统计
-      loadOrderStats();
-    }
-    
-    // 加载订单统计（仅统计，不显示列表）
-    async function loadOrderStats() {
+
+      // 构建日期查询参数
+      let dateParam;
+      if (currentRange === 'today' || currentRange === 'yesterday') {
+        dateParam = `date=${param}`;
+      } else {
+        dateParam = `date_start=${param.start}&date_end=${param.end}`;
+      }
+
       try {
-        const orders = await api('/api/admin/orders?status=待处理');
+        // 并行查询三个 API
+        const [ordersRes, servicesRes, tableRes] = await Promise.all([
+          api(`/api/admin/orders?${dateParam}&status=已完成`),
+          api(`/api/service-orders?${dateParam}&status=已完成`),
+          api(`/api/table-action-orders?${dateParam}`),
+        ]);
+
+        // 注意返回值格式差异：orders 直接是数组，service/table 返回 {success, data}
+        const orders = ordersRes;
+        const services = servicesRes.data || servicesRes;
+        const tableActions = tableRes.data || tableRes;
+
+        // 更新订单 + 销售额
         document.getElementById('statOrders').textContent = orders.length || 0;
-        const totalRevenue = (orders || []).reduce((sum, o) => sum + (o.total_price || 0), 0);
+        const totalRevenue = orders.reduce((sum, o) => sum + (o.total_price || 0), 0);
         document.getElementById('statRevenue').textContent = '¥' + totalRevenue.toFixed(0);
+
+        // 更新服务单
+        document.getElementById('statServiceOrders').textContent = services.length || 0;
+
+        // 更新上下桌单
+        let upCount = 0, downCount = 0;
+        tableActions.forEach(t => {
+          if (t.order_type === '上桌单') upCount++;
+          else if (t.order_type === '下桌单') downCount++;
+        });
+        document.getElementById('statTableActions').textContent = `${upCount}:${downCount}`;
+
+        // 更新标签文本（今日/昨日/本周/上周）
+        const rangeLabels = {
+          today: '今日', yesterday: '昨日', thisWeek: '本周', lastWeek: '上周'
+        };
+        const label = rangeLabels[currentRange];
+        document.querySelector('#statOrders').closest('.stat-card').querySelector('.stat-label').textContent = `${label}订单`;
+        document.querySelector('#statRevenue').closest('.stat-card').querySelector('.stat-label').textContent = `${label}销售额`;
+        document.querySelector('#statServiceOrders').closest('.stat-card').querySelector('.stat-label').textContent = `${label}服务单`;
+        document.querySelector('#statTableActions').closest('.stat-card').querySelector('.stat-label').textContent = `${label}上下桌单`;
       } catch (e) {
         document.getElementById('statOrders').textContent = '0';
         document.getElementById('statRevenue').textContent = '¥0';
+        document.getElementById('statServiceOrders').textContent = '0';
+        document.getElementById('statTableActions').textContent = '0:0';
       }
     }
     

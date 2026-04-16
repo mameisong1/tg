@@ -2141,7 +2141,7 @@ app.get('/api/admin/db-queue-stats', authMiddleware, async (req, res) => {
 // 获取订单列表
 app.get('/api/admin/orders', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
   try {
-    const { status, date } = req.query;
+    const { status, date, date_start, date_end } = req.query;
     let sql = 'SELECT * FROM orders';
     const params = [];
 
@@ -2149,6 +2149,14 @@ app.get('/api/admin/orders', authMiddleware, requireBackendPermission(['cashierD
     if (date) {
       conditions.push("DATE(created_at) = ?");
       params.push(date);
+    }
+    if (date_start) {
+      conditions.push("DATE(created_at) >= ?");
+      params.push(date_start);
+    }
+    if (date_end) {
+      conditions.push("DATE(created_at) <= ?");
+      params.push(date_end);
     }
     if (status && status !== '全部') {
       conditions.push("status = ?");

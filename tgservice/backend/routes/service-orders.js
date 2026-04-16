@@ -88,7 +88,7 @@ router.post('/', auth.required, async (req, res) => {
  */
 router.get('/', auth.required, requireBackendPermission(['serviceOrder']), async (req, res) => {
   try {
-    const { status, table_no, limit = 50 } = req.query;
+    const { status, table_no, date, date_start, date_end, limit = 50 } = req.query;
     
     let sql = 'SELECT * FROM service_orders WHERE 1=1';
     const params = [];
@@ -101,6 +101,19 @@ router.get('/', auth.required, requireBackendPermission(['serviceOrder']), async
     if (table_no) {
       sql += ' AND table_no = ?';
       params.push(table_no);
+    }
+    
+    if (date) {
+      sql += ' AND DATE(created_at) = ?';
+      params.push(date);
+    }
+    if (date_start) {
+      sql += ' AND DATE(created_at) >= ?';
+      params.push(date_start);
+    }
+    if (date_end) {
+      sql += ' AND DATE(created_at) <= ?';
+      params.push(date_end);
     }
     
     sql += ' ORDER BY created_at DESC LIMIT ?';
