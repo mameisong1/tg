@@ -54,7 +54,8 @@
         <view class="coach-grid off-duty-row" v-if="group.coaches.some(c => c._offDuty)">
           <view class="coach-card coach-card--offduty"
                 v-for="coach in group.coaches.filter(c => c._offDuty)"
-                :key="'off-' + coach.coach_no">
+                :key="'off-' + coach.coach_no"
+                @longpress="showStatusChange(coach)">
             <text class="coach-id coach-id--offduty">{{ coach.employee_id || coach.coach_no }}</text>
             <text class="coach-name coach-name--offduty">{{ coach.stage_name }}</text>
             <text class="overtime-hours" v-if="getOvertimeHours(coach) > 0">{{ getOvertimeHours(coach) }}h</text>
@@ -64,7 +65,8 @@
         <view class="coach-grid off-duty-row overtime-row" v-if="group.coaches.some(c => c._overtime)">
           <view class="coach-card coach-card--offduty"
                 v-for="coach in group.coaches.filter(c => c._overtime)"
-                :key="'ot-' + coach.coach_no">
+                :key="'ot-' + coach.coach_no"
+                @longpress="showStatusChange(coach)">
             <text class="coach-id coach-id--offduty">{{ coach.employee_id || coach.coach_no }}</text>
             <text class="coach-name coach-name--offduty">{{ coach.stage_name }}</text>
             <text class="overtime-hours" v-if="getOvertimeHours(coach) > 0">{{ getOvertimeHours(coach) }}h</text>
@@ -94,7 +96,8 @@
           <view class="expand-grid off-duty-row" v-if="expandCoaches.some(c => c._offDuty)">
             <view class="expand-card expand-card--offduty"
                   v-for="coach in expandCoaches.filter(c => c._offDuty)"
-                  :key="'off-' + coach.coach_no">
+                  :key="'off-' + coach.coach_no"
+                  @longpress="showStatusChange(coach)">
               <text class="expand-id expand-id--offduty">{{ coach.employee_id || coach.coach_no }}</text>
               <text class="expand-name expand-name--offduty">{{ coach.stage_name }}</text>
               <text class="overtime-hours" v-if="getOvertimeHours(coach) > 0">{{ getOvertimeHours(coach) }}h</text>
@@ -104,7 +107,8 @@
           <view class="expand-grid off-duty-row overtime-row" v-if="expandCoaches.some(c => c._overtime)">
             <view class="expand-card expand-card--offduty"
                   v-for="coach in expandCoaches.filter(c => c._overtime)"
-                  :key="'ot-' + coach.coach_no">
+                  :key="'ot-' + coach.coach_no"
+                  @longpress="showStatusChange(coach)">
               <text class="expand-id expand-id--offduty">{{ coach.employee_id || coach.coach_no }}</text>
               <text class="expand-name expand-name--offduty">{{ coach.stage_name }}</text>
               <text class="overtime-hours" v-if="getOvertimeHours(coach) > 0">{{ getOvertimeHours(coach) }}h</text>

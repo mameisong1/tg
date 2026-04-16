@@ -407,7 +407,7 @@ router.get('/today-approved-overtime', auth.required, requireBackendPermission([
     
     const records = await db.all(`
       SELECT a.applicant_phone, a.extra_data, a.remark,
-             c.coach_no, c.shift
+             c.coach_no, c.shift, c.employee_id
       FROM applications a
       LEFT JOIN coaches c ON a.applicant_phone = c.employee_id OR a.applicant_phone = c.phone
       WHERE a.status = 1
@@ -429,7 +429,9 @@ router.get('/today-approved-overtime', auth.required, requireBackendPermission([
         if (match) hours = parseInt(match[1], 10);
       }
       if (hours !== null) {
-        result[r.applicant_phone] = {
+        // 使用 employee_id 作为 key（前端 waterBoards 返回的 employee_id 匹配）
+        const key = r.employee_id || r.applicant_phone;
+        result[key] = {
           hours,
           coach_no: r.coach_no || '-',
           shift: r.shift || '-'
