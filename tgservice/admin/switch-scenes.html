@@ -229,12 +229,7 @@
       }
       
       document.getElementById('formModal').classList.add('show');
-      } catch (err) {
-        document.getElementById('tableBody').innerHTML = `<tr><td colspan="5" style="text-align:center;color:#e74c3c;">加载失败: ${err.message}</td></tr>`;
-      }
     }
-
-
 
     function closeModal() {
       document.getElementById('formModal').classList.remove('show');
