@@ -324,9 +324,18 @@
 ### 获取服务单列表
 
 - **路径**: `GET /api/service-orders`
-- **认证**: 需要后台权限（`cashierDashboard`）
-- **参数**: `?status=待处理&table_no=A05&limit=50`
-- **说明**: 收银台查看服务单列表
+- **认证**: 需要后台权限（`serviceOrder`）
+- **参数**: `?status=已完成&table_no=A05&date=2026-04-17&limit=50`
+  | 参数 | 类型 | 必填 | 说明 |
+  |------|------|------|------|
+  | status | string | 否 | 状态筛选（待处理/已完成/已取消） |
+  | table_no | string | 否 | 台桌号过滤 |
+  | date | string | 否 | 日期过滤（格式：YYYY-MM-DD） |
+  | date_start | string | 否 | 日期范围起始（格式：YYYY-MM-DD） |
+  | date_end | string | 否 | 日期范围结束（格式：YYYY-MM-DD） |
+  | limit | int | 否 | 返回数量上限，默认 50 |
+- **说明**: 获取服务单列表，支持按状态、台桌号、日期过滤。返回格式 `{ success: true, data: [...] }`。
+- **更新时间**: 2026-04-17
 
 ---
 
@@ -870,12 +879,14 @@
 
 - **路径**: `GET /api/admin/orders`
 - **认证**: 需要后台权限（`cashierDashboard`）
-- **参数**: `?status=待处理&date=2026-04-13`
+- **参数**: `?status=已完成&date=2026-04-17&date_start=2026-04-14&date_end=2026-04-17`
   | 参数 | 类型 | 必填 | 说明 |
   |------|------|------|------|
   | status | string | 否 | 状态筛选（待处理/已完成/已取消/全部），不传时默认排除已取消 |
-  | date | string | 否 | 日期过滤（格式：YYYY-MM-DD），按 `DATE(created_at)` 匹配（**北京时间**） |
-- **说明**: 获取订单列表，支持按状态和日期过滤。**2026-04-13 更新**：新增 `date` 参数；不传 `status` 时默认排除已取消订单。
+  | date | string | 否 | 日期过滤（格式：YYYY-MM-DD），按 `DATE(created_at)` 精确匹配 |
+  | date_start | string | 否 | 日期范围起始（格式：YYYY-MM-DD） |
+  | date_end | string | 否 | 日期范围结束（格式：YYYY-MM-DD） |
+- **说明**: 获取订单列表，支持按状态和日期过滤。**2026-04-13 更新**：新增 `date` 参数；**2026-04-17 更新**：新增 `date_start`/`date_end` 范围查询。
 
 > **时区说明**：所有时间字段（`created_at`、`updated_at`）存储为北京时间（Asia/Shanghai, UTC+8）。
 > 日期过滤参数 `date` 按北京时间解析。API 返回的时间格式为 `YYYY-MM-DD HH:MM:SS`（北京时间）。
@@ -1124,6 +1135,9 @@
   | status | string | 否 | 状态筛选（待处理/已完成/已取消） |
   | order_type | string | 否 | 单类型筛选（上桌单/下桌单/取消单） |
   | coach_no | string | 否 | 助教工号筛选 |
+  | date | string | 否 | 日期过滤（格式：YYYY-MM-DD） |
+  | date_start | string | 否 | 日期范围起始（格式：YYYY-MM-DD） |
+  | date_end | string | 否 | 日期范围结束（格式：YYYY-MM-DD） |
   | limit | number | 否 | 返回数量（默认50） |
 - **返回**:
   ```json
