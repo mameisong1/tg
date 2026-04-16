@@ -162,6 +162,8 @@
           <!-- #ifndef H5 -->
           <text class="plate-icp">粤ICP备2026027219号</text>
           <!-- #endif -->
+          <!-- 新增：公安备案号（与工信部备案号颜色一致 #6a6040） -->
+          <text class="plate-psb-icp">京公网安备11010102000001号</text>
           <view class="plate-links">
             <text class="plate-link" @click="goAgreement('user')">用户协议</text>
             <text class="plate-divider">|</text>
@@ -747,6 +749,11 @@ onShow(() => {
 }
 .plate-icp a {
   color: #6a6040 !important;
+}
+.plate-psb-icp {
+  font-size: 10px;
+  color: #6a6040;
+  margin-top: 2px;
 }
 .plate-links {
   display: flex;

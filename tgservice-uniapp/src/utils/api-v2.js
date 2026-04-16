@@ -81,7 +81,9 @@ export const applications = {
   // 审批申请
   approve: (id, data) => request({ url: `/applications/${id}/approve`, method: 'PUT', data }),
   // 获取近期已审批记录
-  getApprovedRecent: (params) => request({ url: '/applications/approved-recent', data: params })
+  getApprovedRecent: (params) => request({ url: '/applications/approved-recent', data: params }),
+  // 获取当天已同意的加班小时数
+  getTodayApprovedOvertime: () => request({ url: '/applications/today-approved-overtime' })
 }
 
 // ========== 约客管理 ==========

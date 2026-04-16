@@ -322,6 +322,8 @@
       <!-- #ifndef H5 -->
       <text class="footer-icp">粤ICP备2026027219号</text>
       <!-- #endif -->
+      <!-- 新增：公安备案号 -->
+      <text class="footer-psb-icp">京公网安备11010102000001号</text>
     </view>
     
     <!-- 编辑姓名弹窗 -->
@@ -1500,6 +1502,12 @@ onShow(() => {
 .footer-company { font-size: 13px; color: rgba(255,255,255,0.3); display: block; margin-bottom: 4px; }
 .footer-icp { font-size: 12px; color: rgba(255,255,255,0.5); }
 .footer-icp a { color: rgba(255,255,255,0.5) !important; }
+.footer-psb-icp {
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  display: block;
+  margin-top: 2px;
+}
 
 /* H5 PWA安装按钮 */
 .pwa-install-section {

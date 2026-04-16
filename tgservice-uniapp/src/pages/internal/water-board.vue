@@ -43,10 +43,26 @@
           <text class="section-count">{{ group.coaches.length }}人 ⛶</text>
         </view>
         <view class="coach-grid">
-          <view class="coach-card" v-for="coach in group.coaches" :key="coach.coach_no" @longpress="showStatusChange(coach)">
+          <!-- 正常助教 -->
+          <view class="coach-card" v-for="coach in group.coaches.filter(c => !c._offDuty)" :key="coach.coach_no" @longpress="showStatusChange(coach)">
             <image class="coach-avatar" :src="getCoachPhoto(coach)" mode="aspectFill" />
             <text class="coach-id">{{ coach.employee_id || coach.coach_no }}</text>
             <text class="coach-name">{{ coach.stage_name }}</text>
+          </view>
+        </view>
+        <!-- 下班助教单独一行 -->
+        <view class="coach-grid off-duty-row" v-if="group.coaches.some(c => c._offDuty)">
+          <view class="coach-card coach-card--offduty"
+                v-for="coach in group.coaches.filter(c => c._offDuty)"
+                :key="'off-' + coach.coach_no">
+            <!-- 无头像 -->
+            <text class="coach-id">{{ coach.employee_id || coach.coach_no }}</text>
+            <text class="coach-name">{{ coach.stage_name }}</text>
+            <!-- 加班小时数 -->
+            <text class="overtime-hours"
+                  v-if="getOvertimeHours(coach) > 0">
+              {{ getOvertimeHours(coach) }}h
+            </text>
           </view>
         </view>
       </view>
@@ -62,10 +78,24 @@
         </view>
         <scroll-view class="expand-content" scroll-y>
           <view class="expand-grid">
-            <view class="expand-card" v-for="coach in expandCoaches" :key="coach.coach_no" @longpress="showStatusChange(coach)">
+            <!-- 正常助教 -->
+            <view class="expand-card" v-for="coach in expandCoaches.filter(c => !c._offDuty)" :key="coach.coach_no" @longpress="showStatusChange(coach)">
               <image class="expand-avatar" :src="getCoachPhoto(coach)" mode="aspectFill" />
               <text class="expand-id">{{ coach.employee_id || coach.coach_no }}</text>
               <text class="expand-name">{{ coach.stage_name }}</text>
+            </view>
+          </view>
+          <!-- 下班助教单独一行 -->
+          <view class="expand-grid off-duty-row" v-if="expandCoaches.some(c => c._offDuty)">
+            <view class="expand-card expand-card--offduty"
+                  v-for="coach in expandCoaches.filter(c => c._offDuty)"
+                  :key="'off-' + coach.coach_no">
+              <text class="expand-id">{{ coach.employee_id || coach.coach_no }}</text>
+              <text class="expand-name">{{ coach.stage_name }}</text>
+              <text class="overtime-hours"
+                    v-if="getOvertimeHours(coach) > 0">
+                {{ getOvertimeHours(coach) }}h
+              </text>
             </view>
           </view>
         </scroll-view>
@@ -149,6 +179,7 @@ onMounted(() => {
   // #endif
 
   loadData()
+  loadOvertimeHours()
 
   // 启动30秒自动刷新（所有环境）
   refreshTimer = setInterval(() => {
@@ -182,9 +213,28 @@ const expandColor = ref('#d4af37')
 const offStatusVisible = ref(false)
 
 const workStatusList = ['早班上桌', '早班空闲', '晚班上桌', '晚班空闲', '乐捐']
-const offStatusList = ['休息', '公休', '请假', '下班', '早加班', '晚加班']
+const offStatusList = ['休息', '公休', '请假', '早加班', '晚加班']
 const statusList = [...workStatusList, ...offStatusList]
 const freeStatuses = ['早班空闲', '晚班空闲']
+
+// 加班小时数映射（phone -> hours）
+const overtimeHoursMap = ref({})
+
+const loadOvertimeHours = async () => {
+  try {
+    const res = await api.applications.getTodayApprovedOvertime()
+    overtimeHoursMap.value = res.data || {}
+  } catch (e) {
+    // 静默失败，不影响水牌显示
+  }
+}
+
+const getOvertimeHours = (coach) => {
+  const key = coach.employee_id
+  if (!key || !overtimeHoursMap.value[key]) return 0
+  return overtimeHoursMap.value[key].hours || 0
+}
+
 const simpleStatusList = ['上桌', '空闲', '加班', '休息', '公休', '请假', '乐捐', '下班']
 
 const statusColors = {
@@ -197,6 +247,8 @@ const loadData = async () => {
   try {
     const res = await api.waterBoards.getList({})
     waterBoards.value = res.data || []
+    // 同时刷新加班小时数
+    await loadOvertimeHours()
   } catch (e) {
     uni.showToast({ title: '加载失败', icon: 'none' })
   }
@@ -222,27 +274,49 @@ const getCount = (status) => {
 const groupedBoards = computed(() => {
   const groups = {}
   statusList.forEach(s => { groups[s] = [] })
+  // 下班助教不参与独立分组，后续合并到空闲组
+  
   waterBoards.value.forEach(board => {
-    if (groups[board.status]) groups[board.status].push(board)
+    if (board.status === '下班') {
+      // 根据班次合并到对应空闲组
+      if (board.shift === '晚班') {
+        groups['晚班空闲'].push({ ...board, _offDuty: true })
+      } else {
+        groups['早班空闲'].push({ ...board, _offDuty: true })
+      }
+    } else if (groups[board.status]) {
+      groups[board.status].push({ ...board, _offDuty: false })
+    }
   })
   
-  // 对每组内排序（保持不变）
-  statusList.forEach(s => {
-    if (freeStatuses.includes(s)) {
-      // 空闲状态：按 clock_in_time 倒序
-      groups[s].sort((a, b) => {
-        const ta = a.clock_in_time ? new Date(a.clock_in_time + '+08:00').getTime() : 0
-        const tb = b.clock_in_time ? new Date(b.clock_in_time + '+08:00').getTime() : 0
-        return tb - ta
-      })
-    } else {
-      // 其他状态：按 updated_at 倒序
-      groups[s].sort((a, b) => {
-        const ta = a.updated_at ? new Date(a.updated_at + '+08:00').getTime() : 0
-        const tb = b.updated_at ? new Date(b.updated_at + '+08:00').getTime() : 0
-        return tb - ta
-      })
-    }
+  // 排序：空闲组内，正常助教在前（按 clock_in_time 倒序），下班助教在后
+  freeStatuses.forEach(s => {
+    const normal = groups[s].filter(c => !c._offDuty)
+    const offDuty = groups[s].filter(c => c._offDuty)
+    
+    normal.sort((a, b) => {
+      const ta = a.clock_in_time ? new Date(a.clock_in_time + '+08:00').getTime() : 0
+      const tb = b.clock_in_time ? new Date(b.clock_in_time + '+08:00').getTime() : 0
+      return tb - ta
+    })
+    
+    // 下班助教保持原有排序（按 updated_at 倒序）
+    offDuty.sort((a, b) => {
+      const ta = a.updated_at ? new Date(a.updated_at + '+08:00').getTime() : 0
+      const tb = b.updated_at ? new Date(b.updated_at + '+08:00').getTime() : 0
+      return tb - ta
+    })
+    
+    groups[s] = [...normal, ...offDuty]
+  })
+  
+  // 其他非空闲组排序（不变）
+  statusList.filter(s => !freeStatuses.includes(s)).forEach(s => {
+    groups[s].sort((a, b) => {
+      const ta = a.updated_at ? new Date(a.updated_at + '+08:00').getTime() : 0
+      const tb = b.updated_at ? new Date(b.updated_at + '+08:00').getTime() : 0
+      return tb - ta
+    })
   })
   
   return statusList.filter(s => groups[s].length > 0).map(s => ({ status: s, coaches: groups[s] }))
@@ -473,6 +547,47 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 }
 .status-section.free-section .coach-name {
   color: rgba(0,0,0,0.7);
+}
+
+/* 下班助教卡片：深灰色底 */
+.coach-card--offduty {
+  background: rgba(60, 60, 60, 0.6) !important;
+  border-color: rgba(100, 100, 100, 0.3) !important;
+  position: relative;
+}
+
+/* 下班助教卡片：隐藏头像 */
+.coach-card--offduty .coach-avatar {
+  display: none !important;
+}
+
+/* 下班助教独立行样式 */
+.coach-grid.off-duty-row {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255,255,255,0.08);
+}
+
+/* 加班小时数：红色粗体右上角 */
+.overtime-hours {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 11px;
+  font-weight: bold;
+  color: #ff3b30;
+  line-height: 1;
+}
+
+/* 弹窗下班助教卡片 */
+.expand-card--offduty {
+  background: rgba(60, 60, 60, 0.6) !important;
+  border-color: rgba(100, 100, 100, 0.3) !important;
+  position: relative;
+}
+
+.expand-card--offduty .expand-avatar {
+  display: none !important;
 }
 
 /* ===== 分段放大弹窗 ===== */

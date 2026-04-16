@@ -397,4 +397,51 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
   }
 });
 
+/**
+ * GET /api/applications/today-approved-overtime
+ * 获取当天所有已同意的加班申请的小时数（批量接口）
+ */
+router.get('/today-approved-overtime', auth.required, requireBackendPermission(['waterBoardManagement']), async (req, res) => {
+  try {
+    const todayStr = TimeUtil.todayStr(); // "YYYY-MM-DD"
+    
+    const records = await db.all(`
+      SELECT a.applicant_phone, a.extra_data, a.remark,
+             c.coach_no, c.shift
+      FROM applications a
+      LEFT JOIN coaches c ON a.applicant_phone = c.employee_id OR a.applicant_phone = c.phone
+      WHERE a.status = 1
+        AND a.application_type IN ('早加班申请', '晚加班申请')
+        AND date(a.created_at) = ?
+    `, [todayStr]);
+    
+    const result = {};
+    for (const r of records) {
+      let hours = null;
+      if (r.extra_data) {
+        try {
+          const extra = JSON.parse(r.extra_data);
+          hours = extra.hours || null;
+        } catch (e) {}
+      }
+      if (hours === null && r.remark) {
+        const match = r.remark.match(/(\d+)小时/);
+        if (match) hours = parseInt(match[1], 10);
+      }
+      if (hours !== null) {
+        result[r.applicant_phone] = {
+          hours,
+          coach_no: r.coach_no || '-',
+          shift: r.shift || '-'
+        };
+      }
+    }
+    
+    res.json({ success: true, data: result });
+  } catch (error) {
+    console.error('获取当天加班小时数失败:', error);
+    res.status(500).json({ success: false, error: '获取当天加班小时数失败' });
+  }
+});
+
 module.exports = router;
