@@ -95,27 +95,17 @@
     .chart-value { font-size: 13px; color: #d4af37; line-height: 1.4; text-align: right; }
     .chart-value .peak { font-size: 11px; color: rgba(212,175,55,0.55); }
 
-    /* 人气值卡片 - 与小程序一致 */
+    /* 人气值卡片 - 6张卡片一字排开，大小一致 */
     .popularity-section { margin-bottom: 24px; }
     .popularity-title { font-size: 15px; color: #d4af37; margin-bottom: 16px; display: block; text-align: center; }
-    .popularity-row { display: flex; justify-content: center; gap: 10px; margin-bottom: 12px; }
-    .popularity-row.first-row { justify-content: center; }
+    .popularity-row { display: flex; justify-content: center; gap: 12px; margin-bottom: 12px; }
+    .popularity-row.single-row { justify-content: center; }
     
-    /* 大卡片 - 第1名 */
-    .pop-card.large { width: 140px; padding: 16px 12px; }
-    .pop-card.large .pop-avatar { width: 72px; height: 72px; }
-    .pop-card.large .pop-name { font-size: 14px; }
-    .pop-card.large .pop-value { font-size: 20px; }
-    
-    /* 中等卡片 - 第2-3名 */
-    .pop-card.medium { width: 110px; padding: 14px 10px; }
-    .pop-card.medium .pop-avatar { width: 60px; height: 60px; }
-    
-    /* 小卡片 - 第4-6名 */
-    .pop-card.small { width: 85px; padding: 10px 6px; }
-    .pop-card.small .pop-avatar { width: 48px; height: 48px; }
-    .pop-card.small .pop-name { font-size: 11px; }
-    .pop-card.small .pop-value { font-size: 14px; }
+    /* 统一卡片大小 */
+    .pop-card { width: 140px; padding: 16px 12px; }
+    .pop-card .pop-avatar { width: 56px; height: 56px; }
+    .pop-card .pop-name { font-size: 12px; }
+    .pop-card .pop-value { font-size: 16px; }
     
     /* 金色卡片 - 第1名 */
     .pop-card.card-gold {
@@ -143,7 +133,6 @@
     
     /* 基础卡片样式 */
     .pop-card {
-      padding: 12px 8px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -249,6 +238,14 @@
       <button class="logout-btn" onclick="logout()">退出登录</button>
     </div>
     
+    <!-- 人气助教 TOP6（置顶） -->
+    <div class="popularity-section">
+      <h3 style="margin-bottom:16px">🔥 人气助教 TOP6</h3>
+      <div id="popularityContainer">
+        <div style="color:rgba(255,255,255,0.3)">加载中...</div>
+      </div>
+    </div>
+    
     <div class="stats-grid">
       <div class="stat-card">
         <div class="stat-value" id="statProducts">-</div>
@@ -318,12 +315,6 @@
       <div id="deviceChart" style="height:200px;display:flex;align-items:flex-end;gap:8px;"></div>
     </div>
     
-    <div class="popularity-section">
-      <h3 style="margin-bottom:16px">🔥 人气助教 TOP6</h3>
-      <div id="popularityContainer">
-        <div style="color:rgba(255,255,255,0.3)">加载中...</div>
-      </div>
-    </div>
   </div>
   
   <div class="toast" id="toast"></div>
@@ -393,59 +384,27 @@
           return;
         }
         
-        let html = '<span class="popularity-title">🔥 人气榜 TOP6</span>';
+        // 所有卡片一字排开，大小一致
+        html += '<div class="popularity-row single-row">';
         
-        // 第一行：第1名（大卡片，金色）
-        if (coaches.length > 0) {
-          html += '<div class="popularity-row first-row">';
-          const c = coaches[0];
+        const cardClasses = ['card-gold', 'card-silver', 'card-bronze', '', '', ''];
+        const medalClasses = ['gold', 'silver', 'bronze', 'normal', 'normal', 'normal'];
+        const medalIcons = ['🥇', '🥈', '🥉', '4', '5', '6'];
+        
+        for (let i = 0; i < Math.min(6, coaches.length); i++) {
+          const c = coaches[i];
+          const extraClass = cardClasses[i];
           html += `
-            <div class="pop-card large card-gold">
-              <div class="pop-medal gold">🥇</div>
+            <div class="pop-card ${extraClass}">
+              <div class="pop-medal ${medalClasses[i]}">${medalIcons[i]}</div>
               <img class="pop-avatar" src="${c.photos?.[0] || '/static/avatar-default.png'}" onerror="this.src='/static/avatar-default.png'">
               <div class="pop-name">${c.employee_id || '-'}号 ${c.stage_name || '-'}</div>
               <div class="pop-value">${c.popularity || 0}</div>
             </div>
           `;
-          html += '</div>';
         }
         
-        // 第二行：第2-3名（中等卡片，银色、铜色）
-        if (coaches.length > 1) {
-          html += '<div class="popularity-row">';
-          const cardClasses = ['card-silver', 'card-bronze'];
-          const medalClasses = ['silver', 'bronze'];
-          const medalIcons = ['🥈', '🥉'];
-          for (let i = 1; i < Math.min(3, coaches.length); i++) {
-            const c = coaches[i];
-            html += `
-              <div class="pop-card medium ${cardClasses[i-1]}">
-                <div class="pop-medal ${medalClasses[i-1]}">${medalIcons[i-1]}</div>
-                <img class="pop-avatar" src="${c.photos?.[0] || '/static/avatar-default.png'}" onerror="this.src='/static/avatar-default.png'">
-                <div class="pop-name">${c.employee_id || '-'}号 ${c.stage_name || '-'}</div>
-                <div class="pop-value">${c.popularity || 0}</div>
-              </div>
-            `;
-          }
-          html += '</div>';
-        }
-        
-        // 第三行：第4-6名（小卡片）
-        if (coaches.length > 3) {
-          html += '<div class="popularity-row">';
-          for (let i = 3; i < Math.min(6, coaches.length); i++) {
-            const c = coaches[i];
-            html += `
-              <div class="pop-card small">
-                <div class="pop-medal normal">${i + 1}</div>
-                <img class="pop-avatar" src="${c.photos?.[0] || '/static/avatar-default.png'}" onerror="this.src='/static/avatar-default.png'">
-                <div class="pop-name">${c.employee_id || '-'}号 ${c.stage_name || '-'}</div>
-                <div class="pop-value">${c.popularity || 0}</div>
-              </div>
-            `;
-          }
-          html += '</div>';
-        }
+        html += '</div>';
         
         container.innerHTML = html;
       } catch (e) {
