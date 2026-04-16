@@ -699,7 +699,15 @@
     "isNew": false,
     "adminInfo": { "username": "13800138000", "role": "admin" },
     "adminToken": "jwt-token",
-    "coachInfo": { "coach_no": "26", "stage_name": "四瑶" },
+    "coachInfo": {
+      "coachNo": 10040,
+      "employeeId": "999",
+      "stageName": "四瑶",
+      "phone": "13800138000",
+      "level": "初级",
+      "shift": "早班",
+      "status": "全职"
+    },
     "coachToken": "base64-token"
   }
   ```
