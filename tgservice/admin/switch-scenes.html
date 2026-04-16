@@ -20,6 +20,7 @@
     .btn-primary { background: linear-gradient(135deg, #d4af37 0%, #ffd700 100%); color: #000; }
     .btn-secondary { background: rgba(255,255,255,0.1); color: #fff; }
     .btn-danger { background: rgba(231,76,60,0.2); color: #e74c3c; }
+    .btn-warning { background: rgba(255,165,0,0.2); color: #ffa500; }
     .btn-sm { padding: 6px 12px; font-size: 12px; }
     .data-table { width: 100%; border-collapse: collapse; }
     .data-table th { text-align: left; padding: 12px 16px; background: rgba(218,165,32,0.1); color: #d4af37; font-size: 13px; font-weight: 500; border-bottom: 1px solid rgba(218,165,32,0.2); }
@@ -28,16 +29,15 @@
     .action-badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; }
     .action-on { background: rgba(34,197,94,0.2); color: #22c55e; }
     .action-off { background: rgba(231,76,60,0.2); color: #e74c3c; }
-    .switches-preview { font-family: monospace; font-size: 11px; color: rgba(255,255,255,0.5); max-width: 400px; word-break: break-all; }
+    .switch-count { font-size: 13px; color: rgba(255,255,255,0.7); }
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
     .modal.show { display: flex; }
-    .modal-content { background: rgba(20,20,30,0.95); border-radius: 16px; padding: 24px; width: 90%; max-width: 550px; border: 1px solid rgba(218,165,32,0.2); }
+    .modal-content { background: rgba(20,20,30,0.95); border-radius: 16px; padding: 24px; width: 90%; max-width: 700px; border: 1px solid rgba(218,165,32,0.2); max-height: 90vh; overflow-y: auto; }
     .modal-title { font-size: 18px; margin-bottom: 20px; }
     .modal-form { display: flex; flex-direction: column; gap: 16px; }
     .form-row { display: flex; flex-direction: column; gap: 8px; }
     .form-row label { font-size: 13px; color: rgba(255,255,255,0.6); }
-    .form-row input, .form-row select, .form-row textarea { padding: 12px; background: #1a1a24; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; }
-    .form-row textarea { min-height: 120px; font-family: monospace; resize: vertical; }
+    .form-row input, .form-row select { padding: 12px; background: #1a1a24; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; }
     .form-hint { font-size: 12px; color: rgba(255,255,255,0.4); }
     .form-actions { display: flex; gap: 12px; margin-top: 8px; }
     .radio-group { display: flex; gap: 20px; }
@@ -45,6 +45,45 @@
     .toast { position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 8px; z-index: 2000; font-size: 14px; display: none; }
     .toast.success { background: rgba(34,197,94,0.9); color: #fff; }
     .toast.error { background: rgba(231,76,60,0.9); color: #fff; }
+    
+    /* 开关编辑器样式 */
+    #switchesEditor {
+      max-height: 400px;
+      overflow-y: auto;
+      padding: 8px;
+      background: rgba(26, 26, 36, 0.5);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .switch-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .switch-row input {
+      padding: 8px;
+      background: #1a1a24;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: #fff;
+      font-size: 13px;
+      font-family: monospace;
+    }
+    .switch-id-input { flex: 2; }
+    .switch-seq-input { flex: 1; }
+    .btn-remove-row {
+      padding: 6px 10px;
+      background: rgba(231,76,60,0.2);
+      color: #e74c3c;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .btn-remove-row:hover {
+      background: rgba(231,76,60,0.4);
+    }
   </style>
   <link rel="stylesheet" href="sidebar.css">
 </head>
@@ -63,7 +102,7 @@
           <th>排序</th>
           <th>场景名称</th>
           <th>动作</th>
-          <th>开关列表</th>
+          <th>开关数量</th>
           <th>操作</th>
         </tr>
       </thead>
@@ -73,11 +112,12 @@
     </table>
   </div>
 
-  <!-- 新增弹窗 -->
+  <!-- 新增/编辑弹窗 -->
   <div class="modal" id="formModal">
     <div class="modal-content">
-      <div class="modal-title">新增开关场景</div>
+      <div class="modal-title" id="modalTitle">新增开关场景</div>
       <div class="modal-form">
+        <input type="hidden" id="f_id" value="">
         <div class="form-row">
           <label>场景名称 *</label>
           <input type="text" id="f_scene_name" placeholder="如 深夜模式">
@@ -90,11 +130,11 @@
           </div>
         </div>
         <div class="form-row">
-          <label>开关数组 (每行一个开关，开关ID 和 开关序号之间用 TAB 分割) *</label>
-          <textarea id="f_switches" placeholder="0xa4c1380bbd942cbe	state_l1
-0xa4c1380bbd942cbe	state_l2
-0xa4c1380bbd942cbe	state_l3"></textarea>
-          <div class="form-hint">每行一个开关，格式：开关ID&lt;TAB&gt;开关序号。例如：0xa4c1380bbd942cbe[TAB]state_l1</div>
+          <label>开关列表 * <span class="form-hint">（每行一个开关，格式：开关ID + Tab + 开关序号）</span></label>
+          <div id="switchesEditor">
+            <!-- 动态生成的行 -->
+          </div>
+          <button class="btn btn-sm btn-secondary" onclick="addSwitchRow()" style="align-self: flex-start; margin-top: 8px;">+ 添加开关</button>
         </div>
         <div class="form-row">
           <label>排序序号</label>
@@ -115,22 +155,33 @@
     let allData = [];
 
     /**
-     * 解析多行文本输入为JSON数组
+     * 添加一行开关输入
      */
-    function parseSwitchesInput(text) {
-      const lines = text.trim().split('\n').filter(l => l.trim());
-      const switches = lines.map(line => {
-        // 支持 TAB 或逗号分割
-        let parts = line.split('\t');
-        if (parts.length < 2) parts = line.split(',');
-        if (parts.length >= 2) {
-          return {
-            switch_id: parts[0].trim(),
-            switch_seq: parts[1].trim()
-          };
+    function addSwitchRow(switchId = '', switchSeq = '') {
+      const container = document.getElementById('switchesEditor');
+      const row = document.createElement('div');
+      row.className = 'switch-row';
+      row.innerHTML = `
+        <input type="text" class="switch-id-input" placeholder="开关ID" value="${switchId}">
+        <input type="text" class="switch-seq-input" placeholder="开关序号" value="${switchSeq}">
+        <button class="btn-remove-row" onclick="this.parentElement.remove()" title="删除此行">✕</button>
+      `;
+      container.appendChild(row);
+    }
+
+    /**
+     * 从编辑器获取开关数组
+     */
+    function getSwitchesFromEditor() {
+      const rows = document.querySelectorAll('#switchesEditor .switch-row');
+      const switches = [];
+      rows.forEach(row => {
+        const switchId = row.querySelector('.switch-id-input').value.trim();
+        const switchSeq = row.querySelector('.switch-seq-input').value.trim();
+        if (switchId && switchSeq) {
+          switches.push({ switch_id: switchId, switch_seq: switchSeq });
         }
-        return null;
-      }).filter(Boolean);
+      });
       return switches;
     }
 
@@ -147,20 +198,21 @@
         }
 
         tbody.innerHTML = allData.map(d => {
-          let switchesPreview = '';
+          let switchCount = 0;
           try {
             const sw = JSON.parse(d.switches);
-            switchesPreview = sw.map(s => `${s.switch_id} ${s.switch_seq}`).join(', ');
+            switchCount = sw.length;
           } catch (e) {
-            switchesPreview = d.switches;
+            switchCount = 0;
           }
           return `
           <tr>
             <td>${d.sort_order}</td>
             <td>${d.scene_name}</td>
             <td><span class="action-badge ${d.action === 'ON' ? 'action-on' : 'action-off'}">${d.action === 'ON' ? '💡 开灯' : '🌙 关灯'}</span></td>
-            <td class="switches-preview">${switchesPreview}</td>
+            <td class="switch-count">${switchCount} 个</td>
             <td>
+              <button class="btn btn-sm btn-warning" onclick="openEditModal(${d.id})">编辑</button>
               <button class="btn btn-sm btn-danger" onclick="deleteRecord(${d.id})">删除</button>
             </td>
           </tr>
@@ -172,10 +224,42 @@
     }
 
     function openAddModal() {
+      document.getElementById('f_id').value = '';
       document.getElementById('f_scene_name').value = '';
-      document.getElementById('f_switches').value = '';
       document.getElementById('f_sort_order').value = '0';
       document.querySelector('input[name="f_action"][value="ON"]').checked = true;
+      document.getElementById('modalTitle').textContent = '新增开关场景';
+      
+      // 清空开关编辑器并添加一行
+      document.getElementById('switchesEditor').innerHTML = '';
+      addSwitchRow();
+      
+      document.getElementById('formModal').classList.add('show');
+    }
+
+    function openEditModal(id) {
+      const record = allData.find(d => d.id === id);
+      if (!record) return;
+      
+      document.getElementById('f_id').value = id;
+      document.getElementById('f_scene_name').value = record.scene_name;
+      document.getElementById('f_sort_order').value = record.sort_order;
+      document.getElementById('modalTitle').textContent = '编辑开关场景';
+      
+      // 设置动作
+      document.querySelector(`input[name="f_action"][value="${record.action}"]`).checked = true;
+      
+      // 清空并重建开关列表
+      const container = document.getElementById('switchesEditor');
+      container.innerHTML = '';
+      
+      try {
+        const switches = JSON.parse(record.switches);
+        switches.forEach(s => addSwitchRow(s.switch_id, s.switch_seq));
+      } catch (e) {
+        addSwitchRow(); // 默认空行
+      }
+      
       document.getElementById('formModal').classList.add('show');
     }
 
@@ -184,32 +268,43 @@
     }
 
     async function saveRecord() {
+      const id = document.getElementById('f_id').value;
       const scene_name = document.getElementById('f_scene_name').value.trim();
       const action = document.querySelector('input[name="f_action"]:checked').value;
-      const switchesText = document.getElementById('f_switches').value;
+      const switches = getSwitchesFromEditor();
       const sort_order = parseInt(document.getElementById('f_sort_order').value) || 0;
 
       if (!scene_name) {
         showToast('请填写场景名称', 'error');
         return;
       }
-
-      const switches = parseSwitchesInput(switchesText);
       if (switches.length === 0) {
-        showToast('请至少输入一个开关（格式：开关ID<TAB>开关序号）', 'error');
+        showToast('请至少输入一个开关', 'error');
         return;
       }
 
       try {
-        const res = await fetch(API, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') },
-          body: JSON.stringify({ scene_name, action, switches, sort_order })
-        });
+        let res;
+        if (id) {
+          // 编辑模式
+          res = await fetch(`${API}/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') },
+            body: JSON.stringify({ scene_name, action, switches, sort_order })
+          });
+        } else {
+          // 新增模式
+          res = await fetch(API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') },
+            body: JSON.stringify({ scene_name, action, switches, sort_order })
+          });
+        }
+        
         const result = await res.json();
         if (!res.ok) throw new Error(result.error || '操作失败');
         closeModal();
-        showToast('新增成功', 'success');
+        showToast(id ? '更新成功' : '新增成功', 'success');
         loadData();
       } catch (err) {
         showToast(err.message, 'error');
@@ -239,7 +334,6 @@
       setTimeout(() => { t.style.display = 'none'; }, 3000);
     }
 
-    
     loadData();
   </script>
   <script src="sidebar.js"></script>

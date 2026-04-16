@@ -242,6 +242,66 @@ router.post('/api/admin/switch-scenes', requireBackendPermission(['vipRoomManage
   }
 });
 
+// 更新场景
+router.put('/api/admin/switch-scenes/:id', requireBackendPermission(['vipRoomManagement']), async (req, res) => {
+  try {
+    const { scene_name, action, switches, sort_order } = req.body;
+
+    // 先检查记录是否存在
+    const existing = await get('SELECT id FROM switch_scene WHERE id = ?', [req.params.id]);
+    if (!existing) {
+      return res.status(404).json({ error: '场景不存在' });
+    }
+
+    // 构建更新字段
+    const updates = [];
+    const params = [];
+
+    if (scene_name !== undefined) {
+      updates.push('scene_name = ?');
+      params.push(scene_name);
+    }
+    if (action !== undefined) {
+      if (!['ON', 'OFF'].includes(action)) {
+        return res.status(400).json({ error: '动作只能是 ON 或 OFF' });
+      }
+      updates.push('action = ?');
+      params.push(action);
+    }
+    if (switches !== undefined) {
+      const switchesArr = Array.isArray(switches) ? switches : [];
+      if (switchesArr.length === 0) {
+        return res.status(400).json({ error: '开关数组不能为空' });
+      }
+      updates.push('switches = ?');
+      params.push(JSON.stringify(switchesArr));
+    }
+    if (sort_order !== undefined) {
+      updates.push('sort_order = ?');
+      params.push(sort_order);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: '没有要更新的字段' });
+    }
+
+    const now = TimeUtil.nowDB();
+    updates.push('updated_at = ?');
+    params.push(now, req.params.id);
+
+    await runInTransaction(async (tx) => {
+      await tx.run(
+        `UPDATE switch_scene SET ${updates.join(', ')} WHERE id = ?`,
+        params
+      );
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
 // 删除场景
 router.delete('/api/admin/switch-scenes/:id', requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
