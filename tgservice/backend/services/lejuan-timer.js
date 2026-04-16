@@ -108,7 +108,7 @@ async function recoverTimers() {
         const pendingRecords = await all(`
             SELECT * FROM lejuan_records 
             WHERE lejuan_status = 'pending' 
-                AND scheduled_start_time <= datetime(?, '+1 hours')
+                AND scheduled_start_time <= datetime(?, '+13 hours')
             ORDER BY scheduled_start_time
         `, [now]);
 
@@ -139,7 +139,7 @@ async function pollCheck() {
             SELECT * FROM lejuan_records 
             WHERE lejuan_status = 'pending' 
                 AND scheduled = 0
-                AND scheduled_start_time <= datetime(?, '+1 minutes')
+                AND scheduled_start_time <= datetime(?, '+13 hours')
             ORDER BY scheduled_start_time
         `, [now]);
 

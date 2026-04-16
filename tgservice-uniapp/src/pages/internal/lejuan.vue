@@ -30,7 +30,7 @@
       </view>
       <view class="form-item">
         <text class="form-label">开始时间（整点）</text>
-        <picker :range="hourOptions" @change="e => form.scheduledHour = hourOptions[e.detail.value]">
+        <picker :range="hourLabels" @change="e => form.scheduledHour = hourOptions[e.detail.value]">
           <view class="picker-value">
             <text :class="{ placeholder: form.scheduledHour === null }">{{ form.scheduledHour !== null ? String(form.scheduledHour).padStart(2, '0') + ':00' : '选择整点时间' }}</text>
             <text class="arrow">›</text>
@@ -103,18 +103,51 @@ const form = ref({
   remark: ''
 })
 
-// 可用小时选项：从当前小时开始
+// 获取当前小时（24小时制）
+function getCurrentHour() {
+  return new Date().getHours()
+}
+
 const hourOptions = computed(() => {
-  const now = new Date()
-  const currentHour = now.getHours()
-  const options = []
-  for (let h = currentHour; h <= 23; h++) {
-    options.push(h)
+  const h = getCurrentHour()
+
+  // 00:00 ~ 02:59: 窗口末尾，从当前小时到 02:00
+  if (h >= 0 && h <= 2) {
+    const opts = []
+    for (let i = h; i <= 2; i++) opts.push(i)
+    return opts
   }
-  return options
+
+  // 03:00 ~ 13:59: 窗口未到，显示全部13个选项（允许提前预约）
+  if (h >= 3 && h < 14) {
+    return [14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 0, 1, 2]
+  }
+
+  // 14:00 ~ 23:59: 从当前小时到次日 02:00
+  const opts = []
+  for (let i = h; i <= 23; i++) opts.push(i)
+  opts.push(0, 1, 2)
+  return opts
 })
 
+const formatHour = (hour) => {
+  const h = String(hour).padStart(2, '0')
+  const currentHour = getCurrentHour()
+  if (currentHour >= 3 && hour <= 2) {
+    return `次日${h}:00`
+  }
+  return `${h}:00`
+}
 
+const hourLabels = computed(() => {
+  return hourOptions.value.map(h => {
+    const label = `${String(h).padStart(2, '0')}:00`
+    if (getCurrentHour() >= 3 && h <= 2) {
+      return `次日${label}`
+    }
+    return label
+  })
+})
 
 onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
@@ -208,7 +241,15 @@ const submitLejuan = async () => {
     })
   }
 
-  const scheduledTime = `${form.value.scheduledDate} ${String(form.value.scheduledHour).padStart(2, '0')}:00:00`
+  let submitDate = form.value.scheduledDate
+  const currentHour = getCurrentHour()
+  // 当前在3-23点时选了0/1/2点 → 日期+1天
+  if (currentHour >= 3 && form.value.scheduledHour <= 2) {
+    const d = new Date(submitDate + 'T00:00:00+08:00')
+    d.setDate(d.getDate() + 1)
+    submitDate = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+  }
+  const scheduledTime = `${submitDate} ${String(form.value.scheduledHour).padStart(2, '0')}:00:00`
 
   try {
     uni.showLoading({ title: '提交中...' })

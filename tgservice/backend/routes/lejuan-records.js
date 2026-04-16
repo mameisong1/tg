@@ -16,6 +16,54 @@ const lejuanTimer = require('../services/lejuan-timer');
 router.use(auth.required);
 
 /**
+ * 校验乐捐预约时间窗口（当日14:00 ~ 次日02:00）
+ */
+function validateLejuanTime(scheduledStartTime) {
+    const now = TimeUtil.nowDB();
+    const nowHour = parseInt(now.substring(11, 13));
+    const nowDate = now.substring(0, 10);
+
+    const schedHour = parseInt(scheduledStartTime.substring(11, 13));
+    const schedDate = scheduledStartTime.substring(0, 10);
+
+    // 校验1: 必须是整点
+    const min = scheduledStartTime.substring(14, 16);
+    const sec = scheduledStartTime.substring(17, 19);
+    if (min !== '00' || sec !== '00') {
+        return { valid: false, error: '预约时间必须是整点（分钟=00）' };
+    }
+
+    // 校验2: 小时必须在窗口内 (14~23 或 0~2)
+    if (schedHour >= 3 && schedHour <= 13) {
+        return { valid: false, error: '乐捐报备时间为每日14:00-次日02:00，请选择有效时段' };
+    }
+
+    // 校验3: 日期与小时匹配性
+    if (schedHour >= 14) {
+        if (schedDate !== nowDate) {
+            return { valid: false, error: '当天时段应在当天预约' };
+        }
+    } else {
+        const tomorrow = new Date(nowDate + 'T00:00:00+08:00');
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth()+1).padStart(2,'0')}-${String(tomorrow.getDate()).padStart(2,'0')}`;
+        if (schedDate !== tomorrowStr) {
+            return { valid: false, error: '凌晨时段应在次日预约' };
+        }
+    }
+
+    // 校验4: 不能早于当前时间（允许当前小时）
+    const nowCal = nowDate + String(nowHour).padStart(2, '0');
+    const schedCal = schedDate + String(schedHour).padStart(2, '0');
+    const isCurrentHour = schedCal === nowCal;
+    if (!isCurrentHour && schedCal < nowCal) {
+        return { valid: false, error: '预约时间不能早于当前时间' };
+    }
+
+    return { valid: true, isCurrentHour };
+}
+
+/**
  * POST /api/lejuan-records — 提交乐捐报备（助教）
  */
 router.post('/', requireBackendPermission(['all']), async (req, res) => {
@@ -31,20 +79,13 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
         if (!timeMatch) {
             return res.status(400).json({ error: '时间格式错误，必须是 YYYY-MM-DD HH:MM:SS' });
         }
-        if (timeMatch[3] !== '00' || timeMatch[4] !== '00') {
-            return res.status(400).json({ error: '预约时间必须是整点（分钟=00）' });
-        }
 
-        // 校验：必须在未来（当天的小时允许）
-        const now = TimeUtil.nowDB();
-        const nowDate = now.split(' ')[0];
-        const scheduledDate = scheduled_start_time.split(' ')[0];
-        const isToday = scheduledDate === nowDate;
-        const isCurrentHour = isToday && scheduled_start_time.substring(11, 13) === now.substring(11, 13);
-        
-        if (!isCurrentHour && scheduled_start_time < now) {
-            return res.status(400).json({ error: '预约时间必须在未来或为当前小时' });
+        // 校验时间窗口
+        const timeValidation = validateLejuanTime(scheduled_start_time);
+        if (!timeValidation.valid) {
+            return res.status(400).json({ error: timeValidation.error });
         }
+        const isCurrentHour = timeValidation.isCurrentHour;
 
         // 查询助教信息
         const coach = await get(
@@ -421,7 +462,7 @@ router.get('/pending-timers', requireBackendPermission(['coachManagement']), asy
         const records = await all(`
             SELECT * FROM lejuan_records 
             WHERE lejuan_status = 'pending'
-                AND scheduled_start_time <= datetime(?, '+1 hours')
+                AND scheduled_start_time <= datetime(?, '+13 hours')
             ORDER BY scheduled_start_time
         `, [now]);
 
