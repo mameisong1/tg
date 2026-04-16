@@ -44,7 +44,7 @@
         </view>
         <view class="coach-grid">
           <!-- 正常助教 -->
-          <view class="coach-card" v-for="coach in group.coaches.filter(c => !c._offDuty)" :key="coach.coach_no">
+          <view class="coach-card" v-for="coach in group.coaches.filter(c => !c._offDuty && !c._overtime)" :key="coach.coach_no">
             <image class="coach-avatar" :src="getAvatar(coach)" mode="aspectFill" />
             <text class="coach-id">{{ coach.employee_id || coach.coach_no }}</text>
             <text class="coach-name">{{ coach.stage_name }}</text>
@@ -56,8 +56,23 @@
                 v-for="coach in group.coaches.filter(c => c._offDuty)"
                 :key="'off-' + coach.coach_no">
             <!-- 无头像 -->
-            <text class="coach-id">{{ coach.employee_id || coach.coach_no }}</text>
-            <text class="coach-name">{{ coach.stage_name }}</text>
+            <text class="coach-id coach-id--offduty">{{ coach.employee_id || coach.coach_no }}</text>
+            <text class="coach-name coach-name--offduty">{{ coach.stage_name }}</text>
+            <!-- 加班小时数 -->
+            <text class="overtime-hours"
+                  v-if="getOvertimeHours(coach) > 0">
+              {{ getOvertimeHours(coach) }}h
+            </text>
+          </view>
+        </view>
+        <!-- 加班助教单独一行 -->
+        <view class="coach-grid off-duty-row overtime-row" v-if="group.coaches.some(c => c._overtime)">
+          <view class="coach-card coach-card--offduty"
+                v-for="coach in group.coaches.filter(c => c._overtime)"
+                :key="'ot-' + coach.coach_no">
+            <!-- 无头像 -->
+            <text class="coach-id coach-id--offduty">{{ coach.employee_id || coach.coach_no }}</text>
+            <text class="coach-name coach-name--offduty">{{ coach.stage_name }}</text>
             <!-- 加班小时数 -->
             <text class="overtime-hours"
                   v-if="getOvertimeHours(coach) > 0">
@@ -79,7 +94,7 @@
         <scroll-view class="expand-content" scroll-y>
           <view class="expand-grid">
             <!-- 正常助教 -->
-            <view class="expand-card" v-for="coach in expandCoaches.filter(c => !c._offDuty)" :key="coach.coach_no">
+            <view class="expand-card" v-for="coach in expandCoaches.filter(c => !c._offDuty && !c._overtime)" :key="coach.coach_no">
               <image class="expand-avatar" :src="getAvatar(coach)" mode="aspectFill" />
               <text class="expand-id">{{ coach.employee_id || coach.coach_no }}</text>
               <text class="expand-name">{{ coach.stage_name }}</text>
@@ -90,8 +105,21 @@
             <view class="expand-card expand-card--offduty"
                   v-for="coach in expandCoaches.filter(c => c._offDuty)"
                   :key="'off-' + coach.coach_no">
-              <text class="expand-id">{{ coach.employee_id || coach.coach_no }}</text>
-              <text class="expand-name">{{ coach.stage_name }}</text>
+              <text class="expand-id expand-id--offduty">{{ coach.employee_id || coach.coach_no }}</text>
+              <text class="expand-name expand-name--offduty">{{ coach.stage_name }}</text>
+              <text class="overtime-hours"
+                    v-if="getOvertimeHours(coach) > 0">
+                {{ getOvertimeHours(coach) }}h
+              </text>
+            </view>
+          </view>
+          <!-- 加班助教单独一行 -->
+          <view class="expand-grid off-duty-row overtime-row" v-if="expandCoaches.some(c => c._overtime)">
+            <view class="expand-card expand-card--offduty"
+                  v-for="coach in expandCoaches.filter(c => c._overtime)"
+                  :key="'ot-' + coach.coach_no">
+              <text class="expand-id expand-id--offduty">{{ coach.employee_id || coach.coach_no }}</text>
+              <text class="expand-name expand-name--offduty">{{ coach.stage_name }}</text>
               <text class="overtime-hours"
                     v-if="getOvertimeHours(coach) > 0">
                 {{ getOvertimeHours(coach) }}h
@@ -131,7 +159,7 @@ const isFullscreen = ref(false)
 // #endif
 
 const workStatusList = ['早班上桌', '早班空闲', '晚班上桌', '晚班空闲', '乐捐']
-const offStatusList = ['休息', '公休', '请假', '早加班', '晚加班']
+const offStatusList = ['休息', '公休', '请假']
 const statusList = [...workStatusList, ...offStatusList]
 const freeStatuses = ['早班空闲', '晚班空闲']
 
@@ -226,15 +254,22 @@ const groupedBoards = computed(() => {
       } else {
         groups['早班空闲'].push({ ...b, _offDuty: true })
       }
+    } else if (b.status === '早加班') {
+      // 早加班合并到早班空闲
+      groups['早班空闲'].push({ ...b, _overtime: true })
+    } else if (b.status === '晚加班') {
+      // 晚加班合并到晚班空闲
+      groups['晚班空闲'].push({ ...b, _overtime: true })
     } else if (groups[b.status]) {
       groups[b.status].push({ ...b, _offDuty: false })
     }
   })
   
-  // 排序：空闲组内，正常助教在前（按 clock_in_time 倒序），下班助教在后
+  // 排序：空闲组内，正常助教在前（按 clock_in_time 倒序），下班助教其次，加班助教最后
   freeStatuses.forEach(s => {
-    const normal = groups[s].filter(c => !c._offDuty)
+    const normal = groups[s].filter(c => !c._offDuty && !c._overtime)
     const offDuty = groups[s].filter(c => c._offDuty)
+    const overtime = groups[s].filter(c => c._overtime)
     
     normal.sort((a, b) => {
       const ta = a.clock_in_time ? new Date(a.clock_in_time + '+08:00').getTime() : 0
@@ -249,7 +284,14 @@ const groupedBoards = computed(() => {
       return tb - ta
     })
     
-    groups[s] = [...normal, ...offDuty]
+    // 加班助教保持原有排序（按 updated_at 倒序）
+    overtime.sort((a, b) => {
+      const ta = a.updated_at ? new Date(a.updated_at + '+08:00').getTime() : 0
+      const tb = b.updated_at ? new Date(b.updated_at + '+08:00').getTime() : 0
+      return tb - ta
+    })
+    
+    groups[s] = [...normal, ...offDuty, ...overtime]
   })
   
   // 其他非空闲组排序（不变）
@@ -459,16 +501,29 @@ const toggleFullscreen = () => {
   position: relative;
 }
 
-/* 下班助教卡片：隐藏头像 */
+/* 下班/加班助教卡片：隐藏头像 */
 .coach-card--offduty .coach-avatar {
   display: none !important;
 }
 
-/* 下班助教独立行样式 */
+/* 下班/加班助教：工号和艺名灰白色 */
+.coach-id--offduty {
+  color: rgba(200, 200, 200, 0.7) !important;
+}
+.coach-name--offduty {
+  color: rgba(200, 200, 200, 0.6) !important;
+}
+
+/* 下班/加班助教独立行样式 */
 .coach-grid.off-duty-row {
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px dashed rgba(255,255,255,0.08);
+}
+.coach-grid.off-duty-row:first-of-type {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
 }
 
 /* 加班小时数：红色粗体右上角 */
@@ -491,6 +546,14 @@ const toggleFullscreen = () => {
 
 .expand-card--offduty .expand-avatar {
   display: none !important;
+}
+
+/* 弹窗下班/加班助教：工号和艺名灰白色 */
+.expand-id--offduty {
+  color: rgba(200, 200, 200, 0.7) !important;
+}
+.expand-name--offduty {
+  color: rgba(200, 200, 200, 0.6) !important;
 }
 
 /* ===== 分段放大弹窗 ===== */
