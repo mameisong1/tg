@@ -334,10 +334,10 @@ const toggleFullscreen = () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0;
+  padding: 6px 4px;
   overflow: hidden;
-  background: rgba(60,60,80,0.4);
-  border: 1px solid rgba(218,165,32,0.12);
+  background: rgba(212,175,55,0.15);
+  border: 1px solid rgba(218,165,32,0.25);
   border-radius: 8px;
   user-select: none;
   -webkit-user-select: none;
@@ -345,9 +345,12 @@ const toggleFullscreen = () => {
   touch-action: manipulation;
 }
 .coach-avatar {
-  width: 100%;
-  aspect-ratio: 1 / 1;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
   object-fit: cover;
+  border: 2px solid rgba(218,165,32,0.3);
+  margin-bottom: 3px;
   user-select: none;
   -webkit-user-select: none;
   pointer-events: none;
@@ -356,7 +359,6 @@ const toggleFullscreen = () => {
   font-size: 13px;
   color: #d4af37;
   font-weight: 600;
-  padding: 4px 2px 0;
   user-select: none;
   -webkit-user-select: none;
   pointer-events: none;
@@ -370,7 +372,6 @@ const toggleFullscreen = () => {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
-  padding: 0 2px 6px;
   user-select: none;
   -webkit-user-select: none;
   pointer-events: none;
@@ -378,7 +379,7 @@ const toggleFullscreen = () => {
 
 /* 空闲组中的卡片样式调整 */
 .status-section.free-section .coach-card {
-  background: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.75);
   border-color: rgba(0,0,0,0.06);
 }
 .status-section.free-section .coach-id {
@@ -429,10 +430,10 @@ const toggleFullscreen = () => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 0;
+  padding: 6px 4px;
   overflow: hidden;
-  background: rgba(60,60,80,0.4);
-  border: 1px solid rgba(218,165,32,0.12);
+  background: rgba(212,175,55,0.15);
+  border: 1px solid rgba(218,165,32,0.25);
   border-radius: 8px;
   user-select: none;
   -webkit-user-select: none;
@@ -440,24 +441,26 @@ const toggleFullscreen = () => {
   touch-action: manipulation;
 }
 .expand-avatar {
-  width: 100%;
-  aspect-ratio: 1 / 1;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   object-fit: cover;
+  border: 2px solid rgba(218,165,32,0.3);
+  margin-bottom: 3px;
   user-select: none;
   -webkit-user-select: none;
   pointer-events: none;
 }
 .expand-id {
-  font-size: 12px;
+  font-size: 11px;
   color: #d4af37;
   font-weight: 600;
-  padding: 4px 2px 0;
   user-select: none;
   -webkit-user-select: none;
   pointer-events: none;
 }
 .expand-name {
-  font-size: 12px;
+  font-size: 11px;
   color: rgba(255,255,255,0.85);
   text-align: center;
   line-height: 1.2;
@@ -465,7 +468,6 @@ const toggleFullscreen = () => {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
-  padding: 0 2px 6px;
   user-select: none;
   -webkit-user-select: none;
   pointer-events: none;
