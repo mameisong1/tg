@@ -301,17 +301,7 @@ const toggleFullscreen = () => {
   width: 100%;
   background: rgba(255,255,255,0.02);
 }
-/* 空闲状态组：灰白色背景 */
-.status-section.free-section {
-  background: rgba(245,245,245,0.85);
-  border-color: rgba(0,0,0,0.08);
-}
-.status-section.free-section .section-header {
-  border-bottom-color: rgba(0,0,0,0.06);
-}
-.status-section.free-section .section-count {
-  color: rgba(0,0,0,0.35);
-}
+/* 空闲状态组：分组框底色与其他分组一致，不加特殊背景 */
 
 .section-header {
   display: flex;
