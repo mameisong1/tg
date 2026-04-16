@@ -548,7 +548,7 @@ app.get('/api/categories/counts', async (req, res) => {
 app.get('/api/products', async (req, res) => {
   try {
     const { category } = req.query;
-    let sql = "SELECT name, category, image_url, price, stock_available, status FROM products WHERE status = '上架'";
+    let sql = "SELECT name, category, image_url, price, stock_available, status, popularity FROM products WHERE status = '上架'";
     const params = [];
 
     if (category && category !== '全部') {
@@ -556,7 +556,7 @@ app.get('/api/products', async (req, res) => {
       params.push(category);
     }
 
-    sql += ' ORDER BY created_at DESC';
+    sql += ' ORDER BY popularity DESC, created_at DESC';
 
     const products = await dbAll(sql, params);
     res.json(products);
@@ -605,6 +605,8 @@ app.post('/api/cart', async (req, res) => {
           'INSERT INTO carts (session_id, table_no, product_name, quantity, options) VALUES (?, ?, ?, ?, ?)',
           [sessionId, tableNo || null, productName, quantity, options]
         );
+        // 首次加入购物车，商品热度+1
+        await tx.run('UPDATE products SET popularity = popularity + 1 WHERE name = ?', [productName]);
       }
     });
 
@@ -644,7 +646,17 @@ app.put('/api/cart', async (req, res) => {
     const { sessionId, productName, quantity, options = '' } = req.body;
 
     if (quantity <= 0) {
-      await enqueueRun('DELETE FROM carts WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')', [sessionId, productName, options, options]);
+      await runInTransaction(async (tx) => {
+        // 先确认商品在购物车中，存在才减popularity
+        const existing = await tx.get(
+          'SELECT id FROM carts WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')',
+          [sessionId, productName, options, options]
+        );
+        if (existing) {
+          await tx.run('UPDATE products SET popularity = MAX(popularity - 1, 0) WHERE name = ?', [productName]);
+        }
+        await tx.run('DELETE FROM carts WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')', [sessionId, productName, options, options]);
+      });
     } else {
       await enqueueRun('UPDATE carts SET quantity = ? WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')', [quantity, sessionId, productName, options, options]);
     }
@@ -660,7 +672,17 @@ app.put('/api/cart', async (req, res) => {
 app.delete('/api/cart', async (req, res) => {
   try {
     const { sessionId, productName, options = '' } = req.body;
-    await enqueueRun('DELETE FROM carts WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')', [sessionId, productName, options, options]);
+    await runInTransaction(async (tx) => {
+      // 先确认商品在购物车中，存在才减popularity
+      const existing = await tx.get(
+        'SELECT id FROM carts WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')',
+        [sessionId, productName, options, options]
+      );
+      if (existing) {
+        await tx.run('UPDATE products SET popularity = MAX(popularity - 1, 0) WHERE name = ?', [productName]);
+      }
+      await tx.run('DELETE FROM carts WHERE session_id = ? AND product_name = ? AND (options = ? OR (options IS NULL OR options = \'\') AND ? = \'\')', [sessionId, productName, options, options]);
+    });
     res.json({ success: true });
   } catch (err) {
     logger.error(`删除购物车商品失败: ${err.message}`);

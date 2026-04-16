@@ -1,0 +1,13 @@
+{
+  "done": true,
+  "stateUpdate": {
+    "workDir": "/TG/temp/QA-20260416-05",
+    "qaRequirement": "前端H5商品页面排序优化：1) 数据库商品表新增人气值字段(默认0) 2) 用户将商品加入购物车时人气值+1，从购物车删除时人气值-1 3) 前台H5商品页面按人气值倒序排序",
+    "acceptanceFocus": "人气值字段新增、购物车加减人气值逻辑、H5商品页面按人气值倒序排序",
+    "designAuditRound": 0,
+    "testCasesAuditRound": 0,
+    "fixRound": 0,
+    "currentStep": "parallel-design"
+  },
+  "userMessage": "✅ QA任务已初始化\n\n工作目录：`/TG/temp/QA-20260416-05`\n需求：前端H5商品页面排序优化：1) 数据库商品表新增人气值字段(默认0) 2) 用户将商品加入购物车时人气值+1，从购物车删除时人气值-1 3) 前台H5商品页面按人气值倒序排序"
+}
