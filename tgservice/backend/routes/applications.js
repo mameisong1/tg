@@ -332,13 +332,13 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
           
           await tx.run(`
             UPDATE water_boards 
-            SET status = ?, updated_at = ? 
+            SET status = ?, table_no = NULL, clock_in_time = NULL, updated_at = ? 
             WHERE coach_no = ?
           `, [newStatus, TimeUtil.nowDB(), coach.coach_no]);
           
           const newValue = {
             status: newStatus,
-            table_no: currentWaterBoard.table_no
+            table_no: null
           };
           
           const user = req.user;

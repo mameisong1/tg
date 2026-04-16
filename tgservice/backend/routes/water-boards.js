@@ -159,6 +159,10 @@ router.put('/:coach_no/status', auth.required, requireBackendPermission(['waterB
     if (status === '下班') {
       updateFields.push('clock_in_time = NULL');
     }
+    // 状态变为非工作状态且未显式设置台桌号时，清除台桌号
+    if (status && offStatuses.includes(status) && table_no === undefined) {
+      updateFields.push('table_no = NULL');
+    }
     
     updateFields.push('updated_at = ?');
     updateParams.push(TimeUtil.nowDB());
@@ -170,7 +174,7 @@ router.put('/:coach_no/status', auth.required, requireBackendPermission(['waterB
     
     const newValue = {
       status: status || currentWaterBoard.status,
-      table_no: table_no !== undefined ? table_no : currentWaterBoard.table_no
+      table_no: (table_no !== undefined) ? table_no : (status && offStatuses.includes(status) ? null : currentWaterBoard.table_no)
     };
     
     const user = req.user;
