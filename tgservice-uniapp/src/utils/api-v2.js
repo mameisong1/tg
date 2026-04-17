@@ -68,6 +68,8 @@ export const tableActionOrders = {
   create: (data) => request({ url: '/table-action-orders', method: 'POST', data }),
   // 获取上下桌单列表
   getList: (params) => request({ url: '/table-action-orders', data: params }),
+  // 获取上下桌单统计
+  getStats: (params) => request({ url: '/table-action-orders/stats', data: params }),
   // 更新上下桌单状态
   updateStatus: (id, data) => request({ url: `/table-action-orders/${id}/status`, method: 'PUT', data })
 }

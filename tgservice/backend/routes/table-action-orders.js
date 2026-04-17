@@ -149,6 +149,58 @@ router.post('/', auth.required, requireBackendPermission(['cashierDashboard']), 
 });
 
 /**
+ * GET /api/table-action-orders/stats
+ * 统计指定日期范围内的上桌单/下桌单/取消单数量
+ */
+router.get('/stats', auth.required, requireBackendPermission(['cashierDashboard']), async (req, res) => {
+  try {
+    const { date_start, date_end } = req.query;
+    
+    if (!date_start || !date_end) {
+      return res.status(400).json({ success: false, error: '缺少必填参数：date_start 和 date_end' });
+    }
+    
+    // 验证日期格式 YYYY-MM-DD
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(date_start) || !dateRegex.test(date_end)) {
+      return res.status(400).json({ success: false, error: '日期格式错误，应为 YYYY-MM-DD' });
+    }
+    
+    if (date_start > date_end) {
+      return res.status(400).json({ success: false, error: 'date_start 不能晚于 date_end' });
+    }
+    
+    const row = await db.get(`
+      SELECT 
+        COALESCE(SUM(CASE WHEN order_type = '上桌单' THEN 1 ELSE 0 END), 0) as table_in_count,
+        COALESCE(SUM(CASE WHEN order_type = '下桌单' THEN 1 ELSE 0 END), 0) as table_out_count,
+        COALESCE(SUM(CASE WHEN order_type = '取消单' THEN 1 ELSE 0 END), 0) as cancel_count,
+        COUNT(*) as total_count
+      FROM table_action_orders
+      WHERE DATE(created_at) >= ? AND DATE(created_at) <= ?
+    `, [date_start, date_end]);
+    
+    res.json({
+      success: true,
+      data: {
+        date_start,
+        date_end,
+        table_in_count: row.table_in_count,
+        table_out_count: row.table_out_count,
+        cancel_count: row.cancel_count,
+        total_count: row.total_count
+      }
+    });
+  } catch (error) {
+    console.error('获取上下桌单统计失败:', error);
+    res.status(500).json({
+      success: false,
+      error: '获取上下桌单统计失败'
+    });
+  }
+});
+
+/**
  * GET /api/table-action-orders
  * 获取上下桌单列表
  */

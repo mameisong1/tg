@@ -1,0 +1,1 @@
+为 table-action-orders API 新增专用统计接口 /api/table-action-orders/stats，返回指定日期范围内的上桌单、下桌单、取消单统计数量。解决当前前端数据概览页面因 limit=50 导致统计数据不准确的问题。
