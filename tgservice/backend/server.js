@@ -2489,12 +2489,30 @@ app.put('/api/admin/users/:username', authMiddleware, requireBackendPermission([
   try {
     const { password, name, role } = req.body;
 
+    // 只更新请求中提供的字段，避免覆盖未提供的字段
+    const updates = [];
+    const params = [];
+
     if (password) {
       const hashedPassword = await bcrypt.hash(password, 10);
-      await enqueueRun('UPDATE admin_users SET password = ?, name = ?, role = ? WHERE username = ?', [hashedPassword, name || '', role || '管理员', req.params.username]);
-    } else {
-      await enqueueRun('UPDATE admin_users SET name = ?, role = ? WHERE username = ?', [name || '', role || '管理员', req.params.username]);
+      updates.push('password = ?');
+      params.push(hashedPassword);
     }
+    if (name !== undefined) {
+      updates.push('name = ?');
+      params.push(name);
+    }
+    if (role !== undefined) {
+      updates.push('role = ?');
+      params.push(role);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: '未提供更新字段' });
+    }
+
+    params.push(req.params.username);
+    await enqueueRun(`UPDATE admin_users SET ${updates.join(', ')} WHERE username = ?`, params);
 
     operationLog.info(`更新后台用户: ${req.params.username}`);
     res.json({ success: true });
