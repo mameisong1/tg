@@ -20,7 +20,7 @@ FAIL=0
 
 # ========== 一、orders/stats ==========
 echo "--- TC-001: 查询本周订单统计 ---"
-RESULT=$(curl -s "http://127.0.0.1:8088/api/admin/orders/stats?date_start=2026-04-13&date_end=2026-04-17&status=已完成" \
+RESULT=$(curl -s "http://127.0.0.1:8088/api/admin/orders/stats?date_start=2026-04-13&date_end=2026-04-17&status=%E5%B7%B2%E5%AE%8C%E6%88%90" \
   -H "Authorization: Bearer $TOKEN")
 echo "API 返回: $RESULT"
 
@@ -71,7 +71,7 @@ fi
 echo ""
 # ========== 二、service-orders/stats ==========
 echo "--- TC-004: 查询本周服务单统计 ---"
-RESULT=$(curl -s "http://127.0.0.1:8088/api/service-orders/stats?date_start=2026-04-13&date_end=2026-04-17&status=已完成" \
+RESULT=$(curl -s "http://127.0.0.1:8088/api/service-orders/stats?date_start=2026-04-13&date_end=2026-04-17&status=%E5%B7%B2%E5%AE%8C%E6%88%90" \
   -H "Authorization: Bearer $TOKEN")
 echo "API 返回: $RESULT"
 

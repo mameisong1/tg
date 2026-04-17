@@ -154,10 +154,16 @@ router.post('/', auth.required, requireBackendPermission(['cashierDashboard']), 
  */
 router.get('/stats', auth.required, requireBackendPermission(['cashierDashboard']), async (req, res) => {
   try {
-    const { date_start, date_end } = req.query;
+    let { date_start, date_end, date } = req.query;
+    
+    // 支持单日期参数 date=YYYY-MM-DD（前端 today/yesterday 模式使用）
+    if (date && !date_start && !date_end) {
+      date_start = date;
+      date_end = date;
+    }
     
     if (!date_start || !date_end) {
-      return res.status(400).json({ success: false, error: '缺少必填参数：date_start 和 date_end' });
+      return res.status(400).json({ success: false, error: '缺少必填参数：date_start 和 date_end（或 date）' });
     }
     
     // 验证日期格式 YYYY-MM-DD
