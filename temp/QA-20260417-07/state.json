@@ -5,6 +5,7 @@
   "designAuditRound": 1,
   "testCasesAuditRound": 1,
   "fixRound": 1,
-  "currentStep": "coding",
-  "lastFailItems": []
+  "currentStep": null,
+  "lastFailItems": [],
+  "qaReportPath": "/TG/temp/QA-20260417-07/qa-report.md"
 }
