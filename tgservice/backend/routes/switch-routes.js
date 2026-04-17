@@ -15,6 +15,7 @@ const { all, get, run, enqueueRun, runInTransaction } = require('../db/index');
 const { requireBackendPermission } = require('../middleware/permission');
 const { sendBatchCommand, executeScene, controlByLabel, controlByTable } = require('../services/mqtt-switch');
 const { executeAutoOffLighting, executeAutoOffTableIndependent } = require('../services/auto-off-lighting');
+const operationLogService = require('../services/operation-log');
 
 // ============================================================
 // 前台权限中间件 - 仅店长/助教管理/管理员
@@ -62,6 +63,16 @@ router.post('/api/admin/switches', requireBackendPermission(['vipRoomManagement'
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [switch_id, switch_seq, switch_label, auto_off_start || '', auto_off_end || '', auto_on_start || '', auto_on_end || '', now, now]
       );
+    });
+    // 记录日志
+    const user = req.user;
+    operationLogService.logToFile({
+      operator_phone: user.username,
+      operator_name: user.name,
+      operation_type: '创建设备开关',
+      target_type: 'switch_device',
+      new_value: JSON.stringify({ switch_id, switch_seq, switch_label }),
+      remark: `新增开关: ${switch_label}#${switch_seq}`
     });
     res.json({ success: true });
   } catch (err) {
@@ -121,6 +132,17 @@ router.put('/api/admin/switches/:id', requireBackendPermission(['vipRoomManageme
         params
       );
     });
+    // 记录日志
+    const user = req.user;
+    operationLogService.logToFile({
+      operator_phone: user.username,
+      operator_name: user.name,
+      operation_type: '更新设备开关',
+      target_type: 'switch_device',
+      target_id: req.params.id,
+      new_value: JSON.stringify(req.body),
+      remark: `更新开关: ID=${req.params.id}`
+    });
     res.json({ success: true });
   } catch (err) {
     if (err.message === 'NOT_FOUND') {
@@ -136,8 +158,21 @@ router.put('/api/admin/switches/:id', requireBackendPermission(['vipRoomManageme
 // 删除开关
 router.delete('/api/admin/switches/:id', requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
+    // 先获取要删除的记录信息
+    const existing = await get('SELECT switch_id, switch_seq, switch_label FROM switch_device WHERE id = ?', [req.params.id]);
     await runInTransaction(async (tx) => {
       await tx.run('DELETE FROM switch_device WHERE id = ?', [req.params.id]);
+    });
+    // 记录日志
+    const user = req.user;
+    operationLogService.logToFile({
+      operator_phone: user.username,
+      operator_name: user.name,
+      operation_type: '删除设备开关',
+      target_type: 'switch_device',
+      target_id: req.params.id,
+      old_value: existing ? JSON.stringify(existing) : null,
+      remark: existing ? `删除开关: ${existing.switch_label}#${existing.switch_seq}` : `删除开关 ID=${req.params.id}`
     });
     res.json({ success: true });
   } catch (err) {
@@ -174,6 +209,16 @@ router.post('/api/admin/table-devices', requireBackendPermission(['vipRoomManage
         [table_name_en, switch_seq, switch_label, now, now]
       );
     });
+    // 记录日志
+    const user = req.user;
+    operationLogService.logToFile({
+      operator_phone: user.username,
+      operator_name: user.name,
+      operation_type: '创建台桌设备关系',
+      target_type: 'table_device',
+      new_value: JSON.stringify({ table_name_en, switch_seq, switch_label }),
+      remark: `新增关系: ${table_name_en} -> ${switch_label}#${switch_seq}`
+    });
     res.json({ success: true });
   } catch (err) {
     if (err.message && err.message.includes('UNIQUE constraint')) {
@@ -186,8 +231,21 @@ router.post('/api/admin/table-devices', requireBackendPermission(['vipRoomManage
 // 删除台桌设备关系
 router.delete('/api/admin/table-devices/:id', requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
+    // 先获取要删除的记录信息
+    const existing = await get('SELECT table_name_en, switch_seq, switch_label FROM table_device WHERE id = ?', [req.params.id]);
     await runInTransaction(async (tx) => {
       await tx.run('DELETE FROM table_device WHERE id = ?', [req.params.id]);
+    });
+    // 记录日志
+    const user = req.user;
+    operationLogService.logToFile({
+      operator_phone: user.username,
+      operator_name: user.name,
+      operation_type: '删除台桌设备关系',
+      target_type: 'table_device',
+      target_id: req.params.id,
+      old_value: existing ? JSON.stringify(existing) : null,
+      remark: existing ? `删除关系: ${existing.table_name_en} -> ${existing.switch_label}#${existing.switch_seq}` : `删除关系 ID=${req.params.id}`
     });
     res.json({ success: true });
   } catch (err) {
@@ -232,6 +290,16 @@ router.post('/api/admin/switch-scenes', requireBackendPermission(['vipRoomManage
          VALUES (?, ?, ?, ?, ?, ?)`,
         [scene_name, action, JSON.stringify(switchesArr), sort_order || 0, now, now]
       );
+    });
+    // 记录日志
+    const user = req.user;
+    operationLogService.logToFile({
+      operator_phone: user.username,
+      operator_name: user.name,
+      operation_type: '创建开关场景',
+      target_type: 'switch_scene',
+      new_value: JSON.stringify({ scene_name, action, switches: switchesArr.length }),
+      remark: `新增场景: ${scene_name} (${action})`
     });
     res.json({ success: true });
   } catch (err) {
@@ -296,6 +364,18 @@ router.put('/api/admin/switch-scenes/:id', requireBackendPermission(['vipRoomMan
       );
     });
 
+    // 记录日志
+    const user = req.user;
+    operationLogService.logToFile({
+      operator_phone: user.username,
+      operator_name: user.name,
+      operation_type: '更新开关场景',
+      target_type: 'switch_scene',
+      target_id: req.params.id,
+      new_value: JSON.stringify(req.body),
+      remark: `更新场景: ID=${req.params.id}`
+    });
+
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
@@ -305,8 +385,21 @@ router.put('/api/admin/switch-scenes/:id', requireBackendPermission(['vipRoomMan
 // 删除场景
 router.delete('/api/admin/switch-scenes/:id', requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
+    // 先获取要删除的记录信息
+    const existing = await get('SELECT scene_name, action FROM switch_scene WHERE id = ?', [req.params.id]);
     await runInTransaction(async (tx) => {
       await tx.run('DELETE FROM switch_scene WHERE id = ?', [req.params.id]);
+    });
+    // 记录日志
+    const user = req.user;
+    operationLogService.logToFile({
+      operator_phone: user.username,
+      operator_name: user.name,
+      operation_type: '删除开关场景',
+      target_type: 'switch_scene',
+      target_id: req.params.id,
+      old_value: existing ? JSON.stringify(existing) : null,
+      remark: existing ? `删除场景: ${existing.scene_name} (${existing.action})` : `删除场景 ID=${req.params.id}`
     });
     res.json({ success: true });
   } catch (err) {
@@ -340,6 +433,17 @@ router.post('/api/switch/auto-off-toggle', requireSwitchPermission, async (req, 
       `INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES ('switch_auto_off_enabled', ?, ?)`,
       [newValue, now]
     );
+    // 记录日志
+    const user = req.user;
+    operationLogService.logToFile({
+      operator_phone: user.username,
+      operator_name: user.name,
+      operation_type: '切换自动关灯',
+      target_type: 'system_settings',
+      old_value: current?.value || '0',
+      new_value: newValue,
+      remark: `自动关灯: ${newValue === '1' ? '开启' : '关闭'}`
+    });
     res.json({ success: true, enabled: newValue === '1' });
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
@@ -351,6 +455,16 @@ router.post('/api/switch/auto-off-manual', requireSwitchPermission, async (req, 
   try {
     const result = await executeAutoOffLighting();
     const independentResult = await executeAutoOffTableIndependent();
+    // 记录日志
+    const user = req.user;
+    operationLogService.logToFile({
+      operator_phone: user.username,
+      operator_name: user.name,
+      operation_type: '手动触发自动关灯',
+      target_type: 'switch_control',
+      new_value: JSON.stringify({ turnedOff: result.turnedOffCount, independent: independentResult?.turnedOffCount || 0 }),
+      remark: `手动关灯: ${result.turnedOffCount || 0} + ${independentResult?.turnedOffCount || 0} 个开关`
+    });
     res.json({
       success: true,
       turnedOffCount: result.turnedOffCount || 0,
@@ -387,6 +501,17 @@ router.post('/api/switch/scene/:id', requireSwitchPermission, async (req, res) =
         details: errors
       });
     }
+    // 记录日志
+    const user = req.user;
+    operationLogService.logToFile({
+      operator_phone: user.username,
+      operator_name: user.name,
+      operation_type: '执行开关场景',
+      target_type: 'switch_scene',
+      target_id: req.params.id,
+      new_value: JSON.stringify({ scene_name: scene.scene_name, action: scene.action, count: result.successCount }),
+      remark: `执行场景: ${scene.scene_name} (${scene.action}) - ${result.successCount} 个开关`
+    });
     res.json({ success: true, count: result.successCount });
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
@@ -411,6 +536,16 @@ router.post('/api/switch/label-control', requireSwitchPermission, async (req, re
         details: errors
       });
     }
+    // 记录日志
+    const user = req.user;
+    operationLogService.logToFile({
+      operator_phone: user.username,
+      operator_name: user.name,
+      operation_type: '标签批量控制',
+      target_type: 'switch_control',
+      new_value: JSON.stringify({ label, action, count: result.successCount }),
+      remark: `标签控制: ${label} -> ${action} (${result.successCount} 个开关)`
+    });
     res.json({ success: true, count: result.successCount });
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
@@ -522,6 +657,16 @@ router.post('/api/switch/table-control', requireSwitchPermission, async (req, re
         details: errors
       });
     }
+    // 记录日志
+    const user = req.user;
+    operationLogService.logToFile({
+      operator_phone: user.username,
+      operator_name: user.name,
+      operation_type: '台桌控制开关',
+      target_type: 'switch_control',
+      new_value: JSON.stringify({ table_name_en, action, count: result.successCount }),
+      remark: `台桌控制: ${table_name_en} -> ${action} (${result.successCount} 个开关)`
+    });
     res.json({ success: true, count: result.successCount, table_name_en });
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
