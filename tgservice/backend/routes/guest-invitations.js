@@ -724,7 +724,7 @@ router.get('/period-stats', auth.required, requireBackendPermission(['invitation
         period_label: periodLabel,
         date_range: dateRange,
         summary: {
-          not_invited,
+          not_invited: notInvited,
           valid,
           invalid,
           pending,
