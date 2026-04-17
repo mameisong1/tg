@@ -363,11 +363,7 @@ onMounted(() => {
 // 每次显示页面时重新读取台桌信息
 onShow(() => {
   // 【新增】员工进入时清空旧台桌号
-  if (isEmployee.value) {
-    uni.removeStorageSync('tableName')
-    uni.removeStorageSync('tableAuth')
-    tableName.value = ''
-  }
+  // 不再清空tableName（商品页已清空，购物车保留选择）
   
   // 原有逻辑：同步 ref + 加载数据
   tableName.value = uni.getStorageSync('tableName') || ''

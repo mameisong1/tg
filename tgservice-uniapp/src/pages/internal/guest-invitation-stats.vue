@@ -154,20 +154,20 @@ const rateColorClass = computed(() => {
   return 'rate-low'
 })
 
-// 排名样式
+// 排名样式：前三名显示警示样式
 const rankClass = (coach) => {
   const idx = missedCoaches.value.indexOf(coach)
-  if (idx === 0 && coach.missed_count > 0) return 'rank-first'
-  if (idx === 1 && coach.missed_count > 0) return 'rank-second'
-  if (idx === 2 && coach.missed_count > 0) return 'rank-third'
+  if (idx === 0 && coach.missed_count > 0) return 'rank-warning-1'
+  if (idx === 1 && coach.missed_count > 0) return 'rank-warning-2'
+  if (idx === 2 && coach.missed_count > 0) return 'rank-warning-3'
   return ''
 }
 
 const coachRank = (coach) => {
   const idx = missedCoaches.value.indexOf(coach) + 1
-  if (idx === 1) return '🥇'
-  if (idx === 2) return '🥈'
-  if (idx === 3) return '🥉'
+  if (idx === 1) return '⚠️'
+  if (idx === 2) return '⚠️'
+  if (idx === 3) return '⚠️'
   return idx
 }
 
@@ -485,9 +485,9 @@ onShow(() => {
   background: rgba(255, 255, 255, 0.08);
   flex-shrink: 0;
 }
-.missed-rank.rank-first { background: linear-gradient(135deg, #ffd700, #ffaa00); }
-.missed-rank.rank-second { background: linear-gradient(135deg, #c0c0c0, #a0a0a0); }
-.missed-rank.rank-third { background: linear-gradient(135deg, #cd7f32, #b87333); }
+.missed-rank.rank-warning-1 { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+.missed-rank.rank-warning-2 { background: linear-gradient(135deg, #e74c3c, #c0392b); }
+.missed-rank.rank-warning-3 { background: linear-gradient(135deg, #e74c3c, #c0392b); }
 .rank-text { font-size: 14px; }
 .missed-avatar {
   width: 40px;

@@ -15,6 +15,9 @@
     .page-title { font-size: 22px; }
     .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; border: none; }
     .btn-primary { background: linear-gradient(135deg, #d4af37 0%, #ffd700 100%); color: #000; }
+    .btn-secondary { background: rgba(255,255,255,0.1); color: #d4af37; border: 1px solid rgba(218,165,32,0.3); }
+    .btn-secondary:hover { background: rgba(212,175,55,0.15); }
+    .btn-danger { background: rgba(255,77,79,0.8); color: #fff; }
     .btn-sm { padding: 6px 12px; font-size: 12px; }
     
     .stats-bar { display: flex; gap: 20px; margin-bottom: 20px; }
@@ -60,7 +63,10 @@
   <div class="main">
     <div class="page-header">
       <div class="page-title">会员管理</div>
-      <button class="btn btn-primary" onclick="showModal()">+ 添加会员</button>
+      <div>
+        <button class="btn btn-secondary" onclick="openSyncCoachModal()" style="margin-right: 8px;">🔄 同步助教</button>
+        <button class="btn btn-primary" onclick="showModal()">+ 添加会员</button>
+      </div>
     </div>
     
     <div class="stats-bar">
@@ -117,6 +123,37 @@
       <div class="modal-actions">
         <button class="btn btn-cancel" onclick="closeModal()">取消</button>
         <button class="btn btn-primary" onclick="saveMember()">保存</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 同步助教弹窗 -->
+  <div class="modal" id="syncCoachModal">
+    <div class="modal-content" style="max-width: 700px;">
+      <div class="modal-title">🔄 同步助教信息到会员</div>
+      <div id="syncCoachLoading" style="text-align:center; padding: 40px; color: rgba(255,255,255,0.5);">正在匹配...</div>
+      <div id="syncCoachSummary" style="display:none; margin-bottom: 16px;"></div>
+      <div id="syncCoachList" style="display:none; max-height: 400px; overflow-y: auto;">
+        <table class="member-table" style="font-size: 13px;">
+          <thead>
+            <tr>
+              <th style="width: 40px;"><input type="checkbox" id="syncAllCheck" onchange="toggleAllSync(this.checked)"></th>
+              <th>会员号</th>
+              <th>手机号</th>
+              <th>姓名</th>
+              <th>性别</th>
+              <th>备注</th>
+              <th>助教工号</th>
+              <th>助教艺名</th>
+              <th>同步后效果</th>
+            </tr>
+          </thead>
+          <tbody id="syncCoachTableBody"></tbody>
+        </table>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-cancel" onclick="closeSyncCoachModal()">取消</button>
+        <button class="btn btn-primary" onclick="executeSync()" id="syncExecBtn" disabled>确认同步 (<span id="syncCount">0</span>)</button>
       </div>
     </div>
   </div>
@@ -230,6 +267,119 @@
         loadMembers();
       } catch (err) { 
         showToast(err.error || '操作失败'); 
+      }
+    }
+    
+    // ===== 同步助教功能 =====
+    
+    let syncCoachMatches = [];
+    
+    async function openSyncCoachModal() {
+      document.getElementById('syncCoachModal').classList.add('show');
+      document.getElementById('syncCoachLoading').style.display = 'block';
+      document.getElementById('syncCoachSummary').style.display = 'none';
+      document.getElementById('syncCoachList').style.display = 'none';
+      document.getElementById('syncExecBtn').disabled = true;
+      document.getElementById('syncExecBtn').innerHTML = '确认同步 (<span id="syncCount">0</span>)';
+      
+      try {
+        const data = await api('/api/admin/members/sync-coaches/preview', { method: 'POST' });
+        syncCoachMatches = data.matches || [];
+        
+        document.getElementById('syncCoachLoading').style.display = 'none';
+        
+        if (syncCoachMatches.length === 0) {
+          document.getElementById('syncCoachSummary').style.display = 'block';
+          document.getElementById('syncCoachSummary').innerHTML = 
+            '<div style="text-align:center; padding: 20px; color: rgba(255,255,255,0.5);">暂无匹配到助教的会员</div>';
+          return;
+        }
+        
+        const summary = data.summary || {};
+        document.getElementById('syncCoachSummary').style.display = 'block';
+        document.getElementById('syncCoachSummary').innerHTML = 
+          `<span style="color: #d4af37;">共 ${summary.matchedCount || syncCoachMatches.length} 位会员匹配到助教信息</span>`;
+        
+        renderSyncCoachList();
+        document.getElementById('syncCoachList').style.display = 'block';
+        
+      } catch (err) {
+        document.getElementById('syncCoachLoading').style.display = 'none';
+        showToast('匹配失败：' + (err.error || '网络错误'));
+      }
+    }
+    
+    function closeSyncCoachModal() {
+      document.getElementById('syncCoachModal').classList.remove('show');
+      syncCoachMatches = [];
+    }
+    
+    function renderSyncCoachList() {
+      const tbody = document.getElementById('syncCoachTableBody');
+      tbody.innerHTML = syncCoachMatches.map((m, i) => `
+        <tr>
+          <td><input type="checkbox" class="sync-check" data-index="${i}" onchange="updateSyncCount()"></td>
+          <td>${m.member_no}</td>
+          <td style="font-family: monospace; color: #d4af37;">${maskPhone(m.phone)}</td>
+          <td>${m.name || '<span style="color:rgba(255,255,255,0.3)">空</span>'}</td>
+          <td>${m.gender || '<span style="color:rgba(255,255,255,0.3)">空</span>'}</td>
+          <td style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${(m.remark || '').replace(/"/g, '&quot;')}">${m.remark || '-'}</td>
+          <td style="color: #3498db;">${m.coach_employee_id || '-'}</td>
+          <td style="color: #e91e63;">${m.coach_stage_name || '-'}</td>
+          <td style="font-size: 12px; color: rgba(255,255,255,0.5);">
+            ${m.gender ? '' : '性别→女'}${(!m.gender && !m.name) ? ' ' : ''}${m.name ? '' : '姓名→' + m.coach_stage_name}
+          </td>
+        </tr>
+      `).join('');
+    }
+    
+    function toggleAllSync(checked) {
+      document.querySelectorAll('.sync-check').forEach(cb => cb.checked = checked);
+      updateSyncCount();
+    }
+    
+    function updateSyncCount() {
+      const count = document.querySelectorAll('.sync-check:checked').length;
+      document.getElementById('syncCount').textContent = count;
+      document.getElementById('syncExecBtn').disabled = count === 0;
+    }
+    
+    async function executeSync() {
+      const checkedBoxes = document.querySelectorAll('.sync-check:checked');
+      if (checkedBoxes.length === 0) {
+        showToast('请勾选需要同步的会员');
+        return;
+      }
+      
+      const items = [];
+      checkedBoxes.forEach(cb => {
+        const idx = parseInt(cb.dataset.index);
+        const m = syncCoachMatches[idx];
+        items.push({
+          member_no: m.member_no,
+          coach_employee_id: m.coach_employee_id,
+          coach_stage_name: m.coach_stage_name
+        });
+      });
+      
+      const btn = document.getElementById('syncExecBtn');
+      btn.disabled = true;
+      btn.textContent = '同步中...';
+      
+      try {
+        const data = await api('/api/admin/members/sync-coaches/execute', {
+          method: 'POST',
+          body: JSON.stringify({ items })
+        });
+        
+        showToast(`同步成功！已更新 ${data.syncedCount} 位会员`);
+        closeSyncCoachModal();
+        loadMembers();
+        
+      } catch (err) {
+        showToast('同步失败：' + (err.error || '网络错误'));
+        btn.disabled = false;
+        btn.innerHTML = '确认同步 (<span id="syncCount">0</span>)';
       }
     }
     

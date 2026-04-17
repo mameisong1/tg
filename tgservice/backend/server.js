@@ -3217,6 +3217,137 @@ app.post('/api/admin/coaches/sync-water-boards/execute', authMiddleware, require
 
 // =============== 会员管理 API ===============
 
+// =============== 会员同步助教 API ===============
+
+/**
+ * 构建备注字符串（幂等处理）
+ * @param {string} currentRemark - 当前备注
+ * @param {string} employeeId - 助教工号
+ * @param {string} stageName - 助教艺名
+ */
+function buildRemark(currentRemark, employeeId, stageName) {
+  const newTag = `[助教] 工号:${employeeId}, 艺名:${stageName}`;
+  if (!currentRemark || currentRemark.trim() === '') {
+    return newTag;
+  }
+  // 如果已有相同工号的助教标记，替换它
+  const regex = /\[助教\]\s*工号:[^,]+,\s*艺名:[^\]]*/g;
+  if (regex.test(currentRemark)) {
+    return currentRemark.replace(regex, newTag);
+  }
+  // 否则追加
+  return currentRemark + '；' + newTag;
+}
+
+/**
+ * POST /api/admin/members/sync-coaches/preview
+ * 匹配会员与助教（根据手机号）
+ */
+app.post('/api/admin/members/sync-coaches/preview', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
+  try {
+    const matches = await dbAll(`
+      SELECT 
+        m.member_no, m.phone, m.name, m.gender, m.remark,
+        c.employee_id AS coach_employee_id, 
+        c.stage_name AS coach_stage_name,
+        c.status AS coach_status
+      FROM members m
+      INNER JOIN coaches c ON m.phone = c.phone
+      WHERE m.phone IS NOT NULL AND m.phone != ''
+        AND c.phone IS NOT NULL AND c.phone != ''
+        AND c.status != '离职'
+      ORDER BY m.member_no
+    `);
+
+    const totalMembers = await dbGet('SELECT COUNT(*) as cnt FROM members');
+    const totalCoaches = await dbGet("SELECT COUNT(*) as cnt FROM coaches WHERE status != '离职'");
+
+    res.json({
+      success: true,
+      matches: matches || [],
+      summary: {
+        totalMembers: totalMembers?.cnt || 0,
+        totalCoaches: totalCoaches?.cnt || 0,
+        matchedCount: matches ? matches.length : 0
+      }
+    });
+  } catch (err) {
+    logger.error(`会员同步助教预览失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+/**
+ * POST /api/admin/members/sync-coaches/execute
+ * 执行批量同步
+ */
+app.post('/api/admin/members/sync-coaches/execute', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
+  try {
+    const { items } = req.body;
+
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: '请选择需要同步的会员' });
+    }
+
+    const details = [];
+    const errors = [];
+
+    for (const item of items) {
+      const { member_no, coach_employee_id, coach_stage_name } = item;
+
+      try {
+        const member = await dbGet(
+          'SELECT member_no, name, gender, remark FROM members WHERE member_no = ?',
+          [member_no]
+        );
+
+        if (!member) {
+          errors.push({ member_no, status: 'not_found', message: '会员不存在' });
+          continue;
+        }
+
+        const newRemark = buildRemark(member.remark, coach_employee_id, coach_stage_name);
+
+        const updatedFields = ['remark'];
+        const genderUpdate = (!member.gender || member.gender.trim() === '') ? '女' : null;
+        if (genderUpdate) updatedFields.push('gender');
+
+        const nameUpdate = (!member.name || member.name.trim() === '') ? coach_stage_name : null;
+        if (nameUpdate) updatedFields.push('name');
+
+        await enqueueRun(
+          `UPDATE members 
+           SET remark = ?, 
+               gender = CASE WHEN IFNULL(gender, '') = '' THEN '女' ELSE gender END,
+               name = CASE WHEN IFNULL(name, '') = '' THEN ? ELSE name END,
+               updated_at = ?
+           WHERE member_no = ?`,
+          [newRemark, nameUpdate || member.name, TimeUtil.nowDB(), member_no]
+        );
+
+        details.push({ member_no, status: 'success', updated_fields: updatedFields });
+
+      } catch (err) {
+        errors.push({ member_no, status: 'error', message: err.message });
+      }
+    }
+
+    operationLog.info(`会员同步助教: 成功 ${details.length} 条, 失败 ${errors.length} 条`);
+
+    res.json({
+      success: true,
+      syncedCount: details.length,
+      details,
+      errors
+    });
+  } catch (err) {
+    logger.error(`会员同步助教执行失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// =============== 会员管理 API ===============
+
 // 获取会员列表
 app.get('/api/admin/members', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
