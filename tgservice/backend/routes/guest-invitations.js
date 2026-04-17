@@ -643,4 +643,150 @@ router.get('/statistics/:date/:shift', auth.required, requireBackendPermission([
   }
 });
 
+/**
+ * GET /api/guest-invitations/period-stats
+ * 按时间周期统计约客情况（新规约客统计页面）
+ * 参数: period = yesterday | day-before-yesterday | this-month | last-month
+ */
+router.get('/period-stats', auth.required, requireBackendPermission(['invitationStats']), async (req, res) => {
+  try {
+    const { period } = req.query;
+    if (!period) {
+      return res.status(400).json({ success: false, error: '缺少 period 参数' });
+    }
+
+    const validPeriods = ['yesterday', 'day-before-yesterday', 'this-month', 'last-month'];
+    if (!validPeriods.includes(period)) {
+      return res.status(400).json({ success: false, error: '无效的 period 参数' });
+    }
+
+    // 计算日期范围
+    const { dateStart, dateEnd, periodLabel } = getDateRange(period);
+
+    // 1. 统计各状态人数
+    const stats = await db.all(`
+      SELECT 
+        SUM(CASE WHEN result = '应约客' THEN 1 ELSE 0 END) as not_invited,
+        SUM(CASE WHEN result = '约客有效' THEN 1 ELSE 0 END) as valid,
+        SUM(CASE WHEN result = '约客无效' THEN 1 ELSE 0 END) as invalid,
+        SUM(CASE WHEN result = '待审查' THEN 1 ELSE 0 END) as pending
+      FROM guest_invitation_results
+      WHERE date >= ? AND date <= ?
+    `, [dateStart, dateEnd]);
+
+    const notInvited = stats[0]?.not_invited || 0;
+    const valid = stats[0]?.valid || 0;
+    const invalid = stats[0]?.invalid || 0;
+    const pending = stats[0]?.pending || 0;
+    const totalShould = notInvited + invalid + valid;
+    const inviteRate = totalShould > 0 ? ((valid / totalShould) * 100).toFixed(1) + '%' : '0.0%';
+
+    // 2. 漏约助教一览（按助教聚合，按漏约次数倒序）
+    const missedCoaches = await db.all(`
+      SELECT 
+        gir.coach_no,
+        c.employee_id,
+        gir.stage_name,
+        c.photos,
+        COUNT(*) as missed_count
+      FROM guest_invitation_results gir
+      INNER JOIN coaches c ON gir.coach_no = c.coach_no
+      WHERE gir.date >= ? AND gir.date <= ?
+        AND gir.result IN ('应约客', '约客无效')
+      GROUP BY gir.coach_no
+      ORDER BY missed_count DESC, gir.coach_no ASC
+    `, [dateStart, dateEnd]);
+
+    // 处理头像 URL
+    const formattedCoaches = missedCoaches.map(c => {
+      let photoUrl = '/static/avatar-default.png';
+      try {
+        const photos = typeof c.photos === 'string' ? JSON.parse(c.photos) : c.photos;
+        if (photos && photos.length > 0) {
+          photoUrl = photos[0].startsWith('http') ? photos[0] : 'http://47.238.80.12:8081' + photos[0];
+        }
+      } catch (e) {}
+      return {
+        coach_no: c.coach_no,
+        employee_id: c.employee_id || `#${c.coach_no}`,
+        stage_name: c.stage_name,
+        photo_url: photoUrl,
+        missed_count: c.missed_count
+      };
+    });
+
+    const dateRange = dateStart === dateEnd ? dateStart : `${dateStart} ~ ${dateEnd}`;
+
+    res.json({
+      success: true,
+      data: {
+        period,
+        period_label: periodLabel,
+        date_range: dateRange,
+        summary: {
+          not_invited,
+          valid,
+          invalid,
+          pending,
+          total_should: totalShould,
+          invite_rate: inviteRate
+        },
+        missed_coaches: formattedCoaches
+      }
+    });
+  } catch (error) {
+    console.error('周期约客统计失败:', error);
+    res.status(500).json({ success: false, error: '获取统计数据失败' });
+  }
+});
+
+/**
+ * 根据 period 参数计算日期范围
+ * 服务器时区已设为 Asia/Shanghai，直接使用 Date 对象
+ */
+function getDateRange(period) {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth(); // 0-based
+  const day = now.getDate();
+
+  switch (period) {
+    case 'yesterday': {
+      const yesterday = new Date(year, month, day - 1);
+      const dateStr = formatDateStr(yesterday);
+      return { dateStart: dateStr, dateEnd: dateStr, periodLabel: '昨天' };
+    }
+    case 'day-before-yesterday': {
+      const dayBefore = new Date(year, month, day - 2);
+      const dateStr = formatDateStr(dayBefore);
+      return { dateStart: dateStr, dateEnd: dateStr, periodLabel: '前天' };
+    }
+    case 'this-month': {
+      const monthStart = new Date(year, month, 1);
+      const monthEnd = new Date(year, month, day);
+      return {
+        dateStart: formatDateStr(monthStart),
+        dateEnd: formatDateStr(monthEnd),
+        periodLabel: '本月'
+      };
+    }
+    case 'last-month': {
+      const lastMonthStart = new Date(year, month - 1, 1);
+      const lastMonthEnd = new Date(year, month, 0); // 上月最后一天
+      return {
+        dateStart: formatDateStr(lastMonthStart),
+        dateEnd: formatDateStr(lastMonthEnd),
+        periodLabel: '上月'
+      };
+    }
+  }
+}
+
+function formatDateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 module.exports = router;

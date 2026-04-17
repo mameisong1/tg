@@ -39,16 +39,43 @@ function validateLejuanTime(scheduledStartTime) {
     }
 
     // 校验3: 日期与小时匹配性
-    if (schedHour >= 14) {
-        if (schedDate !== nowDate) {
-            return { valid: false, error: '当天时段应在当天预约' };
+    if (nowHour >= 14 || nowHour <= 1) {
+        // 窗口进行中（14~23点或0~1点）
+        if (schedHour >= 14) {
+            // 选14~23点：必须当天
+            if (schedDate !== nowDate) {
+                return { valid: false, error: '当天时段应在当天预约' };
+            }
+        } else {
+            // 选0~1点：
+            // - 当前14~23点：选次日0/1点
+            // - 当前0~1点：选今天0/1点
+            if (nowHour >= 14) {
+                const tomorrow = new Date(nowDate + 'T00:00:00+08:00');
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth()+1).padStart(2,'0')}-${String(tomorrow.getDate()).padStart(2,'0')}`;
+                if (schedDate !== tomorrowStr) {
+                    return { valid: false, error: '凌晨时段应在次日预约' };
+                }
+            } else {
+                if (schedDate !== nowDate) {
+                    return { valid: false, error: '凌晨时段应在当天预约' };
+                }
+            }
         }
     } else {
-        const tomorrow = new Date(nowDate + 'T00:00:00+08:00');
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth()+1).padStart(2,'0')}-${String(tomorrow.getDate()).padStart(2,'0')}`;
-        if (schedDate !== tomorrowStr) {
-            return { valid: false, error: '凌晨时段应在次日预约' };
+        // 窗口未到（2~13点）：可提前预约14点以后
+        if (schedHour >= 14) {
+            if (schedDate !== nowDate) {
+                return { valid: false, error: '当天时段应在当天预约' };
+            }
+        } else {
+            const tomorrow = new Date(nowDate + 'T00:00:00+08:00');
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth()+1).padStart(2,'0')}-${String(tomorrow.getDate()).padStart(2,'0')}`;
+            if (schedDate !== tomorrowStr) {
+                return { valid: false, error: '凌晨时段应在次日预约' };
+            }
         }
     }
 

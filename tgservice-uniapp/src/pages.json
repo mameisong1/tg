@@ -261,6 +261,15 @@
         "navigationStyle": "custom"
       }
     },
+    {
+      "path": "pages/internal/guest-invitation-stats",
+      "style": {
+        "navigationBarTitleText": "规约客统计",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
 
     {
       "path": "pages/internal/cashier-dashboard",

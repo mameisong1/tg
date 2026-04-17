@@ -103,7 +103,9 @@ export const guestInvitations = {
   // 生成约客统计
   generateStats: (data) => request({ url: '/guest-invitations/statistics', method: 'POST', data }),
   // 获取约客统计结果
-  getStats: (date, shift) => request({ url: `/guest-invitations/statistics/${date}/${encodeURIComponent(shift)}` })
+  getStats: (date, shift) => request({ url: `/guest-invitations/statistics/${date}/${encodeURIComponent(shift)}` }),
+  // 按周期统计约客情况（新规约客统计页面）
+  getPeriodStats: (params) => request({ url: '/guest-invitations/period-stats', data: params })
 }
 
 // ========== 助教管理（V2） ==========
