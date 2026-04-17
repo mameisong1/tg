@@ -1517,7 +1517,7 @@ app.post('/api/member/login-sms', async (req, res) => {
         'INSERT INTO members (phone, created_at, updated_at) VALUES (?, ?, ?)',
         [phone, TimeUtil.nowDB(), TimeUtil.nowDB()]
       );
-      member = await dbGet('SELECT * FROM members WHERE member_no = ?', [result.id]);
+      member = await dbGet('SELECT * FROM members WHERE member_no = ?', [result.lastID]);
       operationLog.info(`新会员注册(H5): ${phone}`);
     }
 
@@ -1629,7 +1629,7 @@ app.post('/api/member/login', async (req, res) => {
         'INSERT INTO members (phone, openid, created_at, updated_at) VALUES (?, ?, ?, ?)',
         [phone, openid, TimeUtil.nowDB(), TimeUtil.nowDB()]
       );
-      member = await dbGet('SELECT * FROM members WHERE member_no = ?', [result.id]);
+      member = await dbGet('SELECT * FROM members WHERE member_no = ?', [result.lastID]);
       operationLog.info(`新会员注册: ${phone}`);
     } else {
       // 更新openid(可能用户换手机了)

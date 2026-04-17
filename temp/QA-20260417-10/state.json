@@ -5,5 +5,5 @@
   "designAuditRound": 1,
   "testCasesAuditRound": 1,
   "fixRound": 0,
-  "currentStep": "deploy"
+  "currentStep": null
 }
