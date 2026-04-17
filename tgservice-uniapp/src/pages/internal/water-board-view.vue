@@ -46,7 +46,7 @@
           <!-- 正常助教 -->
           <view class="coach-card" v-for="coach in group.coaches.filter(c => !c._offDuty && !c._overtime)" :key="coach.coach_no">
             <image class="coach-avatar" :src="getAvatar(coach)" mode="aspectFill" />
-            <text class="coach-id">{{ coach.employee_id || coach.coach_no }}</text>
+            <text class="coach-id">{{ coach.employee_id || '未知' }}</text>
             <text class="coach-name">{{ coach.stage_name }}</text>
           </view>
         </view>
@@ -56,7 +56,7 @@
                 v-for="coach in group.coaches.filter(c => c._offDuty)"
                 :key="'off-' + coach.coach_no">
             <!-- 无头像 -->
-            <text class="coach-id coach-id--offduty">{{ coach.employee_id || coach.coach_no }}</text>
+            <text class="coach-id coach-id--offduty">{{ coach.employee_id || '未知' }}</text>
             <text class="coach-name coach-name--offduty">{{ coach.stage_name }}</text>
             <!-- 加班小时数 -->
             <text class="overtime-hours"
@@ -71,7 +71,7 @@
                 v-for="coach in group.coaches.filter(c => c._overtime)"
                 :key="'ot-' + coach.coach_no">
             <!-- 无头像 -->
-            <text class="coach-id coach-id--offduty">{{ coach.employee_id || coach.coach_no }}</text>
+            <text class="coach-id coach-id--offduty">{{ coach.employee_id || '未知' }}</text>
             <text class="coach-name coach-name--offduty">{{ coach.stage_name }}</text>
             <!-- 加班小时数 -->
             <text class="overtime-hours"
@@ -96,7 +96,7 @@
             <!-- 正常助教 -->
             <view class="expand-card" v-for="coach in expandCoaches.filter(c => !c._offDuty && !c._overtime)" :key="coach.coach_no">
               <image class="expand-avatar" :src="getAvatar(coach)" mode="aspectFill" />
-              <text class="expand-id">{{ coach.employee_id || coach.coach_no }}</text>
+              <text class="expand-id">{{ coach.employee_id || '未知' }}</text>
               <text class="expand-name">{{ coach.stage_name }}</text>
             </view>
           </view>
@@ -105,7 +105,7 @@
             <view class="expand-card expand-card--offduty"
                   v-for="coach in expandCoaches.filter(c => c._offDuty)"
                   :key="'off-' + coach.coach_no">
-              <text class="expand-id expand-id--offduty">{{ coach.employee_id || coach.coach_no }}</text>
+              <text class="expand-id expand-id--offduty">{{ coach.employee_id || '未知' }}</text>
               <text class="expand-name expand-name--offduty">{{ coach.stage_name }}</text>
               <text class="overtime-hours"
                     v-if="getOvertimeHours(coach) > 0">
@@ -118,7 +118,7 @@
             <view class="expand-card expand-card--offduty"
                   v-for="coach in expandCoaches.filter(c => c._overtime)"
                   :key="'ot-' + coach.coach_no">
-              <text class="expand-id expand-id--offduty">{{ coach.employee_id || coach.coach_no }}</text>
+              <text class="expand-id expand-id--offduty">{{ coach.employee_id || '未知' }}</text>
               <text class="expand-name expand-name--offduty">{{ coach.stage_name }}</text>
               <text class="overtime-hours"
                     v-if="getOvertimeHours(coach) > 0">

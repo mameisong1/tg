@@ -273,11 +273,11 @@
       setTimeout(() => toast.classList.remove('show'), 3000);
     }
     
-    // 格式化为北京时区时间（数据库存的是UTC，需要转换）
+    // 格式化时间（数据库存的是北京时间 YYYY-MM-DD HH:MM:SS，无时区标记）
     function formatBeijingTime(timeStr) {
       if (!timeStr) return '-';
-      // 数据库存的是UTC时间，需要加8小时转为北京时间
-      const d = new Date(timeStr + ' UTC');
+      // 显式指定 +08:00，确保浏览器正确解析为北京时间
+      const d = new Date(timeStr.replace(' ', 'T') + '+08:00');
       return d.toLocaleString('zh-CN', { 
         timeZone: 'Asia/Shanghai',
         year: 'numeric',

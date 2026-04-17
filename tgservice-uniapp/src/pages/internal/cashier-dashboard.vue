@@ -62,7 +62,7 @@
               <text class="card-table">{{ order.table_no }}</text>
               <text class="card-type">{{ order.order_type }}</text>
             </view>
-            <text class="card-coach">{{ order.stage_name }} ({{ order.employee_id || order.coach_no }})</text>
+            <text class="card-coach">{{ order.stage_name }} ({{ order.employee_id || '未知' }}号)</text>
             <text class="card-category" v-if="order.action_category">{{ order.action_category }}</text>
             <text class="card-status" :class="'status-' + order.status">{{ order.status }}</text>
             <text class="card-time">{{ order.created_at }}</text>

@@ -46,7 +46,7 @@
           <!-- 正常助教 -->
           <view class="coach-card" v-for="coach in group.coaches.filter(c => !c._offDuty && !c._overtime)" :key="coach.coach_no" @longpress="showStatusChange(coach)">
             <image class="coach-avatar" :src="getCoachPhoto(coach)" mode="aspectFill" />
-            <text class="coach-id">{{ coach.employee_id || coach.coach_no }}</text>
+            <text class="coach-id">{{ coach.employee_id || '未知' }}</text>
             <text class="coach-name">{{ coach.stage_name }}</text>
           </view>
         </view>
@@ -56,7 +56,7 @@
                 v-for="coach in group.coaches.filter(c => c._offDuty)"
                 :key="'off-' + coach.coach_no"
                 @longpress="showStatusChange(coach)">
-            <text class="coach-id coach-id--offduty">{{ coach.employee_id || coach.coach_no }}</text>
+            <text class="coach-id coach-id--offduty">{{ coach.employee_id || '未知' }}</text>
             <text class="coach-name coach-name--offduty">{{ coach.stage_name }}</text>
             <text class="overtime-hours" v-if="getOvertimeHours(coach) > 0">{{ getOvertimeHours(coach) }}</text>
           </view>
@@ -67,7 +67,7 @@
                 v-for="coach in group.coaches.filter(c => c._overtime)"
                 :key="'ot-' + coach.coach_no"
                 @longpress="showStatusChange(coach)">
-            <text class="coach-id coach-id--offduty">{{ coach.employee_id || coach.coach_no }}</text>
+            <text class="coach-id coach-id--offduty">{{ coach.employee_id || '未知' }}</text>
             <text class="coach-name coach-name--offduty">{{ coach.stage_name }}</text>
             <text class="overtime-hours" v-if="getOvertimeHours(coach) > 0">{{ getOvertimeHours(coach) }}</text>
           </view>
@@ -88,7 +88,7 @@
             <!-- 正常助教 -->
             <view class="expand-card" v-for="coach in expandCoaches.filter(c => !c._offDuty && !c._overtime)" :key="coach.coach_no" @longpress="showStatusChange(coach)">
               <image class="expand-avatar" :src="getCoachPhoto(coach)" mode="aspectFill" />
-              <text class="expand-id">{{ coach.employee_id || coach.coach_no }}</text>
+              <text class="expand-id">{{ coach.employee_id || '未知' }}</text>
               <text class="expand-name">{{ coach.stage_name }}</text>
             </view>
           </view>
@@ -98,7 +98,7 @@
                   v-for="coach in expandCoaches.filter(c => c._offDuty)"
                   :key="'off-' + coach.coach_no"
                   @longpress="showStatusChange(coach)">
-              <text class="expand-id expand-id--offduty">{{ coach.employee_id || coach.coach_no }}</text>
+              <text class="expand-id expand-id--offduty">{{ coach.employee_id || '未知' }}</text>
               <text class="expand-name expand-name--offduty">{{ coach.stage_name }}</text>
               <text class="overtime-hours" v-if="getOvertimeHours(coach) > 0">{{ getOvertimeHours(coach) }}</text>
             </view>
@@ -109,7 +109,7 @@
                   v-for="coach in expandCoaches.filter(c => c._overtime)"
                   :key="'ot-' + coach.coach_no"
                   @longpress="showStatusChange(coach)">
-              <text class="expand-id expand-id--offduty">{{ coach.employee_id || coach.coach_no }}</text>
+              <text class="expand-id expand-id--offduty">{{ coach.employee_id || '未知' }}</text>
               <text class="expand-name expand-name--offduty">{{ coach.stage_name }}</text>
               <text class="overtime-hours" v-if="getOvertimeHours(coach) > 0">{{ getOvertimeHours(coach) }}</text>
             </view>
@@ -122,7 +122,7 @@
     <view class="modal-overlay" v-if="showModal" @click="closeModal">
       <view class="modal-box" @click.stop>
         <text class="modal-title">🔄 修改水牌状态</text>
-        <text class="modal-coach-info" v-if="selectedCoach">{{ selectedCoach.employee_id || selectedCoach.coach_no }}号 - {{ selectedCoach.stage_name }}</text>
+        <text class="modal-coach-info" v-if="selectedCoach">{{ selectedCoach.employee_id || '未知' }}号 - {{ selectedCoach.stage_name }}</text>
         <view class="status-grid">
           <view class="status-btn" v-for="s in simpleStatusList" :key="s"
                 :class="{ current: getSimpleStatus(selectedCoach?.status) === s }"
