@@ -38,11 +38,23 @@
 
 ### 2.2 修改文件
 
-**无**。脚本为独立运行，不修改现有后端代码、API 或数据库。
+| 文件 | 路径 | 修改内容 |
+|------|------|----------|
+| `switch-routes.js` | `/TG/tgservice/backend/routes/switch-routes.js` | 增加调用台桌无关自动关灯 |
+| `auto-off-lighting.js` | `/TG/tgservice/backend/services/auto-off-lighting.js` | 导出 `executeAutoOffTableIndependent` 函数供外部调用 |
+
+**说明**：
+- **批处理调用点1**：`triggerAutoOffIfEligible()` 函数（由 `sync/tables` 接口调用），在现有台桌相关关灯后，增加执行台桌无关关灯
+- **批处理调用点2**：`/api/switch/auto-off-manual` 接口（H5 智能开关页面「智能省电-手动」按钮），在现有台桌相关关灯后，增加执行台桌无关关灯
 
 ### 2.3 API 变更
 
-**无**。本脚本为独立脚本，通过 cron 定时执行，不涉及 API 变更。
+**无外部 API 变更**。本脚本为独立脚本，但后端内部增加两处调用点：
+
+| 调用点 | 触发方式 | 返回值变化 |
+|--------|----------|------------|
+| `triggerAutoOffIfEligible()` | `sync/tables` 更新≥40条时触发 | 新增 `independentTurnedOffCount` 字段 |
+| `/api/switch/auto-off-manual` | H5 页面手动按钮 | 新增 `independentTurnedOffCount` 字段 |
 
 ### 2.4 数据库变更
 
@@ -288,6 +300,113 @@ auto-off-table-independent.js
 [自动关灯-台桌无关] 查询到台桌无关开关 3 个: 0xabc1 l1, 0xabc1 l2, 0xdef2 l1
 [自动关灯-台桌无关] 批量发送结果: 成功 3/3
 [自动关灯-台桌无关] ========== 执行完毕 ==========
+```
+
+---
+
+## 9. 批处理调用方案
+
+### 9.1 调用点1：台桌状态同步接口（`sync/tables`）
+
+**修改文件**：`/TG/tgservice/backend/routes/switch-routes.js`
+
+**修改位置**：`triggerAutoOffIfEligible()` 函数
+
+```javascript
+// 原代码
+const result = await executeAutoOffLighting();
+return { triggered: true, ...result };
+
+// 修改后
+const result = await executeAutoOffLighting();
+const independentResult = await executeAutoOffTableIndependent();
+return { 
+  triggered: true, 
+  ...result,
+  independentTurnedOffCount: independentResult?.turnedOffCount || 0
+};
+```
+
+### 9.2 调用点2：H5 智能开关页面「智能省电-手动」按钮
+
+**修改文件**：`/TG/tgservice/backend/routes/switch-routes.js`
+
+**修改位置**：`/api/switch/auto-off-manual` 路由
+
+```javascript
+// 原代码
+const result = await executeAutoOffLighting();
+res.json({
+  success: true,
+  turnedOffCount: result.turnedOffCount || 0,
+  maybeOffCount: result.maybeOffCount || 0,
+  cannotOffCount: result.cannotOffCount || 0
+});
+
+// 修改后
+const result = await executeAutoOffLighting();
+const independentResult = await executeAutoOffTableIndependent();
+res.json({
+  success: true,
+  turnedOffCount: result.turnedOffCount || 0,
+  maybeOffCount: result.maybeOffCount || 0,
+  cannotOffCount: result.cannotOffCount || 0,
+  independentTurnedOffCount: independentResult?.turnedOffCount || 0
+});
+```
+
+### 9.3 台桌无关关灯模块导出
+
+**修改文件**：`/TG/tgservice/backend/services/auto-off-lighting.js`
+
+新增函数 `executeAutoOffTableIndependent()`，核心逻辑与独立脚本相同：
+
+```javascript
+async function executeAutoOffTableIndependent() {
+  // 1. 检查智能省电开关
+  const setting = await get("SELECT value FROM system_settings WHERE key = 'switch_auto_off_enabled'");
+  if (!setting || setting.value !== '1') {
+    console.log('[自动关灯-台桌无关] 功能未开启，跳过');
+    return { status: 'disabled', turnedOffCount: 0 };
+  }
+
+  const now = TimeUtil.nowDB();
+
+  // 2. 查询台桌无关的关灯对象
+  const switches = await all(`
+    SELECT DISTINCT sd.switch_id, sd.switch_seq
+    FROM switch_device sd
+    LEFT JOIN table_device td 
+      ON LOWER(sd.switch_label) = LOWER(td.switch_label) 
+      AND LOWER(sd.switch_seq) = LOWER(td.switch_seq)
+    WHERE td.table_name_en IS NULL
+      AND sd.auto_off_start != ''
+      AND sd.auto_off_end != ''
+      AND (
+        CASE
+          WHEN sd.auto_off_start <= sd.auto_off_end THEN
+            (TIME(?) >= TIME(sd.auto_off_start) AND TIME(?) <= TIME(sd.auto_off_end))
+          ELSE
+            (TIME(?) >= TIME(sd.auto_off_start) OR TIME(?) <= TIME(sd.auto_off_end))
+        END
+      )
+  `, [now, now, now, now]);
+
+  if (switches.length === 0) {
+    console.log('[自动关灯-台桌无关] 无需要关的灯');
+    return { status: 'ok', turnedOffCount: 0 };
+  }
+
+  // 3. 发送 MQTT 关灯指令
+  const sendResult = await sendBatchCommand(switches, 'OFF');
+  const turnedOffCount = sendResult?.successCount ?? sendResult ?? 0;
+
+  console.log(`[自动关灯-台桌无关] 已关闭 ${turnedOffCount} 个台桌无关开关`);
+
+  return { status: 'ok', turnedOffCount };
+}
+
+module.exports = { executeAutoOffLighting, executeAutoOffTableIndependent };
 ```
 
 ---

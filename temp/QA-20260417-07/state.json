@@ -3,7 +3,8 @@
   "acceptanceFocus": "脚本能正确查询台桌无关的开关，并在指定时间内发出关灯指令；受智能省电开关控制",
   "workDir": "/TG/temp/QA-20260417-07",
   "designAuditRound": 1,
-  "testCasesAuditRound": 0,
-  "fixRound": 0,
-  "currentStep": "audit-testcases"
+  "testCasesAuditRound": 1,
+  "fixRound": 1,
+  "currentStep": "coding",
+  "lastFailItems": []
 }

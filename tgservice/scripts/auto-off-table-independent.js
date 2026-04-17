@@ -93,4 +93,10 @@ async function main() {
   console.log('[自动关灯-台桌无关] ========== 执行完毕 ==========');
 }
 
-main();
+main().then(() => {
+  // 脚本执行完毕后自动退出（MQTT连接可能保持活跃，需强制退出）
+  setTimeout(() => process.exit(process.exitCode || 0), 500);
+}).catch(err => {
+  console.error('[自动关灯-台桌无关] 未捕获异常:', err);
+  process.exit(1);
+});

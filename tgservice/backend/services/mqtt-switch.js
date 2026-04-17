@@ -109,6 +109,12 @@ async function sendSwitchCommand(switchId, switchSeq, action) {
     return { ok: true, error: null }; // 测试/未配置环境不算失败
   }
 
+  // 测试环境只写日志，不发送真实指令
+  if (isTestEnv) {
+    console.log(`[MQTT][测试环境] 跳过真实发送: ${switchId} ${switchSeq} ${action}`);
+    return { ok: true, error: null };
+  }
+
   const payload = JSON.stringify({
     id: switchId,
     [switchSeq]: action
