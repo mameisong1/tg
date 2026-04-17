@@ -1519,6 +1519,61 @@ MQTT 发送失败时返回 HTTP 502：
 
 ---
 
+## 规约客统计接口（2026-04-17新增）
+
+### 按周期统计约客情况
+
+- **路径**: `GET /api/guest-invitations/period-stats`
+- **认证**: 需要认证（管理员/店长/助教管理权限）
+- **权限**: `invitationStats`
+- **参数**: `period` = `yesterday` | `day-before-yesterday` | `this-month` | `last-month`
+
+**响应**:
+```json
+{
+  "success": true,
+  "data": {
+    "period": "this-month",
+    "period_label": "本月",
+    "date_range": "2026-04-01 ~ 2026-04-17",
+    "summary": {
+      "not_invited": 11,
+      "valid": 32,
+      "invalid": 3,
+      "pending": 1,
+      "total_should": 46,
+      "invite_rate": "69.6%"
+    },
+    "missed_coaches": [
+      {
+        "coach_no": 15,
+        "employee_id": "A003",
+        "stage_name": "小美",
+        "photo_url": "http://...",
+        "missed_count": 4
+      }
+    ]
+  }
+}
+```
+
+**统计规则**:
+- 未约课 = `result = '应约客'`
+- 有效约课 = `result = '约客有效'`
+- 无效约课 = `result = '约客无效'`
+- 待审查 = `result = '待审查'`（不计入约课率分母）
+- 漏约助教 = `result IN ('应约客', '约客无效')`，按次数倒序
+
+**约课率**: `valid / (not_invited + invalid + valid) × 100%`
+
+**错误响应**:
+- `400` - 缺少 period 参数 / 无效的 period 参数
+- `401` - 未登录
+- `403` - 权限不足
+- `500` - 服务器错误
+
+---
+
 ## 乐捐记录接口（2026-04-15新增，2026-04-15更新）
 
 ### 提交乐捐报备
