@@ -51,6 +51,9 @@ const operationLogService = require('./services/operation-log');
 // 乐捐记录路由
 const lejuanRecordsRouter = require('./routes/lejuan-records');
 
+// 下桌单缺失统计路由
+const missingTableOutOrdersRouter = require('./routes/missing-table-out-orders');
+
 // 智能开关路由模块
 const { router: switchRouter, triggerAutoOffIfEligible } = require('./routes/switch-routes');
 
@@ -344,6 +347,9 @@ app.use('/api/operation-logs', operationLogsRouter);
 
 // 乐捐记录路由
 app.use('/api/lejuan-records', lejuanRecordsRouter);
+
+// 下桌单缺失统计路由
+app.use('/api/missing-table-out-orders', missingTableOutOrdersRouter);
 
 // 智能开关路由（在 authMiddleware 之后注册）
 
@@ -3416,6 +3422,17 @@ const initLejuanRecordsTable = async () => {
     }
 };
 initLejuanRecordsTable();
+
+// 创建下桌单缺失匹配索引
+const createMissingTableOutIndex = async () => {
+    try {
+        await enqueueRun(`CREATE INDEX IF NOT EXISTS idx_tao_out_match ON table_action_orders(order_type, coach_no, table_no, stage_name, created_at)`);
+        console.log('✅ idx_tao_out_match 索引创建完成');
+    } catch (err) {
+        console.error('idx_tao_out_match 索引创建失败:', err.message);
+    }
+};
+createMissingTableOutIndex();
 
 // 创建系统配置表(如果不存在)
 const initSystemConfigTable = async () => {

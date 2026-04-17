@@ -150,6 +150,14 @@ export const lejuanRecords = {
   returnRecord: (id, data) => request({ url: `/lejuan-records/${id}/return`, method: 'POST', data }),
 }
 
+// ========== 下桌单缺失统计 ==========
+export const missingTableOutOrders = {
+  // 获取统计列表
+  getStats: (params) => request({ url: '/missing-table-out-orders/stats', data: params }),
+  // 获取明细
+  getDetail: (params) => request({ url: '/missing-table-out-orders/detail', data: params })
+}
+
 export default {
   waterBoards,
   serviceOrders,
@@ -159,5 +167,6 @@ export default {
   coachesV2,
   operationLogs,
   authV2,
-  lejuanRecords
+  lejuanRecords,
+  missingTableOutOrders
 }

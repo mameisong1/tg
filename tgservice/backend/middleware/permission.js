@@ -18,7 +18,8 @@ const PERMISSION_MATRIX = {
     leaveApproval: true,
     lejuanList: true,
     invitationStats: true,
-    operationLogs: true
+    operationLogs: true,
+    missingTableOutStats: true
   },
   '店长': {
     menu: ['all'],
@@ -32,7 +33,8 @@ const PERMISSION_MATRIX = {
     leaveApproval: true,
     lejuanList: true,
     invitationStats: true,
-    operationLogs: true
+    operationLogs: true,
+    missingTableOutStats: true
   },
   '助教管理': {
     menu: ['all'],
@@ -46,7 +48,8 @@ const PERMISSION_MATRIX = {
     leaveApproval: true,
     lejuanList: true,
     invitationStats: true,
-    operationLogs: false
+    operationLogs: false,
+    missingTableOutStats: true
   },
   '教练': {
     menu: ['cashier-dashboard', 'water-boards'],

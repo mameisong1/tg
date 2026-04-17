@@ -200,6 +200,10 @@
           <text class="internal-btn-icon">📊</text>
           <text class="internal-btn-text">约客统计</text>
         </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/missing-table-out-stats')">
+          <text class="internal-btn-icon">📋</text>
+          <text class="internal-btn-text">下桌单缺失</text>
+        </view>
       </view>
     </view>
 
