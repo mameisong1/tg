@@ -823,6 +823,14 @@ app.put('/api/cart/table', async (req, res) => {
 3. 查询"不能关的灯"：非空闲台桌 + 在自动关灯时段内
 4. 差集运算：可能要关 - 不能关 = 实际要关
 5. 发送 MQTT 关灯指令
+6. **新增（2026-04-17）**：接着执行台桌无关自动关灯
+
+**台桌无关自动关灯**：
+- 脚本文件：`scripts/auto-off-table-independent.js`
+- 触发方式：独立脚本 cron 定时执行（建议每10分钟），或随上述两个调用点一起触发
+- 查询逻辑：`LEFT JOIN table_device WHERE table_name_en IS NULL` 筛选未关联台桌的开关
+- 时段判断：复用跨午夜 CASE WHEN 逻辑
+- 受同一个 `switch_auto_off_enabled` 开关控制
 
 **台桌匹配方式**：
 ```sql

@@ -1487,11 +1487,12 @@
 ### 手动执行智能省电
 
 - **路径**: `POST /api/switch/auto-off-manual`
-- **说明**: 手动触发一次自动关灯逻辑，对当前空闲台桌发送关灯指令
+- **说明**: 手动触发一次自动关灯逻辑。先对空闲台桌发送关灯指令，再对台桌无关开关发送关灯指令
 - **返回**:
   ```json
-  { "success": true, "turnedOffCount": 40, "maybeOffCount": 50, "cannotOffCount": 47 }
+  { "success": true, "turnedOffCount": 40, "maybeOffCount": 50, "cannotOffCount": 47, "independentTurnedOffCount": 60 }
   ```
+- **新增字段**: `independentTurnedOffCount` — 台桌无关开关关闭数量
 
 ### 执行场景
 
