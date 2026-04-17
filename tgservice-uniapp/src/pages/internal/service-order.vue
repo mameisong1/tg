@@ -168,37 +168,54 @@ onShow(() => {
 
 // 台桌号字段点击事件
 const handleTableFieldClick = async () => {
+  console.log('[service-order] handleTableFieldClick 被调用')
+  console.log('[service-order] coachInfo:', coachInfo.value)
+  console.log('[service-order] coachNo:', coachInfo.value?.coachNo)
+
   // 仅对助教执行自动填充逻辑
   if (coachInfo.value?.coachNo) {
     try {
       const res = await api.waterBoards.getOne(coachInfo.value.coachNo)
+      console.log('[service-order] waterBoards API response:', JSON.stringify(res))
+
       const waterStatus = res.data?.status
       const waterTableNo = res.data?.table_no
-      
+
+      console.log('[service-order] waterStatus:', waterStatus)
+      console.log('[service-order] waterTableNo:', waterTableNo)
+
       // 判断是否为上桌状态
       const isOnTable = waterStatus === '早班上桌' || waterStatus === '晚班上桌'
-      
+      console.log('[service-order] isOnTable:', isOnTable)
+
       if (isOnTable && waterTableNo) {
         const tableList = waterTableNo.split(',').map(t => t.trim()).filter(t => t)
-        
+        console.log('[service-order] tableList:', tableList, 'length:', tableList.length)
+
         if (tableList.length === 1) {
           // 【单台桌自动选中】
           form.value.table_no = tableList[0]
           uni.setStorageSync('tableName', tableList[0])
-          uni.setStorageSync('tableAuth', JSON.stringify({ 
-            table: tableList[0], 
-            time: Date.now() 
+          uni.setStorageSync('tableAuth', JSON.stringify({
+            table: tableList[0],
+            time: Date.now()
           }))
+          console.log('[service-order] 自动选中台桌:', tableList[0])
           uni.showToast({ title: `已自动选中台桌 ${tableList[0]}`, icon: 'success' })
           return // 不弹出选择器
         }
+        console.log('[service-order] 多台桌，不自动选中')
         // 多台桌：不自动选中，弹出选择器让用户手动选择
+      } else {
+        console.log('[service-order] 未满足自动选中条件: isOnTable=', isOnTable, 'waterTableNo=', waterTableNo)
       }
     } catch (e) {
-      console.log('获取水牌状态失败，弹出选择器', e)
+      console.log('[service-order] 获取水牌状态失败，弹出选择器', e)
     }
+  } else {
+    console.log('[service-order] 无 coachNo，直接弹出选择器')
   }
-  
+
   // 默认：弹出选择器
   showTableSelector.value = true
 }

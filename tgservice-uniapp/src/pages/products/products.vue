@@ -628,6 +628,9 @@ onShow(() => {
     uni.removeStorageSync('tableName')
     uni.removeStorageSync('tableAuth')
     tableName.value = ''
+  } else {
+    // 普通用户：重新读取 tableName 防止被其他页面误清
+    tableName.value = uni.getStorageSync('tableName') || ''
   }
   
   // 原有逻辑
