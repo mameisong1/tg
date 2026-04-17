@@ -1,0 +1,17 @@
+[log] App Launch [object Object]
+[log] App Show [object Object]
+[log] Service Worker 注册成功: http://127.0.0.1:8089/static/
+[warn] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes">
+[log] App Hide
+[log] App Launch [object Object]
+[log] App Show [object Object]
+[log] Service Worker 注册成功: http://127.0.0.1:8089/static/
+[warn] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes">
+[log] App Launch [object Object]
+[log] App Show [object Object]
+[log] Service Worker 注册成功: http://127.0.0.1:8089/static/
+[warn] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes">
+[log] App Launch [object Object]
+[log] App Show [object Object]
+[log] Service Worker 注册成功: http://127.0.0.1:8089/static/
+[warn] <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes">

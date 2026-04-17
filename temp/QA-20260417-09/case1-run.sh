@@ -1,0 +1,2 @@
+#!/bin/bash
+node /TG/temp/QA-20260417-09/case1-deep-debug.js

@@ -43,11 +43,21 @@
           <text class="section-count">{{ group.coaches.length }}人 ⛶</text>
         </view>
         <view class="coach-grid">
-          <!-- 正常助教 -->
-          <view class="coach-card" v-for="coach in group.coaches.filter(c => !c._offDuty && !c._overtime)" :key="coach.coach_no" @longpress="showStatusChange(coach)">
+          <!-- 正常助教（排除休息/公休/请假） -->
+          <view class="coach-card" v-for="coach in group.coaches.filter(c => !c._offDuty && !c._overtime && !c._free)" :key="coach.coach_no" @longpress="showStatusChange(coach)">
             <image class="coach-avatar" :src="getCoachPhoto(coach)" mode="aspectFill" />
             <text class="coach-id">{{ coach.employee_id || '未知' }}</text>
             <text class="coach-name">{{ coach.stage_name }}</text>
+          </view>
+        </view>
+        <!-- 休息/公休/请假助教（下班样式，保留长按修改） -->
+        <view class="coach-grid off-duty-row" v-if="group.coaches.some(c => c._free)">
+          <view class="coach-card coach-card--offduty"
+                v-for="coach in group.coaches.filter(c => c._free)"
+                :key="'free-' + coach.coach_no"
+                @longpress="showStatusChange(coach)">
+            <text class="coach-id coach-id--offduty">{{ coach.employee_id || '未知' }}</text>
+            <text class="coach-name coach-name--offduty">{{ coach.stage_name }}</text>
           </view>
         </view>
         <!-- 下班助教单独一行 -->
@@ -85,11 +95,21 @@
         </view>
         <scroll-view class="expand-content" scroll-y>
           <view class="expand-grid">
-            <!-- 正常助教 -->
-            <view class="expand-card" v-for="coach in expandCoaches.filter(c => !c._offDuty && !c._overtime)" :key="coach.coach_no" @longpress="showStatusChange(coach)">
+            <!-- 正常助教（排除休息/公休/请假） -->
+            <view class="expand-card" v-for="coach in expandCoaches.filter(c => !c._offDuty && !c._overtime && !c._free)" :key="coach.coach_no" @longpress="showStatusChange(coach)">
               <image class="expand-avatar" :src="getCoachPhoto(coach)" mode="aspectFill" />
               <text class="expand-id">{{ coach.employee_id || '未知' }}</text>
               <text class="expand-name">{{ coach.stage_name }}</text>
+            </view>
+          </view>
+          <!-- 休息/公休/请假助教（下班样式） -->
+          <view class="expand-grid off-duty-row" v-if="expandCoaches.some(c => c._free)">
+            <view class="expand-card expand-card--offduty"
+                  v-for="coach in expandCoaches.filter(c => c._free)"
+                  :key="'free-' + coach.coach_no"
+                  @longpress="showStatusChange(coach)">
+              <text class="expand-id expand-id--offduty">{{ coach.employee_id || '未知' }}</text>
+              <text class="expand-name expand-name--offduty">{{ coach.stage_name }}</text>
             </view>
           </view>
           <!-- 下班助教单独一行 -->
@@ -307,13 +327,15 @@ const groupedBoards = computed(() => {
       // 晚加班合并到晚班空闲
       groups['晚班空闲'].push({ ...board, _overtime: true })
     } else if (groups[board.status]) {
-      groups[board.status].push({ ...board, _offDuty: false })
+      // 休息/公休/请假标记为 _free，使用下班样式
+      groups[board.status].push({ ...board, _free: offStatusList.includes(board.status) })
     }
   })
   
   // 排序：空闲组内，正常助教在前（按 clock_in_time 倒序），下班助教其次，加班助教最后
   freeStatuses.forEach(s => {
-    const normal = groups[s].filter(c => !c._offDuty && !c._overtime)
+    const normal = groups[s].filter(c => !c._offDuty && !c._overtime && !c._free)
+    const free = groups[s].filter(c => c._free)
     const offDuty = groups[s].filter(c => c._offDuty)
     const overtime = groups[s].filter(c => c._overtime)
     
@@ -337,7 +359,7 @@ const groupedBoards = computed(() => {
       return tb - ta
     })
     
-    groups[s] = [...normal, ...offDuty, ...overtime]
+    groups[s] = [...normal, ...free, ...offDuty, ...overtime]
   })
   
   // 其他非空闲组排序（不变）
