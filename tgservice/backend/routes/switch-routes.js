@@ -14,7 +14,7 @@ const TimeUtil = require('../utils/time');
 const { all, get, run, enqueueRun, runInTransaction } = require('../db/index');
 const { requireBackendPermission } = require('../middleware/permission');
 const { sendBatchCommand, executeScene, controlByLabel, controlByTable } = require('../services/mqtt-switch');
-const { executeAutoOffLighting } = require('../services/auto-off-lighting');
+const { executeAutoOffLighting, executeAutoOffTableIndependent } = require('../services/auto-off-lighting');
 
 // ============================================================
 // 前台权限中间件 - 仅店长/助教管理/管理员
@@ -350,11 +350,13 @@ router.post('/api/switch/auto-off-toggle', requireSwitchPermission, async (req, 
 router.post('/api/switch/auto-off-manual', requireSwitchPermission, async (req, res) => {
   try {
     const result = await executeAutoOffLighting();
+    const independentResult = await executeAutoOffTableIndependent();
     res.json({
       success: true,
       turnedOffCount: result.turnedOffCount || 0,
       maybeOffCount: result.maybeOffCount || 0,
-      cannotOffCount: result.cannotOffCount || 0
+      cannotOffCount: result.cannotOffCount || 0,
+      independentTurnedOffCount: independentResult?.turnedOffCount || 0
     });
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
@@ -543,7 +545,12 @@ async function triggerAutoOffIfEligible(tablesUpdated, vipRoomsUpdated) {
 
   try {
     const result = await executeAutoOffLighting();
-    return { triggered: true, ...result };
+    const independentResult = await executeAutoOffTableIndependent();
+    return {
+      triggered: true,
+      ...result,
+      independentTurnedOffCount: independentResult?.turnedOffCount || 0
+    };
   } catch (err) {
     console.error(`[自动关灯触发] 执行失败: ${err.message}`);
     return { triggered: true, status: 'error', error: err.message };

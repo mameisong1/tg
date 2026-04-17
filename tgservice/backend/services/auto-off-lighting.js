@@ -97,4 +97,54 @@ async function executeAutoOffLighting() {
   };
 }
 
-module.exports = { executeAutoOffLighting };
+/**
+ * 执行台桌无关自动关灯
+ * @returns {Object} { status, turnedOffCount }
+ */
+async function executeAutoOffTableIndependent() {
+  // 1. 检查自动关灯功能是否开启
+  const setting = await get("SELECT value FROM system_settings WHERE key = 'switch_auto_off_enabled'");
+  if (!setting || setting.value !== '1') {
+    console.log('[自动关灯-台桌无关] 功能未开启，跳过');
+    return { status: 'disabled', turnedOffCount: 0 };
+  }
+
+  const now = TimeUtil.nowDB();
+
+  // 2. 查询台桌无关的关灯对象
+  const switches = await all(`
+    SELECT DISTINCT sd.switch_id, sd.switch_seq
+    FROM switch_device sd
+    LEFT JOIN table_device td 
+      ON LOWER(sd.switch_label) = LOWER(td.switch_label) 
+      AND LOWER(sd.switch_seq) = LOWER(td.switch_seq)
+    WHERE td.table_name_en IS NULL
+      AND sd.auto_off_start != ''
+      AND sd.auto_off_end != ''
+      AND (
+        CASE
+          WHEN sd.auto_off_start <= sd.auto_off_end THEN
+            (TIME(?) >= TIME(sd.auto_off_start) AND TIME(?) <= TIME(sd.auto_off_end))
+          ELSE
+            (TIME(?) >= TIME(sd.auto_off_start) OR TIME(?) <= TIME(sd.auto_off_end))
+        END
+      )
+  `, [now, now, now, now]);
+
+  if (switches.length === 0) {
+    console.log('[自动关灯-台桌无关] 无需要关的灯');
+    return { status: 'ok', turnedOffCount: 0 };
+  }
+
+  console.log(`[自动关灯-台桌无关] 查询到 ${switches.length} 个台桌无关开关`);
+
+  // 3. 发送 MQTT 关灯指令
+  const sendResult = await sendBatchCommand(switches, 'OFF');
+  const turnedOffCount = sendResult?.successCount ?? sendResult ?? 0;
+
+  console.log(`[自动关灯-台桌无关] 已关闭 ${turnedOffCount} 个台桌无关开关`);
+
+  return { status: 'ok', turnedOffCount };
+}
+
+module.exports = { executeAutoOffLighting, executeAutoOffTableIndependent };
