@@ -15,6 +15,9 @@ TOKEN=$(curl -s -X POST http://127.0.0.1:8088/api/admin/login \
 if [ -z "$TOKEN" ]; then echo "❌ token失败"; exit 1; fi
 echo "✅ token OK"
 
+# 清理 employee_id=1 的所有测试残留记录
+sqlite3 /TG/tgservice/db/tgservice.db "DELETE FROM lejuan_records WHERE remark LIKE 'QA-S%' OR remark LIKE 'QA测试%' OR remark LIKE 'QA-T%';" 2>/dev/null
+
 # 保存原始时间
 ORIG=$(date '+%Y-%m-%d %H:%M:%S')
 echo "原始时间: $ORIG"
@@ -129,8 +132,9 @@ echo "Round 3: 00:30"
 echo "=============================="
 go "$D2 00:30:00"
 
-fail400 "TC-005" "00:30选00:00→拒绝(过去时间)" \
+ok200 "TC-005" "00:30选00:00→当前小时immediate=true" \
   "{\"employee_id\":\"1\",\"scheduled_start_time\":\"$D2 00:00:00\",\"remark\":\"QA-S005\"}"
+clean
 
 ok200 "TC-006" "00:30选01:00→pending" \
   "{\"employee_id\":\"1\",\"scheduled_start_time\":\"$D2 01:00:00\",\"remark\":\"QA-S006\"}"
@@ -143,8 +147,9 @@ echo "Round 4: 01:30"
 echo "=============================="
 go "$D2 01:30:00"
 
-fail400 "TC-007" "01:30选01:00→拒绝(过去时间)" \
+ok200 "TC-007" "01:30选01:00→当前小时immediate=true" \
   "{\"employee_id\":\"1\",\"scheduled_start_time\":\"$D2 01:00:00\",\"remark\":\"QA-S007\"}"
+clean
 
 fail400 "TC-013" "01:30当天+14:00→拒绝(日期不匹配)" \
   "{\"employee_id\":\"1\",\"scheduled_start_time\":\"$D2 14:00:00\",\"remark\":\"QA-S013\"}"

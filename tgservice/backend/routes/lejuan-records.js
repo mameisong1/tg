@@ -39,32 +39,34 @@ function validateLejuanTime(scheduledStartTime) {
     }
 
     // 校验3: 日期与小时匹配性
-    if (nowHour >= 14 || nowHour <= 1) {
-        // 窗口进行中（14~23点或0~1点）
+    // 分三种当前时段：
+    //   A. 凌晨窗口(0~1点): 只能选当天0~1点
+    //   B. 白天窗口(14~23点): 可选当天14~23 + 次日0~1
+    //   C. 窗口未到(2~13点): 可提前预约当天14~23 + 次日0~1
+    if (nowHour <= 1) {
+        // A. 凌晨窗口：只能选当天0~1点，禁止选14~23
         if (schedHour >= 14) {
-            // 选14~23点：必须当天
+            return { valid: false, error: '凌晨时段只能预约00:00或01:00' };
+        }
+        if (schedDate !== nowDate) {
+            return { valid: false, error: '凌晨时段应在当天预约' };
+        }
+    } else if (nowHour >= 14) {
+        // B. 白天窗口进行中
+        if (schedHour >= 14) {
             if (schedDate !== nowDate) {
                 return { valid: false, error: '当天时段应在当天预约' };
             }
         } else {
-            // 选0~1点：
-            // - 当前14~23点：选次日0/1点
-            // - 当前0~1点：选今天0/1点
-            if (nowHour >= 14) {
-                const tomorrow = new Date(nowDate + 'T00:00:00+08:00');
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth()+1).padStart(2,'0')}-${String(tomorrow.getDate()).padStart(2,'0')}`;
-                if (schedDate !== tomorrowStr) {
-                    return { valid: false, error: '凌晨时段应在次日预约' };
-                }
-            } else {
-                if (schedDate !== nowDate) {
-                    return { valid: false, error: '凌晨时段应在当天预约' };
-                }
+            const tomorrow = new Date(nowDate + 'T00:00:00+08:00');
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth()+1).padStart(2,'0')}-${String(tomorrow.getDate()).padStart(2,'0')}`;
+            if (schedDate !== tomorrowStr) {
+                return { valid: false, error: '凌晨时段应在次日预约' };
             }
         }
     } else {
-        // 窗口未到（2~13点）：可提前预约14点以后
+        // C. 窗口未到（2~13点）：提前预约
         if (schedHour >= 14) {
             if (schedDate !== nowDate) {
                 return { valid: false, error: '当天时段应在当天预约' };
