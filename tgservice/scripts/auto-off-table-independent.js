@@ -8,7 +8,7 @@
  *   cd /TG/tgservice && node scripts/auto-off-table-independent.js
  *
  * 定时调度（建议每 10 分钟）：
- *   */10 * * * * cd /app/tgservice && node scripts/auto-off-table-independent.js >> logs/auto-off-independent.log 2>&1
+ *   每10分钟 cd /app/tgservice && node scripts/auto-off-table-independent.js >> logs/auto-off-independent.log 2>&1
  */
 
 const path = require('path');
