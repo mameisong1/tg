@@ -1087,6 +1087,75 @@
 | `/api/admin/members` | GET | 获取会员列表 |
 | `/api/admin/members` | POST | 创建会员 |
 | `/api/admin/members/:memberNo` | PUT | 更新会员 |
+| `/api/admin/members/sync-coaches/preview` | POST | 同步助教—预览匹配清单 |
+| `/api/admin/members/sync-coaches/execute` | POST | 同步助教—执行批量同步 |
+
+#### 同步助教—预览匹配清单
+
+- **路径**: `POST /api/admin/members/sync-coaches/preview`
+- **认证**: 需要 `Authorization: Bearer <token>`
+- **权限**: `coachManagement`（管理员、店长、助教管理）
+- **请求体**: 无
+- **返回**:
+  ```json
+  {
+    "success": true,
+    "matches": [
+      {
+        "member_no": 1,
+        "phone": "13800138000",
+        "name": "张三",
+        "gender": "",
+        "remark": "",
+        "coach_employee_id": "T001",
+        "coach_stage_name": "小美",
+        "coach_status": "全职"
+      }
+    ],
+    "summary": {
+      "totalMembers": 100,
+      "totalCoaches": 20,
+      "matchedCount": 5
+    }
+  }
+  ```
+- **说明**: 根据手机号精确匹配会员与助教（排除空号和离职助教），返回匹配清单供前端勾选。
+
+#### 同步助教—执行批量同步
+
+- **路径**: `POST /api/admin/members/sync-coaches/execute`
+- **认证**: 需要 `Authorization: Bearer <token>`
+- **权限**: `coachManagement`
+- **请求体**:
+  ```json
+  {
+    "items": [
+      {
+        "member_no": 1,
+        "coach_employee_id": "T001",
+        "coach_stage_name": "小美"
+      }
+    ]
+  }
+  ```
+- **返回**:
+  ```json
+  {
+    "success": true,
+    "syncedCount": 2,
+    "details": [
+      { "member_no": 1, "status": "success", "updated_fields": ["remark", "gender", "name"] }
+    ],
+    "errors": []
+  }
+  ```
+- **同步逻辑**:
+  1. 备注追加 `[助教] 工号:XX, 艺名:XXX`（幂等：同工号标记会替换，不会重复追加）
+  2. 性别为空（NULL/空字符串/空格）→ 设为「女」
+  3. 姓名为空 → 填入助教艺名
+- **匹配条件**: `members.phone = coaches.phone` 精确匹配，排除空手机号和 `status = '离职'` 的助教
+
+- **更新时间**: 2026-04-18
 
 ### 首页配置管理
 
