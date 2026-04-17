@@ -64,7 +64,7 @@
         </view>
         <view class="result-row">
           <text class="result-label">助教工号</text>
-          <text class="result-value">{{ item.coach_no }}</text>
+          <text class="result-value">{{ item.employee_id || '未知' }}</text>
         </view>
         <view class="result-row">
           <text class="result-label">艺名</text>

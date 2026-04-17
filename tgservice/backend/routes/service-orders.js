@@ -54,16 +54,29 @@ router.post('/', auth.required, async (req, res) => {
       ) VALUES (?, ?, ?, ?, '待处理', ?, ?)
     `, [table_no, requirement, requester_name, requester_type || '助教', TimeUtil.nowDB(), TimeUtil.nowDB()]);
     
-    // 记录操作日志（异步，不影响主流程）
+    // 记录操作日志
     const user = req.user;
-    try {
-      await enqueueRun(`
-        INSERT INTO operation_logs (
-          operator_phone, operator_name, operation_type, target_type, target_id, old_value, new_value, remark, created_at
-        ) VALUES (?, ?, '创建服务单', 'service_order', ?, null, ?, ?, ?)
-      `, [user.username, user.name, result.lastID, JSON.stringify({table_no, requirement, requester_name}), `创建服务单：${table_no} - ${requirement}`, TimeUtil.nowDB()]);
-    } catch (logErr) {
-      console.error('记录操作日志失败:', logErr);
+    // ✅ 始终写入文件日志
+    operationLogService.logToFile({
+      operator_phone: user.username,
+      operator_name: user.name,
+      operation_type: '创建服务单',
+      target_type: 'service_order',
+      target_id: result.lastID,
+      new_value: JSON.stringify({table_no, requirement, requester_name}),
+      remark: `创建服务单：${table_no} - ${requirement}`
+    });
+    // 数据库日志（异步，不影响主流程）
+    if (process.env.ENABLE_OPERATION_LOG === 'true') {
+      try {
+        await enqueueRun(`
+          INSERT INTO operation_logs (
+            operator_phone, operator_name, operation_type, target_type, target_id, old_value, new_value, remark, created_at
+          ) VALUES (?, ?, '创建服务单', 'service_order', ?, null, ?, ?, ?)
+        `, [user.username, user.name, result.lastID, JSON.stringify({table_no, requirement, requester_name}), `创建服务单：${table_no} - ${requirement}`, TimeUtil.nowDB()]);
+      } catch (logErr) {
+        console.error('记录操作日志失败:', logErr);
+      }
     }
     
     res.json({
@@ -249,16 +262,30 @@ router.put('/:id/status', auth.required, requireBackendPermission(['serviceOrder
       WHERE id = ?
     `, [status, TimeUtil.nowDB(), id]);
     
-    // 记录操作日志（异步，不影响主流程）
+    // 记录操作日志
     const user = req.user;
-    try {
-      await enqueueRun(`
-        INSERT INTO operation_logs (
-          operator_phone, operator_name, operation_type, target_type, target_id, old_value, new_value, remark, created_at
-        ) VALUES (?, ?, '服务单状态变更', 'service_order', ?, ?, ?, ?, ?)
-      `, [user.username, user.name, id, JSON.stringify({status: oldStatus}), JSON.stringify({status}), `更新服务单状态：${oldStatus} → ${status}`, TimeUtil.nowDB()]);
-    } catch (logErr) {
-      console.error('记录操作日志失败:', logErr);
+    // ✅ 始终写入文件日志
+    operationLogService.logToFile({
+      operator_phone: user.username,
+      operator_name: user.name,
+      operation_type: '服务单状态变更',
+      target_type: 'service_order',
+      target_id: id,
+      old_value: JSON.stringify({status: oldStatus}),
+      new_value: JSON.stringify({status}),
+      remark: `更新服务单状态：${oldStatus} → ${status}`
+    });
+    // 数据库日志（异步，不影响主流程）
+    if (process.env.ENABLE_OPERATION_LOG === 'true') {
+      try {
+        await enqueueRun(`
+          INSERT INTO operation_logs (
+            operator_phone, operator_name, operation_type, target_type, target_id, old_value, new_value, remark, created_at
+          ) VALUES (?, ?, '服务单状态变更', 'service_order', ?, ?, ?, ?, ?)
+        `, [user.username, user.name, id, JSON.stringify({status: oldStatus}), JSON.stringify({status}), `更新服务单状态：${oldStatus} → ${status}`, TimeUtil.nowDB()]);
+      } catch (logErr) {
+        console.error('记录操作日志失败:', logErr);
+      }
     }
     
     res.json({
