@@ -7,7 +7,7 @@
         <view class="back-btn" @click="goBack">
           <text class="back-icon">‹</text>
         </view>
-        <text class="header-title">规约客统计</text>
+        <text class="header-title">约客统计</text>
         <view class="back-placeholder"></view>
       </view>
     </view>

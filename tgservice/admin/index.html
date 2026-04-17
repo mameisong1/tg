@@ -386,32 +386,46 @@
     let currentRange = 'today';
 
     function getDateParam(range) {
+      // 使用北京时间解析日期，避免时区转换错误
       const today = TimeUtil.today(); // "2026-04-17"
       const [y, m, d] = today.split('-').map(Number);
-      const base = new Date(y, m - 1, d);
+      // 显式指定北京时间 +08:00，确保日期计算正确
+      const base = new Date(`${today}T00:00:00+08:00`);
 
       switch (range) {
         case 'today':   return today;
         case 'yesterday': {
-          const b = new Date(base); b.setDate(b.getDate() - 1);
+          const b = new Date(base);
+          b.setDate(b.getDate() - 1);
           return formatDateObj(b);
         }
         case 'thisWeek': {
           const dayOfWeek = base.getDay() || 7; // 周日变7
-          const start = new Date(base); start.setDate(start.getDate() - (dayOfWeek - 1));
+          const start = new Date(base);
+          start.setDate(start.getDate() - (dayOfWeek - 1));
           return { start: formatDateObj(start), end: today };
         }
         case 'lastWeek': {
           const dayOfWeek = base.getDay() || 7;
-          const end = new Date(base); end.setDate(end.getDate() - dayOfWeek);
-          const start = new Date(end); start.setDate(start.getDate() - 6);
+          const end = new Date(base);
+          end.setDate(end.getDate() - dayOfWeek);
+          const start = new Date(end);
+          start.setDate(start.getDate() - 6);
           return { start: formatDateObj(start), end: formatDateObj(end) };
         }
       }
     }
 
     function formatDateObj(d) {
-      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      // 将 Date 转换为北京时间日期字符串
+      const beijingStr = d.toLocaleDateString('zh-CN', { 
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+      // 格式: YYYY/MM/DD -> YYYY-MM-DD
+      return beijingStr.replace(/\//g, '-');
     }
 
     function switchDateRange(range) {
