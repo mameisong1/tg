@@ -1186,6 +1186,83 @@
   - 采样间隔 60 秒，保留最近 6 小时（360 个点）
 - **更新时间**: 2026-04-12
 
+### 下桌单缺失统计
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/missing-table-out-orders/stats` | GET | 获取下桌单缺失统计列表 |
+| `/api/missing-table-out-orders/detail` | GET | 获取指定助教的下桌单缺失明细 |
+
+**权限**：`missingTableOutStats`（管理员、店长、助教管理）
+
+#### 获取下桌单缺失统计
+
+- **路径**: `GET /api/missing-table-out-orders/stats?period=yesterday`
+- **认证**: 需要 `Authorization: Bearer <token>`
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| period | string | 是 | `yesterday` / `beforeYesterday` / `thisMonth` / `lastMonth` |
+
+- **返回**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "period": "yesterday",
+      "period_label": "昨天",
+      "date_start": "2026-04-16",
+      "date_end": "2026-04-16",
+      "list": [
+        {
+          "coach_no": 10032,
+          "employee_id": "37",
+          "stage_name": "三七",
+          "missing_count": 3
+        }
+      ],
+      "total_coaches": 2,
+      "total_missing": 5
+    }
+  }
+  ```
+- **说明**: 按助教统计指定周期内下桌单缺失数量。上桌单发出后15小时内无对应下桌单（同助教+同桌号+同艺名）即判定为缺失。结果按 `missing_count` 倒序排列。
+
+#### 获取指定助教的下桌单缺失明细
+
+- **路径**: `GET /api/missing-table-out-orders/detail?period=yesterday&coach_no=10032`
+- **认证**: 需要 `Authorization: Bearer <token>`
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| period | string | 是 | 周期（同上） |
+| coach_no | number | 是 | 助教系统编号 |
+
+- **返回**:
+  ```json
+  {
+    "success": true,
+    "data": {
+      "coach_no": 10032,
+      "employee_id": "37",
+      "stage_name": "三七",
+      "details": [
+        {
+          "id": 102,
+          "table_no": "A3",
+          "table_date": "2026-04-16",
+          "table_time": "14:30:00",
+          "action_category": "普通课",
+          "created_at": "2026-04-16 14:30:00"
+        }
+      ]
+    }
+  }
+  ```
+- **说明**: 用户点击统计列表项时调用，返回该助教在指定周期内的上桌单缺失明细。仅在用户点击时按需查询，不预加载。
+
+- **更新时间**: 2026-04-17
+
 ---
 
 ## 文件上传接口
