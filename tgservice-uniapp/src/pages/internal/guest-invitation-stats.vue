@@ -193,7 +193,7 @@ const loadData = async () => {
       dateRange.value = res.data.date_range
     }
   } catch (e) {
-    console.error('加载规约客统计失败:', e)
+    console.error('加载约客统计失败:', e)
     uni.showToast({ title: e.error || '加载失败', icon: 'none' })
   } finally {
     loading.value = false
