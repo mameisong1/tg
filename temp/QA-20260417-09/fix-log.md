@@ -81,3 +81,47 @@ onShow(() => {
 |------|----------|------|
 | `src/pages/products/products.vue` | 修复 | onShow 增加 else 分支，非员工重新读取 tableName |
 | `src/pages/internal/service-order.vue` | 调试 | handleTableFieldClick 增加详细 console.log |
+
+---
+
+## Bug 3: TC-BR-01 回退 - 删除 onShow 中多余的 else 分支
+
+**文件**: `src/pages/products/products.vue`
+
+**问题描述**: 之前修复 Bug 1 时在 onShow 中增加了 else 分支让普通用户重新读取 tableName，但用户指出该逻辑多余且可能引入新问题。
+
+**用户分析**: 
+- 普通用户根本不会修改台桌号，只有扫码进入时设置一次
+- else 分支里"重新读取 tableName 防止被其他页面误清"逻辑是多余的
+- 而且可能引入新问题：不检查 tableAuth 有效期，读到过期数据反而误导
+
+**修复内容**:
+```javascript
+// 修改前（之前修复 Bug 1 时加的 else 分支）
+onShow(() => {
+  if (isEmployee.value) {
+    uni.removeStorageSync('tableName')
+    uni.removeStorageSync('tableAuth')
+    tableName.value = ''
+  } else {
+    // 普通用户：重新读取 tableName 防止被其他页面误清
+    tableName.value = uni.getStorageSync('tableName') || ''
+  }
+  // ... 原有逻辑
+})
+
+// 修改后：删除 else 分支
+onShow(() => {
+  if (isEmployee.value) {
+    uni.removeStorageSync('tableName')
+    uni.removeStorageSync('tableAuth')
+    tableName.value = ''
+  }
+  // 普通用户：不需要处理，TableInfo组件会自动显示
+  // ... 原有逻辑
+})
+```
+
+**cart.vue 检查**: cart.vue 的 onShow 中只有 if 分支（员工清空），没有多余的 else 分支，无需修改。
+
+**Git Commit**: `238b2b1`
