@@ -168,10 +168,7 @@
     <div class="modal-content">
       <div class="modal-title" id="modalTitle">添加助教</div>
       <div class="modal-form">
-        <div style="display:flex;gap:12px">
-          <div class="form-row" style="flex:1"><label>编号</label><input type="text" id="formCoachNo" disabled></div>
-          <div class="form-row" style="flex:1"><label>工号 *</label><input type="text" id="formEmployeeId" placeholder="如：1"></div>
-        </div>
+        <div class="form-row"><label>工号 *</label><input type="text" id="formEmployeeId" placeholder="如：1"></div>
         <div style="display:flex;gap:12px">
           <div class="form-row" style="flex:1"><label>艺名 *</label><input type="text" id="formStageName" placeholder="如：歪歪"></div>
           <div class="form-row" style="flex:1"><label>真实姓名</label><input type="text" id="formRealName" placeholder="如：张三"></div>
@@ -392,7 +389,7 @@
             <span class="coach-status ${getStatusClass(c.status)}">${c.status || '全职'}</span>
             <span class="coach-shift-badge">${c.shift || '早班'}</span>
             <div class="coach-meta">
-              编号: ${c.coach_no} | 陪打价: ¥${c.price || 109}/小时 | 人气: <span style="color:#d4af37;font-weight:600">${c.popularity || 0}</span>
+              工号: ${c.employee_id || '-'} | 陪打价: ¥${c.price || 109}/小时 | 人气: <span style="color:#d4af37;font-weight:600">${c.popularity || 0}</span>
             </div>
             <div class="coach-actions">
               <button class="btn btn-sm" onclick="editCoach(${c.coach_no})">编辑</button>
@@ -407,7 +404,6 @@
       editingNo = no;
       editingPhotos = []; // 重置照片数据，防止新增时继承上次的值
       document.getElementById('modalTitle').textContent = no ? '编辑助教' : '添加助教';
-      document.getElementById('formCoachNo').value = no || '(自动生成)';
       document.getElementById('formEmployeeId').value = '';
       document.getElementById('formStageName').value = '';
       document.getElementById('formRealName').value = '';
@@ -519,7 +515,7 @@
         document.getElementById('orphanTableBody').innerHTML = syncData.orphans.map((o, i) => `
           <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
             <td style="padding:8px"><input type="checkbox" class="orphan-check" data-index="${i}" checked onchange="updateSyncSummary()"></td>
-            <td style="padding:8px">${o.coach_no}</td>
+            <td style="padding:8px">${o.employee_id || '-'}</td>
             <td style="padding:8px">${o.stage_name}</td>
             <td style="padding:8px">${o.wb_status}</td>
             <td style="padding:8px;color:rgba(255,255,255,0.5)">${o.reason}</td>
@@ -539,7 +535,7 @@
           return `
             <tr style="border-bottom:1px solid rgba(255,255,255,0.05)">
               <td style="padding:8px"><input type="checkbox" class="missing-check" data-index="${i}" checked onchange="updateSyncSummary()"></td>
-              <td style="padding:8px">${m.coach_no}</td>
+              <td style="padding:8px">${m.employee_id || '-'}</td>
               <td style="padding:8px">${m.stage_name}</td>
               <td style="padding:8px">${m.status}</td>
               <td style="padding:8px">${m.shift}</td>
@@ -564,7 +560,7 @@
               <td style="padding:8px">
                 <input type="checkbox" class="offDutyTable-check" data-index="${i}" checked onchange="updateSyncSummary()">
               </td>
-              <td style="padding:8px">${o.coach_no}</td>
+              <td style="padding:8px">${o.employee_id || '-'}</td>
               <td style="padding:8px">${o.stage_name}</td>
               <td style="padding:8px">${o.status}</td>
               <td style="padding:8px">${tableTags}</td>
@@ -723,7 +719,7 @@
             <img class="batch-shift-avatar" src="${c.photos?.[0] || '/static/avatar-default.png'}" onerror="this.src='/static/avatar-default.png'">
             <div class="batch-shift-info">
               <div class="batch-shift-name">${c.stage_name || '-'} (${c.employee_id || '-'}号)</div>
-              <div class="batch-shift-id">编号: ${c.coach_no} | 等级: ${c.level || '初级'}</div>
+              <div class="batch-shift-id">工号: ${c.employee_id || '-'} | 等级: ${c.level || '初级'}</div>
               <div class="shift-radio-group" data-coach-no="${c.coach_no}">
                 <label class="shift-radio-label ${currentShift === '早班' ? 'selected' : ''}" data-coach-no="${c.coach_no}" data-shift="早班">
                   <input type="radio" name="shift-${c.coach_no}" value="早班" ${currentShift === '早班' ? 'checked' : ''}>
