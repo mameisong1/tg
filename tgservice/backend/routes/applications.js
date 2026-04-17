@@ -127,7 +127,7 @@ router.get('/approved-recent', requireBackendPermission(['coachManagement']), as
     let sql = `
       SELECT a.id, a.applicant_phone, a.application_type, a.remark, 
              a.status, a.approver_phone, a.approve_time, a.extra_data, a.created_at,
-             c.stage_name, c.coach_no, c.shift
+             c.stage_name, c.coach_no, c.employee_id, c.shift
       FROM applications a
       LEFT JOIN coaches c ON a.applicant_phone = c.employee_id OR a.applicant_phone = c.phone
       WHERE a.status IN (1, 2)
@@ -168,6 +168,7 @@ router.get('/approved-recent', requireBackendPermission(['coachManagement']), as
       return {
         id: r.id,
         applicant_phone: r.applicant_phone,
+        employee_id: r.employee_id || '-',
         coach_no: r.coach_no || '-',
         stage_name: r.stage_name || '未知',
         shift: r.shift || '-',
