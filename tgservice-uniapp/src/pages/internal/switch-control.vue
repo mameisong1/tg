@@ -354,6 +354,14 @@ async function toggleAutoOff() {
 
 // 智能省电-手动
 function executeManualOff() {
+  const adminInfo = uni.getStorageSync('adminInfo') || {}
+  const role = adminInfo.role
+
+  // 非管理员直接拦截
+  if (role !== '管理员') {
+    return uni.showToast({ title: '测试专用，仅限管理员使用', icon: 'none' })
+  }
+
   confirmText.value = '确认执行一次智能省电（手动）？将关闭当前空闲台桌的灯。'
   pendingAction = 'manualOff'
   showConfirm.value = true
