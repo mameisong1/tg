@@ -2202,6 +2202,46 @@ app.get('/api/admin/orders', authMiddleware, requireBackendPermission(['cashierD
   }
 });
 
+// GET /api/admin/orders/stats - 订单统计（数量 + 销售额）
+app.get('/api/admin/orders/stats', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
+  try {
+    const { date, date_start, date_end, status } = req.query;
+
+    let sql = 'SELECT COUNT(*) as count, COALESCE(SUM(total_price), 0) as totalRevenue FROM orders WHERE 1=1';
+    const params = [];
+
+    if (date) {
+      sql += ' AND DATE(created_at) = ?';
+      params.push(date);
+    }
+    if (date_start) {
+      sql += ' AND DATE(created_at) >= ?';
+      params.push(date_start);
+    }
+    if (date_end) {
+      sql += ' AND DATE(created_at) <= ?';
+      params.push(date_end);
+    }
+    if (status) {
+      sql += ' AND status = ?';
+      params.push(status);
+    }
+
+    const row = await dbGet(sql, params);
+
+    res.json({
+      success: true,
+      data: {
+        count: row.count,
+        totalRevenue: row.totalRevenue
+      }
+    });
+  } catch (error) {
+    logger.error(`获取订单统计失败: ${error.message}`);
+    res.status(500).json({ success: false, error: '获取订单统计失败' });
+  }
+});
+
 // 完成订单
 app.post('/api/admin/orders/:id/complete', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
   try {

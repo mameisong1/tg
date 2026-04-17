@@ -1,9 +1,4 @@
 {
-  "qaRequirement": "为 table-action-orders API 新增专用统计接口 /api/table-action-orders/stats，返回指定日期范围内的上桌单、下桌单、取消单统计数量。解决当前前端数据概览页面因 limit=50 导致统计数据不准确的问题。",
-  "acceptanceFocus": "API 返回统计值是否正确，日期范围查询是否准确",
-  "workDir": "/TG/temp/QA-20260417-06",
-  "designAuditRound": 0,
-  "testCasesAuditRound": 0,
-  "fixRound": 0,
-  "currentStep": "audit-design"
+  "qaRequirement": "为 admin/index.html 数据概览页面新增 3 个专用统计 API：1) /api/admin/orders/stats（订单数+销售额）2) /api/service-orders/stats（服务单数）3) /api/table-action-orders/stats（上下桌单数）。前端不再遍历列表统计，直接使用 stats API 返回值。",
+  "acceptanceFocus": "所有统计数据都从接口直接获取，前端不做遍历统计。3 个 API 返回的统计值与数据库实际数据一致。"
 }

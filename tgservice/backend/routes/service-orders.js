@@ -135,6 +135,48 @@ router.get('/', auth.required, requireBackendPermission(['serviceOrder']), async
 });
 
 /**
+ * GET /api/service-orders/stats
+ * 服务单统计（数量）
+ */
+router.get('/stats', auth.required, requireBackendPermission(['cashierDashboard']), async (req, res) => {
+  try {
+    const { date, date_start, date_end, status } = req.query;
+
+    let sql = 'SELECT COUNT(*) as count FROM service_orders WHERE 1=1';
+    const params = [];
+
+    if (date) {
+      sql += ' AND DATE(created_at) = ?';
+      params.push(date);
+    }
+    if (date_start) {
+      sql += ' AND DATE(created_at) >= ?';
+      params.push(date_start);
+    }
+    if (date_end) {
+      sql += ' AND DATE(created_at) <= ?';
+      params.push(date_end);
+    }
+    if (status) {
+      sql += ' AND status = ?';
+      params.push(status);
+    }
+
+    const row = await db.get(sql, params);
+
+    res.json({
+      success: true,
+      data: {
+        count: row.count
+      }
+    });
+  } catch (error) {
+    console.error('获取服务单统计失败:', error);
+    res.status(500).json({ success: false, error: '获取服务单统计失败' });
+  }
+});
+
+/**
  * GET /api/service-orders/:id
  * 获取单个服务单
  */

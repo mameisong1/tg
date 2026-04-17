@@ -459,33 +459,22 @@
       }
 
       try {
-        // 并行查询三个 API
-        const [ordersRes, servicesRes, tableRes] = await Promise.all([
-          api(`/api/admin/orders?${dateParam}&status=已完成`),
-          api(`/api/service-orders?${dateParam}&status=已完成`),
-          api(`/api/table-action-orders?${dateParam}`),
+        // 并行查询 3 个 stats API
+        const [ordersStats, servicesStats, tableStats] = await Promise.all([
+          api(`/api/admin/orders/stats?${dateParam}&status=已完成`),
+          api(`/api/service-orders/stats?${dateParam}&status=已完成`),
+          api(`/api/table-action-orders/stats?${dateParam}`),
         ]);
 
-        // 注意返回值格式差异：orders 直接是数组，service/table 返回 {success, data}
-        const orders = ordersRes;
-        const services = servicesRes.data || servicesRes;
-        const tableActions = tableRes.data || tableRes;
+        // 直接使用 stats API 返回的统计值
+        const oData = ordersStats.data || {};
+        const sData = servicesStats.data || {};
+        const tData = tableStats.data || {};
 
-        // 更新订单 + 销售额
-        document.getElementById('statOrders').textContent = orders.length || 0;
-        const totalRevenue = orders.reduce((sum, o) => sum + (o.total_price || 0), 0);
-        document.getElementById('statRevenue').textContent = '¥' + totalRevenue.toFixed(0);
-
-        // 更新服务单
-        document.getElementById('statServiceOrders').textContent = services.length || 0;
-
-        // 更新上下桌单
-        let upCount = 0, downCount = 0;
-        tableActions.forEach(t => {
-          if (t.order_type === '上桌单') upCount++;
-          else if (t.order_type === '下桌单') downCount++;
-        });
-        document.getElementById('statTableActions').textContent = `${upCount}:${downCount}`;
+        document.getElementById('statOrders').textContent = oData.count || 0;
+        document.getElementById('statRevenue').textContent = '¥' + (oData.totalRevenue || 0).toFixed(0);
+        document.getElementById('statServiceOrders').textContent = sData.count || 0;
+        document.getElementById('statTableActions').textContent = `${tData.table_in_count || 0}:${tData.table_out_count || 0}`;
 
         // 更新标签文本（今日/昨日/本周/上周）
         const rangeLabels = {
