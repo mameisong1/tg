@@ -172,8 +172,8 @@ const filteredTables = computed(() => {
 const showTableConfirm = ref(false)
 const selectedTable = ref(null)
 
-// 顶部快捷场景（排除"全部开灯"和"全部关灯"）
-const topScenes = computed(() => scenes.value.filter(s => s.scene_name !== '全部开灯' && s.scene_name !== '全部关灯'))
+// 顶部快捷场景（排除"全部开灯""全部关灯"和"大厅全开"）
+const topScenes = computed(() => scenes.value.filter(s => s.scene_name !== '全部开灯' && s.scene_name !== '全部关灯' && s.scene_name !== '大厅全开'))
 // 底部只留"全部开灯""全部关灯"和"大厅全开"
 const bottomScenes = computed(() => scenes.value.filter(s => ['全部开灯', '全部关灯', '大厅全开'].includes(s.scene_name)))
 
