@@ -623,7 +623,14 @@ const scrollToTop = () => {
 
 // 每次显示页面时刷新
 onShow(() => {
-  // 更新台桌信息
+  // 【新增】员工进入时清空旧台桌号
+  if (isEmployee.value) {
+    uni.removeStorageSync('tableName')
+    uni.removeStorageSync('tableAuth')
+    tableName.value = ''
+  }
+  
+  // 原有逻辑
   tableInfoRef.value?.loadTableInfo()
   loadCart()
   loadProducts().then(() => {

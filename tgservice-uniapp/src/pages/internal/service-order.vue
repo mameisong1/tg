@@ -12,7 +12,7 @@
 
     <view class="form-section">
       <!-- 台桌号 -->
-      <view class="form-item" @click="showTableSelector = true">
+      <view class="form-item" @click="handleTableFieldClick">
         <text class="form-label">台桌号</text>
         <view class="form-value">
           <text :class="{ placeholder: !form.table_no }">{{ form.table_no || '请选择台桌' }}</text>
@@ -63,6 +63,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import api from '@/utils/api-v2.js'
 import TableSelector from '@/components/TableSelector.vue'
 import SuccessModal from '@/components/SuccessModal.vue'
@@ -106,10 +107,6 @@ onMounted(() => {
   adminInfo.value = uni.getStorageSync('adminInfo') || {}
   coachInfo.value = uni.getStorageSync('coachInfo') || {}
 
-  // 如果是已上桌助教，默认选中当前台桌
-  if (coachInfo.value?.coachNo) {
-    loadDefaultTable()
-  }
 })
 
 const loadDefaultTable = async () => {
@@ -163,6 +160,48 @@ const handleSuccessConfirm = () => {
 }
 
 const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { uni.navigateBack() } else { uni.switchTab({ url: '/pages/member/member' }) } }
+
+// 每次显示页面时清空台桌号
+onShow(() => {
+  form.value.table_no = ''
+})
+
+// 台桌号字段点击事件
+const handleTableFieldClick = async () => {
+  // 仅对助教执行自动填充逻辑
+  if (coachInfo.value?.coachNo) {
+    try {
+      const res = await api.waterBoards.getOne(coachInfo.value.coachNo)
+      const waterStatus = res.data?.status
+      const waterTableNo = res.data?.table_no
+      
+      // 判断是否为上桌状态
+      const isOnTable = waterStatus === '早班上桌' || waterStatus === '晚班上桌'
+      
+      if (isOnTable && waterTableNo) {
+        const tableList = waterTableNo.split(',').map(t => t.trim()).filter(t => t)
+        
+        if (tableList.length === 1) {
+          // 【单台桌自动选中】
+          form.value.table_no = tableList[0]
+          uni.setStorageSync('tableName', tableList[0])
+          uni.setStorageSync('tableAuth', JSON.stringify({ 
+            table: tableList[0], 
+            time: Date.now() 
+          }))
+          uni.showToast({ title: `已自动选中台桌 ${tableList[0]}`, icon: 'success' })
+          return // 不弹出选择器
+        }
+        // 多台桌：不自动选中，弹出选择器让用户手动选择
+      }
+    } catch (e) {
+      console.log('获取水牌状态失败，弹出选择器', e)
+    }
+  }
+  
+  // 默认：弹出选择器
+  showTableSelector.value = true
+}
 </script>
 
 <style scoped>

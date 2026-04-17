@@ -362,7 +362,14 @@ onMounted(() => {
 
 // 每次显示页面时重新读取台桌信息
 onShow(() => {
-  // 同步 ref（响应式）
+  // 【新增】员工进入时清空旧台桌号
+  if (isEmployee.value) {
+    uni.removeStorageSync('tableName')
+    uni.removeStorageSync('tableAuth')
+    tableName.value = ''
+  }
+  
+  // 原有逻辑：同步 ref + 加载数据
   tableName.value = uni.getStorageSync('tableName') || ''
   tableInfoRef.value?.loadTableInfo()
   loadCart()
