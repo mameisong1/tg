@@ -80,15 +80,15 @@
         <text class="pending-text">另有 {{ summary.pending }} 条记录待审查确认</text>
       </view>
 
-      <!-- 漏约助教一览表 -->
+      <!-- 未约（无效）助教一览 -->
       <view class="missed-section">
         <view class="section-title-row">
-          <text class="section-title">📋 漏约助教一览表</text>
+          <text class="section-title">📋 未约（无效）助教一览</text>
           <text class="section-count" v-if="missedCoaches.length > 0">共 {{ missedCoaches.length }} 人</text>
         </view>
 
         <view v-if="missedCoaches.length === 0" class="empty-missed">
-          <text class="empty-text">🎉 暂无漏约助教</text>
+          <text class="empty-text">🎉 暂无未约（无效）助教</text>
         </view>
 
         <view v-else class="missed-list">
@@ -432,7 +432,7 @@ onShow(() => {
 .pending-icon { font-size: 16px; }
 .pending-text { font-size: 13px; color: rgba(241, 196, 15, 0.8); }
 
-/* 漏约助教一览表 */
+/* 未约（无效）助教一览 */
 .missed-section {
   background: rgba(20, 20, 30, 0.6);
   border-radius: 12px;
