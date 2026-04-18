@@ -7,7 +7,7 @@
         <view class="back-btn" @click="goBack">
           <text class="back-icon">‹</text>
         </view>
-        <text class="header-title">奖罚管理</text>
+        <text class="header-title">奖罚管理{{ pageTitleSuffix }}</text>
         <view class="back-placeholder"></view>
       </view>
     </view>
@@ -61,19 +61,11 @@
             <view class="quick-btn" :class="{ active: person.tempAmount === 50 }" @click="setQuickAmount(person, 50)">50元</view>
           </view>
           
-          <!-- 输入框 -->
-          <view class="amount-row">
-            <text class="amount-label">奖金(元)</text>
-            <input class="amount-input" type="digit" v-model="person.tempAmount" placeholder="0" />
+          <!-- 金额输入 + 确定按钮（同行） -->
+          <view class="amount-save-row">
+            <input class="amount-input-inline" type="digit" v-model="person.tempAmount" placeholder="0" />
+            <view class="save-btn-inline" @click="savePerson(person)">确定</view>
           </view>
-          
-          <!-- 备注 -->
-          <view class="remark-row">
-            <input class="remark-input" v-model="person.tempRemark" placeholder="备注（可选）" />
-          </view>
-          
-          <!-- 确定按钮 -->
-          <view class="save-btn" @click="savePerson(person)">确定</view>
           
           <!-- 保存成功提示 -->
           <view class="save-success" v-if="person.saveMsg">{{ person.saveMsg }}</view>
@@ -101,6 +93,7 @@ const fixedType = ref('')  // URL参数传入的类型
 const confirmDate = ref('')
 const targets = ref([])
 const loading = ref(false)
+const pageTitleSuffix = ref('')  // 页面标题后缀（显示奖罚类型）
 
 // 当前选中的奖罚类型
 const currentType = computed(() => {
@@ -206,6 +199,7 @@ async function loadTypes() {
       if (fixedType.value) {
         const idx = res.types.findIndex(t => t['奖罚类型'] === fixedType.value)
         if (idx >= 0) typeIndex.value = idx
+        pageTitleSuffix.value = `（${fixedType.value}）`
       }
       // 初始化日期
       if (isDayType.value) {
@@ -321,7 +315,7 @@ onMounted(() => {
 }
 
 .person-card {
-  background: rgba(20,20,30,0.8); border-radius: 12px; padding: 14px;
+  background: rgba(40,40,60,0.6); border-radius: 12px; padding: 14px;
   border: 1px solid rgba(218,165,32,0.1); position: relative;
 }
 .card-name {
@@ -329,29 +323,21 @@ onMounted(() => {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-.quick-btns { display: flex; gap: 6px; margin-bottom: 10px; }
+.quick-btns { display: flex; gap: 8px; margin-bottom: 12px; }
 .quick-btn {
-  flex: 1; text-align: center; padding: 6px 0; font-size: 12px;
-  background: rgba(212,175,55,0.1); border-radius: 6px; color: #d4af37;
+  flex: 1; text-align: center; padding: 12px 0; font-size: 15px; font-weight: 600;
+  background: rgba(212,175,55,0.1); border-radius: 8px; color: #d4af37;
 }
 .quick-btn.active { background: rgba(212,175,55,0.3); color: #fff; }
 
-.amount-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.amount-label { font-size: 12px; color: rgba(255,255,255,0.5); }
-.amount-input {
+.amount-save-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.amount-input-inline {
   flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 6px; padding: 6px 8px; color: #fff; font-size: 14px; text-align: right;
+  border-radius: 6px; padding: 8px 10px; color: #fff; font-size: 15px; text-align: right;
 }
-
-.remark-row { margin-bottom: 10px; }
-.remark-input {
-  width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 6px; padding: 6px 8px; color: #fff; font-size: 12px;
-}
-
-.save-btn {
-  text-align: center; padding: 8px; background: linear-gradient(135deg, #d4af37, #ffd700);
-  border-radius: 8px; color: #000; font-size: 13px; font-weight: 600;
+.save-btn-inline {
+  padding: 8px 18px; background: linear-gradient(135deg, #d4af37, #ffd700);
+  border-radius: 8px; color: #000; font-size: 14px; font-weight: 600; white-space: nowrap;
 }
 
 .save-success {
