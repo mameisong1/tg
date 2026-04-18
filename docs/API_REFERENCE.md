@@ -1887,7 +1887,10 @@ MQTT 发送失败时返回 HTTP 502：
 |------|------|------|
 | `/api/reward-penalty/upsert` | POST | 写入/更新/删除奖罚记录 |
 | `/api/reward-penalty/list` | GET | 查询奖罚记录（按用户过滤） |
-| `/api/reward-penalty/stats` | GET | 按月统计奖罚数据 |
+| `/api/reward-penalty/stats` | GET | 统计摘要（按人员分组，不含明细） |
+| `/api/reward-penalty/stats/detail` | GET | 按人员查明细（弹框用） |
+| `/api/reward-penalty/detail/:id` | POST | 修改明细金额（可改为0，不删除） |
+| `/api/reward-penalty/stats/execute-person` | POST | 一键执行某人所有未执行明细 |
 | `/api/reward-penalty/stats/summary` | GET | 金额汇总 |
 | `/api/reward-penalty/batch-set` | POST | 批量设定奖金 |
 | `/api/reward-penalty/targets` | GET | 获取目标人员列表 |
@@ -1915,8 +1918,8 @@ MQTT 发送失败时返回 HTTP 502：
 |------|------|------|
 | 奖金设定 | `/pages/internal/reward-penalty-set` | 店长给服务员设日奖 |
 | 奖金查看 | `/pages/internal/reward-penalty-view` | 服务员/助教查看自己奖罚 |
-| 奖罚统计 | `admin/reward-penalty-stats.html` | 人事执行奖罚 |
+| 奖罚统计 | `admin/reward-penalty-stats.html` | 人事执行奖罚，两阶段加载+弹框明细+金额编辑 |
 
 ---
 
-*文档更新时间：2026年4月18日 12:31*
+*文档更新时间：2026年4月18日 22:24*
