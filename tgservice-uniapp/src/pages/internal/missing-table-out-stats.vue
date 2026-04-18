@@ -5,7 +5,7 @@
       <view class="status-bar-bg" :style="{ height: statusBarHeight + 'px' }"></view>
       <view class="header-content">
         <view class="back-btn" @click="goBack"><text class="back-icon">‹</text></view>
-        <text class="header-title">下桌单缺失统计</text>
+        <text class="header-title">漏单统计</text>
         <view class="back-placeholder"></view>
       </view>
     </view>
@@ -54,7 +54,7 @@
     </view>
     <view class="empty" v-else-if="!loading">
       <text class="empty-icon">✅</text>
-      <text class="empty-text">该周期无下桌单缺失</text>
+      <text class="empty-text">该周期无漏单</text>
     </view>
 
     <!-- 明细弹框 -->

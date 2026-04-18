@@ -273,7 +273,7 @@
     {
       "path": "pages/internal/missing-table-out-stats",
       "style": {
-        "navigationBarTitleText": "下桌单缺失统计",
+        "navigationBarTitleText": "漏单统计",
         "navigationBarBackgroundColor": "#0a0a0f",
         "navigationBarTextStyle": "white",
         "navigationStyle": "custom"

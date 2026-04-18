@@ -150,7 +150,7 @@ export const lejuanRecords = {
   returnRecord: (id, data) => request({ url: `/lejuan-records/${id}/return`, method: 'POST', data }),
 }
 
-// ========== 下桌单缺失统计 ==========
+// ========== 漏单统计 ==========
 export const missingTableOutOrders = {
   // 获取统计列表
   getStats: (params) => request({ url: '/missing-table-out-orders/stats', data: params }),

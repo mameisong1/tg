@@ -1255,16 +1255,16 @@
   - 采样间隔 60 秒，保留最近 6 小时（360 个点）
 - **更新时间**: 2026-04-12
 
-### 下桌单缺失统计
+### 漏单统计
 
 | 接口 | 方法 | 说明 |
 |------|------|------|
-| `/api/missing-table-out-orders/stats` | GET | 获取下桌单缺失统计列表 |
-| `/api/missing-table-out-orders/detail` | GET | 获取指定助教的下桌单缺失明细 |
+| `/api/missing-table-out-orders/stats` | GET | 获取漏单统计列表 |
+| `/api/missing-table-out-orders/detail` | GET | 获取指定助教的漏单明细 |
 
 **权限**：`missingTableOutStats`（管理员、店长、助教管理）
 
-#### 获取下桌单缺失统计
+#### 获取漏单统计
 
 - **路径**: `GET /api/missing-table-out-orders/stats?period=yesterday`
 - **认证**: 需要 `Authorization: Bearer <token>`
@@ -1295,9 +1295,9 @@
     }
   }
   ```
-- **说明**: 按助教统计指定周期内下桌单缺失数量。上桌单发出后15小时内无对应下桌单（同助教+同桌号+同艺名）即判定为缺失。结果按 `missing_count` 倒序排列。
+- **说明**: 按助教统计指定周期内漏单数量。上桌单发出后15小时内无对应下桌单（同助教+同桌号+同艺名）即判定为缺失。结果按 `missing_count` 倒序排列。
 
-#### 获取指定助教的下桌单缺失明细
+#### 获取指定助教的漏单明细
 
 - **路径**: `GET /api/missing-table-out-orders/detail?period=yesterday&coach_no=10032`
 - **认证**: 需要 `Authorization: Bearer <token>`
