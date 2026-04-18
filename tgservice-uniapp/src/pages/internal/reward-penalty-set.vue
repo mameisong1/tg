@@ -149,6 +149,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import api from '@/utils/api.js'
+import { getBeijingDate, offsetBeijingDate } from '@/utils/time-util.js'
 
 const statusBarHeight = ref(0)
 const rewardTypes = ref([])
@@ -185,28 +186,24 @@ const isDayType = computed(() => {
   return currentType.value === '服务日奖'
 })
 
-// 日期范围
+// 日期范围（使用时间工具类，符合铁律1）
 const minDate = computed(() => {
   if (!isDayType.value) return '2026-01-01'
-  const d = new Date()
-  d.setDate(d.getDate() - 2)
-  return d.toISOString().slice(0, 10)
+  return offsetBeijingDate(-2) // 2天前
 })
 
 const maxDate = computed(() => {
   if (!isDayType.value) return '2030-12-31'
-  return new Date().toISOString().slice(0, 10)
+  return getBeijingDate() // 今天
 })
 
-// 3天日期选项
+// 3天日期选项（使用时间工具类）
 const dateOptions = computed(() => {
   if (!isDayType.value) return []
   const options = []
+  const labels = ['今天', '昨天', '前天']
   for (let i = 0; i < 3; i++) {
-    const d = new Date()
-    d.setDate(d.getDate() - i)
-    const value = d.toISOString().slice(0, 10)
-    const labels = ['今天', '昨天', '前天']
+    const value = offsetBeijingDate(-i) // 今天、昨天、前天
     options.push({ value, label: labels[i] + ' (' + value + ')' })
   }
   return options
@@ -228,11 +225,13 @@ function goBack() {
 
 function onTypeChange(e) {
   typeIndex.value = e.detail.value
-  // 切换类型时重新初始化日期
+  // 切换类型时重新初始化日期（使用时间工具类）
   if (isDayType.value) {
-    confirmDate.value = new Date().toISOString().slice(0, 10)
+    confirmDate.value = getBeijingDate() // YYYY-MM-DD
   } else {
-    confirmDate.value = new Date().toISOString().slice(0, 7)
+    // 按月类型：当前月份 YYYY-MM
+    const today = getBeijingDate()
+    confirmDate.value = today.slice(0, 7)
   }
   loadTargets()
 }
@@ -342,11 +341,13 @@ async function loadTypes() {
         if (idx >= 0) typeIndex.value = idx
         pageTitleSuffix.value = `（${fixedType.value}）`
       }
-      // 初始化日期
+      // 初始化日期（使用时间工具类）
       if (isDayType.value) {
-        confirmDate.value = new Date().toISOString().slice(0, 10)
+        confirmDate.value = getBeijingDate() // YYYY-MM-DD
       } else {
-        confirmDate.value = new Date().toISOString().slice(0, 7)
+        // 按月类型：当前月份 YYYY-MM
+        const today = getBeijingDate()
+        confirmDate.value = today.slice(0, 7)
       }
     }
   } catch (e) {
