@@ -5,7 +5,21 @@
   "workDir": "/TG/temp/QA-20260418-01",
   "designAuditRound": 0,
   "testCasesAuditRound": 0,
-  "fixRound": 0,
-  "currentStep": "audit-testcases",
-  "failReason": null
+  "fixRound": 1,
+  "currentStep": "coding",
+  "failReason": null,
+  "lastFailItems": [
+    "TC-006: 非法JSON拒绝",
+    "TC-025: 批量设定",
+    "TC-027: 无效奖罚类型",
+    "TC-028: 查看自己记录",
+    "TC-029: 按类型筛选",
+    "TC-030: 按月份筛选(本月)",
+    "TC-031: 按月份筛选(上月)",
+    "TC-033: 按角色筛选类型",
+    "TC-034: 无记录",
+    "TC-044: 撤销执行",
+    "TC-045: 金额汇总",
+    "TC-048: 日期格式验证"
+  ]
 }

@@ -5033,9 +5033,36 @@ app.put('/api/admin/reward-penalty/types', authMiddleware, requireBackendPermiss
 // 写入/更新奖罚记录（upsert）
 app.post('/api/reward-penalty/upsert', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
+    // Bug #3 修复：检查 body 是否为合法 JSON 对象
+    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
+      return res.status(400).json({ error: '请求体必须是有效的JSON对象' });
+    }
+
     const { type, confirmDate, phone, name, amount, remark } = req.body;
     if (!type || !confirmDate || !phone || name === undefined || amount === undefined) {
       return res.status(400).json({ error: '缺少必要参数' });
+    }
+
+    // Bug #4 修复：验证 type 是否在系统配置的奖罚类型中
+    const config = await dbGet("SELECT value FROM system_config WHERE key = 'reward_penalty_types'");
+    if (config && config.value) {
+      try {
+        const validTypes = JSON.parse(config.value);
+        if (Array.isArray(validTypes) && validTypes.length > 0) {
+          const typeNames = validTypes.map(t => typeof t === 'string' ? t : (t.name || t.label || t));
+          if (!typeNames.includes(type)) {
+            return res.status(400).json({ error: `无效的奖罚类型: ${type}，有效类型: ${typeNames.join(', ')}` });
+          }
+        }
+      } catch (e) {
+        // 配置解析失败，跳过验证
+      }
+    }
+
+    // Bug #5 修复：验证日期格式
+    const dateRegex = /^\d{4}-\d{2}(-\d{2})?$/;
+    if (!dateRegex.test(confirmDate)) {
+      return res.status(400).json({ error: 'confirmDate格式错误，请使用 YYYY-MM-DD 或 YYYY-MM 格式' });
     }
 
     // amount === 0 → 删除
@@ -5077,6 +5104,17 @@ app.get('/api/reward-penalty/list', authMiddleware, async (req, res) => {
     let sql = 'SELECT * FROM reward_penalties WHERE 1=1';
     const params = [];
 
+    // Bug #1 修复：根据当前用户自动过滤
+    // 教练用户只能查看自己的奖罚记录
+    const user = req.user;
+    if (user && user.userType === 'coach' && user.coachNo) {
+      const coach = await dbGet('SELECT phone FROM coaches WHERE coach_no = ?', [user.coachNo]);
+      const coachPhone = coach && coach.phone ? coach.phone : '';
+      sql += ' AND phone = ?';
+      params.push(coachPhone);
+    }
+    // 非教练用户（管理员等）：如果传了 phone 参数则过滤，否则返回所有记录
+
     if (type) {
       sql += ' AND type = ?';
       params.push(type);
@@ -5085,7 +5123,8 @@ app.get('/api/reward-penalty/list', authMiddleware, async (req, res) => {
       sql += ' AND confirm_date LIKE ?';
       params.push(confirmDate + '%');
     }
-    if (phone) {
+    // phone 参数：仅当不是 coach 用户时才使用（coach 用户已通过 coachNo 自动过滤）
+    if (phone && !(user && user.userType === 'coach')) {
       sql += ' AND phone = ?';
       params.push(phone);
     }
@@ -5098,9 +5137,35 @@ app.get('/api/reward-penalty/list', authMiddleware, async (req, res) => {
 
     const data = await dbAll(sql, params);
 
-    // 计算合计
+    // 计算合计（Bug #2 修复：sumSql 必须镜像相同的 WHERE 条件和 params）
     let sumSql = 'SELECT SUM(amount) as sumAmount, COUNT(*) as total FROM reward_penalties WHERE 1=1';
-    const sumParams = [...params];
+    const sumParams = [];
+
+    // 教练用户自动过滤
+    if (user && user.userType === 'coach' && user.coachNo) {
+      const coach = await dbGet('SELECT phone FROM coaches WHERE coach_no = ?', [user.coachNo]);
+      const coachPhone = coach && coach.phone ? coach.phone : '';
+      sumSql += ' AND phone = ?';
+      sumParams.push(coachPhone);
+    }
+
+    if (type) {
+      sumSql += ' AND type = ?';
+      sumParams.push(type);
+    }
+    if (confirmDate) {
+      sumSql += ' AND confirm_date LIKE ?';
+      sumParams.push(confirmDate + '%');
+    }
+    if (phone && !(user && user.userType === 'coach')) {
+      sumSql += ' AND phone = ?';
+      sumParams.push(phone);
+    }
+    if (execStatus) {
+      sumSql += ' AND exec_status = ?';
+      sumParams.push(execStatus);
+    }
+
     const sumResult = await dbGet(sumSql, sumParams);
 
     res.json({ success: true, data, total: sumResult?.total || 0, sumAmount: sumResult?.sumAmount || 0 });
@@ -5241,6 +5306,232 @@ app.get('/api/reward-penalty/targets', authMiddleware, requireBackendPermission(
   }
 });
 
+// ===================== 新增端点 (Bug #6 修复) =====================
+
+// 获取当前用户可用的奖罚类型
+app.get('/api/reward-penalty/my-types', authMiddleware, async (req, res) => {
+  try {
+    const config = await dbGet("SELECT value FROM system_config WHERE key = 'reward_penalty_types'");
+    let types = [];
+    if (config && config.value) {
+      try {
+        types = JSON.parse(config.value);
+      } catch (e) {
+        types = [];
+      }
+    }
+    res.json({ success: true, types });
+  } catch (err) {
+    logger.error(`获取可用奖罚类型失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 批量设定奖金
+app.post('/api/reward-penalty/batch-set', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
+  try {
+    // Bug #3 修复：检查 body 是否为合法 JSON 对象
+    if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
+      return res.status(400).json({ error: '请求体必须是有效的JSON对象' });
+    }
+
+    const { records, execDate } = req.body;
+    if (!Array.isArray(records) || records.length === 0) {
+      return res.status(400).json({ error: 'records必须是非空数组' });
+    }
+
+    // 验证每条记录的必要字段
+    for (const r of records) {
+      if (!r.type || !r.confirmDate || !r.phone || r.name === undefined || r.amount === undefined) {
+        return res.status(400).json({ error: '每条记录必须包含 type, confirmDate, phone, name, amount' });
+      }
+    }
+
+    // Bug #4 修复：验证 type 是否在系统配置中
+    const config = await dbGet("SELECT value FROM system_config WHERE key = 'reward_penalty_types'");
+    if (config && config.value) {
+      try {
+        const validTypes = JSON.parse(config.value);
+        if (Array.isArray(validTypes) && validTypes.length > 0) {
+          const typeNames = validTypes.map(t => typeof t === 'string' ? t : (t.name || t.label || t));
+          for (const r of records) {
+            if (!typeNames.includes(r.type)) {
+              return res.status(400).json({ error: `无效的奖罚类型: ${r.type}` });
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
+    // Bug #5 修复：验证日期格式
+    const dateRegex = /^\d{4}-\d{2}(-\d{2})?$/;
+    for (const r of records) {
+      if (!dateRegex.test(r.confirmDate)) {
+        return res.status(400).json({ error: `confirmDate格式错误: ${r.confirmDate}，请使用 YYYY-MM-DD 或 YYYY-MM 格式` });
+      }
+    }
+
+    // 批量 upsert
+    let created = 0, updated = 0;
+    for (const r of records) {
+      if (r.amount === 0) {
+        await enqueueRun(
+          'DELETE FROM reward_penalties WHERE confirm_date = ? AND type = ? AND phone = ?',
+          [r.confirmDate, r.type, r.phone]
+        );
+        created++; // 算作一次操作
+      } else {
+        await enqueueRun(
+          `INSERT INTO reward_penalties (type, confirm_date, phone, name, amount, remark, exec_status, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, '未执行', ?)
+           ON CONFLICT(confirm_date, type, phone) DO UPDATE SET
+             name = excluded.name,
+             amount = excluded.amount,
+             remark = excluded.remark,
+             updated_at = excluded.updated_at`,
+          [r.type, r.confirmDate, r.phone, r.name, r.amount, r.remark || '', TimeUtil.nowDB()]
+        );
+
+        // 判断新增还是更新
+        const existing = await dbGet(
+          'SELECT created_at, updated_at FROM reward_penalties WHERE confirm_date = ? AND type = ? AND phone = ?',
+          [r.confirmDate, r.type, r.phone]
+        );
+        if (existing && existing.created_at !== existing.updated_at) {
+          updated++;
+        } else {
+          created++;
+        }
+      }
+    }
+
+    res.json({ success: true, created, updated, total: records.length });
+  } catch (err) {
+    logger.error(`批量设定奖金失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 撤销执行
+app.post('/api/reward-penalty/unexecute/:id', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
+  try {
+    const record = await dbGet('SELECT id, exec_status FROM reward_penalties WHERE id = ?', [req.params.id]);
+    if (!record) {
+      return res.status(404).json({ error: '记录不存在' });
+    }
+    if (record.exec_status !== '已执行') {
+      return res.status(400).json({ error: '该记录尚未执行，无法撤销' });
+    }
+
+    await enqueueRun(
+      "UPDATE reward_penalties SET exec_status = '未执行', exec_date = NULL, updated_at = ? WHERE id = ?",
+      [TimeUtil.nowDB(), req.params.id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    logger.error(`撤销执行失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 金额汇总统计
+app.get('/api/reward-penalty/stats/summary', authMiddleware, async (req, res) => {
+  try {
+    const { month, type, phone } = req.query;
+
+    let sql = 'SELECT type, COUNT(*) as count, SUM(amount) as totalAmount FROM reward_penalties WHERE 1=1';
+    const params = [];
+
+    // 教练用户只能查看自己的数据
+    const user = req.user;
+    if (user && user.userType === 'coach' && user.coachNo) {
+      const coach = await dbGet('SELECT phone FROM coaches WHERE coach_no = ?', [user.coachNo]);
+      const coachPhone = coach && coach.phone ? coach.phone : '';
+      sql += ' AND phone = ?';
+      params.push(coachPhone);
+    } else if (phone) {
+      sql += ' AND phone = ?';
+      params.push(phone);
+    }
+
+    if (month) {
+      sql += ' AND confirm_date LIKE ?';
+      params.push(month + '%');
+    }
+    if (type) {
+      sql += ' AND type = ?';
+      params.push(type);
+    }
+
+    sql += ' GROUP BY type ORDER BY totalAmount DESC';
+
+    const breakdown = await dbAll(sql, params);
+
+    // 总体汇总
+    let totalSql = 'SELECT SUM(amount) as totalAmount, COUNT(*) as totalCount FROM reward_penalties WHERE 1=1';
+    const totalParams = [];
+
+    if (user && user.userType === 'coach' && user.coachNo) {
+      const coach = await dbGet('SELECT phone FROM coaches WHERE coach_no = ?', [user.coachNo]);
+      const coachPhone = coach && coach.phone ? coach.phone : '';
+      totalSql += ' AND phone = ?';
+      totalParams.push(coachPhone);
+    } else if (phone) {
+      totalSql += ' AND phone = ?';
+      totalParams.push(phone);
+    }
+    if (month) {
+      totalSql += ' AND confirm_date LIKE ?';
+      totalParams.push(month + '%');
+    }
+    if (type) {
+      totalSql += ' AND type = ?';
+      totalParams.push(type);
+    }
+
+    const total = await dbGet(totalSql, totalParams);
+
+    // 按执行状态统计
+    let statusSql = "SELECT exec_status, COUNT(*) as count, SUM(amount) as amount FROM reward_penalties WHERE 1=1";
+    const statusParams = [];
+    if (user && user.userType === 'coach' && user.coachNo) {
+      const coach = await dbGet('SELECT phone FROM coaches WHERE coach_no = ?', [user.coachNo]);
+      const coachPhone = coach && coach.phone ? coach.phone : '';
+      statusSql += ' AND phone = ?';
+      statusParams.push(coachPhone);
+    } else if (phone) {
+      statusSql += ' AND phone = ?';
+      statusParams.push(phone);
+    }
+    if (month) {
+      statusSql += ' AND confirm_date LIKE ?';
+      statusParams.push(month + '%');
+    }
+    if (type) {
+      statusSql += ' AND type = ?';
+      statusParams.push(type);
+    }
+    statusSql += ' GROUP BY exec_status';
+
+    const byStatus = await dbAll(statusSql, statusParams);
+
+    res.json({
+      success: true,
+      total: {
+        totalAmount: total?.totalAmount || 0,
+        totalCount: total?.totalCount || 0
+      },
+      breakdown,
+      byStatus
+    });
+  } catch (err) {
+    logger.error(`金额汇总统计失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// =====================================================================
+
 // 更新用户在职状态
 app.put('/api/admin/users/:username/status', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
@@ -5261,7 +5552,16 @@ app.put('/api/admin/users/:username/status', authMiddleware, requireBackendPermi
 
 // =============== 奖罚管理 API 结束 ===============
 
-// 错误处理
+// Bug #3 修复：JSON 解析错误返回 400 而非 500
+app.use((err, req, res, next) => {
+  // Express JSON 解析失败（SyntaxError）→ 返回 400
+  if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+    return res.status(400).json({ error: '请求体格式错误，请检查JSON格式' });
+  }
+  next(err);
+});
+
+// 通用错误处理
 app.use((err, req, res, next) => {
   logger.error(`未处理的错误: ${err.message}`);
   res.status(500).json({ error: '服务器内部错误' });
