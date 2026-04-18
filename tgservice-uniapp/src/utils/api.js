@@ -40,7 +40,8 @@ const request = (options) => {
     // 获取对应的token
     const memberToken = uni.getStorageSync('memberToken')
     const coachToken = uni.getStorageSync('coachToken')
-    const token = options.authType === 'member' ? memberToken : (options.authType === 'coach' ? coachToken : (memberToken || coachToken))
+    const adminToken = uni.getStorageSync('adminToken')
+    const token = options.authType === 'member' ? memberToken : (options.authType === 'coach' ? coachToken : (options.authType === 'admin' ? adminToken : (memberToken || coachToken || adminToken)))
     
     uni.request({
       url: BASE_URL + options.url,
@@ -248,13 +249,13 @@ export default {
   getDeviceFingerprint,
 
   // =============== 奖罚管理 ===============
-  getRewardPenaltyTypes: () => request({ url: "/admin/reward-penalty/types" }),
-  updateRewardPenaltyTypes: (data) => request({ url: "/admin/reward-penalty/types", method: "PUT", data }),
-  upsertRewardPenalty: (data) => request({ url: "/reward-penalty/upsert", method: "POST", data }),
-  getRewardPenaltyList: (params) => request({ url: "/reward-penalty/list", data: params }),
-  getRewardPenaltyStats: (params) => request({ url: "/reward-penalty/stats", data: params }),
-  batchExecuteRewardPenalty: (data) => request({ url: "/reward-penalty/batch-execute", method: "POST", data }),
-  executeRewardPenalty: (id) => request({ url: `/reward-penalty/execute/${id}`, method: "POST" }),
-  getRewardPenaltyTargets: (role) => request({ url: "/reward-penalty/targets", data: { role } }),
-  updateUserStatus: (username, status) => request({ url: `/admin/users/${username}/status`, method: "PUT", data: { employmentStatus: status } })
+  getRewardPenaltyTypes: () => request({ url: "/admin/reward-penalty/types", authType: "admin" }),
+  updateRewardPenaltyTypes: (data) => request({ url: "/admin/reward-penalty/types", method: "PUT", data, authType: "admin" }),
+  upsertRewardPenalty: (data) => request({ url: "/reward-penalty/upsert", method: "POST", data, authType: "admin" }),
+  getRewardPenaltyList: (params) => request({ url: "/reward-penalty/list", data: params, authType: "admin" }),
+  getRewardPenaltyStats: (params) => request({ url: "/reward-penalty/stats", data: params, authType: "admin" }),
+  batchExecuteRewardPenalty: (data) => request({ url: "/reward-penalty/batch-execute", method: "POST", data, authType: "admin" }),
+  executeRewardPenalty: (id) => request({ url: `/reward-penalty/execute/${id}`, method: "POST", authType: "admin" }),
+  getRewardPenaltyTargets: (role) => request({ url: "/reward-penalty/targets", data: { role }, authType: "admin" }),
+  updateUserStatus: (username, status) => request({ url: `/admin/users/${username}/status`, method: "PUT", data: { employmentStatus: status }, authType: "admin" })
 }
