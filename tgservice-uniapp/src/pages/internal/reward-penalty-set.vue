@@ -25,8 +25,8 @@
           <view v-else class="filter-value fixed">{{ currentTypeName }}</view>
         </view>
         
-        <!-- 确定日期选择 -->
-        <view class="filter-row">
+        <!-- 确定日期选择（仅类型已加载后显示） -->
+        <view class="filter-row" v-if="rewardTypes.length > 0">
           <text class="filter-label">确定日期</text>
           <picker v-if="isDayType" mode="date" :value="confirmDate" :start="minDate" :end="maxDate" @change="onDateChange">
             <view class="filter-value">{{ confirmDate }} ▾</view>
@@ -41,7 +41,11 @@
       <view class="cards-title" v-if="targets.length > 0">
         <text>{{ targetTypeLabel }}一览（{{ targets.length }}人）</text>
       </view>
-      <view class="empty-state" v-else-if="!loading">
+      <view class="empty-state" v-else-if="!loading && rewardTypes.length === 0">
+        <text class="empty-icon">📋</text>
+        <text class="empty-text">请选择奖罚类型</text>
+      </view>
+      <view class="empty-state" v-else-if="!loading && targets.length === 0">
         <text class="empty-icon">👥</text>
         <text class="empty-text">暂无{{ targetTypeLabel }}数据</text>
       </view>
@@ -141,6 +145,12 @@ function goBack() {
 
 function onTypeChange(e) {
   typeIndex.value = e.detail.value
+  // 切换类型时重新初始化日期
+  if (isDayType.value) {
+    confirmDate.value = new Date().toISOString().slice(0, 10)
+  } else {
+    confirmDate.value = new Date().toISOString().slice(0, 7)
+  }
   loadTargets()
 }
 
