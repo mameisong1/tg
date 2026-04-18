@@ -177,6 +177,36 @@ router.put('/:coach_no/status', auth.required, requireBackendPermission(['waterB
       table_no: (table_no !== undefined) ? table_no : (status && offStatuses.includes(status) ? null : currentWaterBoard.table_no)
     };
     
+    // 如果水牌从「乐捐」变为其他状态，自动关闭当前乐捐记录
+    if (oldValue.status === '乐捐' && newValue.status !== '乐捐') {
+      const activeLejuan = await tx.get(
+        `SELECT id, actual_start_time FROM lejuan_records
+         WHERE coach_no = ? AND lejuan_status = 'active'
+         ORDER BY actual_start_time DESC LIMIT 1`,
+        [coach_no]
+      );
+      
+      if (activeLejuan) {
+        const nowDB = TimeUtil.nowDB();
+        const actualStart = new Date(activeLejuan.actual_start_time + '+08:00');
+        const nowTime = new Date(nowDB + '+08:00');
+        const diffMs = nowTime.getTime() - actualStart.getTime();
+        const lejuanHours = Math.max(1, Math.ceil(diffMs / (60 * 60 * 1000)));
+        
+        await tx.run(
+          `UPDATE lejuan_records
+           SET lejuan_status = 'returned',
+               return_time = ?,
+               lejuan_hours = ?,
+               updated_at = ?
+           WHERE id = ? AND lejuan_status = 'active'`,
+          [nowDB, lejuanHours, nowDB, activeLejuan.id]
+        );
+        
+        console.log(`[水牌状态变更] 自动关闭乐捐记录 ${activeLejuan.id}（${coach_no}）`);
+      }
+    }
+    
     const user = req.user;
     await operationLogService.create(tx, {
       operator_phone: user.username,
