@@ -23,13 +23,6 @@
             <view class="filter-btn" :class="{ active: dateFilter === 'last' }" @click="setDateFilter('last')">上月</view>
           </view>
         </view>
-        <view class="filter-row" v-if="typeOptions.length > 1">
-          <text class="filter-label">类型</text>
-          <view class="filter-btns">
-            <view class="filter-btn" :class="{ active: typeFilter === '' }" @click="setTypeFilter('')">全部</view>
-            <view class="filter-btn" v-for="t in typeOptions" :key="t" :class="{ active: typeFilter === t }" @click="setTypeFilter(t)">{{ t }}</view>
-          </view>
-        </view>
       </view>
       
       <!-- 统计栏 -->
@@ -83,22 +76,7 @@ const statusBarHeight = ref(0)
 const records = ref([])
 const loading = ref(false)
 const dateFilter = ref('this')
-const typeFilter = ref('')
-const rewardTypes = ref([])
-const userRole = ref('')  // '服务员' 或 '助教'
 const userPhone = ref('')
-
-// 根据角色筛选类型选项
-const typeOptions = computed(() => {
-  if (!rewardTypes.value.length) return []
-  return rewardTypes.value
-    .filter(t => {
-      if (userRole.value === '服务员') return t['对象'] === '服务员'
-      if (userRole.value === '助教' || userRole.value === '教练') return t['对象'] === '助教'
-      return true
-    })
-    .map(t => t['奖罚类型'])
-})
 
 // 统计
 const bonusTotal = computed(() => records.value.filter(r => r.amount > 0).reduce((s, r) => s + r.amount, 0))
@@ -125,20 +103,12 @@ function setDateFilter(val) {
   loadRecords()
 }
 
-function setTypeFilter(val) {
-  typeFilter.value = val
-  loadRecords()
-}
-
 async function loadRecords() {
   loading.value = true
   try {
     const params = {
       phone: userPhone.value,
       confirmDate: queryMonth.value
-    }
-    if (typeFilter.value) {
-      params.type = typeFilter.value
     }
     
     const res = await api.getRewardPenaltyList(params)
@@ -152,31 +122,18 @@ async function loadRecords() {
   }
 }
 
-async function loadTypes() {
-  try {
-    const res = await api.getRewardPenaltyTypes()
-    if (res.success && res.types) {
-      rewardTypes.value = res.types
-    }
-  } catch (e) {
-    // 静默
-  }
-}
-
-function detectUserRole() {
+function detectUserPhone() {
   // 尝试从 adminInfo 获取
   const adminInfo = uni.getStorageSync('adminInfo')
-  if (adminInfo) {
-    userRole.value = adminInfo.role  // '服务员' 等
-    userPhone.value = adminInfo.username || ''
+  if (adminInfo && adminInfo.username) {
+    userPhone.value = adminInfo.username
     return
   }
   
   // 尝试从 coachInfo 获取
   const coachInfo = uni.getStorageSync('coachInfo')
-  if (coachInfo) {
-    userRole.value = '助教'
-    userPhone.value = coachInfo.phone || ''
+  if (coachInfo && coachInfo.phone) {
+    userPhone.value = coachInfo.phone
     return
   }
 }
@@ -185,7 +142,7 @@ onMounted(() => {
   const sysInfo = uni.getSystemInfoSync()
   statusBarHeight.value = sysInfo.statusBarHeight || 0
   
-  detectUserRole()
+  detectUserPhone()
   
   if (!userPhone.value) {
     uni.showToast({ title: '未登录', icon: 'none' })
@@ -193,9 +150,7 @@ onMounted(() => {
     return
   }
   
-  loadTypes().then(() => {
-    loadRecords()
-  })
+  loadRecords()
 })
 </script>
 
