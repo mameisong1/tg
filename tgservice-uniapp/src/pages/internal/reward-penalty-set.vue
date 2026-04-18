@@ -174,7 +174,11 @@ const targetTypeLabel = computed(() => {
 })
 
 // 是否是按日的类型
-const isDayType = computed(() => currentType.value === '服务日奖')
+const isDayType = computed(() => {
+  // 固定类型（通过URL传入的）默认使用3天日期选择器
+  if (fixedType.value) return true
+  return currentType.value === '服务日奖'
+})
 
 // 日期范围
 const minDate = computed(() => {
