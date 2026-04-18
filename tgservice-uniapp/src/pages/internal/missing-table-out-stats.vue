@@ -11,16 +11,18 @@
     </view>
     <view class="header-placeholder" :style="{ height: (statusBarHeight + 44) + 'px' }"></view>
 
-    <!-- 周期选择 + 刷新 -->
-    <view class="toolbar">
-      <picker :range="periodOptions" @change="onPeriodChange">
-        <view class="period-picker">
-          <text class="period-text">{{ currentPeriodLabel }}</text>
-          <text class="period-arrow">▼</text>
+    <!-- 周期筛选标签 -->
+    <view class="period-section">
+      <view class="period-tabs">
+        <view
+          v-for="tab in periodTabs"
+          :key="tab.value"
+          class="period-tab"
+          :class="{ active: currentPeriodValue === tab.value }"
+          @click="switchPeriod(tab.value)"
+        >
+          <text class="period-tab-text">{{ tab.label }}</text>
         </view>
-      </picker>
-      <view class="refresh-btn" @click="loadStats">
-        <text class="refresh-icon">↻</text>
       </view>
     </view>
 
@@ -28,20 +30,22 @@
     <view class="stats-card" v-if="statsData">
       <view class="stat-item">
         <text class="stat-value">{{ statsData.total_coaches }}</text>
-        <text class="stat-label">缺失助教</text>
+        <text class="stat-label">漏单助教</text>
       </view>
       <view class="stat-divider"></view>
       <view class="stat-item">
         <text class="stat-value">{{ statsData.total_missing }}</text>
-        <text class="stat-label">缺失总单数</text>
+        <text class="stat-label">漏单总数</text>
       </view>
     </view>
 
     <!-- 助教列表 -->
     <view class="list-section" v-if="coachList.length > 0">
-      <view class="coach-item" v-for="coach in coachList" :key="coach.coach_no"
+      <view class="coach-item" v-for="(coach, index) in coachList" :key="coach.coach_no"
             @click="showDetail(coach)">
         <view class="coach-info">
+          <text class="coach-rank-icon" v-if="index === 0">🚨</text>
+          <text class="coach-rank-icon" v-else-if="index < 3">⚠️</text>
           <text class="coach-empid">{{ coach.employee_id || '-' }}</text>
           <text class="coach-name">{{ coach.stage_name || '未知' }}</text>
         </view>
@@ -62,7 +66,7 @@
       <view class="modal-content" @click.stop>
         <view class="modal-header">
           <text class="modal-title">
-            {{ detailData.stage_name }} ({{ detailData.employee_id }}) 缺失明细
+            {{ detailData.stage_name }} ({{ detailData.employee_id }}) 漏单明细
           </text>
           <view class="modal-close" @click="closeModal"><text>✕</text></view>
         </view>
@@ -103,12 +107,13 @@ const coachList = ref([])
 const showModal = ref(false)
 const detailData = ref({ details: [] })
 
-const periodOptions = ref(['昨天', '前天', '本月', '上月'])
-const periodValues = ['yesterday', 'beforeYesterday', 'thisMonth', 'lastMonth']
-const currentPeriodIndex = ref(0)
-
-const currentPeriodLabel = computed(() => periodOptions.value[currentPeriodIndex.value])
-const currentPeriodValue = computed(() => periodValues[currentPeriodIndex.value])
+const periodTabs = [
+  { label: '昨天', value: 'yesterday' },
+  { label: '前天', value: 'beforeYesterday' },
+  { label: '本月', value: 'thisMonth' },
+  { label: '上月', value: 'lastMonth' }
+]
+const currentPeriodValue = ref('yesterday')
 
 const goBack = () => {
   const pages = getCurrentPages()
@@ -116,8 +121,8 @@ const goBack = () => {
   else uni.switchTab({ url: '/pages/member/member' })
 }
 
-const onPeriodChange = (e) => {
-  currentPeriodIndex.value = e.detail.value
+const switchPeriod = (value) => {
+  currentPeriodValue.value = value
   loadStats()
 }
 
@@ -220,47 +225,38 @@ onMounted(() => {
   background: #0a0a0f;
 }
 
-/* 工具栏 */
-.toolbar {
+/* 周期筛选标签 */
+.period-section {
+  padding: 16px 16px 8px;
+}
+.period-tabs {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  background: #111118;
+  gap: 10px;
+  background: rgba(20, 20, 30, 0.6);
+  border-radius: 12px;
+  padding: 6px;
+  border: 1px solid rgba(79, 195, 247, 0.15);
 }
-
-.period-picker {
-  display: flex;
-  align-items: center;
-  background: #1a1a2e;
-  border-radius: 8px;
-  padding: 8px 16px;
-}
-
-.period-text {
-  font-size: 14px;
-  color: #e8e8e8;
-  margin-right: 6px;
-}
-
-.period-arrow {
-  font-size: 10px;
-  color: #888;
-}
-
-.refresh-btn {
-  width: 36px;
+.period-tab {
+  flex: 1;
   height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #1a1a2e;
-  border-radius: 50%;
+  border-radius: 8px;
+  transition: all 0.2s;
 }
-
-.refresh-icon {
-  font-size: 18px;
-  color: #4fc3f7;
+.period-tab.active {
+  background: linear-gradient(135deg, #1a73e8, #4fc3f7);
+}
+.period-tab-text {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 500;
+}
+.period-tab.active .period-tab-text {
+  color: #fff;
+  font-weight: 600;
 }
 
 /* 统计卡片 */
@@ -318,7 +314,12 @@ onMounted(() => {
 .coach-info {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+}
+
+.coach-rank-icon {
+  font-size: 16px;
+  flex-shrink: 0;
 }
 
 .coach-empid {
