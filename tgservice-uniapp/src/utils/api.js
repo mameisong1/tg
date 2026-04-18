@@ -245,5 +245,16 @@ export default {
   }),
   
   // 导出设备指纹函数
-  getDeviceFingerprint
+  getDeviceFingerprint,
+
+  // =============== 奖罚管理 ===============
+  getRewardPenaltyTypes: () => request({ url: "/admin/reward-penalty/types" }),
+  updateRewardPenaltyTypes: (data) => request({ url: "/admin/reward-penalty/types", method: "PUT", data }),
+  upsertRewardPenalty: (data) => request({ url: "/reward-penalty/upsert", method: "POST", data }),
+  getRewardPenaltyList: (params) => request({ url: "/reward-penalty/list", data: params }),
+  getRewardPenaltyStats: (params) => request({ url: "/reward-penalty/stats", data: params }),
+  batchExecuteRewardPenalty: (data) => request({ url: "/reward-penalty/batch-execute", method: "POST", data }),
+  executeRewardPenalty: (id) => request({ url: `/reward-penalty/execute/${id}`, method: "POST" }),
+  getRewardPenaltyTargets: (role) => request({ url: "/reward-penalty/targets", data: { role } }),
+  updateUserStatus: (username, status) => request({ url: `/admin/users/${username}/status`, method: "PUT", data: { employmentStatus: status } })
 }

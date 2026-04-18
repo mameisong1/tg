@@ -29,6 +29,8 @@ var MENU_CONFIG = [
   { label: '首页配置', icon: '\uD83C\uDFE0', href: 'home.html', group: '系统' },
   { label: '用户管理', icon: '\uD83D\uDC65', href: 'users.html', group: '系统' },
   { label: '系统配置', icon: '\uD83D\uDEE1\uFE0F', href: 'settings.html', group: '系统' },
+  // 【人事】
+  { label: '奖罚统计', icon: '\uD83C\uDFC6', href: 'reward-penalty-stats.html', group: '人事' },
 ];
 
 // 分组图标
@@ -36,7 +38,8 @@ var GROUP_ICONS = {
   '前厅': '\uD83C\uDFE0',
   '助教管理': '\uD83D\uDC69\u200D\uD83C\uDFEB',
   '设备管理': '\uD83D\uDCA1',
-  '系统': '\u2699\uFE0F'
+  '系统': '\u2699\uFE0F',
+  '人事': '\uD83D\uDC65'
 };
 
 // 角色名映射（中英文兼容）

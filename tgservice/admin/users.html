@@ -66,7 +66,7 @@
     
     <table class="data-table">
       <thead>
-        <tr><th>用户名</th><th>姓名</th><th>角色</th><th>权限</th><th>创建时间</th><th>操作</th></tr>
+        <tr><th>用户名</th><th>姓名</th><th>角色</th><th>在职状态</th><th>权限</th><th>创建时间</th><th>操作</th></tr>
       </thead>
       <tbody id="usersTable"></tbody>
     </table>
@@ -97,6 +97,13 @@
           <option value="前厅管理">前厅管理</option>
           <option value="收银">收银</option>
           <option value="服务员">服务员</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">在职状态</label>
+        <select class="form-input" id="formEmploymentStatus">
+          <option value="在职">在职</option>
+          <option value="离职">离职</option>
         </select>
       </div>
       <div style="display:flex;gap:12px;margin-top:20px">
@@ -142,7 +149,6 @@
       }
       
       document.getElementById('usersTable').innerHTML = users.map(u => {
-        // 角色显示：使用 role 字段的实际值
         let roleText = u.role || '管理员';
         let roleClass = 'badge-admin';
         const roleMap = {
@@ -163,17 +169,19 @@
           roleClass = 'badge-system';
         }
         
-        // 权限标签
         const perms = permsMap[u.username] || [];
         const permTags = perms.length > 0 
           ? perms.map(p => `<span class="perm-tag">${p}</span>`).join('')
           : '<span style="color:rgba(255,255,255,0.3)">无</span>';
         
+        const empStatus = u.employment_status || '在职';
+        const empBadge = empStatus === '在职' ? 'badge-cashier' : 'badge-waiter';
         return `
           <tr>
             <td>${u.username}</td>
             <td>${u.name || '-'}</td>
             <td><span class="badge ${roleClass}">${roleText}</span></td>
+            <td><span class="badge ${empBadge}">${empStatus}</span></td>
             <td><div class="perm-tags">${permTags}</div></td>
             <td>${formatBeijingTime(u.created_at)}</td>
             <td>
@@ -184,7 +192,6 @@
       }).join('');
     }
     
-    // 格式化为北京时区时间
     function formatBeijingTime(timeStr) {
       return TimeUtil.format(timeStr);
     }
@@ -198,6 +205,7 @@
       document.getElementById('formUsername').disabled = false;
       document.getElementById('formRole').value = '管理员';
       document.getElementById('formRole').disabled = false;
+      document.getElementById('formEmploymentStatus').value = '在职';
       document.getElementById('modal').classList.add('show');
     }
     
@@ -211,6 +219,7 @@
       document.getElementById('formPassword').value = '';
       document.getElementById('formRole').value = user?.role || '管理员';
       document.getElementById('formRole').disabled = false;
+      document.getElementById('formEmploymentStatus').value = user?.employment_status || '在职';
       document.getElementById('modal').classList.add('show');
     }
     
@@ -221,12 +230,13 @@
       const name = document.getElementById('formName').value.trim();
       const password = document.getElementById('formPassword').value;
       const role = document.getElementById('formRole').value;
+      const employmentStatus = document.getElementById('formEmploymentStatus').value;
       
       if (!editingUsername && !password) { showToast('请输入密码'); return; }
       
       try {
         if (editingUsername) {
-          const updateData = { name, role };
+          const updateData = { name, role, employmentStatus };
           if (password) updateData.password = password;
           await api(`/api/admin/users/${editingUsername}`, { method: 'PUT', body: JSON.stringify(updateData) });
           showToast('用户已更新');

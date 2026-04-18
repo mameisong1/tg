@@ -1,0 +1,11 @@
+{
+  "qaRequirement": "奖罚管理功能：1)系统配置新增奖罚类型设定(服务日奖/未约客罚金/漏单罚金)；2)数据库新增奖罚表；3)后台用户表新增在职状态；4)前台H5新增奖金设定页面(店长给服务员设日奖)；5)前台H5新增奖金查看页面(服务员/助教查看自己奖罚明细)；6)后台admin新增人事目录+奖罚统计页面(人事执行奖罚)",
+  "acceptanceFocus": "1)系统配置正确存储奖罚类型JSON 2)奖罚表唯一约束生效 3)奖金设定写入/更新/删除正确 4)奖金查看页面按角色筛选正确 5)奖罚统计页面筛选和执行状态正确",
+  "requirementFile": "/TG/docs/奖罚管理.md",
+  "workDir": "/TG/temp/QA-20260418-01",
+  "designAuditRound": 0,
+  "testCasesAuditRound": 0,
+  "fixRound": 0,
+  "currentStep": "audit-testcases",
+  "failReason": null
+}

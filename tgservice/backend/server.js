@@ -2432,7 +2432,7 @@ app.get('/api/cashier-dashboard', authMiddleware, requireBackendPermission(['cas
 // 后台用户管理
 app.get('/api/admin/users', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
-    const users = await dbAll('SELECT username, name, role, created_at FROM admin_users');
+    const users = await dbAll('SELECT username, name, role, created_at, employment_status FROM admin_users');
     res.json(users);
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
@@ -2487,7 +2487,7 @@ app.post('/api/admin/users', authMiddleware, requireBackendPermission(['coachMan
 
 app.put('/api/admin/users/:username', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
-    const { password, name, role } = req.body;
+    const { password, name, role, employmentStatus } = req.body;
 
     // 只更新请求中提供的字段，避免覆盖未提供的字段
     const updates = [];
@@ -2505,6 +2505,10 @@ app.put('/api/admin/users/:username', authMiddleware, requireBackendPermission([
     if (role !== undefined) {
       updates.push('role = ?');
       params.push(role);
+    }
+    if (employmentStatus !== undefined) {
+      updates.push('employment_status = ?');
+      params.push(employmentStatus);
     }
 
     if (updates.length === 0) {
@@ -3606,6 +3610,68 @@ const initSystemConfigTable = async () => {
   }
 };
 initSystemConfigTable();
+
+// =============== 奖罚管理初始化 ===============
+const initRewardPenaltyTable = async () => {
+  try {
+    await enqueueRun(`CREATE TABLE IF NOT EXISTS reward_penalties (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      type TEXT NOT NULL,
+      confirm_date TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      name TEXT NOT NULL,
+      amount REAL NOT NULL,
+      remark TEXT,
+      exec_status TEXT DEFAULT '未执行',
+      exec_date TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+    await enqueueRun(`CREATE UNIQUE INDEX IF NOT EXISTS idx_rp_unique ON reward_penalties(confirm_date, type, phone)`);
+    await enqueueRun(`CREATE INDEX IF NOT EXISTS idx_rp_phone ON reward_penalties(phone)`);
+    await enqueueRun(`CREATE INDEX IF NOT EXISTS idx_rp_type ON reward_penalties(type)`);
+    await enqueueRun(`CREATE INDEX IF NOT EXISTS idx_rp_confirm_date ON reward_penalties(confirm_date)`);
+    await enqueueRun(`CREATE INDEX IF NOT EXISTS idx_rp_exec_status ON reward_penalties(exec_status)`);
+    console.log('✅ reward_penalties 表初始化完成');
+  } catch (err) {
+    if (!err.message.includes('already exists')) {
+      console.error('reward_penalties 表初始化失败:', err.message);
+    }
+  }
+};
+initRewardPenaltyTable();
+
+const initAdminUserEmploymentStatus = async () => {
+  try {
+    await enqueueRun(`ALTER TABLE admin_users ADD COLUMN employment_status TEXT DEFAULT '在职'`);
+    console.log('✅ admin_users.employment_status 字段添加完成');
+  } catch (err) {
+    // 字段已存在,忽略
+  }
+};
+initAdminUserEmploymentStatus();
+
+const initRewardPenaltyTypes = async () => {
+  try {
+    const existing = await dbGet("SELECT value FROM system_config WHERE key = 'reward_penalty_types'");
+    if (!existing) {
+      const defaultTypes = JSON.stringify([
+        {"奖罚类型": "服务日奖", "对象": "服务员"},
+        {"奖罚类型": "未约客罚金", "对象": "助教"},
+        {"奖罚类型": "漏单罚金", "对象": "助教"}
+      ]);
+      await enqueueRun(
+        "INSERT INTO system_config (key, value, description) VALUES ('reward_penalty_types', ?, '奖罚类型配置JSON')",
+        [defaultTypes]
+      );
+      logger.info('初始化奖罚类型配置');
+    }
+  } catch (err) {
+    console.error('奖罚类型配置初始化失败:', err.message);
+  }
+};
+initRewardPenaltyTypes();
+// =============== 奖罚管理初始化结束 ===============
 
 // 获取黑名单列表
 app.get('/api/admin/blacklist', authMiddleware, requireBackendPermission(['all']), async (req, res) => {
@@ -4924,6 +4990,276 @@ app.post('/api/admin/frontend-error-log', authMiddleware, requireBackendPermissi
 app.get('/', (req, res) => {
   res.redirect('/frontend/index.html');
 });
+
+// =============== 奖罚管理 API ===============
+
+// 获取奖罚类型配置
+app.get('/api/admin/reward-penalty/types', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
+  try {
+    const config = await dbGet("SELECT value FROM system_config WHERE key = 'reward_penalty_types'");
+    let types = [];
+    if (config && config.value) {
+      try {
+        types = JSON.parse(config.value);
+      } catch (e) {
+        types = [];
+      }
+    }
+    res.json({ success: true, types });
+  } catch (err) {
+    logger.error(`获取奖罚类型失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 更新奖罚类型配置
+app.put('/api/admin/reward-penalty/types', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
+  try {
+    const { types } = req.body;
+    if (!Array.isArray(types)) {
+      return res.status(400).json({ error: 'types必须是数组' });
+    }
+    await enqueueRun(
+      "INSERT INTO system_config (key, value, description, updated_at) VALUES ('reward_penalty_types', ?, '奖罚类型配置JSON', ?) ON CONFLICT(key) DO UPDATE SET value = ?, updated_at = ?",
+      [JSON.stringify(types), TimeUtil.nowDB(), JSON.stringify(types), TimeUtil.nowDB()]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    logger.error(`更新奖罚类型失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 写入/更新奖罚记录（upsert）
+app.post('/api/reward-penalty/upsert', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
+  try {
+    const { type, confirmDate, phone, name, amount, remark } = req.body;
+    if (!type || !confirmDate || !phone || name === undefined || amount === undefined) {
+      return res.status(400).json({ error: '缺少必要参数' });
+    }
+
+    // amount === 0 → 删除
+    if (amount === 0) {
+      const result = await enqueueRun(
+        'DELETE FROM reward_penalties WHERE confirm_date = ? AND type = ? AND phone = ?',
+        [confirmDate, type, phone]
+      );
+      return res.json({ success: true, action: 'deleted', changes: result.changes });
+    }
+
+    // upsert: INSERT ... ON CONFLICT DO UPDATE
+    await enqueueRun(
+      `INSERT INTO reward_penalties (type, confirm_date, phone, name, amount, remark, exec_status, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, '未执行', ?)
+       ON CONFLICT(confirm_date, type, phone) DO UPDATE SET
+         name = excluded.name,
+         amount = excluded.amount,
+         remark = excluded.remark,
+         updated_at = excluded.updated_at`,
+      [type, confirmDate, phone, name, amount, remark || '', TimeUtil.nowDB()]
+    );
+
+    // 判断是新增还是更新
+    const record = await dbGet('SELECT created_at, updated_at FROM reward_penalties WHERE confirm_date = ? AND type = ? AND phone = ?', [confirmDate, type, phone]);
+    const action = (record && record.created_at === record.updated_at) ? 'created' : 'updated';
+
+    res.json({ success: true, action });
+  } catch (err) {
+    logger.error(`奖罚记录upsert失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 查询奖罚记录列表
+app.get('/api/reward-penalty/list', authMiddleware, async (req, res) => {
+  try {
+    const { type, confirmDate, phone, execStatus } = req.query;
+    let sql = 'SELECT * FROM reward_penalties WHERE 1=1';
+    const params = [];
+
+    if (type) {
+      sql += ' AND type = ?';
+      params.push(type);
+    }
+    if (confirmDate) {
+      sql += ' AND confirm_date LIKE ?';
+      params.push(confirmDate + '%');
+    }
+    if (phone) {
+      sql += ' AND phone = ?';
+      params.push(phone);
+    }
+    if (execStatus) {
+      sql += ' AND exec_status = ?';
+      params.push(execStatus);
+    }
+
+    sql += ' ORDER BY confirm_date DESC, id DESC';
+
+    const data = await dbAll(sql, params);
+
+    // 计算合计
+    let sumSql = 'SELECT SUM(amount) as sumAmount, COUNT(*) as total FROM reward_penalties WHERE 1=1';
+    const sumParams = [...params];
+    const sumResult = await dbGet(sumSql, sumParams);
+
+    res.json({ success: true, data, total: sumResult?.total || 0, sumAmount: sumResult?.sumAmount || 0 });
+  } catch (err) {
+    logger.error(`查询奖罚记录失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 按月统计奖罚数据
+app.get('/api/reward-penalty/stats', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
+  try {
+    const { month, type, execStatus } = req.query;
+    const queryMonth = month || TimeUtil.todayStr().substring(0, 7); // 默认本月 YYYY-MM
+
+    let sql = `SELECT rp.phone, rp.name, rp.type, rp.confirm_date, rp.amount, rp.exec_status, rp.remark,
+                      SUM(rp.amount) OVER (PARTITION BY rp.phone) as person_total
+               FROM reward_penalties rp
+               WHERE rp.confirm_date LIKE ?`;
+    const params = [queryMonth + '%'];
+
+    if (type) {
+      sql += ' AND rp.type = ?';
+      params.push(type);
+    }
+    if (execStatus) {
+      sql += ' AND rp.exec_status = ?';
+      params.push(execStatus);
+    }
+
+    sql += ' ORDER BY rp.phone, rp.confirm_date, rp.id';
+
+    const rows = await dbAll(sql, params);
+
+    // 按人员分组
+    const grouped = {};
+    for (const row of rows) {
+      if (!grouped[row.phone]) {
+        grouped[row.phone] = {
+          phone: row.phone,
+          name: row.name,
+          personTotal: row.person_total || 0,
+          records: []
+        };
+      }
+      grouped[row.phone].records.push({
+        id: row.id,
+        type: row.type,
+        confirm_date: row.confirm_date,
+        amount: row.amount,
+        exec_status: row.exec_status,
+        exec_date: row.exec_date,
+        remark: row.remark
+      });
+    }
+
+    res.json({ success: true, data: Object.values(grouped) });
+  } catch (err) {
+    logger.error(`奖罚统计失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 批量执行奖罚
+app.post('/api/reward-penalty/batch-execute', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
+  try {
+    const { ids, execDate } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ error: 'ids必须是非空数组' });
+    }
+
+    const execDt = execDate || TimeUtil.nowDB().substring(0, 10);
+    const placeholders = ids.map(() => '?').join(',');
+    const params = [execDt, TimeUtil.nowDB(), ...ids];
+
+    const result = await enqueueRun(
+      `UPDATE reward_penalties SET exec_status = '已执行', exec_date = ?, updated_at = ? WHERE id IN (${placeholders})`,
+      params
+    );
+
+    res.json({ success: true, updated: result.changes });
+  } catch (err) {
+    logger.error(`批量执行奖罚失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 单条执行奖罚
+app.post('/api/reward-penalty/execute/:id', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
+  try {
+    const execDt = TimeUtil.nowDB().substring(0, 10);
+    await enqueueRun(
+      "UPDATE reward_penalties SET exec_status = '已执行', exec_date = ?, updated_at = ? WHERE id = ?",
+      [execDt, TimeUtil.nowDB(), req.params.id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    logger.error(`执行奖罚失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 获取对应角色的人员列表（用于奖金设定页面）
+app.get('/api/reward-penalty/targets', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
+  try {
+    const { role } = req.query; // '服务员' 或 '助教'
+
+    if (role === '服务员') {
+      const users = await dbAll(
+        "SELECT username as phone, name, role FROM admin_users WHERE role = '服务员' AND employment_status = '在职' ORDER BY name"
+      );
+      return res.json({ success: true, data: users, role });
+    }
+
+    if (role === '助教') {
+      const coaches = await dbAll(
+        `SELECT coach_no, employee_id, stage_name, real_name, phone, status
+         FROM coaches
+         WHERE status != '离职' AND employee_id IS NOT NULL AND employee_id != ''
+         ORDER BY CAST(employee_id AS INTEGER)`
+      );
+      // 格式化显示名称: 工号 + 艺名 + 姓名
+      const formatted = coaches.map(c => ({
+        phone: c.phone || '',
+        coach_no: c.coach_no,
+        employee_id: c.employee_id,
+        displayName: `${c.employee_id}号 ${c.stage_name || ''} ${c.real_name || ''}`.trim(),
+        name: c.real_name || c.stage_name || '',
+        status: c.status
+      }));
+      return res.json({ success: true, data: formatted, role });
+    }
+
+    res.status(400).json({ error: 'role参数必须是"服务员"或"助教"' });
+  } catch (err) {
+    logger.error(`获取奖罚对象列表失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 更新用户在职状态
+app.put('/api/admin/users/:username/status', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
+  try {
+    const { employmentStatus } = req.body;
+    if (!['在职', '离职'].includes(employmentStatus)) {
+      return res.status(400).json({ error: 'employmentStatus必须是"在职"或"离职"' });
+    }
+    await enqueueRun(
+      'UPDATE admin_users SET employment_status = ? WHERE username = ?',
+      [employmentStatus, req.params.username]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    logger.error(`更新用户在职状态失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// =============== 奖罚管理 API 结束 ===============
 
 // 错误处理
 app.use((err, req, res, next) => {

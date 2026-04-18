@@ -122,6 +122,10 @@
           <text class="internal-btn-icon">🔔</text>
           <text class="internal-btn-text">服务下单</text>
         </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/reward-penalty-view')">
+          <text class="internal-btn-icon">🏆</text>
+          <text class="internal-btn-text">我的奖罚</text>
+        </view>
       </view>
     </view>
 
@@ -203,6 +207,10 @@
         <view class="internal-btn" @click="navigateTo('/pages/internal/missing-table-out-stats')">
           <text class="internal-btn-icon">📊</text>
           <text class="internal-btn-text">漏单统计</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/reward-penalty-set?type=服务日奖')">
+          <text class="internal-btn-icon">🏆</text>
+          <text class="internal-btn-text">服务日奖</text>
         </view>
       </view>
     </view>

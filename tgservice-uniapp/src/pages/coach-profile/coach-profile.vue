@@ -63,6 +63,13 @@
       </view>
       
       <view class="save-btn" @click="saveProfile">保存修改</view>
+      
+      <!-- 奖罚查看入口 -->
+      <view class="reward-link" @click="goToRewardView">
+        <text class="reward-link-icon">🏆</text>
+        <text class="reward-link-text">我的奖罚</text>
+        <text class="reward-link-arrow">›</text>
+      </view>
     </view>
     
     <!-- 照片管理弹窗 -->
@@ -391,6 +398,10 @@ const goBack = () => {
   uni.navigateBack()
 }
 
+const goToRewardView = () => {
+  uni.navigateTo({ url: '/pages/internal/reward-penalty-view' })
+}
+
 onMounted(() => { 
   // 获取状态栏高度
   const systemInfo = uni.getSystemInfoSync()
@@ -478,6 +489,10 @@ onMounted(() => {
 .video-upload-text { font-size: 14px; color: rgba(255,255,255,0.5); }
 .intro-textarea { width: 100%; min-height: 120px; padding: 16px; background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.1); border-radius: 16px; color: #fff; font-size: 14px; line-height: 1.6; }
 .save-btn { width: 100%; height: 50px; background: linear-gradient(135deg, #d4af37, #ffd700); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-top: 20px; color: #000; font-size: 16px; font-weight: 600; }
+.reward-link { width: 100%; height: 50px; background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-top: 12px; color: #d4af37; font-size: 15px; gap: 8px; }
+.reward-link-icon { font-size: 20px; }
+.reward-link-text { font-weight: 600; }
+.reward-link-arrow { font-size: 20px; margin-left: auto; padding-right: 16px; color: rgba(255,255,255,0.3); }
 .photo-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 1000; }
 .photo-modal-content { width: 85%; max-width: 320px; background: #1a1a24; border-radius: 16px; overflow: hidden; }
 .modal-img { width: 100%; height: 280px; }
