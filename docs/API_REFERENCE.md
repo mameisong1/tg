@@ -1872,4 +1872,51 @@ MQTT 发送失败时返回 HTTP 502：
 
 ---
 
-*文档更新时间：2026年4月16日 23:00*
+## 奖罚管理（2026-04-18 新增）
+
+### 奖罚类型配置
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/admin/reward-penalty/types` | GET | 获取奖罚类型配置 |
+| `/api/admin/reward-penalty/types` | PUT | 更新奖罚类型配置 |
+
+### 奖罚数据 API
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/reward-penalty/upsert` | POST | 写入/更新/删除奖罚记录 |
+| `/api/reward-penalty/list` | GET | 查询奖罚记录（按用户过滤） |
+| `/api/reward-penalty/stats` | GET | 按月统计奖罚数据 |
+| `/api/reward-penalty/stats/summary` | GET | 金额汇总 |
+| `/api/reward-penalty/batch-set` | POST | 批量设定奖金 |
+| `/api/reward-penalty/targets` | GET | 获取目标人员列表 |
+| `/api/reward-penalty/my-types` | GET | 获取当前用户可用的奖罚类型 |
+| `/api/reward-penalty/execute/:id` | POST | 执行单条奖罚 |
+| `/api/reward-penalty/unexecute/:id` | POST | 撤销执行 |
+| `/api/reward-penalty/batch-execute` | POST | 批量执行奖罚 |
+
+### 后台用户管理
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/admin/users/:username/status` | PUT | 更新用户在职状态 |
+
+### 数据库变更
+
+- **新表**: `reward_penalties`（奖罚No/类型/确定日期/手机号/姓名/金额/备注/执行状态/执行日期）
+- **唯一约束**: `UNIQUE(confirm_date, type, phone)`
+- **新字段**: `admin_users.employment_status`（在职/离职）
+- **新配置**: `system_config.reward_penalty_types`（JSON 数组）
+
+### 前端页面
+
+| 页面 | 路径 | 说明 |
+|------|------|------|
+| 奖金设定 | `/pages/internal/reward-penalty-set` | 店长给服务员设日奖 |
+| 奖金查看 | `/pages/internal/reward-penalty-view` | 服务员/助教查看自己奖罚 |
+| 奖罚统计 | `admin/reward-penalty-stats.html` | 人事执行奖罚 |
+
+---
+
+*文档更新时间：2026年4月18日 12:31*
