@@ -122,7 +122,7 @@
           <text class="internal-btn-icon">🔔</text>
           <text class="internal-btn-text">服务下单</text>
         </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/reward-penalty-view')">
+        <view class="internal-btn internal-btn-disabled" @click="showUnderConstruction">
           <text class="internal-btn-icon">🏆</text>
           <text class="internal-btn-text">我的奖罚</text>
         </view>
@@ -1086,6 +1086,7 @@ const goBackOrTab = () => {
 }
 
 const navigateTo = (url) => uni.navigateTo({ url })
+const showUnderConstruction = () => uni.showToast({ title: '工事中。。。', icon: 'none' })
 
 const getCoachPhoto = (coach) => {
   const photo = coach.photos && coach.photos[0]
@@ -1373,6 +1374,10 @@ onShow(() => {
 }
 .internal-btn-icon { font-size: 24px; }
 .internal-btn-text { font-size: 12px; color: rgba(255,255,255,0.7); }
+.internal-btn-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
 /* 助教专用板块 */
 .coach-section { margin-top: 24px; }
