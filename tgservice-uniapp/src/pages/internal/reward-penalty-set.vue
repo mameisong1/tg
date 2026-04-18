@@ -51,21 +51,26 @@
         </view>
       </view>
       
+      <!-- 搜索栏 -->
+      <view class="search-section" v-if="targets.length > 0">
+        <input class="search-input" type="text" v-model="searchKeyword" placeholder="搜索姓名或工号" />
+      </view>
+      
       <!-- 人员卡片列表 -->
-      <view class="cards-title" v-if="targets.length > 0">
-        <text>{{ targetTypeLabel }}一览（{{ targets.length }}人）</text>
+      <view class="cards-title" v-if="filteredTargets.length > 0">
+        <text>{{ targetTypeLabel }}一览（{{ filteredTargets.length }}人）</text>
       </view>
       <view class="empty-state" v-else-if="!loading && rewardTypes.length === 0">
         <text class="empty-icon">📋</text>
         <text class="empty-text">请选择奖罚类型</text>
       </view>
-      <view class="empty-state" v-else-if="!loading && targets.length === 0">
-        <text class="empty-icon">👥</text>
-        <text class="empty-text">暂无{{ targetTypeLabel }}数据</text>
+      <view class="empty-state" v-else-if="!loading && filteredTargets.length === 0">
+        <text class="empty-icon">🔍</text>
+        <text class="empty-text">无匹配结果</text>
       </view>
       
       <view class="cards-grid">
-        <view class="person-card" v-for="(person, idx) in targets" :key="idx">
+        <view class="person-card" v-for="(person, idx) in filteredTargets" :key="idx">
           <view class="card-name">{{ person.displayName || person.name }}</view>
           
           <!-- 当前奖罚金额 -->
@@ -110,9 +115,9 @@
           
           <!-- 快捷负数按钮 -->
           <view class="modal-quick-btns modal-neg-btns">
-            <view class="modal-quick-btn modal-neg-btn" @click="modalTempAmount = modalTempAmount - 10">-10元</view>
-            <view class="modal-quick-btn modal-neg-btn" @click="modalTempAmount = modalTempAmount - 20">-20元</view>
-            <view class="modal-quick-btn modal-neg-btn" @click="modalTempAmount = modalTempAmount - 50">-50元</view>
+            <view class="modal-quick-btn modal-neg-btn" @click="modalTempAmount = -10">-10元</view>
+            <view class="modal-quick-btn modal-neg-btn" @click="modalTempAmount = -20">-20元</view>
+            <view class="modal-quick-btn modal-neg-btn" @click="modalTempAmount = -50">-50元</view>
           </view>
           
           <!-- 金额输入框 + 清零按钮 -->
@@ -242,6 +247,17 @@ const modalVisible = ref(false)
 const modalPerson = ref(null)
 const modalTempAmount = ref(0)
 const modalTempRemark = ref('')
+const searchKeyword = ref('')
+
+const filteredTargets = computed(() => {
+  const kw = searchKeyword.value.trim().toLowerCase()
+  if (!kw) return targets.value
+  return targets.value.filter(p => {
+    const name = (p.displayName || p.name || '').toLowerCase()
+    const empId = String(p.employee_id || '').toLowerCase()
+    return name.includes(kw) || empId.includes(kw)
+  })
+})
 
 function openModal(person) {
   modalPerson.value = person
@@ -438,6 +454,14 @@ onMounted(() => {
   border-radius: 6px; min-width: 120px; text-align: center;
 }
 .filter-value.fixed { background: rgba(212,175,55,0.2); }
+
+/* 搜索栏 */
+.search-section { padding: 12px 16px; }
+.search-input {
+  width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px; padding: 10px 14px; color: #fff; font-size: 14px;
+  outline: none;
+}
 
 /* 自定义日期选择器 */
 .date-picker-wrapper { cursor: pointer; }
