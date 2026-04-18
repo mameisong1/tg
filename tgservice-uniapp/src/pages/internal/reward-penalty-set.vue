@@ -73,6 +73,11 @@
             </text>
           </view>
           
+          <!-- 备注显示 -->
+          <view class="card-remark" v-if="person.currentRemark">
+            <text class="card-remark-text">{{ person.currentRemark }}</text>
+          </view>
+          
           <!-- 设定按钮 -->
           <view class="set-btn" @click="openModal(person)">
             <text class="set-btn-text">设定</text>
@@ -104,6 +109,11 @@
           <!-- 金额输入框 -->
           <view class="modal-input-row">
             <input class="modal-amount-input" type="digit" v-model="modalTempAmount" placeholder="输入自定义金额" />
+          </view>
+          
+          <!-- 备注输入 -->
+          <view class="modal-remark-row">
+            <input class="modal-remark-input" type="text" v-model="modalTempRemark" placeholder="备注（可选）" />
           </view>
           
           <!-- 确定 + 清零 -->
@@ -215,22 +225,27 @@ function onDateChange(e) {
 const modalVisible = ref(false)
 const modalPerson = ref(null)
 const modalTempAmount = ref(0)
+const modalTempRemark = ref('')
 
 function openModal(person) {
   modalPerson.value = person
   modalTempAmount.value = person.currentAmount !== null ? person.currentAmount : 0
+  modalTempRemark.value = person.currentRemark || ''
   modalVisible.value = true
 }
 
 function closeModal() {
   modalVisible.value = false
   modalPerson.value = null
+  modalTempRemark.value = ''
 }
 
 async function saveModalPerson() {
   if (!modalPerson.value) return
   const person = modalPerson.value
   person.tempAmount = modalTempAmount.value
+  person.tempRemark = modalTempRemark.value
+  person.currentRemark = modalTempRemark.value
   await savePerson(person)
   closeModal()
 }
@@ -239,6 +254,8 @@ async function zeroPerson() {
   if (!modalPerson.value) return
   const person = modalPerson.value
   person.tempAmount = 0
+  person.tempRemark = ''
+  person.currentRemark = ''
   await savePerson(person)
   closeModal()
 }
@@ -312,6 +329,7 @@ async function loadTargets() {
         tempAmount: 0,
         tempRemark: '',
         currentAmount: null,
+        currentRemark: '',
         saveMsg: ''
       }))
       // 加载当前日期已设的金额
@@ -333,13 +351,18 @@ async function loadCurrentAmounts() {
     if (res.success && res.data) {
       // 用phone建立映射
       const amountMap = {}
+      const remarkMap = {}
       res.data.forEach(r => {
         amountMap[r.phone] = r.amount
+        remarkMap[r.phone] = r.remark || ''
       })
       targets.value.forEach(p => {
         if (amountMap[p.phone] !== undefined) {
           p.currentAmount = amountMap[p.phone]
           p.tempAmount = amountMap[p.phone]
+        }
+        if (remarkMap[p.phone]) {
+          p.currentRemark = remarkMap[p.phone]
         }
       })
     }
@@ -430,7 +453,9 @@ onMounted(() => {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; text-align: center;
 }
 
-.card-amount { margin-bottom: 12px; min-height: 24px; }
+.card-amount { margin-bottom: 6px; min-height: 24px; }
+.card-remark { margin-bottom: 12px; min-height: 18px; }
+.card-remark-text { font-size: 12px; color: rgba(255,255,255,0.5); text-align: center; }
 .amount-value { font-size: 18px; font-weight: 700; color: rgba(255,255,255,0.3); }
 .amount-value.hasAmount { color: #d4af37; }
 
@@ -466,10 +491,15 @@ onMounted(() => {
   background: rgba(212,175,55,0.1); border-radius: 10px; color: #d4af37;
 }
 .modal-quick-btn.active { background: rgba(212,175,55,0.3); color: #fff; }
-.modal-input-row { margin-bottom: 16px; }
+.modal-input-row { margin-bottom: 12px; box-sizing: border-box; }
 .modal-amount-input {
-  width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
   border-radius: 8px; padding: 12px; color: #fff; font-size: 16px; text-align: center;
+}
+.modal-remark-row { margin-bottom: 16px; }
+.modal-remark-input {
+  width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px; padding: 12px; color: #fff; font-size: 14px;
 }
 .modal-actions { display: flex; gap: 12px; }
 .modal-btn {
