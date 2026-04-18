@@ -29,15 +29,15 @@
       <view class="stats-bar" v-if="records.length > 0">
         <view class="stat-item">
           <text class="stat-label">奖金</text>
-          <text class="stat-value positive">+¥{{ bonusTotal.toFixed(2) }}</text>
+          <text class="stat-value positive">+¥{{ bonusTotal }}</text>
         </view>
         <view class="stat-item">
           <text class="stat-label">罚金</text>
-          <text class="stat-value negative">-¥{{ penaltyTotal.toFixed(2) }}</text>
+          <text class="stat-value negative">-¥{{ penaltyTotal }}</text>
         </view>
         <view class="stat-item">
           <text class="stat-label">净额</text>
-          <text class="stat-value" :class="netTotal >= 0 ? 'positive' : 'negative'">¥{{ netTotal.toFixed(2) }}</text>
+          <text class="stat-value" :class="netTotal >= 0 ? 'positive' : 'negative'">¥{{ netTotal }}</text>
         </view>
       </view>
       
@@ -47,7 +47,7 @@
           <view class="record-header">
             <text class="record-type">{{ r.type }}</text>
             <text class="record-amount" :class="r.amount >= 0 ? 'positive' : 'negative'">
-              {{ r.amount >= 0 ? '+' : '' }}¥{{ r.amount.toFixed(2) }}
+              {{ r.amount >= 0 ? '+' : '' }}¥{{ Math.round(r.amount) }}
             </text>
           </view>
           <view class="record-footer">
@@ -78,19 +78,24 @@ const loading = ref(false)
 const dateFilter = ref('this')
 const userPhone = ref('')
 
-// 统计
-const bonusTotal = computed(() => records.value.filter(r => r.amount > 0).reduce((s, r) => s + r.amount, 0))
-const penaltyTotal = computed(() => records.value.filter(r => r.amount < 0).reduce((s, r) => s + Math.abs(r.amount), 0))
-const netTotal = computed(() => records.value.reduce((s, r) => s + r.amount, 0))
+// 统计（四舍五入取整）
+const bonusTotal = computed(() => Math.round(records.value.filter(r => r.amount > 0).reduce((s, r) => s + r.amount, 0)))
+const penaltyTotal = computed(() => Math.round(records.value.filter(r => r.amount < 0).reduce((s, r) => s + Math.abs(r.amount), 0)))
+const netTotal = computed(() => Math.round(records.value.reduce((s, r) => s + r.amount, 0)))
 
-// 查询月份
+// 查询月份（使用本地时间，避免 UTC 偏移问题）
 const queryMonth = computed(() => {
   const now = new Date()
   if (dateFilter.value === 'this') {
-    return now.toISOString().slice(0, 7)
+    // 本月：格式化为 YYYY-MM
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, '0')
+    return `${year}-${month}`
   } else {
-    const last = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    return last.toISOString().slice(0, 7)
+    // 上月：计算正确的上月
+    const year = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear()
+    const month = now.getMonth() === 0 ? 12 : now.getMonth()
+    return `${year}-${String(month).padStart(2, '0')}`
   }
 })
 
