@@ -5265,13 +5265,29 @@ app.get('/api/reward-penalty/stats', authMiddleware, requireBackendPermission(['
     }
     const pendingRow = await dbGet(pendingSql, pendingParams);
 
+    // 如果传了 execStatus，根据状态直接计算 pending/executed
+    let pendingCount, executedCount;
+    if (execStatus === '已执行') {
+      // 已执行过滤：pendingCount=0，executedCount=totalCount
+      pendingCount = 0;
+      executedCount = summaryRow?.totalCount || 0;
+    } else if (execStatus === '未执行') {
+      // 未执行过滤：pendingCount=totalCount，executedCount=0
+      pendingCount = summaryRow?.totalCount || 0;
+      executedCount = 0;
+    } else {
+      // 无状态过滤：用 pendingCount 查询结果
+      pendingCount = pendingRow?.pendingCount || 0;
+      executedCount = (summaryRow?.totalCount || 0) - (pendingRow?.pendingCount || 0);
+    }
+
     const summary = {
       totalAmount: summaryRow?.totalAmount || 0,
       totalBonus: bonusRow?.totalBonus || 0,
       totalPenalty: penaltyRow?.totalPenalty || 0,
       totalCount: summaryRow?.totalCount || 0,
-      pendingCount: pendingRow?.pendingCount || 0,
-      executedCount: (summaryRow?.totalCount || 0) - (pendingRow?.pendingCount || 0)
+      pendingCount,
+      executedCount
     };
 
     res.json({ success: true, data, summary });

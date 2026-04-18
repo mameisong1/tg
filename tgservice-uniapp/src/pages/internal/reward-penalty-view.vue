@@ -71,6 +71,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import api from '@/utils/api.js'
+import { getBeijingDate } from '@/utils/time-util.js'
 
 const statusBarHeight = ref(0)
 const records = ref([])
@@ -83,19 +84,21 @@ const bonusTotal = computed(() => Math.round(records.value.filter(r => r.amount 
 const penaltyTotal = computed(() => Math.round(records.value.filter(r => r.amount < 0).reduce((s, r) => s + Math.abs(r.amount), 0)))
 const netTotal = computed(() => Math.round(records.value.reduce((s, r) => s + r.amount, 0)))
 
-// 查询月份（使用本地时间，避免 UTC 偏移问题）
+// 查询月份（使用时间工具类，符合铁律1）
 const queryMonth = computed(() => {
-  const now = new Date()
+  const today = getBeijingDate() // YYYY-MM-DD 北京时间
+  const [year, month] = today.split('-')
+  
   if (dateFilter.value === 'this') {
-    // 本月：格式化为 YYYY-MM
-    const year = now.getFullYear()
-    const month = String(now.getMonth() + 1).padStart(2, '0')
+    // 本月
     return `${year}-${month}`
   } else {
-    // 上月：计算正确的上月
-    const year = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear()
-    const month = now.getMonth() === 0 ? 12 : now.getMonth()
-    return `${year}-${String(month).padStart(2, '0')}`
+    // 上月
+    const y = parseInt(year)
+    const m = parseInt(month)
+    const lastYear = m === 1 ? y - 1 : y
+    const lastMonth = m === 1 ? '12' : String(m - 1).padStart(2, '0')
+    return `${lastYear}-${lastMonth}`
   }
 })
 

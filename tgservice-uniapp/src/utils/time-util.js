@@ -71,3 +71,25 @@ export function format(dbTime, formatStr = 'YYYY-MM-DD HH:mm') {
     .replace('mm', min)
     .replace('ss', s);
 }
+
+/**
+ * 获取偏移后的北京时间日期字符串 YYYY-MM-DD
+ * @param {number} days - 偏移天数，正数表示未来，负数表示过去
+ * @returns {string}
+ */
+export function offsetBeijingDate(days) {
+  const now = new Date();
+  now.setDate(now.getDate() + days);
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * 获取当前北京时间小时 (0-23)
+ * @returns {number}
+ */
+export function getBeijingHour() {
+  return new Date().getHours();
+}
