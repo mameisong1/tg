@@ -5049,7 +5049,7 @@ app.post('/api/reward-penalty/upsert', authMiddleware, requireBackendPermission(
       try {
         const validTypes = JSON.parse(config.value);
         if (Array.isArray(validTypes) && validTypes.length > 0) {
-          const typeNames = validTypes.map(t => typeof t === 'string' ? t : (t.name || t.label || t));
+          const typeNames = validTypes.map(t => typeof t === 'string' ? t : (t['奖罚类型'] || t.name || t.label || ''));
           if (!typeNames.includes(type)) {
             return res.status(400).json({ error: `无效的奖罚类型: ${type}，有效类型: ${typeNames.join(', ')}` });
           }
@@ -5308,14 +5308,33 @@ app.get('/api/reward-penalty/targets', authMiddleware, requireBackendPermission(
 
 // ===================== 新增端点 (Bug #6 修复) =====================
 
-// 获取当前用户可用的奖罚类型
+// 获取当前用户可用的奖罚类型（按角色过滤）
 app.get('/api/reward-penalty/my-types', authMiddleware, async (req, res) => {
   try {
     const config = await dbGet("SELECT value FROM system_config WHERE key = 'reward_penalty_types'");
     let types = [];
     if (config && config.value) {
       try {
-        types = JSON.parse(config.value);
+        const allTypes = JSON.parse(config.value);
+        // 根据用户角色过滤奖罚类型
+        const userRole = req.user?.role || '';
+        // 管理员/店长/助教管理等后台角色可以看到所有类型
+        const adminRoles = ['管理员', '店长', '助教管理', 'cashier'];
+        if (adminRoles.includes(userRole)) {
+          types = allTypes;
+        } else if (userRole === '助教' || userRole === '教练') {
+          // 助教/教练只能看到对象包含"助教"或"教练"的类型
+          types = allTypes.filter(t => {
+            const obj = t['对象'] || '';
+            return obj.includes('助教') || obj.includes('教练');
+          });
+        } else {
+          // 其他角色（如服务员）：看到对象匹配自己角色的类型
+          types = allTypes.filter(t => {
+            const obj = t['对象'] || '';
+            return obj.includes(userRole);
+          });
+        }
       } catch (e) {
         types = [];
       }
@@ -5353,7 +5372,7 @@ app.post('/api/reward-penalty/batch-set', authMiddleware, requireBackendPermissi
       try {
         const validTypes = JSON.parse(config.value);
         if (Array.isArray(validTypes) && validTypes.length > 0) {
-          const typeNames = validTypes.map(t => typeof t === 'string' ? t : (t.name || t.label || t));
+          const typeNames = validTypes.map(t => typeof t === 'string' ? t : (t['奖罚类型'] || t.name || t.label || ''));
           for (const r of records) {
             if (!typeNames.includes(r.type)) {
               return res.status(400).json({ error: `无效的奖罚类型: ${r.type}` });
