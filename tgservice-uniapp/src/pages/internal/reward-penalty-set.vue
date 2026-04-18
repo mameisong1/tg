@@ -54,25 +54,50 @@
         <view class="person-card" v-for="(person, idx) in targets" :key="idx">
           <view class="card-name">{{ person.displayName || person.name }}</view>
           
-          <!-- 快捷按钮 -->
-          <view class="quick-btns">
-            <view class="quick-btn" :class="{ active: person.tempAmount === 10 }" @click="setQuickAmount(person, 10)">10元</view>
-            <view class="quick-btn" :class="{ active: person.tempAmount === 20 }" @click="setQuickAmount(person, 20)">20元</view>
-            <view class="quick-btn" :class="{ active: person.tempAmount === 50 }" @click="setQuickAmount(person, 50)">50元</view>
+          <!-- 当前奖罚金额 -->
+          <view class="card-amount">
+            <text class="amount-value" :class="{ hasAmount: person.currentAmount }">
+              {{ person.currentAmount !== null ? '¥' + person.currentAmount.toFixed(2) : '未设定' }}
+            </text>
           </view>
           
-          <!-- 金额输入 + 确定按钮（同行） -->
-          <view class="amount-save-row">
-            <input class="amount-input-inline" type="digit" v-model="person.tempAmount" placeholder="0" />
-            <view class="save-btn-inline" @click="savePerson(person)">确定</view>
+          <!-- 设定按钮 -->
+          <view class="set-btn" @click="openModal(person)">
+            <text class="set-btn-text">设定</text>
           </view>
           
           <!-- 保存成功提示 -->
           <view class="save-success" v-if="person.saveMsg">{{ person.saveMsg }}</view>
+        </view>
+      </view>
+      
+      <!-- 弹框 -->
+      <view class="modal-mask" v-if="modalVisible" @click="closeModal">
+        <view class="modal-content" @click.stop>
+          <!-- 关闭按钮 -->
+          <view class="modal-close" @click="closeModal">
+            <text class="close-icon">✕</text>
+          </view>
           
-          <!-- 当前已设金额 -->
-          <view class="current-amount" v-if="person.currentAmount">
-            已设: ¥{{ person.currentAmount.toFixed(2) }}
+          <!-- 姓名显示 -->
+          <view class="modal-name">{{ modalPerson?.displayName || modalPerson?.name }}</view>
+          
+          <!-- 快捷金额按钮 -->
+          <view class="modal-quick-btns">
+            <view class="modal-quick-btn" :class="{ active: modalTempAmount === 10 }" @click="modalTempAmount = 10">10元</view>
+            <view class="modal-quick-btn" :class="{ active: modalTempAmount === 20 }" @click="modalTempAmount = 20">20元</view>
+            <view class="modal-quick-btn" :class="{ active: modalTempAmount === 50 }" @click="modalTempAmount = 50">50元</view>
+          </view>
+          
+          <!-- 金额输入框 -->
+          <view class="modal-input-row">
+            <input class="modal-amount-input" type="digit" v-model="modalTempAmount" placeholder="输入自定义金额" />
+          </view>
+          
+          <!-- 确定 + 清零 -->
+          <view class="modal-actions">
+            <view class="modal-btn modal-btn-zero" @click="zeroPerson">清零</view>
+            <view class="modal-btn modal-btn-save" @click="saveModalPerson">确定</view>
           </view>
         </view>
       </view>
@@ -121,7 +146,7 @@ const isDayType = computed(() => currentType.value === '服务日奖')
 const minDate = computed(() => {
   if (!isDayType.value) return '2026-01-01'
   const d = new Date()
-  d.setDate(d.getDate() - 3)
+  d.setDate(d.getDate() - 2)
   return d.toISOString().slice(0, 10)
 })
 
@@ -152,8 +177,36 @@ function onDateChange(e) {
   loadTargets()
 }
 
-function setQuickAmount(person, amount) {
-  person.tempAmount = (person.tempAmount === amount) ? 0 : amount
+// 弹框状态
+const modalVisible = ref(false)
+const modalPerson = ref(null)
+const modalTempAmount = ref(0)
+
+function openModal(person) {
+  modalPerson.value = person
+  modalTempAmount.value = person.currentAmount !== null ? person.currentAmount : 0
+  modalVisible.value = true
+}
+
+function closeModal() {
+  modalVisible.value = false
+  modalPerson.value = null
+}
+
+async function saveModalPerson() {
+  if (!modalPerson.value) return
+  const person = modalPerson.value
+  person.tempAmount = modalTempAmount.value
+  await savePerson(person)
+  closeModal()
+}
+
+async function zeroPerson() {
+  if (!modalPerson.value) return
+  const person = modalPerson.value
+  person.tempAmount = 0
+  await savePerson(person)
+  closeModal()
 }
 
 async function savePerson(person) {
@@ -317,27 +370,64 @@ onMounted(() => {
 .person-card {
   background: rgba(40,40,60,0.6); border-radius: 12px; padding: 14px;
   border: 1px solid rgba(218,165,32,0.1); position: relative;
+  display: flex; flex-direction: column; align-items: center;
 }
 .card-name {
-  font-size: 14px; font-weight: 600; margin-bottom: 10px; color: #d4af37;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #d4af37;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; width: 100%; text-align: center;
 }
 
-.quick-btns { display: flex; gap: 8px; margin-bottom: 12px; }
-.quick-btn {
-  flex: 1; text-align: center; padding: 12px 0; font-size: 15px; font-weight: 600;
-  background: rgba(212,175,55,0.1); border-radius: 8px; color: #d4af37;
-}
-.quick-btn.active { background: rgba(212,175,55,0.3); color: #fff; }
+.card-amount { margin-bottom: 12px; min-height: 24px; }
+.amount-value { font-size: 18px; font-weight: 700; color: rgba(255,255,255,0.3); }
+.amount-value.hasAmount { color: #d4af37; }
 
-.amount-save-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.amount-input-inline {
-  flex: 1; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 6px; padding: 8px 10px; color: #fff; font-size: 15px; text-align: right;
+.set-btn {
+  padding: 6px 20px; background: linear-gradient(135deg, #d4af37, #ffd700);
+  border-radius: 8px; cursor: pointer;
 }
-.save-btn-inline {
-  padding: 8px 18px; background: linear-gradient(135deg, #d4af37, #ffd700);
-  border-radius: 8px; color: #000; font-size: 14px; font-weight: 600; white-space: nowrap;
+.set-btn-text { color: #000; font-size: 13px; font-weight: 600; }
+
+/* 弹框 */
+.modal-mask {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.6); z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-content {
+  background: #1a1a2e; border-radius: 16px; padding: 24px;
+  width: 85%; max-width: 340px; position: relative;
+  border: 1px solid rgba(218,165,32,0.2);
+}
+.modal-close {
+  position: absolute; top: 12px; right: 12px; width: 30px; height: 30px;
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.close-icon { font-size: 18px; color: rgba(255,255,255,0.5); }
+.modal-name {
+  font-size: 22px; font-weight: 700; color: #d4af37;
+  text-align: center; margin-bottom: 20px;
+}
+.modal-quick-btns { display: flex; gap: 10px; margin-bottom: 16px; }
+.modal-quick-btn {
+  flex: 1; text-align: center; padding: 14px 0; font-size: 16px; font-weight: 600;
+  background: rgba(212,175,55,0.1); border-radius: 10px; color: #d4af37;
+}
+.modal-quick-btn.active { background: rgba(212,175,55,0.3); color: #fff; }
+.modal-input-row { margin-bottom: 16px; }
+.modal-amount-input {
+  width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px; padding: 12px; color: #fff; font-size: 16px; text-align: center;
+}
+.modal-actions { display: flex; gap: 12px; }
+.modal-btn {
+  flex: 1; text-align: center; padding: 14px 0; font-size: 15px; font-weight: 600;
+  border-radius: 10px; cursor: pointer;
+}
+.modal-btn-zero {
+  background: rgba(255,80,80,0.2); color: #ff5050;
+}
+.modal-btn-save {
+  background: linear-gradient(135deg, #d4af37, #ffd700); color: #000;
 }
 
 .save-success {
