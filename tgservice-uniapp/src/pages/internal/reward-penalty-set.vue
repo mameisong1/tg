@@ -71,7 +71,7 @@
           <!-- 当前奖罚金额 -->
           <view class="card-amount">
             <text class="amount-value" :class="{ hasAmount: person.currentAmount }">
-              {{ person.currentAmount !== null ? '¥' + person.currentAmount.toFixed(2) : '未设定' }}
+              {{ person.currentAmount !== null ? '¥' + Math.round(person.currentAmount) : '未设定' }}
             </text>
           </view>
           
