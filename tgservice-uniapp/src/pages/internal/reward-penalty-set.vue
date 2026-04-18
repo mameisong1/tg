@@ -108,9 +108,19 @@
             <view class="modal-quick-btn" :class="{ active: modalTempAmount === 50 }" @click="modalTempAmount = 50">50元</view>
           </view>
           
-          <!-- 金额输入框 -->
+          <!-- 快捷负数按钮 -->
+          <view class="modal-quick-btns modal-neg-btns">
+            <view class="modal-quick-btn modal-neg-btn" @click="modalTempAmount = modalTempAmount - 10">-10元</view>
+            <view class="modal-quick-btn modal-neg-btn" @click="modalTempAmount = modalTempAmount - 20">-20元</view>
+            <view class="modal-quick-btn modal-neg-btn" @click="modalTempAmount = modalTempAmount - 50">-50元</view>
+          </view>
+          
+          <!-- 金额输入框 + 清零按钮 -->
           <view class="modal-input-row">
             <input class="modal-amount-input" type="text" inputmode="numeric" :value="modalTempAmount" @input="onAmountInput" placeholder="输入自定义金额" />
+            <view class="modal-clear-btn" @click="clearInput">
+              <text class="clear-btn-text">清零</text>
+            </view>
           </view>
           
           <!-- 备注输入 -->
@@ -118,9 +128,9 @@
             <input class="modal-remark-input" type="text" :value="modalTempRemark" @input="onRemarkInput" placeholder="备注（可选）" />
           </view>
           
-          <!-- 确定 + 清零 -->
+          <!-- 取消 + 确定 -->
           <view class="modal-actions">
-            <view class="modal-btn modal-btn-zero" @click="zeroPerson">清零</view>
+            <view class="modal-btn modal-btn-cancel" @click="closeModal">取消</view>
             <view class="modal-btn modal-btn-save" @click="saveModalPerson">确定</view>
           </view>
         </view>
@@ -251,6 +261,10 @@ function onRemarkInput(e) {
   modalTempRemark.value = e.detail ? e.detail.value : (e.target ? e.target.value : '')
 }
 
+function clearInput() {
+  modalTempAmount.value = 0
+}
+
 async function saveModalPerson() {
   if (!modalPerson.value) return
   const person = modalPerson.value
@@ -261,15 +275,7 @@ async function saveModalPerson() {
   closeModal()
 }
 
-async function zeroPerson() {
-  if (!modalPerson.value) return
-  const person = modalPerson.value
-  person.tempAmount = 0
-  person.tempRemark = ''
-  person.currentRemark = ''
-  await savePerson(person)
-  closeModal()
-}
+
 
 async function savePerson(person) {
   const amount = parseFloat(person.tempAmount) || 0
@@ -497,18 +503,29 @@ onMounted(() => {
   font-size: 22px; font-weight: 700; color: #d4af37;
   text-align: center; margin-bottom: 20px;
 }
-.modal-quick-btns { display: flex; gap: 10px; margin-bottom: 16px; }
+.modal-quick-btns { display: flex; gap: 10px; margin-bottom: 10px; }
+.modal-neg-btns { margin-bottom: 12px; }
+.modal-neg-btn {
+  background: rgba(255,80,80,0.1); color: #ff5050;
+  font-size: 14px; padding: 10px 0;
+}
+.modal-neg-btn:active { background: rgba(255,80,80,0.25); }
 .modal-quick-btn {
   flex: 1; text-align: center; padding: 14px 0; font-size: 16px; font-weight: 600;
   background: rgba(212,175,55,0.1); border-radius: 10px; color: #d4af37;
 }
 .modal-quick-btn.active { background: rgba(212,175,55,0.3); color: #fff; }
-.modal-input-row { margin-bottom: 12px; box-sizing: border-box; }
+.modal-input-row { margin-bottom: 12px; box-sizing: border-box; display: flex; gap: 8px; align-items: center; }
 .modal-amount-input {
-  width: 100%; min-height: 44px; box-sizing: border-box; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  flex: 1; min-height: 44px; box-sizing: border-box; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
   border-radius: 8px; padding: 14px; color: #fff; font-size: 18px; text-align: center;
   outline: none; -webkit-appearance: none;
 }
+.modal-clear-btn {
+  padding: 8px 16px; background: rgba(255,80,80,0.15); border-radius: 8px; cursor: pointer;
+  border: 1px solid rgba(255,80,80,0.2); white-space: nowrap;
+}
+.clear-btn-text { font-size: 13px; color: #ff5050; font-weight: 600; }
 .modal-remark-row { margin-bottom: 16px; }
 .modal-remark-input {
   width: 100%; min-height: 44px; box-sizing: border-box; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
@@ -520,8 +537,8 @@ onMounted(() => {
   flex: 1; text-align: center; padding: 14px 0; font-size: 15px; font-weight: 600;
   border-radius: 10px; cursor: pointer;
 }
-.modal-btn-zero {
-  background: rgba(255,80,80,0.2); color: #ff5050;
+.modal-btn-cancel {
+  background: rgba(128,128,128,0.2); color: #aaa;
 }
 .modal-btn-save {
   background: linear-gradient(135deg, #d4af37, #ffd700); color: #000;
