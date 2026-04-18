@@ -5176,14 +5176,23 @@ app.get('/api/reward-penalty/list', authMiddleware, async (req, res) => {
 });
 
 // 按月统计奖罚数据
+// ============ 奖罚统计 API（两阶段加载）============
+
+// GET /api/reward-penalty/stats — 统计摘要（不含明细）
 app.get('/api/reward-penalty/stats', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
     const { month, type, execStatus } = req.query;
     const queryMonth = month || TimeUtil.todayStr().substring(0, 7); // 默认本月 YYYY-MM
 
-    let sql = `SELECT rp.phone, rp.name, rp.type, rp.confirm_date, rp.amount, rp.exec_status, rp.remark,
-                      SUM(rp.amount) OVER (PARTITION BY rp.phone) as person_total
+    // 1) 按人员分组聚合统计
+    let sql = `SELECT rp.phone, rp.name, c.employee_id,
+                      SUM(rp.amount) as personTotal,
+                      COUNT(*) as totalCount,
+                      SUM(CASE WHEN rp.exec_status = '已执行' THEN 1 ELSE 0 END) as executedCount,
+                      SUM(CASE WHEN rp.exec_status = '未执行' THEN 1 ELSE 0 END) as pendingCount,
+                      GROUP_CONCAT(CASE WHEN rp.exec_status = '未执行' THEN rp.id END) as pendingIdsStr
                FROM reward_penalties rp
+               LEFT JOIN coaches c ON c.phone = rp.phone
                WHERE rp.confirm_date LIKE ?`;
     const params = [queryMonth + '%'];
 
@@ -5196,35 +5205,199 @@ app.get('/api/reward-penalty/stats', authMiddleware, requireBackendPermission(['
       params.push(execStatus);
     }
 
-    sql += ' ORDER BY rp.phone, rp.confirm_date, rp.id';
+    sql += ' GROUP BY rp.phone, rp.name, c.employee_id ORDER BY rp.phone';
 
     const rows = await dbAll(sql, params);
 
-    // 按人员分组
-    const grouped = {};
-    for (const row of rows) {
-      if (!grouped[row.phone]) {
-        grouped[row.phone] = {
-          phone: row.phone,
-          name: row.name,
-          personTotal: row.person_total || 0,
-          records: []
-        };
-      }
-      grouped[row.phone].records.push({
-        id: row.id,
-        type: row.type,
-        confirm_date: row.confirm_date,
-        amount: row.amount,
-        exec_status: row.exec_status,
-        exec_date: row.exec_date,
-        remark: row.remark
-      });
-    }
+    const data = rows.map(r => ({
+      phone: r.phone,
+      name: r.name,
+      employee_id: r.employee_id || null,
+      personTotal: r.personTotal || 0,
+      totalCount: r.totalCount || 0,
+      executedCount: r.executedCount || 0,
+      pendingCount: r.pendingCount || 0,
+      pendingIds: r.pendingIdsStr ? r.pendingIdsStr.split(',').map(Number) : []
+    }));
 
-    res.json({ success: true, data: Object.values(grouped) });
+    // 2) 总体汇总
+    let summarySql = 'SELECT SUM(amount) as totalAmount, COUNT(*) as totalCount FROM reward_penalties WHERE confirm_date LIKE ?';
+    const summaryParams = [queryMonth + '%'];
+    if (type) {
+      summarySql += ' AND type = ?';
+      summaryParams.push(type);
+    }
+    if (execStatus) {
+      summarySql += ' AND exec_status = ?';
+      summaryParams.push(execStatus);
+    }
+    const summaryRow = await dbGet(summarySql, summaryParams);
+
+    let bonusSql = 'SELECT SUM(amount) as totalBonus FROM reward_penalties WHERE confirm_date LIKE ? AND amount > 0';
+    const bonusParams = [queryMonth + '%'];
+    if (type) {
+      bonusSql += ' AND type = ?';
+      bonusParams.push(type);
+    }
+    if (execStatus) {
+      bonusSql += ' AND exec_status = ?';
+      bonusParams.push(execStatus);
+    }
+    const bonusRow = await dbGet(bonusSql, bonusParams);
+
+    let penaltySql = 'SELECT SUM(amount) as totalPenalty FROM reward_penalties WHERE confirm_date LIKE ? AND amount < 0';
+    const penaltyParams = [queryMonth + '%'];
+    if (type) {
+      penaltySql += ' AND type = ?';
+      penaltyParams.push(type);
+    }
+    if (execStatus) {
+      penaltySql += ' AND exec_status = ?';
+      penaltyParams.push(execStatus);
+    }
+    const penaltyRow = await dbGet(penaltySql, penaltyParams);
+
+    let pendingSql = "SELECT COUNT(*) as pendingCount FROM reward_penalties WHERE confirm_date LIKE ? AND exec_status = '未执行'";
+    const pendingParams = [queryMonth + '%'];
+    if (type) {
+      pendingSql += ' AND type = ?';
+      pendingParams.push(type);
+    }
+    const pendingRow = await dbGet(pendingSql, pendingParams);
+
+    const summary = {
+      totalAmount: summaryRow?.totalAmount || 0,
+      totalBonus: bonusRow?.totalBonus || 0,
+      totalPenalty: penaltyRow?.totalPenalty || 0,
+      totalCount: summaryRow?.totalCount || 0,
+      pendingCount: pendingRow?.pendingCount || 0,
+      executedCount: (summaryRow?.totalCount || 0) - (pendingRow?.pendingCount || 0)
+    };
+
+    res.json({ success: true, data, summary });
   } catch (err) {
     logger.error(`奖罚统计失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// GET /api/reward-penalty/stats/detail — 按人员查明细
+app.get('/api/reward-penalty/stats/detail', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
+  try {
+    const { phone, month, type, execStatus } = req.query;
+    if (!phone) {
+      return res.status(400).json({ error: 'phone参数必填' });
+    }
+
+    const queryMonth = month || TimeUtil.todayStr().substring(0, 7);
+
+    let sql = 'SELECT id, type, confirm_date, amount, remark, exec_status, exec_date FROM reward_penalties WHERE phone = ? AND confirm_date LIKE ?';
+    const params = [phone, queryMonth + '%'];
+
+    if (type) {
+      sql += ' AND type = ?';
+      params.push(type);
+    }
+    if (execStatus) {
+      sql += ' AND exec_status = ?';
+      params.push(execStatus);
+    }
+
+    sql += ' ORDER BY confirm_date, id';
+
+    const rows = await dbAll(sql, params);
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    logger.error(`查询奖罚明细失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// POST /api/reward-penalty/detail/:id — 修改明细金额
+app.post('/api/reward-penalty/detail/:id', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'id必须是数字' });
+    }
+
+    const { amount, remark } = req.body;
+    if (amount === undefined || amount === null || typeof amount !== 'number' || isNaN(amount)) {
+      return res.status(400).json({ error: 'amount必须为有效数字' });
+    }
+
+    // 检查记录是否存在
+    const record = await dbGet('SELECT id, exec_status FROM reward_penalties WHERE id = ?', [id]);
+    if (!record) {
+      return res.status(404).json({ error: '记录不存在' });
+    }
+
+    // 已执行记录禁止修改金额
+    if (record.exec_status === '已执行') {
+      return res.status(400).json({ error: '已执行记录不可修改金额' });
+    }
+
+    const now = TimeUtil.nowDB();
+    const updates = ['amount = ?', 'updated_at = ?'];
+    const updateParams = [amount, now];
+
+    if (remark !== undefined) {
+      updates.push('remark = ?');
+      updateParams.push(remark);
+    }
+
+    updateParams.push(id);
+
+    await enqueueRun(
+      `UPDATE reward_penalties SET ${updates.join(', ')} WHERE id = ?`,
+      updateParams
+    );
+
+    res.json({
+      success: true,
+      record: {
+        id,
+        amount,
+        remark: remark !== undefined ? remark : '',
+        exec_status: record.exec_status,
+        updated_at: now
+      }
+    });
+  } catch (err) {
+    logger.error(`修改奖罚明细失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// POST /api/reward-penalty/stats/execute-person — 一键执行某人所有未执行明细
+app.post('/api/reward-penalty/stats/execute-person', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
+  try {
+    const { phone, month, type, execStatus } = req.body;
+    if (!phone) {
+      return res.status(400).json({ error: 'phone参数必填' });
+    }
+
+    const queryMonth = month || TimeUtil.todayStr().substring(0, 7);
+    const execDt = TimeUtil.nowDB().substring(0, 10);
+    const now = TimeUtil.nowDB();
+
+    // 只更新未执行的记录（双重保护）
+    let sql = "UPDATE reward_penalties SET exec_status = '已执行', exec_date = ?, updated_at = ? WHERE phone = ? AND confirm_date LIKE ? AND exec_status = '未执行'";
+    const params = [execDt, now, phone, queryMonth + '%'];
+
+    if (type) {
+      sql += ' AND type = ?';
+      params.push(type);
+    }
+
+    const result = await runInTransaction(async (tx) => {
+      const r = await tx.run(sql, params);
+      return r;
+    });
+
+    res.json({ success: true, updated: result.changes || 0 });
+  } catch (err) {
+    logger.error(`执行人员奖罚失败: ${err.message}`);
     res.status(500).json({ error: '服务器错误' });
   }
 });
@@ -5453,7 +5626,7 @@ app.post('/api/reward-penalty/unexecute/:id', authMiddleware, requireBackendPerm
   }
 });
 
-// 金额汇总统计
+// 金额汇总统计（旧接口，保留兼容）
 app.get('/api/reward-penalty/stats/summary', authMiddleware, async (req, res) => {
   try {
     const { month, type, phone } = req.query;
