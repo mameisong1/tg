@@ -29,19 +29,21 @@
         <view class="filter-row" v-if="rewardTypes.length > 0">
           <text class="filter-label">确定日期</text>
           <!-- 日类型：自定义3天选择器 -->
-          <view v-if="isDayType" class="date-picker-wrapper" @click="showDatePicker = !showDatePicker">
-            <view class="filter-value">{{ confirmDate }} ▾</view>
-          </view>
-          <!-- 日期下拉弹框 -->
-          <view class="date-dropdown" v-if="showDatePicker" @click="showDatePicker = false">
-            <view class="date-dropdown-content" @click.stop>
-              <view class="date-option" v-for="d in dateOptions" :key="d.value"
-                    :class="{ active: confirmDate === d.value }"
-                    @click="selectDate(d.value)">
-                {{ d.label }}
+          <template v-if="isDayType">
+            <view class="date-picker-wrapper" @click="showDatePicker = !showDatePicker">
+              <view class="filter-value">{{ confirmDate }} ▾</view>
+            </view>
+            <!-- 日期下拉弹框（与日类型选择器绑定，确保不跟原生picker同时出现） -->
+            <view class="date-dropdown" v-if="showDatePicker" @click="showDatePicker = false">
+              <view class="date-dropdown-content" @click.stop>
+                <view class="date-option" v-for="d in dateOptions" :key="d.value"
+                      :class="{ active: confirmDate === d.value }"
+                      @click="selectDate(d.value)">
+                  {{ d.label }}
+                </view>
               </view>
             </view>
-          </view>
+          </template>
           <!-- 月类型：原生picker -->
           <picker v-else mode="month" :value="confirmDate" @change="onDateChange">
             <view class="filter-value">{{ confirmDate }} ▾</view>
@@ -473,8 +475,9 @@ onMounted(() => {
 }
 .modal-content {
   background: #1a1a2e; border-radius: 16px; padding: 24px;
-  width: 85%; max-width: 340px; position: relative;
+  width: 85%; max-width: 340px; position: relative; z-index: 210;
   border: 1px solid rgba(218,165,32,0.2);
+  pointer-events: auto;
 }
 .modal-close {
   position: absolute; top: 12px; right: 12px; width: 30px; height: 30px;
