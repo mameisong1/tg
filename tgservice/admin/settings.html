@@ -209,31 +209,6 @@
     </div>
   </div>
   
-  <!-- 奖罚类型配置 -->
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">🏆 奖罚类型配置</div>
-    </div>
-    <div class="card-body">
-      <div class="info-box">
-        <p><strong>功能说明：</strong>配置奖罚类型和对应对象，以 JSON 数组格式存储在 system_config 表中。</p>
-        <p><strong>格式要求：</strong>必须是合法的 JSON 数组，每个元素包含「奖罚类型」和「对象」两个字段。</p>
-      </div>
-      
-      <div class="form-row">
-        <label>奖罚类型 JSON</label>
-        <textarea id="rewardPenaltyTypes" rows="6" placeholder='[{"奖罚类型":"服务日奖","对象":"服务员"}, ...]'></textarea>
-      </div>
-      
-      <div style="display: flex; gap: 12px; margin-top: 16px;">
-        <button class="btn btn-primary" onclick="saveRewardPenaltyTypes()">保存配置</button>
-        <button class="btn" style="background:rgba(255,255,255,0.1);color:#fff;" onclick="resetRewardPenaltyTypes()">重置</button>
-      </div>
-      
-      <div id="rewardPenaltyStatus" style="margin-top: 12px; font-size: 13px; display: none;"></div>
-    </div>
-  </div>
-  
   <div class="toast" id="toast"></div>
   
   <script>
