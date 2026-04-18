@@ -28,9 +28,21 @@
         <!-- 确定日期选择（仅类型已加载后显示） -->
         <view class="filter-row" v-if="rewardTypes.length > 0">
           <text class="filter-label">确定日期</text>
-          <picker v-if="isDayType" mode="date" :value="confirmDate" :start="minDate" :end="maxDate" @change="onDateChange">
+          <!-- 日类型：自定义3天选择器 -->
+          <view v-if="isDayType" class="date-picker-wrapper" @click="showDatePicker = !showDatePicker">
             <view class="filter-value">{{ confirmDate }} ▾</view>
-          </picker>
+          </view>
+          <!-- 日期下拉弹框 -->
+          <view class="date-dropdown" v-if="showDatePicker" @click="showDatePicker = false">
+            <view class="date-dropdown-content" @click.stop>
+              <view class="date-option" v-for="d in dateOptions" :key="d.value"
+                    :class="{ active: confirmDate === d.value }"
+                    @click="selectDate(d.value)">
+                {{ d.label }}
+              </view>
+            </view>
+          </view>
+          <!-- 月类型：原生picker -->
           <picker v-else mode="month" :value="confirmDate" @change="onDateChange">
             <view class="filter-value">{{ confirmDate }} ▾</view>
           </picker>
@@ -154,6 +166,28 @@ const maxDate = computed(() => {
   if (!isDayType.value) return '2030-12-31'
   return new Date().toISOString().slice(0, 10)
 })
+
+// 3天日期选项
+const dateOptions = computed(() => {
+  if (!isDayType.value) return []
+  const options = []
+  for (let i = 0; i < 3; i++) {
+    const d = new Date()
+    d.setDate(d.getDate() - i)
+    const value = d.toISOString().slice(0, 10)
+    const labels = ['今天', '昨天', '前天']
+    options.push({ value, label: labels[i] + ' (' + value + ')' })
+  }
+  return options
+})
+
+const showDatePicker = ref(false)
+
+function selectDate(value) {
+  confirmDate.value = value
+  showDatePicker.value = false
+  loadTargets()
+}
 
 const typeLabels = computed(() => rewardTypes.value.map(t => t['奖罚类型']))
 
@@ -360,6 +394,25 @@ onMounted(() => {
   border-radius: 6px; min-width: 120px; text-align: center;
 }
 .filter-value.fixed { background: rgba(212,175,55,0.2); }
+
+/* 自定义日期选择器 */
+.date-picker-wrapper { cursor: pointer; }
+.date-dropdown {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 150; display: flex; align-items: flex-start; justify-content: center;
+  padding-top: 160px;
+}
+.date-dropdown-content {
+  background: #1a1a2e; border-radius: 12px; padding: 8px 0;
+  border: 1px solid rgba(218,165,32,0.2); min-width: 220px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.date-option {
+  padding: 14px 20px; font-size: 14px; color: #d4af37; text-align: center;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.date-option:last-child { border-bottom: none; }
+.date-option.active { background: rgba(212,175,55,0.2); color: #fff; font-weight: 600; }
 
 .cards-title { font-size: 14px; color: rgba(255,255,255,0.6); margin-bottom: 12px; }
 
