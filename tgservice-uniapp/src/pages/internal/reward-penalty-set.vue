@@ -110,12 +110,12 @@
           
           <!-- 金额输入框 -->
           <view class="modal-input-row">
-            <input class="modal-amount-input" type="digit" v-model="modalTempAmount" placeholder="输入自定义金额" />
+            <input class="modal-amount-input" type="text" inputmode="numeric" :value="modalTempAmount" @input="onAmountInput" placeholder="输入自定义金额" />
           </view>
           
           <!-- 备注输入 -->
           <view class="modal-remark-row">
-            <input class="modal-remark-input" type="text" v-model="modalTempRemark" placeholder="备注（可选）" />
+            <input class="modal-remark-input" type="text" :value="modalTempRemark" @input="onRemarkInput" placeholder="备注（可选）" />
           </view>
           
           <!-- 确定 + 清零 -->
@@ -240,6 +240,15 @@ function closeModal() {
   modalVisible.value = false
   modalPerson.value = null
   modalTempRemark.value = ''
+}
+
+function onAmountInput(e) {
+  const val = e.detail ? e.detail.value : (e.target ? e.target.value : '')
+  modalTempAmount.value = val === '' ? 0 : (parseFloat(val) || 0)
+}
+
+function onRemarkInput(e) {
+  modalTempRemark.value = e.detail ? e.detail.value : (e.target ? e.target.value : '')
 }
 
 async function saveModalPerson() {
@@ -496,13 +505,15 @@ onMounted(() => {
 .modal-quick-btn.active { background: rgba(212,175,55,0.3); color: #fff; }
 .modal-input-row { margin-bottom: 12px; box-sizing: border-box; }
 .modal-amount-input {
-  width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 8px; padding: 12px; color: #fff; font-size: 16px; text-align: center;
+  width: 100%; min-height: 44px; box-sizing: border-box; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px; padding: 14px; color: #fff; font-size: 18px; text-align: center;
+  outline: none; -webkit-appearance: none;
 }
 .modal-remark-row { margin-bottom: 16px; }
 .modal-remark-input {
-  width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 8px; padding: 12px; color: #fff; font-size: 14px;
+  width: 100%; min-height: 44px; box-sizing: border-box; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px; padding: 14px; color: #fff; font-size: 16px;
+  outline: none; -webkit-appearance: none;
 }
 .modal-actions { display: flex; gap: 12px; }
 .modal-btn {
