@@ -108,23 +108,25 @@
     
     <!-- V2.0 内部专用（直接显示在「我的」页面，不再跳转内部首页） -->
     
-    <!-- 常用功能板块 - 所有后台用户可见 -->
-    <view class="internal-section" v-if="memberInfo.memberNo && showCommonFeatures">
-      <view class="section-header">
-        <text class="section-title">🔧 常用功能</text>
+    <!-- 常用功能板块（大分组） - 所有后台用户可见 -->
+    <view class="internal-group" v-if="memberInfo.memberNo && showCommonFeatures">
+      <view class="group-header">
+        <text class="group-title">🔧 常用功能</text>
       </view>
-      <view class="internal-btns">
-        <view class="internal-btn" @click="navigateTo('/pages/internal/water-board-view')">
-          <text class="internal-btn-icon">📋</text>
-          <text class="internal-btn-text">水牌查看</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/service-order')">
-          <text class="internal-btn-icon">🔔</text>
-          <text class="internal-btn-text">服务下单</text>
-        </view>
-        <view class="internal-btn internal-btn-disabled" @click="showUnderConstruction">
-          <text class="internal-btn-icon">🏆</text>
-          <text class="internal-btn-text">我的奖罚</text>
+      <view class="group-section">
+        <view class="internal-btns">
+          <view class="internal-btn" @click="navigateTo('/pages/internal/water-board-view')">
+            <text class="internal-btn-icon">📋</text>
+            <text class="internal-btn-text">水牌查看</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/service-order')">
+            <text class="internal-btn-icon">🔔</text>
+            <text class="internal-btn-text">服务下单</text>
+          </view>
+          <view class="internal-btn internal-btn-disabled" @click="showUnderConstruction">
+            <text class="internal-btn-icon">🏆</text>
+            <text class="internal-btn-text">我的奖罚</text>
+          </view>
         </view>
       </view>
     </view>
@@ -135,7 +137,32 @@
         <text class="group-title">🎱 助教专用板块</text>
       </view>
       
-      <!-- 组1: 申请 -->
+      <!-- 组1: 日常（上移） -->
+      <view class="group-section">
+        <view class="section-header">
+          <text class="section-title">⏰ 日常</text>
+        </view>
+        <view class="internal-btns">
+          <view class="internal-btn" @click="goCoachProfile">
+            <text class="internal-btn-icon">👤</text>
+            <text class="internal-btn-text">个人中心</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/clock')">
+            <text class="internal-btn-icon">⏰</text>
+            <text class="internal-btn-text">上下班</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/table-action')">
+            <text class="internal-btn-icon">🎱</text>
+            <text class="internal-btn-text">上下桌</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-upload')">
+            <text class="internal-btn-icon">📸</text>
+            <text class="internal-btn-text">约客上传</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 组2: 申请（下移） -->
       <view class="group-section">
         <view class="section-header">
           <text class="section-title">📋 申请</text>
@@ -167,31 +194,6 @@
           </view>
         </view>
       </view>
-
-      <!-- 组2: 日常 -->
-      <view class="group-section">
-        <view class="section-header">
-          <text class="section-title">⏰ 日常</text>
-        </view>
-        <view class="internal-btns">
-          <view class="internal-btn" @click="goCoachProfile">
-            <text class="internal-btn-icon">👤</text>
-            <text class="internal-btn-text">个人中心</text>
-          </view>
-          <view class="internal-btn" @click="navigateTo('/pages/internal/clock')">
-            <text class="internal-btn-icon">⏰</text>
-            <text class="internal-btn-text">上下班</text>
-          </view>
-          <view class="internal-btn" @click="navigateTo('/pages/internal/table-action')">
-            <text class="internal-btn-icon">🎱</text>
-            <text class="internal-btn-text">上下桌</text>
-          </view>
-          <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-upload')">
-            <text class="internal-btn-icon">📸</text>
-            <text class="internal-btn-text">约客上传</text>
-          </view>
-        </view>
-      </view>
     </view>
 
     <!-- 管理功能板块（大分组） -->
@@ -200,7 +202,7 @@
         <text class="group-title">⚙️ 管理功能</text>
       </view>
       
-      <!-- 组1: 管理 -->
+      <!-- 组1: 管理（含智能开关） -->
       <view class="group-section">
         <view class="section-header">
           <text class="section-title">📋 管理</text>
@@ -225,6 +227,10 @@
           <view class="internal-btn" @click="navigateTo('/pages/internal/reward-penalty-set?type=助教日常')">
             <text class="internal-btn-icon">⚠️</text>
             <text class="internal-btn-text">助教违规</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/switch-control')">
+            <text class="internal-btn-icon">💡</text>
+            <text class="internal-btn-text">智能开关</text>
           </view>
         </view>
       </view>
@@ -271,19 +277,6 @@
             <text class="internal-btn-icon">🏖️</text>
             <text class="internal-btn-text">休息审批</text>
             <view class="badge" v-if="restCount > 0">{{ restCount }}</view>
-          </view>
-        </view>
-      </view>
-
-      <!-- 组3: 工具 -->
-      <view class="group-section">
-        <view class="section-header">
-          <text class="section-title">💡 工具</text>
-        </view>
-        <view class="internal-btns">
-          <view class="internal-btn" @click="navigateTo('/pages/internal/switch-control')">
-            <text class="internal-btn-icon">💡</text>
-            <text class="internal-btn-text">智能开关</text>
           </view>
         </view>
       </view>
@@ -1539,8 +1532,8 @@ onShow(() => {
 .internal-btn {
   position: relative;
   padding: 14px 6px;
-  background: rgba(20,20,30,0.6);
-  border: 1px solid rgba(218,165,32,0.1);
+  background: rgba(30,35,50,0.4);
+  border: 1px solid rgba(218,165,32,0.15);
   border-radius: 12px;
   display: flex;
   flex-direction: column;
