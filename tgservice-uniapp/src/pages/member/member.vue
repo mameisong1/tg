@@ -416,37 +416,6 @@
     </view>
     
     <!-- #ifdef H5 -->
-    <!-- 调试面板：角标数据诊断 -->
-    <view class="debug-panel" v-if="showDebug" @click="showDebug = false">
-      <view class="debug-content" @click.stop>
-        <text class="debug-title">🔧 角标调试信息（点击关闭）</text>
-        <view class="debug-row">
-          <text class="debug-key">adminInfo:</text>
-          <text class="debug-val">{{ JSON.stringify(uni.getStorageSync('adminInfo') || {}) }}</text>
-        </view>
-        <view class="debug-row">
-          <text class="debug-key">overtimeCount:</text>
-          <text class="debug-val">{{ overtimeCount }}</text>
-        </view>
-        <view class="debug-row">
-          <text class="debug-key">publicLeaveCount:</text>
-          <text class="debug-val">{{ publicLeaveCount }}</text>
-        </view>
-        <view class="debug-row">
-          <text class="debug-key">shiftChangeCount:</text>
-          <text class="debug-val">{{ shiftChangeCount }}</text>
-        </view>
-        <view class="debug-row">
-          <text class="debug-key">leaveRequestCount:</text>
-          <text class="debug-val">{{ leaveRequestCount }}</text>
-        </view>
-        <view class="debug-row">
-          <text class="debug-key">restCount:</text>
-          <text class="debug-val">{{ restCount }}</text>
-        </view>
-        <view class="debug-log">{{ debugInfo }}</view>
-      </view>
-    </view>
     <!-- #endif -->
     
     <!-- 编辑姓名弹窗 -->
@@ -1199,41 +1168,77 @@ const shiftChangeCount = ref(0)
 const leaveRequestCount = ref(0)
 const restCount = ref(0)
 
-// === DEBUG 调试面板 ===
-const debugInfo = ref('')
-const showDebug = ref(false)
+// === 前端错误收集上报 ===
+const reportError = (action, details) => {
+  const adminInfo = uni.getStorageSync('adminInfo') || {}
+  const coachInfo = uni.getStorageSync('coachInfo') || {}
+  try {
+    uni.request({
+      url: '/api/admin/frontend-error-log',
+      method: 'POST',
+      header: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (localStorage.getItem('adminToken') || '')
+      },
+      data: {
+        action: action,
+        timestamp: new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }),
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        userToken: adminInfo.role || (coachInfo.coachNo ? 'coach' : 'unknown'),
+        state: JSON.stringify({
+          overtimeCount: overtimeCount.value,
+          publicLeaveCount: publicLeaveCount.value,
+          shiftChangeCount: shiftChangeCount.value,
+          leaveRequestCount: leaveRequestCount.value,
+          restCount: restCount.value,
+          adminRole: adminInfo.role,
+          adminInfo: adminInfo
+        }),
+        ...details
+      }
+    })
+  } catch (e) {
+    // 上报失败不干扰用户
+  }
+}
+
+// 全局错误监听
+// #ifdef H5
+if (typeof window !== 'undefined') {
+  window.onerror = function(msg, url, line, col, error) {
+    reportError('js_error', {
+      message: msg,
+      line: line,
+      col: col,
+      errorStack: error ? error.stack : ''
+    })
+    return false
+  }
+  window.addEventListener('unhandledrejection', function(e) {
+    reportError('unhandled_rejection', {
+      reason: e.reason ? String(e.reason) : 'unknown',
+      stack: e.reason && e.reason.stack ? e.reason.stack : ''
+    })
+  })
+}
+// #endif
 
 const loadPendingCounts = async () => {
-  const debug = []
-  debug.push('[loadPendingCounts] 调用时间: ' + new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }))
-  
-  // 检查 adminInfo
-  const adminInfo = uni.getStorageSync('adminInfo')
-  debug.push('[adminInfo] ' + JSON.stringify(adminInfo))
-  debug.push('[isManager] ' + (adminInfo && ['店长', '助教管理', '管理员'].includes(adminInfo.role)))
-  
   try {
-    debug.push('[API] 调用 getPendingCount...')
     const res = await api.applications.getPendingCount()
-    debug.push('[API] 响应: ' + JSON.stringify(res))
-    
     const d = res.data || {}
-    debug.push('[API.data] ' + JSON.stringify(d))
-    
     overtimeCount.value = d.overtime || 0
     publicLeaveCount.value = d.public_leave || 0
     shiftChangeCount.value = d.shift_change || 0
     leaveRequestCount.value = d.leave || 0
     restCount.value = d.rest || 0
-    
-    debug.push('[赋值后] overtime=' + overtimeCount.value + ', public_leave=' + publicLeaveCount.value + ', shift_change=' + shiftChangeCount.value + ', leave=' + leaveRequestCount.value + ', rest=' + restCount.value)
   } catch (e) {
-    debug.push('[ERROR] ' + JSON.stringify({ message: e.message, error: e.error, stack: e.stack }))
+    reportError('loadPendingCounts_failed', {
+      message: e.message,
+      error: e.error
+    })
   }
-  
-  debugInfo.value = debug.join('\n')
-  console.log('[DEBUG member.vue] ' + debugInfo.value)
-  showDebug.value = true
 }
 
 const getCoachPhoto = (coach) => {
@@ -2014,61 +2019,4 @@ onShow(() => {
 }
 /* #endif */
 
-/* #ifdef H5 */
-/* 调试面板样式 */
-.debug-panel {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 9999;
-  background: rgba(0,0,0,0.85);
-  padding: 20px 16px 30px;
-  max-height: 70vh;
-  overflow-y: auto;
-}
-.debug-content {
-  background: #1a1a2e;
-  border-radius: 12px;
-  padding: 16px;
-  border: 1px solid #d4af37;
-}
-.debug-title {
-  font-size: 14px;
-  color: #ffd700;
-  font-weight: 600;
-  display: block;
-  margin-bottom: 12px;
-}
-.debug-row {
-  display: flex;
-  justify-content: space-between;
-  padding: 6px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-}
-.debug-key {
-  font-size: 12px;
-  color: rgba(255,255,255,0.5);
-  flex-shrink: 0;
-}
-.debug-val {
-  font-size: 12px;
-  color: #4caf50;
-  text-align: right;
-  max-width: 60%;
-  word-break: break-all;
-}
-.debug-log {
-  margin-top: 12px;
-  padding: 10px;
-  background: rgba(0,0,0,0.4);
-  border-radius: 8px;
-  font-size: 11px;
-  color: #aaa;
-  white-space: pre-wrap;
-  line-height: 1.6;
-  max-height: 200px;
-  overflow-y: auto;
-}
-/* #endif */
 </style>
