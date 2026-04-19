@@ -190,11 +190,11 @@
         </view>
         <view class="internal-btn" @click="navigateTo('/pages/internal/overtime-approval')">
           <text class="internal-btn-icon">✅</text>
-          <text class="internal-btn-text">加班审批</text>
+          <text class="internal-btn-text">加班审批 ({{ overtimeCount }})</text>
         </view>
         <view class="internal-btn" @click="navigateTo('/pages/internal/leave-approval')">
           <text class="internal-btn-icon">🏖️</text>
-          <text class="internal-btn-text">公休审批</text>
+          <text class="internal-btn-text">公休审批 ({{ publicLeaveCount }})</text>
         </view>
         <view class="internal-btn" @click="navigateTo('/pages/internal/lejuan-list')">
           <text class="internal-btn-icon">💰</text>
@@ -230,15 +230,15 @@
         </view>
         <view class="internal-btn" @click="navigateTo('/pages/internal/shift-change-approval')">
           <text class="internal-btn-icon">🔄</text>
-          <text class="internal-btn-text">班次切换审批</text>
+          <text class="internal-btn-text">班次切换审批 ({{ shiftChangeCount }})</text>
         </view>
         <view class="internal-btn" @click="navigateTo('/pages/internal/leave-request-approval')">
           <text class="internal-btn-icon">📝</text>
-          <text class="internal-btn-text">请假审批</text>
+          <text class="internal-btn-text">请假审批 ({{ leaveRequestCount }})</text>
         </view>
         <view class="internal-btn" @click="navigateTo('/pages/internal/rest-approval')">
           <text class="internal-btn-icon">🏖️</text>
-          <text class="internal-btn-text">休息审批</text>
+          <text class="internal-btn-text">休息审批 ({{ restCount }})</text>
         </view>
       </view>
     </view>
@@ -1112,6 +1112,27 @@ const goBackOrTab = () => {
 const navigateTo = (url) => uni.navigateTo({ url })
 const showUnderConstruction = () => uni.showToast({ title: '工事中。。。', icon: 'none' })
 
+// 待审批数字指示器
+const overtimeCount = ref(0)
+const publicLeaveCount = ref(0)
+const shiftChangeCount = ref(0)
+const leaveRequestCount = ref(0)
+const restCount = ref(0)
+
+const loadPendingCounts = async () => {
+  try {
+    const res = await api.applications.getPendingCount()
+    const d = res.data || {}
+    overtimeCount.value = d.overtime || 0
+    publicLeaveCount.value = d.public_leave || 0
+    shiftChangeCount.value = d.shift_change || 0
+    leaveRequestCount.value = d.leave || 0
+    restCount.value = d.rest || 0
+  } catch (e) {
+    // API不存在或调用失败，静默处理
+  }
+}
+
 const getCoachPhoto = (coach) => {
   const photo = coach.photos && coach.photos[0]
   if (!photo) return '/static/avatar-default.png'
@@ -1138,6 +1159,7 @@ onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 20
   loadPendingOrders()
+  loadPendingCounts()
   checkCoachLogin()
   checkAutoLogin()
   
