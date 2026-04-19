@@ -8,5 +8,6 @@
   "currentStep": null,
   "designSummary": "QA3&QA4设计方案：新增timer-manager.js统一管理计时器（重启自动恢复，pollCheck每5分钟兜底），新增cron-scheduler.js处理凌晨2点自动结束乐捐和中午12点奖罚自动同步（未约客/漏单/漏卡/助教日常），新增timer_log/cron_log/cron_tasks三张表，新增admin/system-report.html可视化页面，奖罚去重逻辑confirm_date+type+phone已存在则跳过",
   "userConfirmedAt": "2026-04-19T06:43:20.903Z",
-  "userConfirmedBy": "马哥"
+  "userConfirmedBy": "马哥",
+  "qaReportPath": "/TG/temp/QA-20260419-03/qa-report.md"
 }
