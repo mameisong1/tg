@@ -20,12 +20,22 @@
       <!-- 日期选择 -->
       <view class="form-item">
         <text class="form-label">休息日期</text>
-        <picker mode="date" :value="form.restDate" :start="startDate" :end="endDate" @change="onDateChange">
+        <view class="date-picker-wrapper" @click="showDatePicker = !showDatePicker">
           <view class="date-picker">
             <text :class="{ placeholder: !form.restDate }">{{ form.restDate || '请选择日期' }}</text>
             <text class="picker-arrow">›</text>
           </view>
-        </picker>
+        </view>
+        <!-- 日期下拉弹框 -->
+        <view class="date-dropdown" v-if="showDatePicker" @click="showDatePicker = false">
+          <view class="date-dropdown-content" @click.stop>
+            <view class="date-option" v-for="d in dateOptions" :key="d.value"
+                  :class="{ active: form.restDate === d.value }"
+                  @click="selectDate(d.value)">
+              <text>{{ d.label }}</text>
+            </view>
+          </view>
+        </view>
       </view>
       
       <!-- 备注 -->
@@ -72,13 +82,26 @@ import SuccessModal from '@/components/SuccessModal.vue'
 const statusBarHeight = ref(0)
 const coachInfo = ref({})
 const showSuccess = ref(false)
+const showDatePicker = ref(false)
 const myApplications = ref([])
 const monthCount = ref({ count: 0, limit: 4, remaining: 4 })
 
-const startDate = computed(() => getBeijingDate())
-const endDate = computed(() => offsetBeijingDate(30))
-
 const form = ref({ restDate: '', remark: '' })
+
+// 自定义日期选项：今天 + 未来30天
+const dateOptions = computed(() => {
+  const options = []
+  for (let i = 0; i <= 30; i++) {
+    const value = offsetBeijingDate(i)
+    let label
+    if (i === 0) label = '今天'
+    else if (i === 1) label = '明天'
+    else if (i === 2) label = '后天'
+    else label = value
+    options.push({ value, label })
+  }
+  return options
+})
 
 const canSubmit = computed(() => {
   return form.value.restDate
@@ -92,8 +115,9 @@ onMounted(async () => {
   await loadMyApplications()
 })
 
-const onDateChange = (e) => {
-  form.value.restDate = e.detail.value
+function selectDate(value) {
+  form.value.restDate = value
+  showDatePicker.value = false
 }
 
 const loadMonthCount = async () => {
@@ -193,6 +217,23 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .date-picker text { font-size: 14px; color: #fff; }
 .date-picker .placeholder { color: rgba(255,255,255,0.3); }
 .picker-arrow { font-size: 20px; color: rgba(255,255,255,0.3); }
+.date-picker-wrapper { cursor: pointer; }
+.date-dropdown {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 150; display: flex; align-items: flex-start; justify-content: center;
+  padding-top: 200px;
+}
+.date-dropdown-content {
+  width: 80%; max-height: 60vh; overflow-y: auto;
+  background: #1a1a2e; border-radius: 12px;
+  border: 1px solid rgba(212,175,55,0.3);
+}
+.date-option {
+  padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 14px; color: rgba(255,255,255,0.8);
+}
+.date-option:last-child { border-bottom: none; }
+.date-option.active { background: rgba(212,175,55,0.2); color: #fff; font-weight: 600; }
 
 .input { width: 100%; height: 48px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 0 12px; font-size: 14px; color: #fff; box-sizing: border-box; }
 
