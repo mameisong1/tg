@@ -1,0 +1,1 @@
+修复编码规范检查发现的12处时间处理违规：server.js 4处、cashier-dashboard.html 2处、reward-penalty-stats.html 3处、vip-rooms.html 1处、test-coding-rules.js 1处（测试文件可豁免）、time-util.js 1处（工具类注释可豁免）。所有违规应改用TimeUtil.nowDB()或getBeijingDate()等时间工具函数。

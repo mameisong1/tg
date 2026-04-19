@@ -349,7 +349,7 @@
         const errorData = {
           action,
           ...details,
-          timestamp: new Date().toISOString(),
+          timestamp: TimeUtil.nowDB(),
           url: window.location.href,
           userAgent: navigator.userAgent,
           userToken: token ? 'present' : 'missing',
@@ -503,7 +503,7 @@
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
           body: JSON.stringify({
             reason,
-            timestamp: new Date().toISOString(),
+            timestamp: TimeUtil.nowDB(),
             pendingOrders: {
               product: productOrders.filter(o => o.status === '待处理').length,
               service: serviceOrders.filter(o => o.status === '待处理').length,

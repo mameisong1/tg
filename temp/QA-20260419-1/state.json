@@ -1,0 +1,12 @@
+{
+  "qaRequirement": "新增助教申请事项：切换班次申请、请假申请、休息申请。\n\n1. applications.application_type 申请类型修改：新增（班次切换申请/请假申请/休息申请），删除（乐捐报备）\n\n2. 前台H5会员中心 - 助教专用版块新增3个页面：班次切换申请、请假申请、休息申请。权限：助教权限和后台用户权限都可用。\n\n3. 管理功能版块新增3个页面：班次切换审批、请假审批、休息审批。权限：助教管理/店长/管理员。\n\n4. 班次切换：助教提交班次切换申请，助教管理或店长审批同意后自动切换早晚班；每人每月2次限制；审批页面显示当前早晚班助教人数。\n\n5. 助教休息申请：每月4天休息日；一次申请一天，可选当天或未来30天内；审批同意后水牌状态变更，设定执行计时器预约到休息日12点执行。\n\n6. 助教请假申请：事假/病假选择，必须输入理由，可选最多3张照片；一次申请一天；审批同意后水牌状态变更，设定执行计时器。\n\n7. 待审批事项指示数字：新增api查询所有待审批事项数量，管理功能按钮右上角显示待审批指示数字。",
+  "acceptanceFocus": "重点验收：(1) 三种申请类型的提交和审批流程 (2) 每月次数限制（班次切换2次、休息4天）(3) 审批后水牌状态自动变更定时器 (4) 待审批数字指示器 (5) 申请取消功能",
+  "workDir": "/TG/temp/QA-20260419-1",
+  "designAuditRound": 1,
+  "testCasesAuditRound": 1,
+  "fixRound": 0,
+  "currentStep": "deploy",
+  "designSummary": "技术方案审计通过。核心设计：(1)复用applications表+extra_data JSON存储扩展字段，无需新表 (2)后端：修改applications.js(validTypes+月度限制+审批逻辑)，新增4个API(pending-count/shift-stats/DELETE取消/my-month-count)，新增application-timer.js定时恢复服务 (3)前端：6个新页面(3申请+3审批)，修改internal-home.vue(新增按钮+角标数字)，修改api-v2.js/pages.json/time-util.js (4)班次切换每月2次/休息+请假合并每月4天限制 (5)审批后定时器到指定日期12:00自动恢复水牌状态 (6)删除'乐捐报备'从validTypes ⚠️审计提示：审批逻辑的数据库写入需确保用runInTransaction(tx.run)，pending-count API需确认db.get/dbAll的封装符合铁律2。",
+  "userConfirmedAt": "2026-04-19T02:45:51.692Z",
+  "userConfirmedBy": "马哥"
+}

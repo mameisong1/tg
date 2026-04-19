@@ -97,5 +97,44 @@ window.TimeUtil = {
     const min = String(d.getMinutes()).padStart(2, '0');
     const s = String(d.getSeconds()).padStart(2, '0');
     return `${y}-${m}-${day} ${h}:${min}:${s}`;
+  },
+
+  /**
+   * 生成当前北京时间的完整时间字符串
+   * 返回: "2026-04-18 22:45:00"
+   */
+  nowDB() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    const h = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    const s = String(d.getSeconds()).padStart(2, '0');
+    return `${y}-${m}-${day} ${h}:${min}:${s}`;
+  },
+
+  /**
+   * 获取当前北京时间的年月
+   * 返回: "2026-04"
+   */
+  getBeijingMonth() {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+  },
+
+  /**
+   * 获取上个月的年月
+   * 返回: "2026-03"（如果当前是 2026-04）
+   * 跨年场景正确处理（1月→上年12月）
+   */
+  getPrevBeijingMonth() {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
   }
 };

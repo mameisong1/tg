@@ -1,0 +1,295 @@
+<template>
+  <view class="page">
+    <view class="fixed-header">
+      <view class="status-bar-bg" :style="{ height: statusBarHeight + 'px' }"></view>
+      <view class="header-content">
+        <view class="back-btn" @click="goBack"><text class="back-icon">‹</text></view>
+        <text class="header-title">请假申请</text>
+        <view class="back-placeholder"></view>
+      </view>
+    </view>
+    <view class="header-placeholder" :style="{ height: (statusBarHeight + 44) + 'px' }"></view>
+
+    <view class="form-section">
+      <!-- 本月次数提示 -->
+      <view class="form-item">
+        <text class="form-label">本月已休息/请假天数</text>
+        <text class="count-text">{{ monthCount.count }}/{{ monthCount.limit }}</text>
+      </view>
+      
+      <!-- 请假类型 -->
+      <view class="form-item">
+        <text class="form-label">请假类型</text>
+        <view class="type-options">
+          <view class="type-btn" :class="{ active: form.leaveType === '事假' }" @click="form.leaveType = '事假'">
+            <text>事假</text>
+          </view>
+          <view class="type-btn" :class="{ active: form.leaveType === '病假' }" @click="form.leaveType = '病假'">
+            <text>病假</text>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 请假日期 -->
+      <view class="form-item">
+        <text class="form-label">请假日期</text>
+        <picker mode="date" :value="form.leaveDate" :start="startDate" :end="endDate" @change="onDateChange">
+          <view class="date-picker">
+            <text :class="{ placeholder: !form.leaveDate }">{{ form.leaveDate || '请选择日期' }}</text>
+            <text class="picker-arrow">›</text>
+          </view>
+        </picker>
+      </view>
+      
+      <!-- 请假理由 -->
+      <view class="form-item">
+        <text class="form-label">请假理由 <text class="required">*</text></text>
+        <textarea class="textarea" v-model="form.remark" placeholder="请输入请假理由" maxlength="200" />
+        <text class="char-count">{{ form.remark.length }}/200</text>
+      </view>
+      
+      <!-- 照片上传 -->
+      <view class="form-item">
+        <text class="form-label">证明照片（选填，最多3张）</text>
+        <view class="image-grid">
+          <view v-for="(url, idx) in imageUrls" :key="idx" class="image-item">
+            <image :src="url" mode="aspectFill" class="uploaded-img" @click="previewImage(idx)" />
+            <view class="remove-btn" @click.stop="removeImage(idx)"><text>✕</text></view>
+          </view>
+          <view v-if="imageUrls.length < 3" class="upload-btn" @click="chooseAndUpload">
+            <text class="upload-icon">📷</text>
+            <text class="upload-text">上传图片</text>
+          </view>
+        </view>
+      </view>
+      
+      <!-- 提交按钮 -->
+      <view class="submit-btn" :class="{ disabled: !canSubmit }" @click="submitApply"><text>提交申请</text></view>
+    </view>
+
+    <!-- 我的申请记录 -->
+    <view class="form-section" v-if="myApplications.length > 0">
+      <text class="section-subtitle">我的申请记录</text>
+      <view class="app-card" v-for="app in myApplications" :key="app.id">
+        <view class="app-header">
+          <text class="app-type">请假申请</text>
+          <text class="app-status" :class="'status-' + app.status">
+            {{ app.status === 0 ? '待处理' : app.status === 1 ? '已同意' : '已拒绝' }}
+          </text>
+        </view>
+        <view class="app-body">
+          <text class="app-info">📋 {{ JSON.parse(app.extra_data || '{}').leave_type || '-' }} | 📅 {{ JSON.parse(app.extra_data || '{}').leave_date || '-' }}</text>
+          <text class="app-remark" v-if="app.remark">{{ app.remark }}</text>
+          <text class="app-time">{{ app.created_at }}</text>
+        </view>
+        <view class="app-actions" v-if="app.status === 0">
+          <view class="action-btn cancel" @click="cancelApplication(app.id)"><text>取消申请</text></view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 上传进度 -->
+    <view class="upload-progress" v-if="uploading">
+      <view class="progress-content">
+        <text class="progress-text">{{ uploadText }}</text>
+        <view class="progress-bar"><view class="progress-fill" :style="{ width: uploadProgress + '%' }"></view></view>
+      </view>
+    </view>
+
+    <!-- 成功弹窗 -->
+    <SuccessModal :visible="showSuccess" title="提交成功" content="请假申请已提交，请等待审批" @confirm="handleSuccessConfirm" />
+  </view>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import api from '@/utils/api-v2.js'
+import { getBeijingDate, offsetBeijingDate } from '@/utils/time-util.js'
+import { useImageUpload } from '@/utils/image-upload.js'
+import SuccessModal from '@/components/SuccessModal.vue'
+
+const statusBarHeight = ref(0)
+const coachInfo = ref({})
+const showSuccess = ref(false)
+const myApplications = ref([])
+const monthCount = ref({ count: 0, limit: 4, remaining: 4 })
+
+const startDate = computed(() => getBeijingDate())
+const endDate = computed(() => offsetBeijingDate(30))
+
+const form = ref({ leaveType: '', leaveDate: '', remark: '' })
+
+const { imageUrls, uploading, uploadProgress, uploadText, chooseAndUpload, removeImage } =
+  useImageUpload({ maxCount: 3, ossDir: 'TgTemp/', errorType: 'leave_proof' })
+
+const canSubmit = computed(() => {
+  return form.value.leaveType && form.value.leaveDate && form.value.remark.trim()
+})
+
+onMounted(async () => {
+  const systemInfo = uni.getSystemInfoSync()
+  statusBarHeight.value = systemInfo.statusBarHeight || 20
+  coachInfo.value = uni.getStorageSync('coachInfo') || {}
+  await loadMonthCount()
+  await loadMyApplications()
+})
+
+const onDateChange = (e) => {
+  form.value.leaveDate = e.detail.value
+}
+
+const previewImage = (idx) => {
+  uni.previewImage({ urls: imageUrls.value, current: idx })
+}
+
+const loadMonthCount = async () => {
+  try {
+    const phone = coachInfo.value.phone || coachInfo.value.employeeId
+    if (!phone) return
+    const res = await api.applications.getMyMonthCount(phone, '请假申请')
+    monthCount.value = res.data || { count: 0, limit: 4, remaining: 4 }
+  } catch (e) {}
+}
+
+const loadMyApplications = async () => {
+  try {
+    const phone = coachInfo.value.phone || coachInfo.value.employeeId
+    if (!phone) return
+    const res = await api.applications.getList({
+      applicant_phone: phone,
+      application_type: '请假申请',
+      limit: 10
+    })
+    myApplications.value = res.data || []
+  } catch (e) {}
+}
+
+const submitApply = async () => {
+  if (!canSubmit.value) return uni.showToast({ title: '请完成所有必填项', icon: 'none' })
+  
+  let phone = coachInfo.value.phone || coachInfo.value.employeeId
+  if (!phone) return uni.showToast({ title: '未获取到手机号信息', icon: 'none' })
+  
+  try {
+    uni.showLoading({ title: '提交中...' })
+    await api.applications.create({
+      applicant_phone: phone,
+      application_type: '请假申请',
+      remark: form.value.remark,
+      images: imageUrls.value.length > 0 ? JSON.stringify(imageUrls.value) : null,
+      extra_data: {
+        leave_type: form.value.leaveType,
+        leave_date: form.value.leaveDate
+      }
+    })
+    uni.hideLoading()
+    form.value.leaveType = ''
+    form.value.leaveDate = ''
+    form.value.remark = ''
+    imageUrls.value = []
+    await loadMonthCount()
+    await loadMyApplications()
+    showSuccess.value = true
+  } catch (e) {
+    uni.hideLoading()
+    uni.showToast({ title: e.error || '提交失败', icon: 'none' })
+  }
+}
+
+const cancelApplication = async (id) => {
+  uni.showModal({
+    title: '确认取消',
+    content: '确定取消此申请？',
+    success: async (res) => {
+      if (res.confirm) {
+        try {
+          const phone = coachInfo.value.phone || coachInfo.value.employeeId
+          await api.applications.delete(id, phone)
+          uni.showToast({ title: '申请已取消', icon: 'success' })
+          await loadMonthCount()
+          await loadMyApplications()
+        } catch (e) {
+          uni.showToast({ title: e.error || '取消失败', icon: 'none' })
+        }
+      }
+    }
+  })
+}
+
+const handleSuccessConfirm = () => {
+  showSuccess.value = false
+  uni.navigateBack()
+}
+
+const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { uni.navigateBack() } else { uni.switchTab({ url: '/pages/member/member' }) } }
+</script>
+
+<style scoped>
+.page { min-height: 100vh; background: #0a0a0f; padding-bottom: 40px; }
+.fixed-header { position: fixed; top: 0; left: 0; right: 0; z-index: 999; background: #0a0a0f; }
+.status-bar-bg { background: #0a0a0f; }
+.header-content { height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; }
+.back-btn { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
+.back-icon { font-size: 28px; color: #d4af37; }
+.back-placeholder { width: 32px; }
+.header-title { font-size: 17px; font-weight: 600; color: #d4af37; letter-spacing: 2px; }
+.header-placeholder { background: #0a0a0f; }
+
+.form-section { margin: 16px; }
+.form-item { margin-bottom: 24px; }
+.form-label { font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 8px; display: block; }
+.required { color: #e74c3c; }
+
+.count-text { font-size: 14px; color: rgba(255,255,255,0.6); }
+
+.type-options { display: flex; gap: 12px; }
+.type-btn { flex: 1; height: 48px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+.type-btn text { font-size: 15px; color: rgba(255,255,255,0.8); }
+.type-btn:active, .type-btn.active { background: rgba(212,175,55,0.2); border-color: #d4af37; }
+.type-btn:active text, .type-btn.active text { color: #d4af37; }
+
+.date-picker { height: 48px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; }
+.date-picker text { font-size: 14px; color: #fff; }
+.date-picker .placeholder { color: rgba(255,255,255,0.3); }
+.picker-arrow { font-size: 20px; color: rgba(255,255,255,0.3); }
+
+.textarea { width: 100%; min-height: 80px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 12px; font-size: 14px; color: #fff; box-sizing: border-box; }
+.char-count { font-size: 11px; color: rgba(255,255,255,0.3); text-align: right; display: block; margin-top: 4px; }
+
+/* 图片网格 */
+.image-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+.image-item { position: relative; width: 90px; height: 90px; border-radius: 10px; overflow: hidden; }
+.uploaded-img { width: 100%; height: 100%; }
+.remove-btn { position: absolute; top: 2px; right: 2px; width: 22px; height: 22px; background: rgba(0,0,0,0.7); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.remove-btn text { color: #fff; font-size: 14px; }
+.upload-btn { width: 90px; height: 90px; background: rgba(255,255,255,0.05); border: 1px dashed rgba(255,255,255,0.2); border-radius: 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.upload-icon { font-size: 28px; display: block; margin-bottom: 4px; }
+.upload-text { font-size: 11px; color: rgba(255,255,255,0.4); }
+
+.submit-btn { height: 50px; background: linear-gradient(135deg, #d4af37, #ffd700); border-radius: 25px; display: flex; align-items: center; justify-content: center; margin-top: 30px; }
+.submit-btn text { font-size: 16px; font-weight: 600; color: #000; }
+.submit-btn.disabled { opacity: 0.5; }
+
+.section-subtitle { font-size: 14px; color: rgba(255,255,255,0.5); margin-bottom: 12px; display: block; }
+
+.app-card { background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.1); border-radius: 12px; padding: 12px; margin-bottom: 10px; }
+.app-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.app-type { font-size: 13px; font-weight: 600; color: #d4af37; }
+.app-status { font-size: 11px; padding: 2px 8px; border-radius: 10px; }
+.status-0 { background: rgba(241,196,15,0.2); color: #f1c40f; }
+.status-1 { background: rgba(46,204,113,0.2); color: #2ecc71; }
+.status-2 { background: rgba(231,76,60,0.2); color: #e74c3c; }
+.app-body { display: flex; flex-direction: column; gap: 4px; }
+.app-info { font-size: 13px; color: rgba(255,255,255,0.7); }
+.app-remark { font-size: 12px; color: rgba(255,255,255,0.5); }
+.app-time { font-size: 11px; color: rgba(255,255,255,0.3); }
+.app-actions { margin-top: 8px; }
+.action-btn.cancel { height: 32px; background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.action-btn.cancel text { font-size: 12px; color: #e74c3c; }
+
+.upload-progress { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 1001; }
+.progress-content { text-align: center; }
+.progress-text { font-size: 14px; color: rgba(255,255,255,0.6); display: block; margin-bottom: 20px; }
+.progress-bar { width: 200px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, #d4af37, #ffd700); transition: width 0.3s; }
+</style>

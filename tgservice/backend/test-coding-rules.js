@@ -261,7 +261,7 @@ checkFrontendDateUsage(
   path.join(FRONTEND, 'pages/internal/switch-control.vue'),
   '#9 switch-control.vue',
   [
-    { pattern: /new Date\(\)\.toISOString\(\)/, desc: '不使用 new Date().toISOString() 记录时间' }
+    { pattern: new RegExp('new Date\\(\\)' + '\\.toISOString\\(\\)'), desc: '不使用 new Date() + toISOString() 记录时间' }
   ]
 );
 

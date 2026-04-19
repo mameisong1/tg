@@ -85,7 +85,15 @@ export const applications = {
   // 获取近期已审批记录
   getApprovedRecent: (params) => request({ url: '/applications/approved-recent', data: params }),
   // 获取当天已同意的加班小时数
-  getTodayApprovedOvertime: () => request({ url: '/applications/today-approved-overtime' })
+  getTodayApprovedOvertime: () => request({ url: '/applications/today-approved-overtime' }),
+  // 新增：获取待审批数字
+  getPendingCount: () => request({ url: '/applications/pending-count' }),
+  // 新增：获取班次统计
+  getShiftStats: () => request({ url: '/applications/shift-stats' }),
+  // 新增：取消申请
+  delete: (id, phone) => request({ url: `/applications/${id}?applicant_phone=${phone}`, method: 'DELETE' }),
+  // 新增：我的本月申请次数
+  getMyMonthCount: (phone, type) => request({ url: `/applications/my-month-count?applicant_phone=${phone}&application_type=${type}` })
 }
 
 // ========== 约客管理 ==========

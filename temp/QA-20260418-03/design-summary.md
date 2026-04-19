@@ -1,0 +1,1 @@
+修复12处时间处理违规：server.js 4处、cashier-dashboard.html 2处、reward-penalty-stats.html 3处、vip-rooms.html 1处、test-coding-rules.js和time-util.js注释各1处。新增admin/js/time-util.js的nowDB()、getBeijingMonth()、getPrevBeijingMonth()函数。验收结果：编码规范检查0违规。

@@ -401,7 +401,7 @@ loadProductOptionsCache();
 
 // 健康检查
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ status: 'ok', timestamp: TimeUtil.nowDB() });
 });
 
 // 获取商品选项
@@ -4900,7 +4900,7 @@ app.post('/api/log/camera-error', (req, res) => {
 
     // 构建日志记录
     const logEntry = {
-      time: new Date().toISOString(),
+      time: TimeUtil.nowDB(),
       ip: req.ip,
       errorName,
       errorMessage,
@@ -4933,7 +4933,7 @@ app.post('/api/admin/sound-failure-log', authMiddleware, requireBackendPermissio
     const user = req.user.username;
 
     const logEntry = {
-      timestamp: timestamp || new Date().toISOString(),
+      timestamp: timestamp || TimeUtil.nowDB(),
       user,
       reason,
       pendingOrders
@@ -4961,7 +4961,7 @@ app.post('/api/admin/frontend-error-log', authMiddleware, requireBackendPermissi
     const user = req.user?.username || 'unknown';
 
     const logEntry = {
-      timestamp: timestamp || new Date().toISOString(),
+      timestamp: timestamp || TimeUtil.nowDB(),
       user,
       action,
       url,
@@ -5783,6 +5783,9 @@ app.listen(PORT, () => {
 
   // 初始化乐捐定时器（恢复 + 轮询）
   require('./services/lejuan-timer').init();
+  
+  // 初始化申请定时器（休息/请假自动恢复）
+  require('./services/application-timer').init();
 });
 
 // 优雅关闭

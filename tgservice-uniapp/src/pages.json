@@ -271,6 +271,60 @@
       }
     },
     {
+      "path": "pages/internal/shift-change-apply",
+      "style": {
+        "navigationBarTitleText": "班次切换申请",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/rest-apply",
+      "style": {
+        "navigationBarTitleText": "休息申请",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/leave-request-apply",
+      "style": {
+        "navigationBarTitleText": "请假申请",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/shift-change-approval",
+      "style": {
+        "navigationBarTitleText": "班次切换审批",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/leave-request-approval",
+      "style": {
+        "navigationBarTitleText": "请假审批",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/rest-approval",
+      "style": {
+        "navigationBarTitleText": "休息审批",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/internal/invitation-review",
       "style": {
         "navigationBarTitleText": "约客审查",

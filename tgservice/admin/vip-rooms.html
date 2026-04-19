@@ -295,7 +295,7 @@
         await fetch('/api/upload-error', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-          body: JSON.stringify({ ...errorInfo, timestamp: new Date().toISOString() })
+          body: JSON.stringify({ ...errorInfo, timestamp: TimeUtil.nowDB() })
         });
         console.log('错误已上报:', JSON.stringify(errorInfo));
       } catch (e) {
@@ -492,6 +492,7 @@
   </script>
   <script>
     </script>
+  <script src="js/time-util.js"></script>
   <script src="sidebar.js"></script>
 </body>
 </html>

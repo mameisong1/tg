@@ -1,0 +1,13 @@
+{
+  "qaRequirement": "修复编码规范检查发现的12处时间处理违规：server.js 4处、cashier-dashboard.html 2处、reward-penalty-stats.html 3处、vip-rooms.html 1处、test-coding-rules.js 1处（测试文件可豁免）、time-util.js 1处（工具类注释可豁免）。所有违规应改用TimeUtil.nowDB()或getBeijingDate()等时间工具函数。",
+  "acceptanceFocus": "编码规范检查脚本返回0违规（排除豁免文件）",
+  "workDir": "/TG/temp/QA-20260418-03",
+  "designAuditRound": 1,
+  "testCasesAuditRound": 2,
+  "fixRound": 0,
+  "currentStep": null,
+  "designSummary": "修复12处时间处理违规：server.js 4处、cashier-dashboard.html 2处、reward-penalty-stats.html 3处、vip-rooms.html 1处、test-coding-rules.js和time-util.js注释各1处。新增admin/js/time-util.js的nowDB()、getBeijingMonth()、getPrevBeijingMonth()函数。验收结果：编码规范检查0违规。",
+  "userConfirmedAt": "2026-04-18T14:57:12.949Z",
+  "userConfirmedBy": "马哥",
+  "qaReportPath": "/TG/temp/QA-20260418-03/qa-report.md"
+}

@@ -237,8 +237,7 @@
         rewardTypes = res.types;
         renderTypeFilter();
       }
-      const now = new Date();
-      currentMonth = now.toISOString().slice(0, 7);
+      currentMonth = TimeUtil.getBeijingMonth();
       loadData();
     }
 
@@ -252,12 +251,10 @@
     }
 
     function setMonth(val) {
-      const now = new Date();
       if (val === 'this') {
-        currentMonth = now.toISOString().slice(0, 7);
+        currentMonth = TimeUtil.getBeijingMonth();
       } else {
-        const last = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        currentMonth = last.toISOString().slice(0, 7);
+        currentMonth = TimeUtil.getPrevBeijingMonth();
       }
       document.querySelectorAll('#monthFilter .btn').forEach(b => b.classList.remove('active'));
       document.querySelector(`#monthFilter .btn[data-month="${val}"]`).classList.add('active');

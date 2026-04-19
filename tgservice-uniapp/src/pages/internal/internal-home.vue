@@ -55,6 +55,18 @@
           <text class="btn-icon">📸</text>
           <text class="btn-label">上传约客记录</text>
         </view>
+        <view class="action-btn" @click="navigate('/pages/internal/shift-change-apply')">
+          <text class="btn-icon">🔄</text>
+          <text class="btn-label">班次切换申请</text>
+        </view>
+        <view class="action-btn" @click="navigate('/pages/internal/rest-apply')">
+          <text class="btn-icon">🏖️</text>
+          <text class="btn-label">休息申请</text>
+        </view>
+        <view class="action-btn" @click="navigate('/pages/internal/leave-request-apply')">
+          <text class="btn-icon">📝</text>
+          <text class="btn-label">请假申请</text>
+        </view>
       </view>
     </view>
 
@@ -89,6 +101,18 @@
         <view class="action-btn" @click="navigate('/pages/internal/switch-control')">
           <text class="btn-icon">💡</text>
           <text class="btn-label">智能开关</text>
+        </view>
+        <view class="action-btn" @click="navigate('/pages/internal/shift-change-approval')">
+          <text class="btn-icon">🔄</text>
+          <text class="btn-label">班次切换审批 ({{ shiftChangeCount }})</text>
+        </view>
+        <view class="action-btn" @click="navigate('/pages/internal/leave-request-approval')">
+          <text class="btn-icon">📝</text>
+          <text class="btn-label">请假审批 ({{ leaveRequestCount }})</text>
+        </view>
+        <view class="action-btn" @click="navigate('/pages/internal/rest-approval')">
+          <text class="btn-icon">🏖️</text>
+          <text class="btn-label">休息审批 ({{ restCount }})</text>
         </view>
       </view>
     </view>
@@ -147,18 +171,20 @@ const isCoachViewer = computed(() => {
 
 const overtimeCount = ref(0)
 const leaveCount = ref(0)
+const shiftChangeCount = ref(0)
+const leaveRequestCount = ref(0)
+const restCount = ref(0)
 
 const loadPendingCounts = async () => {
   try {
-    const [overtime, leave] = await Promise.all([
-      api.applications.getList({ application_type: '早加班申请', status: 0, limit: 1 }),
-      api.applications.getList({ application_type: '公休申请', status: 0, limit: 1 })
-    ])
-    overtimeCount.value = overtime.data?.length || 0
-    leaveCount.value = leave.data?.length || 0
-  } catch (e) {
-    // 忽略
-  }
+    const res = await api.applications.getPendingCount()
+    const d = res.data || {}
+    overtimeCount.value = d.overtime || 0
+    leaveCount.value = d.public_leave || 0          // 公休
+    shiftChangeCount.value = d.shift_change || 0    // 新增
+    leaveRequestCount.value = d.leave || 0          // 新增
+    restCount.value = d.rest || 0                   // 新增
+  } catch (e) {}
 }
 
 const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { uni.navigateBack() } else { uni.switchTab({ url: '/pages/member/member' }) } }

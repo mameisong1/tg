@@ -1,0 +1,9 @@
+{
+  "qaRequirement": "上下班打卡时间记录功能：\n1. 新增打卡表：日期，工号，艺名，上班时间，下班时间\n2. 助教每天上下班打卡时记录时间\n3. 下班打卡时找最新的一条上班卡记录录入\n4. 如果没有对应的上班卡，就丢弃数据",
+  "acceptanceFocus": "1. 打卡表结构正确，字段完整\n2. 上班打卡正常记录\n3. 下班打卡能正确关联上班记录\n4. 无上班记录时下班打卡被丢弃",
+  "workDir": "/TG/temp/QA-20260419-02",
+  "designAuditRound": 0,
+  "testCasesAuditRound": 0,
+  "fixRound": 0,
+  "currentStep": "audit-design"
+}
