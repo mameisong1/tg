@@ -130,9 +130,43 @@
     </view>
 
     <!-- 助教专用板块 -->
+    <!-- 组1: 申请 -->
     <view class="internal-section" v-if="memberInfo.memberNo && isCoach">
       <view class="section-header">
-        <text class="section-title">🔧 助教专用</text>
+        <text class="section-title">📋 申请</text>
+      </view>
+      <view class="internal-btns">
+        <view class="internal-btn" @click="navigateTo('/pages/internal/overtime-apply')">
+          <text class="internal-btn-icon">📋</text>
+          <text class="internal-btn-text">加班申请</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/leave-apply')">
+          <text class="internal-btn-icon">🏖️</text>
+          <text class="internal-btn-text">公休申请</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/lejuan')">
+          <text class="internal-btn-icon">💰</text>
+          <text class="internal-btn-text">乐捐报备</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/rest-apply')">
+          <text class="internal-btn-icon">🏖️</text>
+          <text class="internal-btn-text">休息申请</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/leave-request-apply')">
+          <text class="internal-btn-icon">📝</text>
+          <text class="internal-btn-text">请假申请</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/shift-change-apply')">
+          <text class="internal-btn-icon">🔄</text>
+          <text class="internal-btn-text">班次切换申请</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 组2: 日常 -->
+    <view class="internal-section" v-if="memberInfo.memberNo && isCoach">
+      <view class="section-header">
+        <text class="section-title">⏰ 日常</text>
       </view>
       <view class="internal-btns">
         <view class="internal-btn" @click="goCoachProfile">
@@ -147,70 +181,23 @@
           <text class="internal-btn-icon">🎱</text>
           <text class="internal-btn-text">上下桌</text>
         </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/overtime-apply')">
-          <text class="internal-btn-icon">📋</text>
-          <text class="internal-btn-text">加班申请</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/leave-apply')">
-          <text class="internal-btn-icon">🏖️</text>
-          <text class="internal-btn-text">公休申请</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/lejuan')">
-          <text class="internal-btn-icon">💰</text>
-          <text class="internal-btn-text">乐捐报备</text>
-        </view>
         <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-upload')">
           <text class="internal-btn-icon">📸</text>
           <text class="internal-btn-text">约客上传</text>
         </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/shift-change-apply')">
-          <text class="internal-btn-icon">🔄</text>
-          <text class="internal-btn-text">班次切换申请</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/rest-apply')">
-          <text class="internal-btn-icon">🏖️</text>
-          <text class="internal-btn-text">休息申请</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/leave-request-apply')">
-          <text class="internal-btn-icon">📝</text>
-          <text class="internal-btn-text">请假申请</text>
-        </view>
       </view>
     </view>
 
-    <!-- 管理功能按钮 -->
+    <!-- 管理功能板块 -->
+    <!-- 组1: 管理 -->
     <view class="internal-section" v-if="memberInfo.memberNo && isManager">
       <view class="section-header">
-        <text class="section-title">🔧 管理功能</text>
+        <text class="section-title">📋 管理</text>
       </view>
       <view class="internal-btns">
         <view class="internal-btn" @click="navigateTo('/pages/internal/water-board')">
           <text class="internal-btn-icon">📋</text>
           <text class="internal-btn-text">水牌管理</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/overtime-approval')">
-          <text class="internal-btn-icon">✅</text>
-          <text class="internal-btn-text">加班审批 ({{ overtimeCount }})</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/leave-approval')">
-          <text class="internal-btn-icon">🏖️</text>
-          <text class="internal-btn-text">公休审批 ({{ publicLeaveCount }})</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/lejuan-list')">
-          <text class="internal-btn-icon">💰</text>
-          <text class="internal-btn-text">乐捐一览</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-review?shift=早班')">
-          <text class="internal-btn-icon">🌅</text>
-          <text class="internal-btn-text">早班约客</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-review?shift=晚班')">
-          <text class="internal-btn-icon">🌙</text>
-          <text class="internal-btn-text">晚班约客</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/switch-control')">
-          <text class="internal-btn-icon">💡</text>
-          <text class="internal-btn-text">智能开关</text>
         </view>
         <view class="internal-btn" @click="navigateTo('/pages/internal/guest-invitation-stats')">
           <text class="internal-btn-icon">📊</text>
@@ -228,17 +215,64 @@
           <text class="internal-btn-icon">⚠️</text>
           <text class="internal-btn-text">助教违规</text>
         </view>
+      </view>
+    </view>
+
+    <!-- 组2: 审批 -->
+    <view class="internal-section" v-if="memberInfo.memberNo && isManager">
+      <view class="section-header">
+        <text class="section-title">✅ 审批</text>
+      </view>
+      <view class="internal-btns">
+        <view class="internal-btn" @click="navigateTo('/pages/internal/overtime-approval')">
+          <text class="internal-btn-icon">✅</text>
+          <text class="internal-btn-text">加班审批</text>
+          <view class="badge" v-if="overtimeCount > 0">{{ overtimeCount }}</view>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/leave-approval')">
+          <text class="internal-btn-icon">🏖️</text>
+          <text class="internal-btn-text">公休审批</text>
+          <view class="badge" v-if="publicLeaveCount > 0">{{ publicLeaveCount }}</view>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/lejuan-list')">
+          <text class="internal-btn-icon">💰</text>
+          <text class="internal-btn-text">乐捐一览</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-review?shift=早班')">
+          <text class="internal-btn-icon">🌅</text>
+          <text class="internal-btn-text">早班约客</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-review?shift=晚班')">
+          <text class="internal-btn-icon">🌙</text>
+          <text class="internal-btn-text">晚班约客</text>
+        </view>
         <view class="internal-btn" @click="navigateTo('/pages/internal/shift-change-approval')">
           <text class="internal-btn-icon">🔄</text>
-          <text class="internal-btn-text">班次切换审批 ({{ shiftChangeCount }})</text>
+          <text class="internal-btn-text">班次切换审批</text>
+          <view class="badge" v-if="shiftChangeCount > 0">{{ shiftChangeCount }}</view>
         </view>
         <view class="internal-btn" @click="navigateTo('/pages/internal/leave-request-approval')">
           <text class="internal-btn-icon">📝</text>
-          <text class="internal-btn-text">请假审批 ({{ leaveRequestCount }})</text>
+          <text class="internal-btn-text">请假审批</text>
+          <view class="badge" v-if="leaveRequestCount > 0">{{ leaveRequestCount }}</view>
         </view>
         <view class="internal-btn" @click="navigateTo('/pages/internal/rest-approval')">
           <text class="internal-btn-icon">🏖️</text>
-          <text class="internal-btn-text">休息审批 ({{ restCount }})</text>
+          <text class="internal-btn-text">休息审批</text>
+          <view class="badge" v-if="restCount > 0">{{ restCount }}</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 组3: 工具 -->
+    <view class="internal-section" v-if="memberInfo.memberNo && isManager">
+      <view class="section-header">
+        <text class="section-title">💡 工具</text>
+      </view>
+      <view class="internal-btns">
+        <view class="internal-btn" @click="navigateTo('/pages/internal/switch-control')">
+          <text class="internal-btn-icon">💡</text>
+          <text class="internal-btn-text">智能开关</text>
         </view>
       </view>
     </view>
@@ -1410,6 +1444,7 @@ onShow(() => {
 .internal-section { margin: 0 16px 16px; }
 .internal-btns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
 .internal-btn {
+  position: relative;
   padding: 14px 6px;
   background: rgba(20,20,30,0.6);
   border: 1px solid rgba(218,165,32,0.1);
@@ -1424,6 +1459,24 @@ onShow(() => {
 .internal-btn-disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* 角标样式 */
+.badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  min-width: 18px;
+  height: 18px;
+  line-height: 18px;
+  padding: 0 4px;
+  background: #e74c3c;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  border-radius: 9px;
+  z-index: 10;
 }
 
 /* 助教专用板块 */

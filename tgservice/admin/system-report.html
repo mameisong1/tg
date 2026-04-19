@@ -69,6 +69,13 @@
     .nav-group.open .nav-group-title .arrow { transform: rotate(180deg); }
     .nav-group-title .group-icon { font-size: 18px; margin-right: 12px; }
     .nav-group-title .group-text { flex: 1; }
+
+    /* DB 队列监控图表 */
+    .chart-container { position: relative; margin: 8px 0 4px; height: 150px; }
+    .chart-container canvas { width: 100% !important; height: 100% !important; }
+    .chart-label { font-size: 12px; color: rgba(255,255,255,0.4); margin-bottom: 4px; }
+    .chart-value { font-size: 13px; color: #d4af37; line-height: 1.4; text-align: right; }
+    .chart-value .peak { font-size: 11px; color: rgba(212,175,55,0.55); }
   </style>
   <link rel="stylesheet" href="sidebar.css">
 </head>
@@ -87,6 +94,7 @@
       <button class="tab-btn" data-tab="tasks" onclick="switchTab('tasks')">Cron 任务</button>
       <button class="tab-btn" data-tab="cronLogs" onclick="switchTab('cronLogs')">Cron 日志</button>
       <button class="tab-btn" data-tab="timerLogs" onclick="switchTab('timerLogs')">计时器日志</button>
+      <button class="tab-btn" data-tab="dbQueue" onclick="switchTab('dbQueue')">DB 队列</button>
     </div>
 
     <!-- Tab: 概览 -->
@@ -176,6 +184,31 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Tab: DB 队列 -->
+    <div class="tab-content" id="tab-dbQueue">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div class="chart-label">队列最长长度</div>
+            <div class="chart-value" id="queueLenValue">-</div>
+          </div>
+          <div class="chart-container" style="height:180px;background:rgba(20,20,30,0.4);border-radius:8px;padding:8px;">
+            <canvas id="queueLenChart"></canvas>
+          </div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div class="chart-label">排队最长等待</div>
+            <div class="chart-value" id="queueWaitValue">-</div>
+          </div>
+          <div class="chart-container" style="height:180px;background:rgba(20,20,30,0.4);border-radius:8px;padding:8px;">
+            <canvas id="queueWaitChart"></canvas>
+          </div>
+        </div>
+      </div>
+      <div id="queueStatus" style="text-align:center;margin-top:12px;font-size:12px;color:rgba(255,255,255,0.4);">加载中...</div>
+    </div>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -214,6 +247,7 @@
       else if (tabName === 'tasks') loadTasks();
       else if (tabName === 'cronLogs') loadCronLogs();
       else if (tabName === 'timerLogs') loadTimerLogs();
+      else if (tabName === 'dbQueue') loadQueueStats();
     }
 
     // ==================== 概览 ====================
@@ -487,6 +521,86 @@
       }
     }
 
+    // ==================== Canvas 折线图绘制 ====================
+    function drawLineChart(canvasId, data, maxVal, color) {
+      var canvas = document.getElementById(canvasId);
+      if (!canvas || data.length < 2) return;
+      var ctx = canvas.getContext("2d");
+      var dpr = window.devicePixelRatio || 1;
+      var rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+      var w = rect.width, h = rect.height;
+      var pad = { top: 8, right: 8, bottom: 20, left: 8 };
+      var cw = w - pad.left - pad.right;
+      var ch = h - pad.top - pad.bottom;
+      ctx.clearRect(0, 0, w, h);
+      var maxV = Math.max(maxVal, 1);
+      ctx.strokeStyle = "rgba(255,255,255,0.06)";
+      ctx.lineWidth = 1;
+      for (var i = 0; i <= 4; i++) {
+        var y = pad.top + (ch / 4) * i;
+        ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.stroke();
+      }
+      var step = cw / (data.length - 1);
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.lineJoin = "round";
+      for (var i = 0; i < data.length; i++) {
+        var x = pad.left + i * step;
+        var y = pad.top + ch - (data[i] / maxV) * ch;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.lineTo(pad.left + (data.length - 1) * step, pad.top + ch);
+      ctx.lineTo(pad.left, pad.top + ch);
+      ctx.closePath();
+      var grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
+      grad.addColorStop(0, color.replace(")", ",0.3)").replace("rgb", "rgba"));
+      grad.addColorStop(1, color.replace(")", ",0.02)").replace("rgb", "rgba"));
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.3)";
+      ctx.font = "10px PingFang SC, sans-serif";
+      ctx.textAlign = "center";
+      var labels = [0, Math.floor(data.length / 2), data.length - 1];
+      labels.forEach(function(idx) {
+        var x = pad.left + idx * step;
+        var d = new Date(new Date().getTime() - (data.length - 1 - idx) * 60000);
+        ctx.fillText(d.getHours().toString().padStart(2, "0") + ":" + d.getMinutes().toString().padStart(2, "0"), x, h - 4);
+      });
+    }
+
+    async function loadQueueStats() {
+      try {
+        var res = await fetch(API_BASE + '/admin/db-queue-stats', {
+          headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') }
+        }).then(function(r) { return r.json(); });
+        var statusEl = document.getElementById("queueStatus");
+        var lenValEl = document.getElementById("queueLenValue");
+        var waitValEl = document.getElementById("queueWaitValue");
+        if (res.queueLengths && res.queueLengths.length > 0) {
+          var maxLen = Math.max.apply(null, res.queueLengths.concat([1]));
+          var maxWait = Math.max.apply(null, res.waitTimes.concat([0]));
+          var lastWait = res.waitTimes[res.waitTimes.length - 1];
+          drawLineChart("queueLenChart", res.queueLengths, maxLen, "rgb(212,175,55)");
+          drawLineChart("queueWaitChart", res.waitTimes, maxWait, "rgb(100,200,255)");
+          statusEl.textContent = res.timestamps.length + " 个数据点 | 当前队列: " + res.currentQueueLength;
+          lenValEl.innerHTML = res.currentQueueLength + '<br><span class="peak" style="font-size:11px;color:rgba(212,175,55,0.55)">峰值: ' + maxLen + '</span>';
+          waitValEl.innerHTML = (lastWait > 0 ? lastWait + 'ms' : '<1ms') + '<br><span class="peak" style="font-size:11px;color:rgba(212,175,55,0.55)">峰值: ' + maxWait + 'ms</span>';
+        } else {
+          statusEl.textContent = "数据采集中，请稍候...";
+          lenValEl.textContent = "-";
+          waitValEl.textContent = "-";
+        }
+      } catch (e) {
+        var el = document.getElementById("queueStatus");
+        if (el) el.textContent = "加载失败";
+      }
+    }
+
     // ==================== 初始化 ====================
     (function() {
       var token = localStorage.getItem('adminToken');
@@ -495,6 +609,8 @@
         return;
       }
       loadOverview();
+      loadQueueStats();
+      setInterval(loadQueueStats, 30000);
     })();
   </script>
 </body>
