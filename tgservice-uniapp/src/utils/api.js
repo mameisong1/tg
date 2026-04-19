@@ -257,5 +257,10 @@ export default {
   batchExecuteRewardPenalty: (data) => request({ url: "/reward-penalty/batch-execute", method: "POST", data, authType: "admin" }),
   executeRewardPenalty: (id) => request({ url: `/reward-penalty/execute/${id}`, method: "POST", authType: "admin" }),
   getRewardPenaltyTargets: (role) => request({ url: "/reward-penalty/targets", data: { role }, authType: "admin" }),
-  updateUserStatus: (username, status) => request({ url: `/admin/users/${username}/status`, method: "PUT", data: { employmentStatus: status }, authType: "admin" })
+  updateUserStatus: (username, status) => request({ url: `/admin/users/${username}/status`, method: "PUT", data: { employmentStatus: status }, authType: "admin" }),
+
+  // =============== 申请/审批管理 ===============
+  applications: {
+    getPendingCount: () => request({ url: '/applications/pending-count', authType: 'admin' })
+  }
 }

@@ -646,12 +646,13 @@ router.get('/today-approved-overtime', auth.required, requireBackendPermission([
  */
 router.get('/pending-count', requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
-    const [shiftChange, leaveReq, restReq, overtime, publicLeave] = await Promise.all([
+    const [shiftChange, leaveReq, restReq, overtime, publicLeave, lejuan] = await Promise.all([
       db.get('SELECT COUNT(*) as cnt FROM applications WHERE application_type = ? AND status = 0', ['班次切换申请']),
       db.get('SELECT COUNT(*) as cnt FROM applications WHERE application_type = ? AND status = 0', ['请假申请']),
       db.get('SELECT COUNT(*) as cnt FROM applications WHERE application_type = ? AND status = 0', ['休息申请']),
       db.get("SELECT COUNT(*) as cnt FROM applications WHERE application_type IN ('早加班申请','晚加班申请') AND status = 0", []),
-      db.get("SELECT COUNT(*) as cnt FROM applications WHERE application_type = '公休申请' AND status = 0", [])
+      db.get("SELECT COUNT(*) as cnt FROM applications WHERE application_type = '公休申请' AND status = 0", []),
+      db.get("SELECT COUNT(*) as cnt FROM lejuan_records WHERE lejuan_status IN ('pending', 'active')", [])
     ]);
     res.json({
       success: true,
@@ -661,7 +662,8 @@ router.get('/pending-count', requireBackendPermission(['coachManagement']), asyn
         rest: restReq.cnt,
         total: shiftChange.cnt + leaveReq.cnt + restReq.cnt,
         overtime: overtime.cnt,
-        public_leave: publicLeave.cnt
+        public_leave: publicLeave.cnt,
+        lejuan: lejuan.cnt
       }
     });
   } catch (error) {

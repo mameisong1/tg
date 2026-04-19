@@ -134,7 +134,7 @@
     <!-- 助教专用板块（大分组） -->
     <view class="internal-group" v-if="memberInfo.memberNo && isCoach">
       <view class="group-header">
-        <text class="group-title">🎱 助教专用板块</text>
+        <text class="group-title">🎱 助教专用</text>
       </view>
       
       <!-- 组1: 日常（上移） -->
@@ -190,7 +190,7 @@
           </view>
           <view class="internal-btn" @click="navigateTo('/pages/internal/shift-change-apply')">
             <text class="internal-btn-icon">🔄</text>
-            <text class="internal-btn-text">班次切换申请</text>
+            <text class="internal-btn-text">班次切换</text>
           </view>
         </view>
       </view>
@@ -254,6 +254,7 @@
           <view class="internal-btn" @click="navigateTo('/pages/internal/lejuan-list')">
             <text class="internal-btn-icon">💰</text>
             <text class="internal-btn-text">乐捐一览</text>
+            <view class="badge" v-if="lejuanCount > 0">{{ lejuanCount }}</view>
           </view>
           <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-review?shift=早班')">
             <text class="internal-btn-icon">🌅</text>
@@ -265,7 +266,7 @@
           </view>
           <view class="internal-btn" @click="navigateTo('/pages/internal/shift-change-approval')">
             <text class="internal-btn-icon">🔄</text>
-            <text class="internal-btn-text">班次切换审批</text>
+            <text class="internal-btn-text">班次审批</text>
             <view class="badge" v-if="shiftChangeCount > 0">{{ shiftChangeCount }}</view>
           </view>
           <view class="internal-btn" @click="navigateTo('/pages/internal/leave-request-approval')">
@@ -1160,6 +1161,7 @@ const publicLeaveCount = ref(0)
 const shiftChangeCount = ref(0)
 const leaveRequestCount = ref(0)
 const restCount = ref(0)
+const lejuanCount = ref(0)
 
 // === 前端错误收集上报 ===
 const reportError = (action, details) => {
@@ -1226,6 +1228,7 @@ const loadPendingCounts = async () => {
     shiftChangeCount.value = d.shift_change || 0
     leaveRequestCount.value = d.leave || 0
     restCount.value = d.rest || 0
+    lejuanCount.value = d.lejuan || 0
   } catch (e) {
     reportError('loadPendingCounts_failed', {
       message: e.message,
@@ -1532,7 +1535,7 @@ onShow(() => {
 .internal-btn {
   position: relative;
   padding: 14px 6px;
-  background: rgba(30,35,50,0.4);
+  background: rgba(30,35,50,0.2);
   border: 1px solid rgba(218,165,32,0.15);
   border-radius: 12px;
   display: flex;
