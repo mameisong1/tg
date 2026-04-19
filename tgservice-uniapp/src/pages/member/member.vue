@@ -163,6 +163,18 @@
           <text class="internal-btn-icon">📸</text>
           <text class="internal-btn-text">约客上传</text>
         </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/shift-change-apply')">
+          <text class="internal-btn-icon">🔄</text>
+          <text class="internal-btn-text">班次切换申请</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/rest-apply')">
+          <text class="internal-btn-icon">🏖️</text>
+          <text class="internal-btn-text">休息申请</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/leave-request-apply')">
+          <text class="internal-btn-icon">📝</text>
+          <text class="internal-btn-text">请假申请</text>
+        </view>
       </view>
     </view>
 
@@ -215,6 +227,18 @@
         <view class="internal-btn" @click="navigateTo('/pages/internal/reward-penalty-set?type=助教日常')">
           <text class="internal-btn-icon">⚠️</text>
           <text class="internal-btn-text">助教违规</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/shift-change-approval')">
+          <text class="internal-btn-icon">🔄</text>
+          <text class="internal-btn-text">班次切换审批</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/leave-request-approval')">
+          <text class="internal-btn-icon">📝</text>
+          <text class="internal-btn-text">请假审批</text>
+        </view>
+        <view class="internal-btn" @click="navigateTo('/pages/internal/rest-approval')">
+          <text class="internal-btn-icon">🏖️</text>
+          <text class="internal-btn-text">休息审批</text>
         </view>
       </view>
     </view>

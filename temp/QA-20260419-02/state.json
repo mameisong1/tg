@@ -5,8 +5,9 @@
   "designAuditRound": 1,
   "testCasesAuditRound": 2,
   "fixRound": 0,
-  "currentStep": "deploy",
+  "currentStep": null,
   "designSummary": "上下班打卡记录功能：新增 attendance_records 表（date, coach_no, employee_id, stage_name, clock_in_time, clock_out_time），修改 clock-in/clock-out 端点在事务中写入打卡记录，下班时找不到上班记录则丢弃。符合编码规范。",
   "userConfirmedAt": "2026-04-19T03:19:05.105Z",
-  "userConfirmedBy": "马哥"
+  "userConfirmedBy": "马哥",
+  "qaReportPath": "/TG/temp/QA-20260419-02/qa-report.md"
 }

@@ -710,11 +710,48 @@ curl -s -X PUT http://127.0.0.1:8088/api/applications/<APP_ID>/approve \
 - **测试步骤**: 审批通过后等待到请假日
 - **预期结果**: 到请假日时水牌状态自动变更为"请假"
 
-#### TC-094: 定时器服务启动恢复
-- **优先级**: P1
-- **前置条件**: 有已审批通过但尚未到执行时间的定时器记录
-- **测试步骤**: 重启后端服务
-- **预期结果**: 服务启动后自动恢复所有未到时间的定时器
+#### TC-094: 定时器服务启动恢复（重启后自动恢复）⭐ 用户特别要求
+- **优先级**: P0
+- **前置条件**: 有一个已审批通过的休息/请假申请，exec_time 为未来时间（尚未执行），`extra_data` 中 `timer_set=true`
+- **测试步骤**:
+
+**场景A：exec_time 未到，重启后应重新注册定时器**
+```bash
+# 1. 提交明天的休息申请并审批通过
+# 2. 验证 extra_data 中有 timer_set=true 和 exec_time
+sqlite3 /TG/tgservice/db/tgservice.db "SELECT extra_data FROM applications WHERE id = <APP_ID>;"
+# 预期: {"rest_date":"...","scheduled":1,"timer_set":true,"exec_time":"... 12:00:00"}
+
+# 3. 重启后端服务
+pm2 restart tgservice-dev
+
+# 4. 等待3秒后检查日志
+sleep 3
+pm2 logs tgservice-dev --lines 30 --nostream | grep "申请定时器"
+```
+
+- **场景A预期结果**:
+  - 日志: `[申请定时器] 恢复定时器: 找到 N 条 timer_set=true 记录`
+  - 日志: `[申请定时器] 记录 <APP_ID> 已调度，延迟 XXXX秒 后恢复`
+  - 日志: `[申请定时器] 恢复完成: 调度 N 个, 立即执行 0 个, 跳过 0 个`
+  - 水牌保持"休息"不变，定时器已重新注册
+
+**场景B：exec_time 已过，重启后应立即执行恢复**
+```bash
+# 1. 手动将一条记录的 exec_time 改为过去
+sqlite3 /TG/tgservice/db/tgservice.db "UPDATE applications SET extra_data = json_set(extra_data, '$.exec_time', '2026-04-18 12:00:00') WHERE id = <APP_ID>;"
+
+# 2. 重启后端服务
+pm2 restart tgservice-dev
+
+# 3. 检查日志
+sleep 3
+pm2 logs tgservice-dev --lines 30 --nostream | grep "申请定时器"
+```
+
+- **场景B预期结果**:
+  - 日志: `[申请定时器] 记录 <APP_ID> exec_time 已过，立即执行恢复`
+  - 水牌状态自动恢复为对应班次的空闲状态
 
 #### TC-095: 定时器取消 - 申请被取消
 - **优先级**: P1
