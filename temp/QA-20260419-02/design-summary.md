@@ -1,0 +1,1 @@
+上下班打卡记录功能：新增 attendance_records 表（date, coach_no, employee_id, stage_name, clock_in_time, clock_out_time），修改 clock-in/clock-out 端点在事务中写入打卡记录，下班时找不到上班记录则丢弃。符合编码规范。

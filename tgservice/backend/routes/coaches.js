@@ -1,6 +1,6 @@
 /**
  * 助教管理 API
- * 路径：/api/coaches
+ * 路径:/api/coaches
  */
 
 const express = require('express');
@@ -13,38 +13,38 @@ const operationLogService = require('../services/operation-log');
 
 /**
  * POST /api/coaches/:coach_no/clock-in
- * 助教上班（助教只能打自己的卡）
+ * 助教上班(助教只能打自己的卡)
  */
 router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coachManagement'], { coachSelfOnly: true }), async (req, res) => {
   try {
     const result = await runInTransaction(async (tx) => {
     const { coach_no } = req.params;
-    
-    // 获取助教信息（包括班次）
+
+    // 获取助教信息(包括班次和工号)
     const coach = await tx.get(`
-      SELECT coach_no, stage_name, shift FROM coaches WHERE coach_no = ?
+      SELECT coach_no, stage_name, shift, employee_id FROM coaches WHERE coach_no = ?
     `, [coach_no]);
-    
+
     if (!coach) {
       throw { status: 404, error: '助教不存在' };
     }
-    
+
     // 获取当前水牌状态
     const waterBoard = await tx.get(`
       SELECT * FROM water_boards WHERE coach_no = ?
     `, [coach_no]);
-    
+
     if (!waterBoard) {
       throw { status: 404, error: '水牌不存在' };
     }
-    
+
     const oldStatus = waterBoard.status;
-    
+
     // 根据班次和当前状态确定新状态
     let newStatus;
     let lejuanEnded = false;
     if (waterBoard.status === '乐捐') {
-      // 自动结束乐捐，然后进入空闲
+      // 自动结束乐捐,然后进入空闲
       const activeLejuan = await tx.get(
         `SELECT id, actual_start_time FROM lejuan_records
          WHERE coach_no = ? AND lejuan_status = 'active'
@@ -75,22 +75,29 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
     } else if (['早加班', '休息', '公休', '请假', '下班'].includes(waterBoard.status)) {
       newStatus = coach.shift === '早班' ? '早班空闲' : '晚班空闲';
     } else if (waterBoard.status === '早班空闲' || waterBoard.status === '晚班空闲') {
-      throw { status: 400, error: '助教已在班状态，无需重复上班' };
+      throw { status: 400, error: '助教已在班状态,无需重复上班' };
     } else {
       if (waterBoard.status === '早班上桌' || waterBoard.status === '晚班上桌') {
         throw { status: 400, error: '上桌状态不能点上班' };
       }
       newStatus = coach.shift === '早班' ? '早班空闲' : '晚班空闲';
     }
-    
+
     // 更新水牌状态
     const nowDB = TimeUtil.nowDB();
     await tx.run(`
-      UPDATE water_boards 
+      UPDATE water_boards
       SET status = ?, table_no = NULL, clock_in_time = ?, updated_at = ?
       WHERE coach_no = ?
     `, [newStatus, nowDB, nowDB, coach_no]);
-    
+
+    // 新增:写入打卡记录
+    const todayStr = TimeUtil.todayStr();
+    await tx.run(`
+      INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, clock_in_time, clock_out_time, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, NULL, ?, ?)
+    `, [todayStr, coach_no, coach.employee_id, coach.stage_name, nowDB, nowDB, nowDB]);
+
     // 记录操作日志
     const user = req.user;
     await operationLogService.create(tx, {
@@ -101,12 +108,12 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
       target_id: waterBoard.id,
       old_value: JSON.stringify({ status: oldStatus, table_no: waterBoard.table_no }),
       new_value: JSON.stringify({ status: newStatus, table_no: null }),
-      remark: `上班：${oldStatus} → ${newStatus}`
+      remark: `上班:${oldStatus} → ${newStatus}`
     });
-    
+
     return { coach_no, stage_name: coach.stage_name, status: newStatus };
     });
-    
+
     res.json({
       success: true,
       data: {
@@ -129,43 +136,61 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
 
 /**
  * POST /api/coaches/:coach_no/clock-out
- * 助教下班（助教只能打自己的卡）
+ * 助教下班(助教只能打自己的卡)
  */
 router.post('/:coach_no/clock-out', auth.required, requireBackendPermission(['coachManagement'], { coachSelfOnly: true }), async (req, res) => {
   try {
     const result = await runInTransaction(async (tx) => {
     const { coach_no } = req.params;
-    
+
     // 获取当前水牌状态
     const waterBoard = await tx.get(`
       SELECT * FROM water_boards WHERE coach_no = ?
     `, [coach_no]);
-    
+
     if (!waterBoard) {
       throw { status: 404, error: '水牌不存在' };
     }
-    
+
     const oldStatus = waterBoard.status;
-    
+
     const canClockOut = [
       '早班空闲', '晚班空闲',
       '早班上桌', '晚班上桌',
       '乐捐'
     ].includes(waterBoard.status);
-    
+
     if (!canClockOut) {
-      throw { status: 400, error: `当前状态（${waterBoard.status}）不允许下班` };
+      throw { status: 400, error: `当前状态(${waterBoard.status})不允许下班` };
     }
-    
+
     const newStatus = '下班';
-    
+
     const nowDB = TimeUtil.nowDB();
     await tx.run(`
       UPDATE water_boards 
       SET status = ?, table_no = NULL, clock_in_time = NULL, updated_at = ?
       WHERE coach_no = ?
     `, [newStatus, nowDB, coach_no]);
-    
+
+    // 新增：查找当天最新的未打卡下班的上班记录，更新下班时间
+    const todayStr = TimeUtil.todayStr();
+    const attendanceRecord = await tx.get(`
+      SELECT id FROM attendance_records
+      WHERE coach_no = ? AND date = ? AND clock_out_time IS NULL
+      ORDER BY clock_in_time DESC LIMIT 1
+    `, [coach_no, todayStr]);
+
+    if (attendanceRecord) {
+      await tx.run(`
+        UPDATE attendance_records
+        SET clock_out_time = ?, updated_at = ?
+        WHERE id = ?
+      `, [nowDB, nowDB, attendanceRecord.id]);
+    } else {
+      console.log(`[attendance] 下班打卡丢弃：coach_no=${coach_no}, 当天无上班记录`);
+    }
+
     const user = req.user;
     await operationLogService.create(tx, {
       operator_phone: user.username,
@@ -180,7 +205,7 @@ router.post('/:coach_no/clock-out', auth.required, requireBackendPermission(['co
     
     return { coach_no, status: newStatus };
     });
-    
+
     res.json({
       success: true,
       data: {
@@ -208,15 +233,15 @@ router.put('/batch-shift', auth.required, requireBackendPermission(['coachManage
   try {
     const result = await runInTransaction(async (tx) => {
     const { coach_no_list, shift } = req.body;
-    
+
     if (!['早班', '晚班'].includes(shift)) {
       throw { status: 400, error: '无效的班次值' };
     }
-    
+
     if (!Array.isArray(coach_no_list) || coach_no_list.length === 0) {
       throw { status: 400, error: '助教列表不能为空' };
     }
-    
+
     const statusMap = {
       '早班空闲': '晚班空闲',
       '晚班空闲': '早班空闲',
@@ -225,50 +250,50 @@ router.put('/batch-shift', auth.required, requireBackendPermission(['coachManage
       '早加班': '晚加班',
       '晚加班': '早加班'
     };
-    
+
     const placeholders = coach_no_list.map(() => '?').join(',');
     const coaches = await tx.all(`
       SELECT coach_no, stage_name, shift FROM coaches WHERE coach_no IN (${placeholders})
     `, coach_no_list);
-    
+
     const waterBoards = await tx.all(`
       SELECT coach_no, id, status, table_no FROM water_boards WHERE coach_no IN (${placeholders})
     `, coach_no_list);
-    
+
     const waterBoardMap = {};
     waterBoards.forEach(wb => { waterBoardMap[wb.coach_no] = wb; });
-    
+
     const coachMap = {};
     coaches.forEach(c => { coachMap[c.coach_no] = c; });
-    
+
     const changeDetails = [];
-    
+
     const nowDB = TimeUtil.nowDB();
     await tx.run(`
-      UPDATE coaches SET shift = ?, updated_at = ? 
+      UPDATE coaches SET shift = ?, updated_at = ?
       WHERE coach_no IN (${placeholders})
     `, [shift, nowDB, ...coach_no_list]);
-    
+
     for (const coachNo of coach_no_list) {
       const coach = coachMap[coachNo];
       const waterBoard = waterBoardMap[coachNo];
-      
+
       if (!coach) continue;
-      
+
       const oldShift = coach.shift;
       let waterBoardStatusChanged = false;
-      
+
       if (waterBoard && statusMap[waterBoard.status]) {
         const oldStatus = waterBoard.status;
         const newStatus = statusMap[oldStatus];
-        
+
         await tx.run(
           'UPDATE water_boards SET status = ?, updated_at = ? WHERE coach_no = ?',
           [newStatus, nowDB, coachNo]
         );
-        
+
         waterBoardStatusChanged = true;
-        
+
         await operationLogService.create(tx, {
           operator_phone: req.user.username,
           operator_name: req.user.name,
@@ -277,10 +302,10 @@ router.put('/batch-shift', auth.required, requireBackendPermission(['coachManage
           target_id: waterBoard.id,
           old_value: JSON.stringify({ status: oldStatus, table_no: waterBoard.table_no }),
           new_value: JSON.stringify({ status: newStatus, table_no: waterBoard.table_no }),
-          remark: `批量班次变更联动：${oldShift}→${shift}，水牌 ${oldStatus}→${newStatus}`
+          remark: `批量班次变更联动:${oldShift}→${shift},水牌 ${oldStatus}→${newStatus}`
         });
       }
-      
+
       changeDetails.push({
         coach_no: coachNo,
         stage_name: coach.stage_name,
@@ -289,7 +314,7 @@ router.put('/batch-shift', auth.required, requireBackendPermission(['coachManage
         water_board_changed: waterBoardStatusChanged
       });
     }
-    
+
     const user = req.user;
     await operationLogService.create(tx, {
       operator_phone: user.username,
@@ -298,12 +323,12 @@ router.put('/batch-shift', auth.required, requireBackendPermission(['coachManage
       target_type: 'coaches',
       old_value: JSON.stringify(changeDetails.map(d => ({ coach_no: d.coach_no, stage_name: d.stage_name, shift: d.old_shift, water_board_changed: d.water_board_changed }))),
       new_value: JSON.stringify({ shift, count: coach_no_list.length }),
-      remark: `批量修改${coach_no_list.length}名助教班次为${shift}，详情：${changeDetails.map(d => `${d.stage_name}(${d.coach_no}): ${d.old_shift}→${d.shift}${d.water_board_changed ? ' [水牌已联动]' : ''}`).join('；')}`
+      remark: `批量修改${coach_no_list.length}名助教班次为${shift},详情:${changeDetails.map(d => `${d.stage_name}(${d.coach_no}): ${d.old_shift}→${d.shift}${d.water_board_changed ? ' [水牌已联动]' : ''}`).join(';')}`
     });
-    
+
     return { updated_count: coach_no_list.length, details: changeDetails };
     });
-    
+
     res.json({
       success: true,
       data: {
@@ -325,44 +350,44 @@ router.put('/batch-shift', auth.required, requireBackendPermission(['coachManage
 
 /**
  * PUT /api/coaches/v2/:coach_no/shift
- * 单个修改助教班次（第 3 轮修订新增）
+ * 单个修改助教班次(第 3 轮修订新增)
  */
 router.put('/:coach_no/shift', auth.required, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
     const result = await runInTransaction(async (tx) => {
     const { coach_no } = req.params;
     const { shift } = req.body;
-    
+
     if (!['早班', '晚班'].includes(shift)) {
-      throw { status: 400, error: '无效的班次值，应为早班或晚班' };
+      throw { status: 400, error: '无效的班次值,应为早班或晚班' };
     }
-    
+
     const coach = await tx.get(
       'SELECT coach_no, stage_name, shift FROM coaches WHERE coach_no = ?',
       [coach_no]
     );
-    
+
     if (!coach) {
       throw { status: 404, error: '助教不存在' };
     }
-    
+
     const oldShift = coach.shift;
-    
+
     const nowDB = TimeUtil.nowDB();
     await tx.run(
       'UPDATE coaches SET shift = ?, updated_at = ? WHERE coach_no = ?',
       [shift, nowDB, coach_no]
     );
-    
+
     const waterBoard = await tx.get(
       'SELECT * FROM water_boards WHERE coach_no = ?',
       [coach_no]
     );
-    
+
     if (waterBoard) {
       const oldStatus = waterBoard.status;
       let newStatus = oldStatus;
-      
+
       const statusMap = {
         '早班空闲': '晚班空闲',
         '晚班空闲': '早班空闲',
@@ -371,14 +396,14 @@ router.put('/:coach_no/shift', auth.required, requireBackendPermission(['coachMa
         '早加班': '晚加班',
         '晚加班': '早加班'
       };
-      
+
       if (statusMap[oldStatus]) {
         newStatus = statusMap[oldStatus];
         await tx.run(
           'UPDATE water_boards SET status = ?, updated_at = ? WHERE coach_no = ?',
           [newStatus, nowDB, coach_no]
         );
-        
+
         const user = req.user;
         await operationLogService.create(tx, {
           operator_phone: user.username,
@@ -388,11 +413,11 @@ router.put('/:coach_no/shift', auth.required, requireBackendPermission(['coachMa
           target_id: waterBoard.id,
           old_value: JSON.stringify({ status: oldStatus, table_no: waterBoard.table_no }),
           new_value: JSON.stringify({ status: newStatus, table_no: waterBoard.table_no }),
-          remark: `班次变更联动：${oldShift}→${shift}，水牌 ${oldStatus}→${newStatus}`
+          remark: `班次变更联动:${oldShift}→${shift},水牌 ${oldStatus}→${newStatus}`
         });
       }
     }
-    
+
     const user = req.user;
     await operationLogService.create(tx, {
       operator_phone: user.username,
@@ -401,12 +426,12 @@ router.put('/:coach_no/shift', auth.required, requireBackendPermission(['coachMa
       target_type: 'coaches',
       old_value: JSON.stringify({ coach_no, shift: oldShift }),
       new_value: JSON.stringify({ coach_no, shift }),
-      remark: `修改助教${coach.stage_name}班次：${oldShift}→${shift}`
+      remark: `修改助教${coach.stage_name}班次:${oldShift}→${shift}`
     });
-    
+
     return { coach_no, shift, old_shift: oldShift };
     });
-    
+
     res.json({
       success: true,
       data: {

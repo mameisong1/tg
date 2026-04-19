@@ -5,8 +5,9 @@
   "designAuditRound": 1,
   "testCasesAuditRound": 1,
   "fixRound": 0,
-  "currentStep": "deploy",
+  "currentStep": null,
   "designSummary": "技术方案审计通过。核心设计：(1)复用applications表+extra_data JSON存储扩展字段，无需新表 (2)后端：修改applications.js(validTypes+月度限制+审批逻辑)，新增4个API(pending-count/shift-stats/DELETE取消/my-month-count)，新增application-timer.js定时恢复服务 (3)前端：6个新页面(3申请+3审批)，修改internal-home.vue(新增按钮+角标数字)，修改api-v2.js/pages.json/time-util.js (4)班次切换每月2次/休息+请假合并每月4天限制 (5)审批后定时器到指定日期12:00自动恢复水牌状态 (6)删除'乐捐报备'从validTypes ⚠️审计提示：审批逻辑的数据库写入需确保用runInTransaction(tx.run)，pending-count API需确认db.get/dbAll的封装符合铁律2。",
   "userConfirmedAt": "2026-04-19T02:45:51.692Z",
-  "userConfirmedBy": "马哥"
+  "userConfirmedBy": "马哥",
+  "qaReportPath": "/TG/temp/QA-20260419-1/qa-report.md"
 }
