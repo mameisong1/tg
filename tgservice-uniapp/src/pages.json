@@ -127,15 +127,6 @@
       }
     },
     {
-      "path": "pages/internal/internal-home",
-      "style": {
-        "navigationBarTitleText": "内部专用",
-        "navigationBarBackgroundColor": "#0a0a0f",
-        "navigationBarTextStyle": "white",
-        "navigationStyle": "custom"
-      }
-    },
-    {
       "path": "pages/internal/admin-login",
       "style": {
         "navigationBarTitleText": "员工登录",

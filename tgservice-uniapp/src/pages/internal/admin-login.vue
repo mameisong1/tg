@@ -58,7 +58,7 @@ const handleLogin = async () => {
       uni.setStorageSync('adminInfo', res.user)
       uni.showToast({ title: '登录成功', icon: 'success' })
       setTimeout(() => {
-        uni.redirectTo({ url: '/pages/internal/internal-home' })
+        uni.switchTab({ url: '/pages/member/member' })
       }, 800)
     }
   } catch (e) {
