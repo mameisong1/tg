@@ -1,7 +1,8 @@
 /**
  * Cron 批处理调度器
  * 定时任务：
- *   - end_lejuan:  凌晨 2:00 自动结束当天所有乐捐（active → ended）
+ *   - end_lejuan_morning:  晚上 23:00 自动结束早班助教的乐捐，水牌设为下班
+ *   - end_lejuan_evening:  凌晨 02:00 自动结束晚班助教的乐捐，水牌设为下班
  *   - sync_reward_penalty:  中午 12:00 奖罚自动同步（去重逻辑）
  */
 
@@ -65,20 +66,54 @@ async function ensureTables() {
  * 初始化默认任务配置（UPSERT 模式）
  */
 async function initDefaultTasks() {
+    const now = new Date(TimeUtil.nowDB() + '+08:00');
+    const todayStr = TimeUtil.todayStr();
+
+    // 计算今晚 23:00
+    let nextMorning = new Date(now);
+    if (now.getHours() >= 23) {
+        nextMorning.setDate(nextMorning.getDate() + 1);
+    }
+    nextMorning.setHours(23, 0, 0, 0);
+    const nextMorningStr = formatBeijing(nextMorning);
+
+    // 计算次日 02:00
+    let nextEvening = new Date(now);
+    if (now.getHours() >= 2) {
+        nextEvening.setDate(nextEvening.getDate() + 1);
+    }
+    nextEvening.setHours(2, 0, 0, 0);
+    const nextEveningStr = formatBeijing(nextEvening);
+
+    // 计算次日 12:00
+    let nextSync = new Date(now);
+    if (now.getHours() >= 12) {
+        nextSync.setDate(nextSync.getDate() + 1);
+    }
+    nextSync.setHours(12, 0, 0, 0);
+    const nextSyncStr = formatBeijing(nextSync);
+
     const tasks = [
         {
-            task_name: 'end_lejuan',
+            task_name: 'end_lejuan_morning',
             task_type: 'end_lejuan',
-            description: '凌晨2点自动结束当天所有 active 状态的乐捐',
+            description: '晚上23点自动结束早班助教的乐捐，水牌设为下班',
+            cron_expression: '0 23 * * *',
+            next_run: nextMorningStr
+        },
+        {
+            task_name: 'end_lejuan_evening',
+            task_type: 'end_lejuan',
+            description: '凌晨2点自动结束晚班助教的乐捐，水牌设为下班',
             cron_expression: '0 2 * * *',
-            next_run: TimeUtil.offsetDB(24).substring(0, 10) + ' 02:00:00'
+            next_run: nextEveningStr
         },
         {
             task_name: 'sync_reward_penalty',
             task_type: 'sync_reward_penalty',
             description: '中午12点奖罚自动同步（去重逻辑）',
             cron_expression: '0 12 * * *',
-            next_run: TimeUtil.offsetDB(24).substring(0, 10) + ' 12:00:00'
+            next_run: nextSyncStr
         }
     ];
 
@@ -94,7 +129,10 @@ async function initDefaultTasks() {
         );
     }
 
-    console.log('[CronScheduler] 默认任务配置已初始化');
+    // 删除旧的 end_lejuan 任务（如果存在）
+    await enqueueRun('DELETE FROM cron_tasks WHERE task_name = ?', ['end_lejuan']);
+
+    console.log('[CronScheduler] 默认任务配置已初始化（按班次分时结束乐捐）');
 }
 
 /**
@@ -135,26 +173,30 @@ async function updateTaskStatus(taskName, updates) {
 }
 
 /**
- * 任务：凌晨 2:00 自动结束乐捐
- * 将所有 active 状态的乐捐记录设为 ended
+ * 任务：按班次自动结束乐捐
+ * @param {string} shiftType - 班次类型：'早班' 或 '晚班'
+ * 将对应班次 active 状态的乐捐记录设为 returned，水牌设为下班
  */
-async function taskEndLejuan() {
-    const taskName = 'end_lejuan';
+async function taskEndLejuan(shiftType) {
+    const taskName = shiftType === '早班' ? 'end_lejuan_morning' : 'end_lejuan_evening';
     const taskType = 'end_lejuan';
     const startedAt = TimeUtil.nowDB();
 
-    console.log('[CronScheduler] 开始执行: end_lejuan');
+    console.log(`[CronScheduler] 开始执行: ${taskName} (${shiftType})`);
 
     try {
         const result = await runInTransaction(async (tx) => {
             const now = TimeUtil.nowDB();
 
-            // 查找所有 active 状态的乐捐记录
+            // 查找对应班次的 active 状态乐捐记录
             const activeRecords = await tx.all(
-                `SELECT lr.*, wb.status as water_status, wb.id as wb_id, wb.coach_no
+                `SELECT lr.*, wb.status as water_status, wb.id as wb_id, wb.coach_no, c.shift
                  FROM lejuan_records lr
                  LEFT JOIN water_boards wb ON lr.coach_no = wb.coach_no
-                 WHERE lr.lejuan_status = 'active'`
+                 LEFT JOIN coaches c ON lr.coach_no = c.coach_no
+                 WHERE lr.lejuan_status = 'active'
+                   AND (c.shift = ? OR (c.shift IS NULL AND ? = '晚班'))`,
+                [shiftType, shiftType]  // shift 为空默认视为晚班
             );
 
             let affected = 0;
@@ -180,22 +222,14 @@ async function taskEndLejuan() {
                     [now, hours, now, record.id]
                 );
 
-                // 如果水牌当前状态是"乐捐"，恢复为班次空闲
+                // 如果水牌当前状态是"乐捐"，设为下班
                 if (record.water_status === '乐捐') {
-                    // 查询教练班次信息
-                    const coach = await tx.get(
-                        'SELECT shift FROM coaches WHERE coach_no = ?',
-                        [record.coach_no]
-                    );
-
-                    const newStatus = coach && coach.shift === '早班' ? '早班空闲' : '晚班空闲';
-
                     await tx.run(
                         'UPDATE water_boards SET status = ?, updated_at = ? WHERE coach_no = ?',
-                        [newStatus, now, record.coach_no]
+                        ['下班', now, record.coach_no]
                     );
 
-                    console.log(`[CronScheduler] end_lejuan: ${record.stage_name || record.coach_no} 水牌恢复为 ${newStatus}`);
+                    console.log(`[CronScheduler] ${taskName}: ${record.stage_name || record.coach_no} 水牌设为下班`);
                 }
 
                 affected++;
@@ -205,11 +239,11 @@ async function taskEndLejuan() {
         });
 
         const finishedAt = TimeUtil.nowDB();
-        const nextRun = calcNextRun('0 2 * * *');
+        const nextRun = calcNextRun(shiftType === '早班' ? '0 23 * * *' : '0 2 * * *');
 
         await logCron(
             taskName, taskType, 'success', result.affected,
-            `结束 ${result.affected} 个 active 乐捐`,
+            `结束 ${shiftType} ${result.affected} 个 active 乐捐，水牌设为下班`,
             null, startedAt, finishedAt
         );
 
@@ -220,7 +254,7 @@ async function taskEndLejuan() {
             lastError: null
         });
 
-        console.log(`[CronScheduler] end_lejuan 完成: 影响 ${result.affected} 条记录`);
+        console.log(`[CronScheduler] ${taskName} 完成: 影响 ${result.affected} 条记录`);
     } catch (err) {
         const finishedAt = TimeUtil.nowDB();
         console.error('[CronScheduler] end_lejuan 失败:', err);
@@ -394,20 +428,30 @@ async function taskSyncRewardPenalty() {
 function calcNextRun(cronExpression) {
     const now = new Date(TimeUtil.nowDB() + '+08:00');
 
-    if (cronExpression.includes('2 *')) {
+    if (cronExpression.includes('23 *')) {
+        // 晚上23点
+        const next = new Date(now);
+        if (now.getHours() >= 23) {
+            next.setDate(next.getDate() + 1);
+        }
+        next.setHours(23, 0, 0, 0);
+        return formatBeijing(next);
+    } else if (cronExpression.includes('2 *')) {
         // 凌晨2点
-        const tomorrow = new Date(now);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        tomorrow.setHours(2, 0, 0, 0);
-        return formatBeijing(tomorrow);
+        const next = new Date(now);
+        if (now.getHours() >= 2) {
+            next.setDate(next.getDate() + 1);
+        }
+        next.setHours(2, 0, 0, 0);
+        return formatBeijing(next);
     } else if (cronExpression.includes('12 *')) {
         // 中午12点
-        const today = new Date(now);
-        if (today.getHours() >= 12) {
-            today.setDate(today.getDate() + 1);
+        const next = new Date(now);
+        if (now.getHours() >= 12) {
+            next.setDate(next.getDate() + 1);
         }
-        today.setHours(12, 0, 0, 0);
-        return formatBeijing(today);
+        next.setHours(12, 0, 0, 0);
+        return formatBeijing(next);
     }
 
     // 默认：下一个整点
@@ -442,7 +486,9 @@ async function checkAndRunTasks() {
             console.log(`[CronScheduler] 触发任务: ${task.task_name} (计划: ${task.next_run})`);
 
             if (task.task_type === 'end_lejuan') {
-                await taskEndLejuan();
+                // 根据任务名判断班次
+                const shiftType = task.task_name === 'end_lejuan_morning' ? '早班' : '晚班';
+                await taskEndLejuan(shiftType);
             } else if (task.task_type === 'sync_reward_penalty') {
                 await taskSyncRewardPenalty();
             }
@@ -484,7 +530,9 @@ async function triggerTask(taskName) {
     }
 
     if (task.task_type === 'end_lejuan') {
-        await taskEndLejuan();
+        // 根据任务名判断班次
+        const shiftType = task.task_name === 'end_lejuan_morning' ? '早班' : '晚班';
+        await taskEndLejuan(shiftType);
     } else if (task.task_type === 'sync_reward_penalty') {
         await taskSyncRewardPenalty();
     }
