@@ -1950,13 +1950,25 @@ MQTT 发送失败时返回 HTTP 502：
   },
   "cronTasks": [
     {
-      "task_name": "end_lejuan",
+      "task_name": "end_lejuan_morning",
+      "task_type": "end_lejuan",
+      "description": "晚上23点自动结束早班助教的乐捐，水牌设为下班",
+      "cron_expression": "0 23 * * *",
+      "next_run": "2026-04-19 23:00:00",
+      "is_enabled": 1
+    },
+    {
+      "task_name": "end_lejuan_evening",
+      "task_type": "end_lejuan",
+      "description": "凌晨2点自动结束晚班助教的乐捐，水牌设为下班",
       "cron_expression": "0 2 * * *",
       "next_run": "2026-04-20 02:00:00",
       "is_enabled": 1
     },
     {
       "task_name": "sync_reward_penalty",
+      "task_type": "sync_reward_penalty",
+      "description": "中午12点奖罚自动同步（去重逻辑）",
       "cron_expression": "0 12 * * *",
       "next_run": "2026-04-20 12:00:00",
       "is_enabled": 1
@@ -1980,7 +1992,7 @@ MQTT 发送失败时返回 HTTP 502：
 **参数**：
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| taskName | string | 否 | 任务名称：end_lejuan / sync_reward_penalty |
+| taskName | string | 否 | 任务名称：end_lejuan_morning / end_lejuan_evening / sync_reward_penalty |
 | status | string | 否 | 执行状态：success / failed |
 | limit | number | 否 | 返回条数，默认 50 |
 
@@ -1992,10 +2004,10 @@ MQTT 发送失败时返回 HTTP 502：
 ```json
 {
   "success": true,
-  "task": "end_lejuan",
+  "task": "end_lejuan_morning",
   "status": "success",
   "records_affected": 3,
-  "details": "结束 3 个 active 乐捐"
+  "details": "结束 早班 3 个 active 乐捐，水牌设为下班"
 }
 ```
 
