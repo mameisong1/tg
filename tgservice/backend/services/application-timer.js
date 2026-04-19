@@ -1,6 +1,11 @@
 /**
  * 申请定时器服务
  * 休息/请假审批通过后，到指定日期12:00自动恢复水牌状态
+ * 
+ * 重启恢复机制：
+ *   - 服务启动时从数据库查询所有 timer_set=true 且状态仍为"休息/请假"的记录
+ *   - exec_time 已过 → 立即执行恢复
+ *   - exec_time 未到 → 重新注册 setTimeout
  */
 
 const { all, get, enqueueRun, runInTransaction } = require('../db');
@@ -25,6 +30,7 @@ async function executeRecovery(applicationId) {
                 return;
             }
             
+            // 检查水牌当前状态是否仍为休息/请假（防止中途已被手动修改）
             const coach = await tx.get(
                 'SELECT coach_no, stage_name, shift FROM coaches WHERE employee_id = ? OR phone = ?',
                 [application.applicant_phone, application.applicant_phone]
@@ -51,6 +57,18 @@ async function executeRecovery(applicationId) {
                 'UPDATE water_boards SET status = ?, updated_at = ? WHERE coach_no = ?',
                 [newStatus, now, coach.coach_no]
             );
+            
+            // 标记 extra_data 中 executed=1（避免重复执行）
+            try {
+                const extraData = JSON.parse(application.extra_data || '{}');
+                extraData.executed = 1;
+                await tx.run(
+                    'UPDATE applications SET extra_data = ?, updated_at = ? WHERE id = ?',
+                    [JSON.stringify(extraData), now, applicationId]
+                );
+            } catch (e) {
+                console.error(`[申请定时器] 更新 extra_data executed 失败:`, e);
+            }
             
             await operationLogService.create(tx, {
                 operator_phone: 'system',
@@ -86,7 +104,14 @@ function scheduleRecord(record) {
     
     if (delay <= 0) {
         // 时间已到或已过，立即执行
+        console.log(`[申请定时器] 记录 ${record.id} exec_time 已过，立即执行恢复 (${record.stage_name || ''})`);
         executeRecovery(record.id);
+        return;
+    }
+    
+    // 防止重复注册同一个 ID
+    if (applicationTimers[record.id]) {
+        console.log(`[申请定时器] 记录 ${record.id} 已有定时器，跳过重复注册`);
         return;
     }
     
@@ -100,27 +125,73 @@ function scheduleRecord(record) {
 
 /**
  * 恢复所有待调度定时器（服务启动时调用）
+ * 
+ * 逻辑：
+ *   1. 查询所有 timer_set=true 的休息/请假记录（status=1）
+ *   2. 过滤掉已经 executed=1 的记录（已执行过恢复）
+ *   3. 检查水牌当前状态：如果已经不是"休息"/"请假"，说明已手动恢复过，跳过
+ *   4. exec_time 已过 → 立即执行恢复
+ *   5. exec_time 未到 → 注册 setTimeout
  */
 async function recoverTimers() {
     try {
-        const now = TimeUtil.nowDB();
-        // 查询未来7天内的 timer_set=true 且 status=1 的休息/请假记录
+        // 查询所有 timer_set=true 且 status=1 的休息/请假记录
         const pendingRecords = await all(`
-            SELECT a.*, c.coach_no, c.stage_name, c.shift
+            SELECT a.*, c.coach_no, c.stage_name, c.shift, w.status as water_status
             FROM applications a
             LEFT JOIN coaches c ON a.applicant_phone = c.employee_id OR a.applicant_phone = c.phone
+            LEFT JOIN water_boards w ON c.coach_no = w.coach_no
             WHERE a.application_type IN ('休息申请', '请假申请')
                 AND a.status = 1
                 AND a.extra_data LIKE '%"timer_set":true%'
-            ORDER BY a.extra_data
         `, []);
         
-        console.log(`[申请定时器] 恢复定时器: 找到 ${pendingRecords.length} 条待处理记录`);
+        console.log(`[申请定时器] 恢复定时器: 找到 ${pendingRecords.length} 条 timer_set=true 记录`);
+        
+        let scheduled = 0;
+        let executed = 0;
+        let skipped = 0;
         
         for (const record of pendingRecords) {
             try {
-                const extraData = JSON.parse(record.extra_data);
-                if (extraData.exec_time) {
+                const extraData = JSON.parse(record.extra_data || '{}');
+                
+                // 已执行过恢复，跳过
+                if (extraData.executed === 1) {
+                    skipped++;
+                    continue;
+                }
+                
+                if (!extraData.exec_time) {
+                    console.log(`[申请定时器] 记录 ${record.id} 没有 exec_time，跳过`);
+                    skipped++;
+                    continue;
+                }
+                
+                // 水牌已经不是休息/请假状态，说明已手动恢复过
+                if (record.water_status && record.water_status !== '休息' && record.water_status !== '请假') {
+                    console.log(`[申请定时器] 记录 ${record.id} 水牌状态已是"${record.water_status}"，跳过恢复`);
+                    // 标记为已执行
+                    extraData.executed = 1;
+                    await enqueueRun(
+                        'UPDATE applications SET extra_data = ? WHERE id = ?',
+                        [JSON.stringify(extraData), record.id]
+                    );
+                    skipped++;
+                    continue;
+                }
+                
+                const now = new Date(TimeUtil.nowDB() + '+08:00');
+                const execTime = new Date(extraData.exec_time + '+08:00');
+                const delay = execTime.getTime() - now.getTime();
+                
+                if (delay <= 0) {
+                    // exec_time 已过，立即恢复
+                    console.log(`[申请定时器] 恢复: 记录 ${record.id} exec_time 已过，立即执行 (${record.stage_name || ''})`);
+                    executeRecovery(record.id);
+                    executed++;
+                } else {
+                    // exec_time 未到，重新注册定时器
                     scheduleRecord({
                         id: record.id,
                         application_type: record.application_type,
@@ -130,11 +201,14 @@ async function recoverTimers() {
                         exec_time: extraData.exec_time,
                         current_shift: record.shift
                     });
+                    scheduled++;
                 }
             } catch (e) {
-                console.error(`[申请定时器] 解析 extra_data 失败 record ${record.id}:`, e);
+                console.error(`[申请定时器] 恢复处理 record ${record.id} 失败:`, e);
             }
         }
+        
+        console.log(`[申请定时器] 恢复完成: 调度 ${scheduled} 个, 立即执行 ${executed} 个, 跳过 ${skipped} 个`);
     } catch (err) {
         console.error('[申请定时器] 恢复定时器失败:', err);
     }
@@ -145,23 +219,41 @@ async function recoverTimers() {
  */
 async function pollCheck() {
     try {
-        const now = TimeUtil.nowDB();
-        
+        // 查找 timer_set=true 但还没有 executed 标记的记录
         const records = await all(`
-            SELECT a.*, c.coach_no, c.stage_name, c.shift
+            SELECT a.*, c.coach_no, c.stage_name, c.shift, w.status as water_status
             FROM applications a
             LEFT JOIN coaches c ON a.applicant_phone = c.employee_id OR a.applicant_phone = c.phone
+            LEFT JOIN water_boards w ON c.coach_no = w.coach_no
             WHERE a.application_type IN ('休息申请', '请假申请')
                 AND a.status = 1
                 AND a.extra_data LIKE '%"timer_set":true%'
-                AND a.extra_data NOT LIKE '%"scheduled":1%'
         `, []);
+        
+        const now = TimeUtil.nowDB();
         
         for (const record of records) {
             try {
-                const extraData = JSON.parse(record.extra_data);
-                if (extraData.exec_time) {
-                    console.log(`[申请定时器] 轮询发现待处理记录 ${record.id} (${record.stage_name || ''})`);
+                const extraData = JSON.parse(record.extra_data || '{}');
+                
+                // 已执行过，跳过
+                if (extraData.executed === 1) continue;
+                // 还没有 exec_time，跳过
+                if (!extraData.exec_time) continue;
+                // 内存中已有定时器，跳过
+                if (applicationTimers[record.id]) continue;
+                
+                const nowDate = new Date(now + '+08:00');
+                const execTime = new Date(extraData.exec_time + '+08:00');
+                const delay = execTime.getTime() - nowDate.getTime();
+                
+                if (delay <= 0) {
+                    // exec_time 已过，立即执行
+                    console.log(`[申请定时器] 轮询: 记录 ${record.id} exec_time 已过，立即执行 (${record.stage_name || ''})`);
+                    executeRecovery(record.id);
+                } else {
+                    // 重新注册定时器
+                    console.log(`[申请定时器] 轮询: 重新调度记录 ${record.id} (${record.stage_name || ''})`);
                     scheduleRecord({
                         id: record.id,
                         application_type: record.application_type,
@@ -171,11 +263,11 @@ async function pollCheck() {
                         exec_time: extraData.exec_time,
                         current_shift: record.shift
                     });
-                    // 标记为已调度
-                    const updatedExtraData = JSON.stringify({ ...extraData, scheduled: 1 });
+                    // 标记 scheduled
+                    extraData.scheduled = 1;
                     await enqueueRun(
                         'UPDATE applications SET extra_data = ?, updated_at = ? WHERE id = ?',
-                        [updatedExtraData, now, record.id]
+                        [JSON.stringify(extraData), now, record.id]
                     );
                 }
             } catch (e) {
@@ -191,10 +283,10 @@ async function pollCheck() {
  * 初始化：启动恢复 + 轮询
  */
 function init() {
-    // 1. 恢复已持久化的定时器
+    // 1. 恢复已持久化的定时器（从数据库重新注册）
     recoverTimers();
     
-    // 2. 启动轮询（每分钟）
+    // 2. 启动轮询（每分钟），兜底处理遗漏
     setInterval(pollCheck, 60 * 1000);
     
     console.log('[申请定时器] 已初始化');
@@ -202,14 +294,10 @@ function init() {
 
 /**
  * 新增记录时调用（从 API 路由调用）
+ * 注意：extra_data 的 scheduled/timer_set/exec_time 标记由调用方在事务中完成
  */
 function addNewRecord(record) {
     scheduleRecord(record);
-    // 标记为已调度
-    enqueueRun(
-        'UPDATE applications SET extra_data = ? WHERE id = ?',
-        [JSON.stringify({}), record.id] // extra_data 已在调用方更新过
-    );
 }
 
 /**
