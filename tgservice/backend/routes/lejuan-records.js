@@ -305,11 +305,14 @@ router.post('/:id/return', requireBackendPermission(['coachManagement']), async 
 
             const now = TimeUtil.nowDB();
 
-            // 计算外出小时数（向上取整，最小1小时）
+            // 计算外出小时数（结束分钟>10算一小时，否则不算）
             const actualStart = new Date(record.actual_start_time + '+08:00');
             const returnTime = new Date(now + '+08:00');
             const diffMs = returnTime.getTime() - actualStart.getTime();
-            const lejuanHours = Math.max(1, Math.ceil(diffMs / (60 * 60 * 1000)));
+            const baseHours = Math.floor(diffMs / (60 * 60 * 1000));
+            const endMinute = returnTime.getMinutes();
+            const extraHour = endMinute > 10 ? 1 : 0;
+            const lejuanHours = Math.max(1, baseHours + extraHour);
 
             // 更新乐捐记录
             await tx.run(

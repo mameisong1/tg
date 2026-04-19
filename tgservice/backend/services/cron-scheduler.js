@@ -203,12 +203,16 @@ async function taskEndLejuan(shiftType) {
 
             for (const record of activeRecords) {
                 // 更新乐捐记录状态
-                // 计算外出时长（向上取整，最小1小时）
+                // 计算外出时长（结束分钟>10算一小时，否则不算）
                 let hours = 1;
                 if (record.actual_start_time) {
                     const startTime = new Date(record.actual_start_time + '+08:00');
                     const endTime = new Date(now + '+08:00');
-                    hours = Math.max(1, Math.ceil((endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60)));
+                    const diffMs = endTime.getTime() - startTime.getTime();
+                    const baseHours = Math.floor(diffMs / (60 * 60 * 1000));
+                    const endMinute = endTime.getMinutes();
+                    const extraHour = endMinute > 10 ? 1 : 0;
+                    hours = Math.max(1, baseHours + extraHour);
                 }
 
                 await tx.run(

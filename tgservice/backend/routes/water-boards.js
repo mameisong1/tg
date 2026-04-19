@@ -191,7 +191,10 @@ router.put('/:coach_no/status', auth.required, requireBackendPermission(['waterB
         const actualStart = new Date(activeLejuan.actual_start_time + '+08:00');
         const nowTime = new Date(nowDB + '+08:00');
         const diffMs = nowTime.getTime() - actualStart.getTime();
-        const lejuanHours = Math.max(1, Math.ceil(diffMs / (60 * 60 * 1000)));
+        const baseHours = Math.floor(diffMs / (60 * 60 * 1000));
+        const endMinute = nowTime.getMinutes();
+        const extraHour = endMinute > 10 ? 1 : 0;
+        const lejuanHours = Math.max(1, baseHours + extraHour);
         
         await tx.run(
           `UPDATE lejuan_records
