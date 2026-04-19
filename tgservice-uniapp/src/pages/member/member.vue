@@ -129,150 +129,162 @@
       </view>
     </view>
 
-    <!-- 助教专用板块 -->
-    <!-- 组1: 申请 -->
-    <view class="internal-section" v-if="memberInfo.memberNo && isCoach">
-      <view class="section-header">
-        <text class="section-title">📋 申请</text>
+    <!-- 助教专用板块（大分组） -->
+    <view class="internal-group" v-if="memberInfo.memberNo && isCoach">
+      <view class="group-header">
+        <text class="group-title">🎱 助教专用板块</text>
       </view>
-      <view class="internal-btns">
-        <view class="internal-btn" @click="navigateTo('/pages/internal/overtime-apply')">
-          <text class="internal-btn-icon">📋</text>
-          <text class="internal-btn-text">加班申请</text>
+      
+      <!-- 组1: 申请 -->
+      <view class="group-section">
+        <view class="section-header">
+          <text class="section-title">📋 申请</text>
         </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/leave-apply')">
-          <text class="internal-btn-icon">🏖️</text>
-          <text class="internal-btn-text">公休申请</text>
+        <view class="internal-btns">
+          <view class="internal-btn" @click="navigateTo('/pages/internal/overtime-apply')">
+            <text class="internal-btn-icon">📋</text>
+            <text class="internal-btn-text">加班申请</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/leave-apply')">
+            <text class="internal-btn-icon">🏖️</text>
+            <text class="internal-btn-text">公休申请</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/lejuan')">
+            <text class="internal-btn-icon">💰</text>
+            <text class="internal-btn-text">乐捐报备</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/rest-apply')">
+            <text class="internal-btn-icon">🏖️</text>
+            <text class="internal-btn-text">休息申请</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/leave-request-apply')">
+            <text class="internal-btn-icon">📝</text>
+            <text class="internal-btn-text">请假申请</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/shift-change-apply')">
+            <text class="internal-btn-icon">🔄</text>
+            <text class="internal-btn-text">班次切换申请</text>
+          </view>
         </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/lejuan')">
-          <text class="internal-btn-icon">💰</text>
-          <text class="internal-btn-text">乐捐报备</text>
+      </view>
+
+      <!-- 组2: 日常 -->
+      <view class="group-section">
+        <view class="section-header">
+          <text class="section-title">⏰ 日常</text>
         </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/rest-apply')">
-          <text class="internal-btn-icon">🏖️</text>
-          <text class="internal-btn-text">休息申请</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/leave-request-apply')">
-          <text class="internal-btn-icon">📝</text>
-          <text class="internal-btn-text">请假申请</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/shift-change-apply')">
-          <text class="internal-btn-icon">🔄</text>
-          <text class="internal-btn-text">班次切换申请</text>
+        <view class="internal-btns">
+          <view class="internal-btn" @click="goCoachProfile">
+            <text class="internal-btn-icon">👤</text>
+            <text class="internal-btn-text">个人中心</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/clock')">
+            <text class="internal-btn-icon">⏰</text>
+            <text class="internal-btn-text">上下班</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/table-action')">
+            <text class="internal-btn-icon">🎱</text>
+            <text class="internal-btn-text">上下桌</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-upload')">
+            <text class="internal-btn-icon">📸</text>
+            <text class="internal-btn-text">约客上传</text>
+          </view>
         </view>
       </view>
     </view>
 
-    <!-- 组2: 日常 -->
-    <view class="internal-section" v-if="memberInfo.memberNo && isCoach">
-      <view class="section-header">
-        <text class="section-title">⏰ 日常</text>
+    <!-- 管理功能板块（大分组） -->
+    <view class="internal-group" v-if="memberInfo.memberNo && isManager">
+      <view class="group-header">
+        <text class="group-title">⚙️ 管理功能</text>
       </view>
-      <view class="internal-btns">
-        <view class="internal-btn" @click="goCoachProfile">
-          <text class="internal-btn-icon">👤</text>
-          <text class="internal-btn-text">个人中心</text>
+      
+      <!-- 组1: 管理 -->
+      <view class="group-section">
+        <view class="section-header">
+          <text class="section-title">📋 管理</text>
         </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/clock')">
-          <text class="internal-btn-icon">⏰</text>
-          <text class="internal-btn-text">上下班</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/table-action')">
-          <text class="internal-btn-icon">🎱</text>
-          <text class="internal-btn-text">上下桌</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-upload')">
-          <text class="internal-btn-icon">📸</text>
-          <text class="internal-btn-text">约客上传</text>
+        <view class="internal-btns">
+          <view class="internal-btn" @click="navigateTo('/pages/internal/water-board')">
+            <text class="internal-btn-icon">📋</text>
+            <text class="internal-btn-text">水牌管理</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/guest-invitation-stats')">
+            <text class="internal-btn-icon">📊</text>
+            <text class="internal-btn-text">约客统计</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/missing-table-out-stats')">
+            <text class="internal-btn-icon">📊</text>
+            <text class="internal-btn-text">漏单统计</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/reward-penalty-set?type=服务日奖')">
+            <text class="internal-btn-icon">🏆</text>
+            <text class="internal-btn-text">服务日奖</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/reward-penalty-set?type=助教日常')">
+            <text class="internal-btn-icon">⚠️</text>
+            <text class="internal-btn-text">助教违规</text>
+          </view>
         </view>
       </view>
-    </view>
 
-    <!-- 管理功能板块 -->
-    <!-- 组1: 管理 -->
-    <view class="internal-section" v-if="memberInfo.memberNo && isManager">
-      <view class="section-header">
-        <text class="section-title">📋 管理</text>
+      <!-- 组2: 审批 -->
+      <view class="group-section">
+        <view class="section-header">
+          <text class="section-title">✅ 审批</text>
+        </view>
+        <view class="internal-btns">
+          <view class="internal-btn" @click="navigateTo('/pages/internal/overtime-approval')">
+            <text class="internal-btn-icon">✅</text>
+            <text class="internal-btn-text">加班审批</text>
+            <view class="badge" v-if="overtimeCount > 0">{{ overtimeCount }}</view>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/leave-approval')">
+            <text class="internal-btn-icon">🏖️</text>
+            <text class="internal-btn-text">公休审批</text>
+            <view class="badge" v-if="publicLeaveCount > 0">{{ publicLeaveCount }}</view>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/lejuan-list')">
+            <text class="internal-btn-icon">💰</text>
+            <text class="internal-btn-text">乐捐一览</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-review?shift=早班')">
+            <text class="internal-btn-icon">🌅</text>
+            <text class="internal-btn-text">早班约客</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-review?shift=晚班')">
+            <text class="internal-btn-icon">🌙</text>
+            <text class="internal-btn-text">晚班约客</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/shift-change-approval')">
+            <text class="internal-btn-icon">🔄</text>
+            <text class="internal-btn-text">班次切换审批</text>
+            <view class="badge" v-if="shiftChangeCount > 0">{{ shiftChangeCount }}</view>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/leave-request-approval')">
+            <text class="internal-btn-icon">📝</text>
+            <text class="internal-btn-text">请假审批</text>
+            <view class="badge" v-if="leaveRequestCount > 0">{{ leaveRequestCount }}</view>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/rest-approval')">
+            <text class="internal-btn-icon">🏖️</text>
+            <text class="internal-btn-text">休息审批</text>
+            <view class="badge" v-if="restCount > 0">{{ restCount }}</view>
+          </view>
+        </view>
       </view>
-      <view class="internal-btns">
-        <view class="internal-btn" @click="navigateTo('/pages/internal/water-board')">
-          <text class="internal-btn-icon">📋</text>
-          <text class="internal-btn-text">水牌管理</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/guest-invitation-stats')">
-          <text class="internal-btn-icon">📊</text>
-          <text class="internal-btn-text">约客统计</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/missing-table-out-stats')">
-          <text class="internal-btn-icon">📊</text>
-          <text class="internal-btn-text">漏单统计</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/reward-penalty-set?type=服务日奖')">
-          <text class="internal-btn-icon">🏆</text>
-          <text class="internal-btn-text">服务日奖</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/reward-penalty-set?type=助教日常')">
-          <text class="internal-btn-icon">⚠️</text>
-          <text class="internal-btn-text">助教违规</text>
-        </view>
-      </view>
-    </view>
 
-    <!-- 组2: 审批 -->
-    <view class="internal-section" v-if="memberInfo.memberNo && isManager">
-      <view class="section-header">
-        <text class="section-title">✅ 审批</text>
-      </view>
-      <view class="internal-btns">
-        <view class="internal-btn" @click="navigateTo('/pages/internal/overtime-approval')">
-          <text class="internal-btn-icon">✅</text>
-          <text class="internal-btn-text">加班审批</text>
-          <view class="badge" v-if="overtimeCount > 0">{{ overtimeCount }}</view>
+      <!-- 组3: 工具 -->
+      <view class="group-section">
+        <view class="section-header">
+          <text class="section-title">💡 工具</text>
         </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/leave-approval')">
-          <text class="internal-btn-icon">🏖️</text>
-          <text class="internal-btn-text">公休审批</text>
-          <view class="badge" v-if="publicLeaveCount > 0">{{ publicLeaveCount }}</view>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/lejuan-list')">
-          <text class="internal-btn-icon">💰</text>
-          <text class="internal-btn-text">乐捐一览</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-review?shift=早班')">
-          <text class="internal-btn-icon">🌅</text>
-          <text class="internal-btn-text">早班约客</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-review?shift=晚班')">
-          <text class="internal-btn-icon">🌙</text>
-          <text class="internal-btn-text">晚班约客</text>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/shift-change-approval')">
-          <text class="internal-btn-icon">🔄</text>
-          <text class="internal-btn-text">班次切换审批</text>
-          <view class="badge" v-if="shiftChangeCount > 0">{{ shiftChangeCount }}</view>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/leave-request-approval')">
-          <text class="internal-btn-icon">📝</text>
-          <text class="internal-btn-text">请假审批</text>
-          <view class="badge" v-if="leaveRequestCount > 0">{{ leaveRequestCount }}</view>
-        </view>
-        <view class="internal-btn" @click="navigateTo('/pages/internal/rest-approval')">
-          <text class="internal-btn-icon">🏖️</text>
-          <text class="internal-btn-text">休息审批</text>
-          <view class="badge" v-if="restCount > 0">{{ restCount }}</view>
-        </view>
-      </view>
-    </view>
-
-    <!-- 组3: 工具 -->
-    <view class="internal-section" v-if="memberInfo.memberNo && isManager">
-      <view class="section-header">
-        <text class="section-title">💡 工具</text>
-      </view>
-      <view class="internal-btns">
-        <view class="internal-btn" @click="navigateTo('/pages/internal/switch-control')">
-          <text class="internal-btn-icon">💡</text>
-          <text class="internal-btn-text">智能开关</text>
+        <view class="internal-btns">
+          <view class="internal-btn" @click="navigateTo('/pages/internal/switch-control')">
+            <text class="internal-btn-icon">💡</text>
+            <text class="internal-btn-text">智能开关</text>
+          </view>
         </view>
       </view>
     </view>
@@ -402,6 +414,40 @@
       <!-- 新增：公安备案号 -->
       <text class="footer-psb-icp">京公网安备11010102000001号</text>
     </view>
+    
+    <!-- #ifdef H5 -->
+    <!-- 调试面板：角标数据诊断 -->
+    <view class="debug-panel" v-if="showDebug" @click="showDebug = false">
+      <view class="debug-content" @click.stop>
+        <text class="debug-title">🔧 角标调试信息（点击关闭）</text>
+        <view class="debug-row">
+          <text class="debug-key">adminInfo:</text>
+          <text class="debug-val">{{ JSON.stringify(uni.getStorageSync('adminInfo') || {}) }}</text>
+        </view>
+        <view class="debug-row">
+          <text class="debug-key">overtimeCount:</text>
+          <text class="debug-val">{{ overtimeCount }}</text>
+        </view>
+        <view class="debug-row">
+          <text class="debug-key">publicLeaveCount:</text>
+          <text class="debug-val">{{ publicLeaveCount }}</text>
+        </view>
+        <view class="debug-row">
+          <text class="debug-key">shiftChangeCount:</text>
+          <text class="debug-val">{{ shiftChangeCount }}</text>
+        </view>
+        <view class="debug-row">
+          <text class="debug-key">leaveRequestCount:</text>
+          <text class="debug-val">{{ leaveRequestCount }}</text>
+        </view>
+        <view class="debug-row">
+          <text class="debug-key">restCount:</text>
+          <text class="debug-val">{{ restCount }}</text>
+        </view>
+        <view class="debug-log">{{ debugInfo }}</view>
+      </view>
+    </view>
+    <!-- #endif -->
     
     <!-- 编辑姓名弹窗 -->
     <view class="edit-modal" v-if="showEditName" @click="showEditName = false">
@@ -1153,18 +1199,41 @@ const shiftChangeCount = ref(0)
 const leaveRequestCount = ref(0)
 const restCount = ref(0)
 
+// === DEBUG 调试面板 ===
+const debugInfo = ref('')
+const showDebug = ref(false)
+
 const loadPendingCounts = async () => {
+  const debug = []
+  debug.push('[loadPendingCounts] 调用时间: ' + new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }))
+  
+  // 检查 adminInfo
+  const adminInfo = uni.getStorageSync('adminInfo')
+  debug.push('[adminInfo] ' + JSON.stringify(adminInfo))
+  debug.push('[isManager] ' + (adminInfo && ['店长', '助教管理', '管理员'].includes(adminInfo.role)))
+  
   try {
+    debug.push('[API] 调用 getPendingCount...')
     const res = await api.applications.getPendingCount()
+    debug.push('[API] 响应: ' + JSON.stringify(res))
+    
     const d = res.data || {}
+    debug.push('[API.data] ' + JSON.stringify(d))
+    
     overtimeCount.value = d.overtime || 0
     publicLeaveCount.value = d.public_leave || 0
     shiftChangeCount.value = d.shift_change || 0
     leaveRequestCount.value = d.leave || 0
     restCount.value = d.rest || 0
+    
+    debug.push('[赋值后] overtime=' + overtimeCount.value + ', public_leave=' + publicLeaveCount.value + ', shift_change=' + shiftChangeCount.value + ', leave=' + leaveRequestCount.value + ', rest=' + restCount.value)
   } catch (e) {
-    // API不存在或调用失败，静默处理
+    debug.push('[ERROR] ' + JSON.stringify({ message: e.message, error: e.error, stack: e.stack }))
   }
+  
+  debugInfo.value = debug.join('\n')
+  console.log('[DEBUG member.vue] ' + debugInfo.value)
+  showDebug.value = true
 }
 
 const getCoachPhoto = (coach) => {
@@ -1441,6 +1510,25 @@ onShow(() => {
 .empty-text { font-size: 14px; color: rgba(255,255,255,0.3); }
 
 /* V2.0 内部专用入口 */
+/* 大分组容器 */
+.internal-group {
+  margin: 0 16px 16px;
+  background: rgba(20,20,30,0.6);
+  border: 1px solid rgba(218,165,32,0.2);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.group-header {
+  padding: 14px 16px 10px;
+  background: linear-gradient(135deg, rgba(212,175,55,0.15), rgba(255,215,0,0.08));
+  border-bottom: 1px solid rgba(218,165,32,0.15);
+}
+.group-title { font-size: 16px; font-weight: 600; color: #d4af37; }
+/* 小分组（紧凑版） */
+.group-section { padding: 0 12px 12px; }
+.group-section .section-header { padding: 10px 4px 6px; }
+.group-section .section-title { font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.8); }
+.group-section .internal-btns { gap: 8px; margin-top: 6px; }
 .internal-section { margin: 0 16px 16px; }
 .internal-btns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
 .internal-btn {
@@ -1923,6 +2011,64 @@ onShow(() => {
   font-size: 15px;
   font-weight: 600;
   color: #000;
+}
+/* #endif */
+
+/* #ifdef H5 */
+/* 调试面板样式 */
+.debug-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: rgba(0,0,0,0.85);
+  padding: 20px 16px 30px;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+.debug-content {
+  background: #1a1a2e;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #d4af37;
+}
+.debug-title {
+  font-size: 14px;
+  color: #ffd700;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 12px;
+}
+.debug-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.debug-key {
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  flex-shrink: 0;
+}
+.debug-val {
+  font-size: 12px;
+  color: #4caf50;
+  text-align: right;
+  max-width: 60%;
+  word-break: break-all;
+}
+.debug-log {
+  margin-top: 12px;
+  padding: 10px;
+  background: rgba(0,0,0,0.4);
+  border-radius: 8px;
+  font-size: 11px;
+  color: #aaa;
+  white-space: pre-wrap;
+  line-height: 1.6;
+  max-height: 200px;
+  overflow-y: auto;
 }
 /* #endif */
 </style>
