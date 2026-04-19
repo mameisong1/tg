@@ -1922,4 +1922,96 @@ MQTT 发送失败时返回 HTTP 502：
 
 ---
 
-*文档更新时间：2026年4月18日 22:24*
+## 系统报告接口
+
+> QA3 & QA4 新增接口（2026-04-19）
+
+### 系统运行概览
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/system-report/overview` | GET | 系统运行概览（计时器状态 + Cron 任务状态 + 最近执行日志） |
+| `/api/system-report/timer-logs` | GET | 计时器生命周期日志 |
+| `/api/system-report/cron-logs` | GET | Cron 执行历史 |
+| `/api/system-report/cron-tasks` | GET | Cron 任务列表 |
+| `/api/system-report/cron/:taskName/trigger` | POST | 手动触发 Cron 任务 |
+| `/api/system-report/cron/:taskName/toggle` | POST | 启用/禁用 Cron 任务 |
+
+#### GET /api/system-report/overview
+
+**响应示例**：
+```json
+{
+  "success": true,
+  "timerStats": {
+    "total": 2,
+    "lejuan": 1,
+    "application": 1
+  },
+  "cronTasks": [
+    {
+      "task_name": "end_lejuan",
+      "cron_expression": "0 2 * * *",
+      "next_run": "2026-04-20 02:00:00",
+      "is_enabled": 1
+    },
+    {
+      "task_name": "sync_reward_penalty",
+      "cron_expression": "0 12 * * *",
+      "next_run": "2026-04-20 12:00:00",
+      "is_enabled": 1
+    }
+  ],
+  "recentLogs": [...]
+}
+```
+
+#### GET /api/system-report/timer-logs
+
+**参数**：
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| type | string | 否 | 计时器类型：lejuan / application |
+| action | string | 否 | 事件类型：create / execute / cancel / recover / poll_miss |
+| limit | number | 否 | 返回条数，默认 50 |
+
+#### GET /api/system-report/cron-logs
+
+**参数**：
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| taskName | string | 否 | 任务名称：end_lejuan / sync_reward_penalty |
+| status | string | 否 | 执行状态：success / failed |
+| limit | number | 否 | 返回条数，默认 50 |
+
+#### POST /api/system-report/cron/:taskName/trigger
+
+**用途**：手动触发 Cron 任务（用于测试或紧急执行）
+
+**响应示例**：
+```json
+{
+  "success": true,
+  "task": "end_lejuan",
+  "status": "success",
+  "records_affected": 3,
+  "details": "结束 3 个 active 乐捐"
+}
+```
+
+### 数据库变更
+
+- **新表**: `timer_log`（计时器生命周期日志）
+- **新表**: `cron_tasks`（Cron 任务配置）
+- **新表**: `cron_log`（Cron 执行历史）
+- **新字段**: `lejuan_records.extra_data`（JSON 字段，用于标记奖罚同步状态）
+
+### 前端页面
+
+| 页面 | 路径 | 说明 |
+|------|------|------|
+| 系统报告 | `admin/system-report.html` | 4 个 Tab：概览 / Cron 任务 / Cron 日志 / 计时器日志 |
+
+---
+
+*文档更新时间：2026年4月19日 15:30*
