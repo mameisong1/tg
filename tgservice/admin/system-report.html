@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>系统报告 - 天宫国际</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0f; font-family: 'PingFang SC', sans-serif; color: #fff; display: flex; min-height: 100vh; }
+    .sidebar-logo img { width: 32px; height: 32px; filter: sepia(60%) saturate(200%) hue-rotate(10deg); }
+    .nav-item:hover, .nav-item.active { background: rgba(212,175,55,0.1); color: #d4af37; }
+    .main { flex: 1; padding: 20px; overflow-y: auto; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .page-title { font-size: 22px; }
+
+    .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; border: none; }
+    .btn-primary { background: linear-gradient(135deg, #d4af37 0%, #ffd700 100%); color: #000; }
+    .btn-danger { background: rgba(231,76,60,0.2); color: #e74c3c; }
+    .btn-success { background: rgba(76,175,80,0.2); color: #4caf50; }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .btn-outline { background: transparent; border: 1px solid rgba(212,175,55,0.3); color: #d4af37; }
+    .btn-outline.active { background: rgba(212,175,55,0.2); border-color: #d4af37; }
+
+    .tabs { display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px; }
+    .tab-btn { padding: 8px 20px; border-radius: 6px; font-size: 14px; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); background: transparent; color: rgba(255,255,255,0.6); transition: all 0.2s; }
+    .tab-btn:hover { border-color: #d4af37; color: #d4af37; }
+    .tab-btn.active { background: rgba(212,175,55,0.15); border-color: #d4af37; color: #d4af37; font-weight: 600; }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .stats-row { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+    .stat-card { background: rgba(20,20,30,0.8); border-radius: 12px; padding: 16px 24px; border: 1px solid rgba(218,165,32,0.1); flex: 1; min-width: 140px; }
+    .stat-label { font-size: 12px; color: rgba(255,255,255,0.5); }
+    .stat-value { font-size: 24px; font-weight: 700; margin-top: 4px; }
+    .stat-value.gold { color: #d4af37; }
+    .stat-value.green { color: #4caf50; }
+    .stat-value.red { color: #e74c3c; }
+
+    .data-table { width: 100%; background: rgba(20,20,30,0.6); border-radius: 12px; border: 1px solid rgba(218,165,32,0.1); border-collapse: collapse; }
+    .data-table th, .data-table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .data-table th { background: rgba(212,175,55,0.1); font-weight: 500; font-size: 13px; color: rgba(255,255,255,0.7); }
+    .data-table td { font-size: 14px; }
+
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 11px; }
+    .badge-success { background: rgba(76,175,80,0.2); color: #4caf50; }
+    .badge-failed { background: rgba(231,76,60,0.2); color: #e74c3c; }
+    .badge-pending { background: rgba(255,193,7,0.2); color: #ffc107; }
+    .badge-active { background: rgba(33,150,243,0.2); color: #2196f3; }
+    .badge-disabled { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.4); }
+
+    .task-card { background: rgba(20,20,30,0.8); border: 1px solid rgba(218,165,32,0.1); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+    .task-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .task-name { font-size: 16px; font-weight: 600; }
+    .task-desc { font-size: 13px; color: rgba(255,255,255,0.5); margin-bottom: 12px; }
+    .task-meta { display: flex; gap: 24px; flex-wrap: wrap; font-size: 12px; color: rgba(255,255,255,0.4); }
+    .task-meta-item { display: flex; align-items: center; gap: 4px; }
+    .task-actions { display: flex; gap: 8px; }
+
+    .filter-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+    .filter-group { display: flex; gap: 6px; }
+
+    .empty-state { text-align: center; padding: 60px 20px; color: rgba(255,255,255,0.3); }
+    .empty-state-icon { font-size: 48px; margin-bottom: 12px; }
+
+    .toast { position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.9); padding: 12px 24px; border-radius: 8px; z-index: 1001; display: none; }
+    .toast.show { display: block; }
+    .nav-group-title .arrow { transition: transform 0.2s; font-size: 12px; }
+    .nav-group.open .nav-group-title .arrow { transform: rotate(180deg); }
+    .nav-group-title .group-icon { font-size: 18px; margin-right: 12px; }
+    .nav-group-title .group-text { flex: 1; }
+  </style>
+  <link rel="stylesheet" href="sidebar.css">
+</head>
+<body>
+  <div class="sidebar"></div>
+
+  <div class="main">
+    <div class="page-header">
+      <div class="page-title">📋 系统报告</div>
+      <button class="btn btn-outline" onclick="refreshAll()">🔄 刷新</button>
+    </div>
+
+    <!-- Tab 切换 -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="overview" onclick="switchTab('overview')">概览</button>
+      <button class="tab-btn" data-tab="tasks" onclick="switchTab('tasks')">Cron 任务</button>
+      <button class="tab-btn" data-tab="cronLogs" onclick="switchTab('cronLogs')">Cron 日志</button>
+      <button class="tab-btn" data-tab="timerLogs" onclick="switchTab('timerLogs')">计时器日志</button>
+    </div>
+
+    <!-- Tab: 概览 -->
+    <div class="tab-content active" id="tab-overview">
+      <div class="stats-row" id="overviewStats"></div>
+      <h3 style="margin-bottom: 12px;">最近 Cron 执行</h3>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>任务名称</th>
+            <th>状态</th>
+            <th>影响记录</th>
+            <th>开始时间</th>
+            <th>耗时</th>
+            <th>详情</th>
+          </tr>
+        </thead>
+        <tbody id="recentCronLogs">
+          <tr><td colspan="6" class="empty-state"><div class="empty-state-icon">📋</div><div>加载中...</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Tab: Cron 任务 -->
+    <div class="tab-content" id="tab-tasks">
+      <div id="taskCards"></div>
+    </div>
+
+    <!-- Tab: Cron 日志 -->
+    <div class="tab-content" id="tab-cronLogs">
+      <div class="filter-bar">
+        <div class="filter-group" id="cronLogTaskFilter">
+          <button class="btn btn-outline active" data-task="" onclick="setCronLogTask('')">全部任务</button>
+          <button class="btn btn-outline" data-task="end_lejuan" onclick="setCronLogTask('end_lejuan')">结束乐捐</button>
+          <button class="btn btn-outline" data-task="sync_reward_penalty" onclick="setCronLogTask('sync_reward_penalty')">奖罚同步</button>
+        </div>
+        <div class="filter-group">
+          <button class="btn btn-outline active" data-status="" onclick="setCronLogStatus('')">全部状态</button>
+          <button class="btn btn-outline" data-status="success" onclick="setCronLogStatus('success')">成功</button>
+          <button class="btn btn-outline" data-status="failed" onclick="setCronLogStatus('failed')">失败</button>
+        </div>
+        <button class="btn btn-primary" onclick="loadCronLogs()">🔍 查询</button>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>任务名称</th>
+            <th>状态</th>
+            <th>影响记录</th>
+            <th>开始时间</th>
+            <th>耗时(ms)</th>
+            <th>详情 / 错误</th>
+          </tr>
+        </thead>
+        <tbody id="cronLogTable">
+          <tr><td colspan="7" class="empty-state"><div class="empty-state-icon">📋</div><div>点击查询加载数据</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Tab: 计时器日志 -->
+    <div class="tab-content" id="tab-timerLogs">
+      <div class="filter-bar">
+        <div class="filter-group" id="timerLogTypeFilter">
+          <button class="btn btn-outline active" data-type="" onclick="setTimerLogType('')">全部类型</button>
+          <button class="btn btn-outline" data-type="lejuan" onclick="setTimerLogType('lejuan')">乐捐</button>
+          <button class="btn btn-outline" data-type="application" onclick="setTimerLogType('application')">申请</button>
+        </div>
+        <button class="btn btn-primary" onclick="loadTimerLogs()">🔍 查询</button>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>计时器ID</th>
+            <th>类型</th>
+            <th>动作</th>
+            <th>状态</th>
+            <th>计划时间</th>
+            <th>实际时间</th>
+            <th>延迟(ms)</th>
+          </tr>
+        </thead>
+        <tbody id="timerLogTable">
+          <tr><td colspan="8" class="empty-state"><div class="empty-state-icon">⏱️</div><div>点击查询加载数据</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="sidebar.js"></script>
+  <script>
+    // ==================== 全局变量 ====================
+    var API_BASE = '/api';
+    var currentCronLogTask = '';
+    var currentCronLogStatus = '';
+    var currentTimerLogType = '';
+
+    // ==================== Toast ====================
+    function showToast(msg, type) {
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.borderColor = type === 'error' ? '#e74c3c' : '#4caf50';
+      t.style.border = '1px solid ' + (type === 'error' ? '#e74c3c' : '#4caf50');
+      t.className = 'toast show';
+      setTimeout(function() { t.className = 'toast'; }, 3000);
+    }
+
+    // ==================== Tab 切换 ====================
+    function switchTab(tabName) {
+      var tabs = document.querySelectorAll('.tab-btn');
+      for (var i = 0; i < tabs.length; i++) {
+        tabs[i].className = tabs[i].getAttribute('data-tab') === tabName ? 'tab-btn active' : 'tab-btn';
+      }
+      var contents = document.querySelectorAll('.tab-content');
+      for (var j = 0; j < contents.length; j++) {
+        contents[j].className = contents[j].id === 'tab-' + tabName ? 'tab-content active' : 'tab-content';
+      }
+
+      // 按需加载
+      if (tabName === 'overview') loadOverview();
+      else if (tabName === 'tasks') loadTasks();
+      else if (tabName === 'cronLogs') loadCronLogs();
+      else if (tabName === 'timerLogs') loadTimerLogs();
+    }
+
+    // ==================== 概览 ====================
+    function loadOverview() {
+      fetch(API_BASE + '/system-report/overview', {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.success) { showToast('加载失败', 'error'); return; }
+
+        var ts = data.timerStats || {};
+        var tasks = data.cronTasks || [];
+        var logs = data.recentLogs || [];
+
+        // 统计卡片
+        var statsHtml = '';
+        statsHtml += '<div class="stat-card"><div class="stat-label">活跃计时器</div><div class="stat-value gold">' + (ts.total || 0) + '</div></div>';
+        statsHtml += '<div class="stat-card"><div class="stat-label">乐捐定时器</div><div class="stat-value gold">' + (ts.lejuan || 0) + '</div></div>';
+        statsHtml += '<div class="stat-card"><div class="stat-label">申请定时器</div><div class="stat-value gold">' + (ts.application || 0) + '</div></div>';
+
+        var enabledTasks = 0;
+        for (var i = 0; i < tasks.length; i++) {
+          if (tasks[i].is_enabled) enabledTasks++;
+        }
+        statsHtml += '<div class="stat-card"><div class="stat-label">启用任务</div><div class="stat-value green">' + enabledTasks + '/' + tasks.length + '</div></div>';
+
+        document.getElementById('overviewStats').innerHTML = statsHtml;
+
+        // 最近 Cron 日志
+        var logHtml = '';
+        if (logs.length === 0) {
+          logHtml = '<tr><td colspan="6" class="empty-state">暂无执行记录</td></tr>';
+        } else {
+          for (var j = 0; j < logs.length; j++) {
+            var log = logs[j];
+            var statusClass = log.status === 'success' ? 'badge-success' : 'badge-failed';
+            var statusText = log.status === 'success' ? '成功' : '失败';
+            var duration = log.duration_ms ? (log.duration_ms / 1000).toFixed(1) + 's' : '-';
+            logHtml += '<tr>';
+            logHtml += '<td>' + (log.task_name || '-') + '</td>';
+            logHtml += '<td><span class="badge ' + statusClass + '">' + statusText + '</span></td>';
+            logHtml += '<td>' + (log.records_affected || 0) + '</td>';
+            logHtml += '<td>' + (log.started_at || '-') + '</td>';
+            logHtml += '<td>' + duration + '</td>';
+            logHtml += '<td>' + (log.details || log.error || '-') + '</td>';
+            logHtml += '</tr>';
+          }
+        }
+        document.getElementById('recentCronLogs').innerHTML = logHtml;
+      })
+      .catch(function(err) {
+        showToast('加载失败: ' + err.message, 'error');
+      });
+    }
+
+    // ==================== Cron 任务 ====================
+    function loadTasks() {
+      fetch(API_BASE + '/system-report/cron-tasks', {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.success) { showToast('加载失败', 'error'); return; }
+
+        var html = '';
+        var tasks = data.tasks || [];
+        if (tasks.length === 0) {
+          html = '<div class="empty-state"><div class="empty-state-icon">⚙️</div><div>暂无任务配置</div></div>';
+        } else {
+          for (var i = 0; i < tasks.length; i++) {
+            var t = tasks[i];
+            var enabledClass = t.is_enabled ? 'badge-active' : 'badge-disabled';
+            var enabledText = t.is_enabled ? '启用中' : '已禁用';
+            var lastStatusClass = t.last_status === 'success' ? 'badge-success' : (t.last_status === 'failed' ? 'badge-failed' : 'badge-pending');
+            var lastStatusText = t.last_status || '未执行';
+
+            html += '<div class="task-card">';
+            html += '<div class="task-card-header">';
+            html += '<div class="task-name">' + t.task_name + ' <span class="badge ' + enabledClass + '">' + enabledText + '</span></div>';
+            html += '<div class="task-actions">';
+            html += '<button class="btn btn-primary btn-sm" onclick="triggerTask(\'' + t.task_name + '\')">▶ 执行</button>';
+            html += '<button class="btn btn-sm ' + (t.is_enabled ? 'btn-danger' : 'btn-success') + '" onclick="toggleTask(\'' + t.task_name + '\', ' + (t.is_enabled ? 'false' : 'true') + ')">';
+            html += (t.is_enabled ? '禁用' : '启用') + '</button>';
+            html += '</div></div>';
+            html += '<div class="task-desc">' + (t.description || '') + '</div>';
+            html += '<div class="task-meta">';
+            html += '<div class="task-meta-item">📅 计划: ' + (t.cron_expression || '-') + '</div>';
+            html += '<div class="task-meta-item">⏰ 下次: ' + (t.next_run || '-') + '</div>';
+            html += '<div class="task-meta-item">📊 上次: ' + (t.last_run || '-') + ' <span class="badge ' + lastStatusClass + '">' + lastStatusText + '</span></div>';
+            if (t.last_error) {
+              html += '<div class="task-meta-item" style="color:#e74c3c">❌ ' + t.last_error + '</div>';
+            }
+            html += '</div></div>';
+          }
+        }
+        document.getElementById('taskCards').innerHTML = html;
+      })
+      .catch(function(err) {
+        showToast('加载失败: ' + err.message, 'error');
+      });
+    }
+
+    function triggerTask(taskName) {
+      if (!confirm('确定手动触发任务 "' + taskName + '" 吗？')) return;
+
+      fetch(API_BASE + '/system-report/cron/' + taskName + '/trigger', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + localStorage.getItem('adminToken'),
+          'Content-Type': 'application/json'
+        }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          showToast('任务已触发: ' + taskName);
+          loadTasks();
+        } else {
+          showToast('触发失败: ' + (data.error || '未知错误'), 'error');
+        }
+      })
+      .catch(function(err) {
+        showToast('请求失败: ' + err.message, 'error');
+      });
+    }
+
+    function toggleTask(taskName, enabled) {
+      fetch(API_BASE + '/system-report/cron/' + taskName + '/toggle', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + localStorage.getItem('adminToken'),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ enabled: enabled })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          showToast((enabled ? '已启用' : '已禁用') + ': ' + taskName);
+          loadTasks();
+        } else {
+          showToast('操作失败: ' + (data.error || '未知错误'), 'error');
+        }
+      })
+      .catch(function(err) {
+        showToast('请求失败: ' + err.message, 'error');
+      });
+    }
+
+    // ==================== Cron 日志 ====================
+    function setCronLogTask(task) {
+      currentCronLogTask = task;
+      var btns = document.querySelectorAll('#cronLogTaskFilter .btn-outline');
+      for (var i = 0; i < btns.length; i++) {
+        btns[i].className = btns[i].getAttribute('data-task') === task ? 'btn btn-outline active' : 'btn btn-outline';
+      }
+    }
+
+    function setCronLogStatus(status) {
+      currentCronLogStatus = status;
+      var btns = document.querySelectorAll('[data-status]');
+      // Only filter within cronLogs tab
+      var container = document.getElementById('cronLogTable');
+      if (!container) return;
+      var filterBar = container.closest('.tab-content').querySelector('.filter-bar');
+      var statusBtns = filterBar.querySelectorAll('[data-status]');
+      for (var i = 0; i < statusBtns.length; i++) {
+        statusBtns[i].className = statusBtns[i].getAttribute('data-status') === status ? 'btn btn-outline active' : 'btn btn-outline';
+      }
+    }
+
+    function loadCronLogs() {
+      var params = [];
+      if (currentCronLogTask) params.push('taskName=' + encodeURIComponent(currentCronLogTask));
+      if (currentCronLogStatus) params.push('status=' + encodeURIComponent(currentCronLogStatus));
+      params.push('limit=50');
+
+      var url = API_BASE + '/system-report/cron-logs?' + params.join('&');
+      fetch(url, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.success) { showToast('加载失败', 'error'); return; }
+
+        var html = '';
+        var logs = data.logs || [];
+        if (logs.length === 0) {
+          html = '<tr><td colspan="7" class="empty-state">暂无记录</td></tr>';
+        } else {
+          for (var i = 0; i < logs.length; i++) {
+            var log = logs[i];
+            var statusClass = log.status === 'success' ? 'badge-success' : 'badge-failed';
+            var statusText = log.status === 'success' ? '成功' : '失败';
+            html += '<tr>';
+            html += '<td>' + log.id + '</td>';
+            html += '<td>' + (log.task_name || '-') + '</td>';
+            html += '<td><span class="badge ' + statusClass + '">' + statusText + '</span></td>';
+            html += '<td>' + (log.records_affected || 0) + '</td>';
+            html += '<td>' + (log.started_at || '-') + '</td>';
+            html += '<td>' + (log.duration_ms || '-') + '</td>';
+            html += '<td>' + (log.details || log.error || '-') + '</td>';
+            html += '</tr>';
+          }
+        }
+        document.getElementById('cronLogTable').innerHTML = html;
+      })
+      .catch(function(err) {
+        showToast('加载失败: ' + err.message, 'error');
+      });
+    }
+
+    // ==================== 计时器日志 ====================
+    function setTimerLogType(type) {
+      currentTimerLogType = type;
+      var btns = document.querySelectorAll('#timerLogTypeFilter .btn-outline');
+      for (var i = 0; i < btns.length; i++) {
+        btns[i].className = btns[i].getAttribute('data-type') === type ? 'btn btn-outline active' : 'btn btn-outline';
+      }
+    }
+
+    function loadTimerLogs() {
+      var params = [];
+      if (currentTimerLogType) params.push('type=' + encodeURIComponent(currentTimerLogType));
+      params.push('limit=50');
+
+      var url = API_BASE + '/system-report/timer-logs?' + params.join('&');
+      fetch(url, {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.success) { showToast('加载失败', 'error'); return; }
+
+        var html = '';
+        var logs = data.logs || [];
+        if (logs.length === 0) {
+          html = '<tr><td colspan="8" class="empty-state">暂无记录</td></tr>';
+        } else {
+          for (var i = 0; i < logs.length; i++) {
+            var log = logs[i];
+            var statusClass = log.status === 'success' ? 'badge-success' : 'badge-failed';
+            var statusText = log.status === 'success' ? '成功' : '失败';
+            html += '<tr>';
+            html += '<td>' + log.id + '</td>';
+            html += '<td>' + (log.timer_id || '-') + '</td>';
+            html += '<td>' + (log.timer_type || '-') + '</td>';
+            html += '<td>' + (log.action || '-') + '</td>';
+            html += '<td><span class="badge ' + statusClass + '">' + statusText + '</span></td>';
+            html += '<td>' + (log.scheduled_time || '-') + '</td>';
+            html += '<td>' + (log.actual_time || '-') + '</td>';
+            html += '<td>' + (log.delay_ms !== null ? log.delay_ms + 'ms' : '-') + '</td>';
+            html += '</tr>';
+          }
+        }
+        document.getElementById('timerLogTable').innerHTML = html;
+      })
+      .catch(function(err) {
+        showToast('加载失败: ' + err.message, 'error');
+      });
+    }
+
+    // ==================== 刷新全部 ====================
+    function refreshAll() {
+      var activeTab = document.querySelector('.tab-btn.active');
+      if (activeTab) {
+        switchTab(activeTab.getAttribute('data-tab'));
+      } else {
+        loadOverview();
+      }
+    }
+
+    // ==================== 初始化 ====================
+    (function() {
+      var token = localStorage.getItem('adminToken');
+      if (!token) {
+        window.location.href = 'login.html';
+        return;
+      }
+      loadOverview();
+    })();
+  </script>
+</body>
+</html>

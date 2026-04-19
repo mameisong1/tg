@@ -57,6 +57,9 @@ const missingTableOutOrdersRouter = require('./routes/missing-table-out-orders')
 // 智能开关路由模块
 const { router: switchRouter, triggerAutoOffIfEligible } = require('./routes/switch-routes');
 
+// 系统报告路由
+const systemReportRouter = require('./routes/system-report');
+
 // 设备指纹访问记录(内存存储,每日过期)
 // 结构: Map<fingerprint_coachNo, timestamp>
 const popularityCache = new Map();
@@ -350,6 +353,9 @@ app.use('/api/lejuan-records', lejuanRecordsRouter);
 
 // 下桌单缺失统计路由
 app.use('/api/missing-table-out-orders', missingTableOutOrdersRouter);
+
+// 系统报告
+app.use('/api/system-report', systemReportRouter);
 
 // 智能开关路由（在 authMiddleware 之后注册）
 
@@ -3576,6 +3582,33 @@ const initLejuanRecordsTable = async () => {
 };
 initLejuanRecordsTable();
 
+// 创建计时器日志表（如果不存在）
+const initTimerLogTable = async () => {
+    try {
+        await enqueueRun(`
+            CREATE TABLE IF NOT EXISTS timer_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timer_id TEXT NOT NULL,
+                timer_type TEXT NOT NULL,
+                record_id TEXT,
+                action TEXT NOT NULL,
+                status TEXT DEFAULT 'success',
+                scheduled_time TEXT,
+                actual_time TEXT,
+                delay_ms INTEGER,
+                error TEXT,
+                created_at TEXT DEFAULT (datetime('now', '+8 hours'))
+            )
+        `);
+        console.log('✅ timer_log 表初始化完成');
+    } catch (err) {
+        if (!err.message.includes('already exists')) {
+            console.error('timer_log 表初始化失败:', err.message);
+        }
+    }
+};
+initTimerLogTable();
+
 // 创建下桌单缺失匹配索引
 const createMissingTableOutIndex = async () => {
     try {
@@ -5781,11 +5814,22 @@ app.listen(PORT, () => {
   logger.info(`天宫国际线上服务已启动: http://localhost:${PORT}`);
   console.log(`🚀 服务已启动: http://localhost:${PORT}`);
 
-  // 初始化乐捐定时器（恢复 + 轮询）
-  require('./services/lejuan-timer').init();
+  // 初始化公共计时器管理器（恢复 + 5分钟轮询）
+  const TimerManager = require('./services/timer-manager');
+  const LejuanTimer = require('./services/lejuan-timer');
+  const ApplicationTimer = require('./services/application-timer');
   
-  // 初始化申请定时器（休息/请假自动恢复）
-  require('./services/application-timer').init();
+  TimerManager.init({
+    lejuanActivate: function(recordId) {
+      LejuanTimer.activateLejuan(recordId);
+    },
+    applicationRecover: function(applicationId) {
+      ApplicationTimer.executeRecovery(applicationId);
+    }
+  });
+  
+  // 初始化 Cron 批处理调度器
+  require('./services/cron-scheduler').init();
 });
 
 // 优雅关闭

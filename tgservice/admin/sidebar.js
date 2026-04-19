@@ -26,6 +26,7 @@ var MENU_CONFIG = [
   { label: '开关场景管理', icon: '\uD83C\uDFAC', href: 'switch-scenes.html', group: '设备管理' },
   // 【系统】
   { label: '操作日志', icon: '\uD83D\uDCDC', href: 'operation-logs.html', group: '系统' },
+  { label: '系统报告', icon: '\uD83D\uDC8A', href: 'system-report.html', group: '系统' },
   { label: '首页配置', icon: '\uD83C\uDFE0', href: 'home.html', group: '系统' },
   { label: '用户管理', icon: '\uD83D\uDC65', href: 'users.html', group: '系统' },
   { label: '系统配置', icon: '\uD83D\uDEE1\uFE0F', href: 'settings.html', group: '系统' },
