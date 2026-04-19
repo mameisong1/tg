@@ -1,0 +1,12 @@
+{
+  "qaRequirement": "QA3: 公共计时器类 - 计时器模块化管理，系统重启后自动恢复，后台Admin系统报告页面显示计时器日志\nQA4: cron批处理 - (1)凌晨2点自动结束乐捐 (2)中午12点奖罚自动同步（未约客罚金、漏单罚金、漏卡罚金、助教日常）",
+  "acceptanceFocus": "1. 计时器统一管理，重启自动恢复\n2. 计时器日志可视化（后台Admin系统报告页面）\n3. 批处理执行结果写日志\n4. 批处理执行结果可视化（后台Admin系统报告页面）\n5. 去重逻辑：奖罚数据已存在则跳过",
+  "workDir": "/TG/temp/QA-20260419-03",
+  "designAuditRound": 1,
+  "testCasesAuditRound": 1,
+  "fixRound": 0,
+  "currentStep": null,
+  "designSummary": "QA3&QA4设计方案：新增timer-manager.js统一管理计时器（重启自动恢复，pollCheck每5分钟兜底），新增cron-scheduler.js处理凌晨2点自动结束乐捐和中午12点奖罚自动同步（未约客/漏单/漏卡/助教日常），新增timer_log/cron_log/cron_tasks三张表，新增admin/system-report.html可视化页面，奖罚去重逻辑confirm_date+type+phone已存在则跳过",
+  "userConfirmedAt": "2026-04-19T06:43:20.903Z",
+  "userConfirmedBy": "马哥"
+}

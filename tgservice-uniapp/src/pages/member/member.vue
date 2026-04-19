@@ -1061,7 +1061,7 @@ const hasInternalAccess = computed(() => {
 
 const isManager = computed(() => {
   const adminInfo = uni.getStorageSync('adminInfo')
-  return adminInfo && ['店长', '助教管理'].includes(adminInfo.role)
+  return adminInfo && ['店长', '助教管理', '管理员'].includes(adminInfo.role)
 })
 
 // 助教在职且未离职
@@ -1198,6 +1198,7 @@ onMounted(() => {
 
 onShow(() => {
   loadPendingOrders()
+  loadPendingCounts()
   checkCoachLogin()
   loadPopularity()
   checkAutoLogin()  // 每次显示时检查自动登录

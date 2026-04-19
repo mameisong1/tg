@@ -161,14 +161,23 @@ async function taskEndLejuan() {
 
             for (const record of activeRecords) {
                 // 更新乐捐记录状态
+                // 计算外出时长（向上取整，最小1小时）
+                let hours = 1;
+                if (record.actual_start_time) {
+                    const startTime = new Date(record.actual_start_time + '+08:00');
+                    const endTime = new Date(now + '+08:00');
+                    hours = Math.max(1, Math.ceil((endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60)));
+                }
+
                 await tx.run(
                     `UPDATE lejuan_records 
-                     SET lejuan_status = 'ended', 
-                         actual_end_time = ?,
+                     SET lejuan_status = 'returned', 
+                         return_time = ?,
+                         lejuan_hours = ?,
                          extra_data = json_set(COALESCE(extra_data, '{}'), '$.cron_ended', true),
                          updated_at = ?
                      WHERE id = ?`,
-                    [now, now, record.id]
+                    [now, hours, now, record.id]
                 );
 
                 // 如果水牌当前状态是"乐捐"，恢复为班次空闲
