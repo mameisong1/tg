@@ -161,7 +161,6 @@ onMounted(async () => {
   await fetchServerHour()
   await fetchWaterBoardStatus() // QA-20260420-4
 })
-})
 
 const applicationType = computed(() => {
   if (coachInfo.value.shift) {

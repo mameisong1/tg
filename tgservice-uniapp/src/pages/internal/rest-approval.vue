@@ -94,9 +94,6 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import api from '@/utils/api-v2.js'
-
 import { ref, computed, onMounted } from 'vue'
 import api from '@/utils/api-v2.js'
 

@@ -159,8 +159,6 @@ async function fetchServerHour() {
     serverHour.value = res.hour
   } catch (e) { serverHour.value = new Date().getHours() }
 }
-  loadData()
-})
 
 const switchTab = (tab) => {
   activeTab.value = tab
