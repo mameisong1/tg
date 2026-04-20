@@ -39,7 +39,7 @@
         <text>下桌单</text>
       </view>
       <view class="tab" :class="{ active: currentTab === 'table-cancel' }" @click="currentTab = 'table-cancel'">
-        <text>上桌取消单</text>
+        <text>取消单</text>
       </view>
     </view>
 
@@ -66,30 +66,30 @@
       <view class="submit-btn" @click="submitTableIn"><text>提交上桌单</text></view>
     </view>
 
-    <!-- 下桌单：增加台桌号选择器 -->
+    <!-- 下桌单：单选按钮选择台桌 -->
     <view class="form-section" v-if="currentTab === 'table-out'">
-      <view class="form-item" @click="showTableOutSelector = true">
-        <text class="form-label">选择下桌台桌号</text>
-        <view class="form-value">
-          <text :class="{ placeholder: !form.table_out_no }">
-            {{ form.table_out_no || '请选择要下桌的台桌' }}
-          </text>
-          <text class="arrow">›</text>
+      <text class="form-label">选择下桌台桌号</text>
+      <view class="radio-group" v-if="currentTables.length > 0">
+        <view class="radio-item" :class="{ active: form.table_out_no === t }" v-for="(t, i) in currentTables" :key="i" @click="form.table_out_no = t">
+          <text>{{ t }}</text>
         </view>
+      </view>
+      <view class="empty-hint" v-else>
+        <text>当前没有在桌上的台桌</text>
       </view>
       <view class="submit-btn danger" @click="submitTableOut"><text>提交下桌单</text></view>
     </view>
 
-    <!-- 取消单：增加台桌号选择器 -->
+    <!-- 取消单：单选按钮选择台桌 -->
     <view class="form-section" v-if="currentTab === 'table-cancel'">
-      <view class="form-item" @click="showTableCancelSelector = true">
-        <text class="form-label">选择取消台桌号</text>
-        <view class="form-value">
-          <text :class="{ placeholder: !form.table_cancel_no }">
-            {{ form.table_cancel_no || '请选择要取消的台桌' }}
-          </text>
-          <text class="arrow">›</text>
+      <text class="form-label">选择取消台桌号</text>
+      <view class="radio-group" v-if="currentTables.length > 0">
+        <view class="radio-item" :class="{ active: form.table_cancel_no === t }" v-for="(t, i) in currentTables" :key="i" @click="form.table_cancel_no = t">
+          <text>{{ t }}</text>
         </view>
+      </view>
+      <view class="empty-hint" v-else>
+        <text>当前没有在桌上的台桌</text>
       </view>
       <view class="submit-btn warning" @click="submitTableCancel"><text>提交取消单</text></view>
     </view>
@@ -98,11 +98,7 @@
     <TableSelector :visible="showTableSelector" :default-table="''" :exclude-tables="currentTables"
       @confirm="onTableSelected" @cancel="showTableSelector = false" />
     
-    <!-- 台桌选择器（下桌单/取消单用）：只显示当前在桌上的台桌号 -->
-    <TableSelector :visible="showTableOutSelector" :default-table="''" :only-tables="currentTables"
-      @confirm="onTableOutSelected" @cancel="showTableOutSelector = false" />
-    <TableSelector :visible="showTableCancelSelector" :default-table="''" :only-tables="currentTables"
-      @confirm="onTableCancelSelected" @cancel="showTableCancelSelector = false" />
+    <!-- 台桌选择器（下桌单/取消单已改用单选按钮，不再需要弹出器） -->
   </view>
 </template>
 
@@ -116,8 +112,6 @@ const coachInfo = ref({})
 const waterBoard = ref(null)
 const currentTab = ref('table-in')
 const showTableSelector = ref(false)
-const showTableOutSelector = ref(false)
-const showTableCancelSelector = ref(false)
 
 const form = ref({ table_no: '', action_category: '普通课', table_out_no: '', table_cancel_no: '' })
 
@@ -152,16 +146,6 @@ const statusClass = (status) => {
 const onTableSelected = (table) => {
   form.value.table_no = table.name
   showTableSelector.value = false
-}
-
-const onTableOutSelected = (table) => {
-  form.value.table_out_no = table.name
-  showTableOutSelector.value = false
-}
-
-const onTableCancelSelected = (table) => {
-  form.value.table_cancel_no = table.name
-  showTableCancelSelector.value = false
 }
 
 const submitTableIn = async () => {
@@ -267,6 +251,12 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .type-btns { display: flex; gap: 12px; }
 .type-btn { flex: 1; height: 44px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; color: rgba(255,255,255,0.6); }
 .type-btn.active { background: rgba(212,175,55,0.2); border-color: #d4af37; color: #d4af37; }
+
+/* 单选按钮组 */
+.radio-group { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 20px; }
+.radio-item { height: 42px; min-width: 80px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.7); padding: 0 16px; }
+.radio-item.active { background: rgba(212,175,55,0.25); border-color: #d4af37; color: #d4af37; }
+.empty-hint { text-align: center; padding: 30px 0; color: rgba(255,255,255,0.4); font-size: 14px; }
 
 .submit-btn { height: 50px; background: linear-gradient(135deg, #d4af37, #ffd700); border-radius: 25px; display: flex; align-items: center; justify-content: center; margin-top: 30px; }
 .submit-btn text { font-size: 16px; font-weight: 600; color: #000; }
