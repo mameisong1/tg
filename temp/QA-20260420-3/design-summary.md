@@ -1,0 +1,1 @@
+重构timer-manager为唯一中心，合并application-timer/lejuan-timer，扩展createTimer参数coachInfo，删除2个冗余文件

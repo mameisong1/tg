@@ -1,0 +1,1 @@
+重构计时器系统：合并application-timer.js和lejuan-timer.js到timer-manager.js，使其成为唯一计时器管理中心。timer-manager.init()启动时恢复所有申请和乐捐定时器，正常流程创建的定时器也注册到activeTimers Map。删除application-timer.js和lejuan-timer.js，修改调用方（routes/applications.js、routes/lejuan-records.js、server.js）。

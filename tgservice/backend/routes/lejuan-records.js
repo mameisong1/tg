@@ -10,7 +10,7 @@ const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const operationLogService = require('../services/operation-log');
 const TimeUtil = require('../utils/time');
-const lejuanTimer = require('../services/lejuan-timer');
+const timerManager = require('../services/timer-manager');
 
 // 所有接口需要认证
 router.use(auth.required);
@@ -187,7 +187,13 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
 
         // 调度定时器（仅对非立即激活的记录）
         if (!result.shouldActivateNow) {
-            lejuanTimer.addNewRecord(result);
+            // result 包含 coach_no, stage_name 等字段，需查 employee_id
+            const coachInfo = await get('SELECT employee_id FROM coaches WHERE coach_no = ?', [result.coach_no]);
+            timerManager.scheduleLejuanTimer(result, {
+                coach_no: result.coach_no,
+                employee_id: coachInfo ? (coachInfo.employee_id || '-') : '-',
+                stage_name: result.stage_name
+            });
         }
 
         res.json({
@@ -471,7 +477,7 @@ router.delete('/:id', requireBackendPermission(['all']), async (req, res) => {
         }
 
         // 取消定时器
-        lejuanTimer.cancelRecord(recordId);
+        timerManager.cancelLejuanTimer(recordId);
 
         // 删除记录
         await runInTransaction(async (tx) => {

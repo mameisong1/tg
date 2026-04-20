@@ -1,189 +1,180 @@
-/**
- * 公共计时器管理器（重构版）
- * 统一管理乐捐和申请定时器，自包含所有业务逻辑，无需外部回调。
- * 
- * 计时器类型：
- *   - lejuan: 乐捐预约到时间自动激活
- *   - application: 休息/请假申请到时间自动恢复
- */
+# 计时器系统重构设计方案
 
-const { all, get, enqueueRun, runInTransaction } = require('../db');
-const TimeUtil = require('../utils/time');
+> QA任务编号：QA-20260420-3  
+> 日期：2026-04-20  
+> 目标：合并 application-timer.js 和 lejuan-timer.js 到 timer-manager.js
 
-// 内存中的定时器 Map<timer_id, { timerId, type, recordId, execTime, coachInfo }>
-const activeTimers = {};
+---
 
-// ============================================================
-// 基础方法（保留现有逻辑）
-// ============================================================
+## 1. 现状分析
 
-/**
- * 确保 timer_log 表存在
- */
-async function ensureTable() {
-    await enqueueRun(`
-        CREATE TABLE IF NOT EXISTS timer_log (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timer_id TEXT NOT NULL,          -- 唯一标识: lejuan_123, application_456
-            timer_type TEXT NOT NULL,        -- lejuan | application
-            record_id TEXT,                  -- 关联记录 ID
-            action TEXT NOT NULL,            -- create | execute | cancel | recover | poll_miss
-            status TEXT DEFAULT 'success',   -- success | failed
-            scheduled_time TEXT,             -- 计划执行时间
-            actual_time TEXT,                -- 实际执行时间
-            delay_ms INTEGER,                -- 延迟毫秒
-            error TEXT,                      -- 错误信息
-            created_at TEXT DEFAULT (datetime('now', '+8 hours'))
-        )
-    `);
-    console.log('[TimerManager] timer_log 表就绪');
+### 1.1 现有文件职责
+
+| 文件 | 职责 | 保留？ |
+|------|------|--------|
+| `timer-manager.js` | 通用定时器基础设施（createTimer/cancelTimer/logTimer/pollCheck/恢复/active-timers API） | ✅ 保留并增强 |
+| `application-timer.js` | 申请恢复业务逻辑（`executeRecovery`）+ 重复的调度/恢复/轮询代码 | ❌ 删除，业务逻辑迁入 timer-manager |
+| `lejuan-timer.js` | 乐捐激活业务逻辑（`activateLejuan`）+ 重复的调度/恢复/轮询代码 | ❌ 删除，业务逻辑迁入 timer-manager |
+
+### 1.2 核心问题
+
+1. **三套独立的内存 Map**：`activeTimers`（timer-manager）、`applicationTimers`（application-timer）、`lejuanTimers`（lejuan-timer）各自为战
+2. **双重初始化**：`server.js` 同时初始化 timer-manager 和两个独立服务，两套轮询并行运行
+3. **重复代码**：scheduleRecord/pollCheck/recoverTimers 在三个文件中各有一份，逻辑高度相似
+4. **回调耦合**：timer-manager 的 `init()` 需要外部传入业务回调，依赖两个独立服务
+
+### 1.3 调用关系图（当前）
+
+```
+server.js
+  ├── TimerManager.init({ lejuanActivate: LejuanTimer.activateLejuan, ... })
+  ├── LejuanTimer.init()           ← 独立轮询(60s)
+  └── ApplicationTimer.init()       ← 独立轮询(60s)
+
+routes/applications.js
+  └── applicationTimer.addNewRecord() / cancelRecord()
+
+routes/lejuan-records.js
+  └── lejuanTimer.addNewRecord() / cancelRecord()
+
+routes/system-report.js
+  └── timerManager.getActiveTimersWithDetails()
+```
+
+---
+
+## 2. 目标架构
+
+```
+server.js
+  └── TimerManager.init()           ← 唯一入口，内置回调，一个轮询(5min)
+
+routes/applications.js
+  └── timerManager.scheduleApplicationTimer() / cancelApplicationTimer()
+
+routes/lejuan-records.js
+  └── timerManager.scheduleLejuanTimer() / cancelLejuanTimer()
+
+routes/system-report.js
+  └── timerManager.getActiveTimersWithDetails()
+```
+
+**原则**：timer-manager.js 是唯一的计时器管理中心，自包含所有业务逻辑，不再需要外部回调。
+
+---
+
+## 3. timer-manager.js 新结构
+
+### 3.1 保留的方法（现有，不做改动）
+
+| 方法 | 说明 |
+|------|------|
+| `ensureTable()` | 创建 timer_log 表 |
+| `logTimer()` | 记录计时器操作日志 |
+| `createTimer(timerId, timerType, recordId, execTime, callback)` | 通用定时器创建 |
+| `cancelTimer(timerId)` | 通用定时器取消 |
+| `executeTimer(timerId, timerType, recordId, callback)` | 通用定时器回调执行 |
+| `getActiveCount()` | 活跃定时器数量 |
+| `getCountByType(type)` | 按类型计数 |
+| `getActiveTimers()` | 获取活跃定时器基础信息 |
+
+### 3.2 修改的方法
+
+#### 3.2.1 `createTimer` — 扩展参数，记录 coachInfo
+
+**当前签名**：
+```javascript
+function createTimer(timerId, timerType, recordId, execTime, callback)
+```
+
+**新签名**：
+```javascript
+function createTimer(timerId, timerType, recordId, execTime, callback, coachInfo = {})
+```
+
+**`coachInfo` 结构**：
+```javascript
+{
+  coach_no:      'C001',       // 教练编号（内部使用，不显示在页面）
+  employee_id:   'TG001',      // 助教工号（页面显示用）
+  stage_name:    '3号台',      // 台桌名称
+  application_type: '休息申请' // 仅 application 类型需要
 }
+```
 
+**`activeTimers` 存储扩展**：
+```javascript
+activeTimers[timerId] = {
+    timerId: timerObj,
+    type: timerType,
+    recordId: recordId,
+    execTime: execTime,
+    coachInfo: coachInfo          // 新增：完整助教信息
+};
+```
+
+**向后兼容**：`coachInfo` 为可选参数，不传时为 `{}`，不影响现有调用。
+
+#### 3.2.2 `getActiveTimers` / `getActiveTimersWithDetails` — 直接读取 coachInfo
+
+**改动**：由于 `activeTimers` 已存储 `coachInfo`，`getActiveTimers()` 直接返回 coachInfo 信息。`getActiveTimersWithDetails()` 中的 `enrichLejuanTimer` / `enrichApplicationTimer` 方法降级为**兜底查询**（仅当内存中无 coachInfo 时才查库）。
+
+### 3.3 新增方法（从旧服务迁入并重构）
+
+#### 3.3.1 `scheduleApplicationTimer(record, coachInfo)` — 注册申请定时器
+
+```javascript
 /**
- * 记录计时器日志
+ * 注册申请定时器（替代 applicationTimer.addNewRecord）
+ * @param {object} record - 申请记录
+ *   - id: 申请ID
+ *   - exec_time: 执行时间 "YYYY-MM-DD HH:MM:SS"
+ *   - application_type: "休息申请" | "请假申请"
+ * @param {object} coachInfo - 助教信息
+ *   - coach_no, employee_id, stage_name
  */
-async function logTimer(timerId, timerType, recordId, action, opts = {}) {
-    const now = TimeUtil.nowDB();
-    await enqueueRun(
-        `INSERT INTO timer_log (timer_id, timer_type, record_id, action, status, scheduled_time, actual_time, delay_ms, error)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-            timerId, timerType, recordId || null, action,
-            opts.status || 'success',
-            opts.scheduledTime || null,
-            now,
-            opts.delayMs !== undefined ? opts.delayMs : null,
-            opts.error || null
-        ]
-    );
+function scheduleApplicationTimer(record, coachInfo) {
+    const timerId = `application_${record.id}`;
+    createTimer(timerId, 'application', record.id, record.exec_time, executeApplicationRecovery, coachInfo);
 }
+```
 
+#### 3.3.2 `scheduleLejuanTimer(record, coachInfo)` — 注册乐捐定时器
+
+```javascript
 /**
- * 执行定时器回调（通用）
- * @param {string} timerId - lejuan_123 | application_456
- * @param {string} timerType - lejuan | application
- * @param {string} recordId - 关联记录ID
- * @param {Function} callback - async (recordId) => void
+ * 注册乐捐定时器（替代 lejuanTimer.addNewRecord）
+ * @param {object} record - 乐捐记录（含 scheduled_start_time）
+ * @param {object} coachInfo - 助教信息
+ *   - coach_no, employee_id, stage_name
  */
-async function executeTimer(timerId, timerType, recordId, callback) {
-    const timerInfo = activeTimers[timerId];
-    const scheduledTime = timerInfo ? timerInfo.execTime : null;
-    const now = new Date(TimeUtil.nowDB() + '+08:00');
-    const delayMs = scheduledTime ? now.getTime() - new Date(scheduledTime + '+08:00').getTime() : undefined;
-
-    try {
-        await callback(recordId);
-        await logTimer(timerId, timerType, recordId, 'execute', {
-            scheduledTime,
-            delayMs: delayMs !== undefined ? delayMs : undefined
-        });
-        console.log(`[TimerManager] ${timerType} 计时器 ${timerId} 执行成功`);
-    } catch (err) {
-        await logTimer(timerId, timerType, recordId, 'execute', {
-            status: 'failed',
-            scheduledTime,
-            delayMs: delayMs !== undefined ? delayMs : undefined,
-            error: err.message
-        });
-        console.error(`[TimerManager] ${timerType} 计时器 ${timerId} 执行失败:`, err);
-    }
-
-    delete activeTimers[timerId];
+function scheduleLejuanTimer(record, coachInfo) {
+    const timerId = `lejuan_${record.id}`;
+    createTimer(timerId, 'lejuan', record.id, record.scheduled_start_time, executeLejuanActivation, coachInfo);
 }
+```
 
-/**
- * 创建定时器（扩展版：支持 coachInfo）
- * @param {string} timerId - 唯一标识: lejuan_123
- * @param {string} timerType - lejuan | application
- * @param {string} recordId - 关联记录ID
- * @param {string} execTime - 执行时间 "YYYY-MM-DD HH:MM:SS"
- * @param {Function} callback - async (recordId) => void
- * @param {object} coachInfo - 可选，助教信息 { coach_no, employee_id, stage_name, application_type }
- */
-function createTimer(timerId, timerType, recordId, execTime, callback, coachInfo = {}) {
-    // 防止重复注册
-    if (activeTimers[timerId]) {
-        console.log(`[TimerManager] ${timerId} 已有定时器，跳过重复注册`);
-        return;
-    }
+#### 3.3.3 `cancelApplicationTimer(applicationId)` — 取消申请定时器
 
-    const now = new Date(TimeUtil.nowDB() + '+08:00');
-    const execDate = new Date(execTime + '+08:00');
-    const delay = execDate.getTime() - now.getTime();
-
-    if (delay <= 0) {
-        // 时间已到或已过，立即执行
-        console.log(`[TimerManager] ${timerId} exec_time 已过，立即执行`);
-        executeTimer(timerId, timerType, recordId, callback);
-        return;
-    }
-
-    const timerObj = setTimeout(() => {
-        executeTimer(timerId, timerType, recordId, callback);
-    }, delay);
-
-    activeTimers[timerId] = {
-        timerId: timerObj,
-        type: timerType,
-        recordId: recordId,
-        execTime: execTime,
-        coachInfo: coachInfo          // 新增：完整助教信息
-    };
-
-    logTimer(timerId, timerType, recordId, 'create', {
-        scheduledTime: execTime
-    });
-
-    console.log(`[TimerManager] ${timerId} 已调度，延迟 ${Math.round(delay / 1000)}秒 后执行`);
+```javascript
+function cancelApplicationTimer(applicationId) {
+    cancelTimer(`application_${applicationId}`);
 }
+```
 
-/**
- * 取消定时器
- */
-function cancelTimer(timerId) {
-    if (activeTimers[timerId]) {
-        clearTimeout(activeTimers[timerId].timerId);
-        const info = activeTimers[timerId];
-        logTimer(timerId, info.type, info.recordId, 'cancel');
-        delete activeTimers[timerId];
-        console.log(`[TimerManager] ${timerId} 定时器已取消`);
-    }
+#### 3.3.4 `cancelLejuanTimer(recordId)` — 取消乐捐定时器
+
+```javascript
+function cancelLejuanTimer(recordId) {
+    cancelTimer(`lejuan_${recordId}`);
 }
+```
 
-/**
- * 获取活跃定时器数量
- */
-function getActiveCount() {
-    return Object.keys(activeTimers).length;
-}
+#### 3.3.5 `executeApplicationRecovery(applicationId)` — 迁移自 application-timer.js
 
-/**
- * 按类型获取活跃定时器数量
- */
-function getCountByType(type) {
-    return Object.values(activeTimers).filter(t => t.type === type).length;
-}
+**完整逻辑**（从 `application-timer.js::executeRecovery` 迁移）：
 
-/**
- * 获取所有活跃定时器基础信息
- */
-function getActiveTimers() {
-    return Object.values(activeTimers).map(t => ({
-        timerId: t.timerId ? 'active' : 'unknown',
-        type: t.type,
-        recordId: t.recordId,
-        execTime: t.execTime,
-        coachInfo: t.coachInfo || {}    // 新增：直接返回教练信息
-    }));
-}
-
-// ============================================================
-// 业务方法：申请恢复（从 application-timer.js 迁入）
-// ============================================================
-
-/**
- * 执行申请恢复：恢复水牌状态为班次空闲
- */
+```javascript
 async function executeApplicationRecovery(applicationId) {
     try {
         await runInTransaction(async (tx) => {
@@ -252,14 +243,13 @@ async function executeApplicationRecovery(applicationId) {
         console.error(`[TimerManager] 申请 ${applicationId} 恢复失败:`, err);
     }
 }
+```
 
-// ============================================================
-// 业务方法：乐捐激活（从 lejuan-timer.js 迁入）
-// ============================================================
+#### 3.3.6 `executeLejuanActivation(recordId)` — 迁移自 lejuan-timer.js
 
-/**
- * 执行乐捐激活：到时间后自动设为乐捐状态
- */
+**完整逻辑**（从 `lejuan-timer.js::activateLejuan` 迁移）：
+
+```javascript
 async function executeLejuanActivation(recordId) {
     let stageName = '未知';
     try {
@@ -318,52 +308,11 @@ async function executeLejuanActivation(recordId) {
         console.error(`[TimerManager] 乐捐 ${recordId} 激活失败:`, err);
     }
 }
+```
 
-// ============================================================
-// 调度方法（供路由调用）
-// ============================================================
+#### 3.3.7 `recoverApplicationTimers()` — 迁移并精简
 
-/**
- * 注册申请定时器（替代 applicationTimer.addNewRecord）
- * @param {object} record - 申请记录 { id, exec_time, application_type }
- * @param {object} coachInfo - 助教信息 { coach_no, employee_id, stage_name, application_type }
- */
-function scheduleApplicationTimer(record, coachInfo) {
-    const timerId = `application_${record.id}`;
-    createTimer(timerId, 'application', record.id, record.exec_time, executeApplicationRecovery, coachInfo);
-}
-
-/**
- * 注册乐捐定时器（替代 lejuanTimer.addNewRecord）
- * @param {object} record - 乐捐记录（含 scheduled_start_time）
- * @param {object} coachInfo - 助教信息 { coach_no, employee_id, stage_name }
- */
-function scheduleLejuanTimer(record, coachInfo) {
-    const timerId = `lejuan_${record.id}`;
-    createTimer(timerId, 'lejuan', record.id, record.scheduled_start_time, executeLejuanActivation, coachInfo);
-}
-
-/**
- * 取消申请定时器
- */
-function cancelApplicationTimer(applicationId) {
-    cancelTimer(`application_${applicationId}`);
-}
-
-/**
- * 取消乐捐定时器
- */
-function cancelLejuanTimer(recordId) {
-    cancelTimer(`lejuan_${recordId}`);
-}
-
-// ============================================================
-// 恢复方法（服务启动时调用）
-// ============================================================
-
-/**
- * 恢复申请定时器
- */
+```javascript
 async function recoverApplicationTimers() {
     try {
         const pendingRecords = await all(`
@@ -395,7 +344,7 @@ async function recoverApplicationTimers() {
 
                 const coachInfo = {
                     coach_no: record.coach_no,
-                    employee_id: '',
+                    employee_id: '',    // 恢复时从 coaches 表已有数据查不到 employee_id？——用 applicant_phone 再查一次
                     stage_name: record.stage_name,
                     application_type: record.application_type
                 };
@@ -419,10 +368,11 @@ async function recoverApplicationTimers() {
         console.error('[TimerManager] 恢复申请定时器失败:', err);
     }
 }
+```
 
-/**
- * 恢复乐捐定时器
- */
+#### 3.3.8 `recoverLejuanTimers()` — 迁移并精简
+
+```javascript
 async function recoverLejuanTimers() {
     try {
         const now = TimeUtil.nowDB();
@@ -452,14 +402,36 @@ async function recoverLejuanTimers() {
         console.error('[TimerManager] 恢复乐捐定时器失败:', err);
     }
 }
+```
 
-// ============================================================
-// 轮询检查
-// ============================================================
+### 3.4 修改 `init()` 方法
 
-/**
- * 轮询检查：每 5 分钟兜底处理遗漏的定时器
- */
+**当前**：
+```javascript
+function init(callbacks = {}) {
+    ensureTable();
+    if (callbacks.lejuanActivate) recoverLejuanTimers(callbacks.lejuanActivate);
+    if (callbacks.applicationRecover) recoverApplicationTimers(callbacks.applicationRecover);
+    setInterval(() => pollCheck(callbacks.lejuanActivate, callbacks.applicationRecover), 5 * 60 * 1000);
+}
+```
+
+**新版**（自包含，无需外部回调）：
+```javascript
+function init() {
+    ensureTable();
+    recoverApplicationTimers();     // 无回调，内部调用 executeApplicationRecovery
+    recoverLejuanTimers();          // 无回调，内部调用 executeLejuanActivation
+    setInterval(() => pollCheck(), 5 * 60 * 1000);
+    console.log('[TimerManager] 已初始化（5分钟轮询，自包含业务逻辑）');
+}
+```
+
+### 3.5 修改 `pollCheck()` 方法
+
+**新版**（自包含，调用内部 `executeApplicationRecovery` 和 `executeLejuanActivation`）：
+
+```javascript
 async function pollCheck() {
     try {
         const now = TimeUtil.nowDB();
@@ -542,62 +514,23 @@ async function pollCheck() {
         console.error('[TimerManager] 轮询检查失败:', err);
     }
 }
+```
 
-// ============================================================
-// 详情查询（coachInfo 直接从内存读取，兜底查库）
-// ============================================================
+### 3.6 精简 `getActiveTimersWithDetails`
 
-/**
- * 补全乐捐定时器详细信息（兜底查库）
- */
-async function enrichLejuanTimer(detail, recordId) {
-    try {
-        const record = await get(`
-            SELECT lr.coach_no, lr.stage_name, c.employee_id
-            FROM lejuan_records lr
-            LEFT JOIN coaches c ON lr.coach_no = c.coach_no
-            WHERE lr.id = ?
-        `, [recordId]);
+由于 `activeTimers` 已存储 `coachInfo`，大部分情况下无需查库：
 
-        if (record) {
-            detail.coach_no = record.coach_no;
-            detail.employee_id = record.employee_id || '-';
-            detail.stage_name = record.stage_name || '-';
-        }
-    } catch (err) {
-        console.error(`[TimerManager] 补全乐捐定时器 ${recordId} 信息失败:`, err);
-    }
+```javascript
+function getActiveTimers() {
+    return Object.values(activeTimers).map(t => ({
+        timerId: t.timerId ? 'active' : 'unknown',
+        type: t.type,
+        recordId: t.recordId,
+        execTime: t.execTime,
+        coachInfo: t.coachInfo || {}    // 新增：直接返回教练信息
+    }));
 }
 
-/**
- * 补全申请定时器详细信息（兜底查库）
- */
-async function enrichApplicationTimer(detail, recordId) {
-    try {
-        const record = await get(`
-            SELECT a.id, a.application_type, a.applicant_phone,
-                   a.extra_data,
-                   c.coach_no, c.stage_name, c.employee_id
-            FROM applications a
-            LEFT JOIN coaches c ON a.applicant_phone = c.employee_id
-                                OR a.applicant_phone = c.phone
-            WHERE a.id = ?
-        `, [recordId]);
-
-        if (record) {
-            detail.application_type = record.application_type || '-';
-            detail.coach_no = record.coach_no;
-            detail.employee_id = record.employee_id || '-';
-            detail.stage_name = record.stage_name || '-';
-        }
-    } catch (err) {
-        console.error(`[TimerManager] 补全申请定时器 ${recordId} 信息失败:`, err);
-    }
-}
-
-/**
- * 获取所有活跃计时器的详细信息（含助教信息）
- */
 async function getActiveTimersWithDetails() {
     const timers = getActiveTimers();
     const detailedTimers = [];
@@ -610,14 +543,13 @@ async function getActiveTimersWithDetails() {
             type: timer.type,
             recordId: timer.recordId,
             execTime: timer.execTime,
-            employee_id: ci.employee_id || null,
+            employee_id: ci.employee_id || null,     // 直接从 coachInfo 取
             stage_name: ci.stage_name || null,
             coach_no: ci.coach_no || null,
             application_type: ci.application_type || null,
             remainingSeconds: null
         };
 
-        // 计算剩余时间
         if (timer.execTime) {
             const now = new Date(TimeUtil.nowDB() + '+08:00');
             const execDate = new Date(timer.execTime + '+08:00');
@@ -638,33 +570,11 @@ async function getActiveTimersWithDetails() {
 
     return detailedTimers;
 }
+```
 
-// ============================================================
-// 初始化
-// ============================================================
+### 3.7 新 exports
 
-/**
- * 初始化：创建表 + 恢复定时器 + 启动轮询（自包含，无需外部回调）
- */
-function init() {
-    ensureTable();
-
-    // 恢复已有定时器
-    recoverApplicationTimers();
-    recoverLejuanTimers();
-
-    // 启动轮询（每 5 分钟）
-    setInterval(() => {
-        pollCheck();
-    }, 5 * 60 * 1000);
-
-    console.log('[TimerManager] 已初始化（5分钟轮询，自包含业务逻辑）');
-}
-
-// ============================================================
-// 导出
-// ============================================================
-
+```javascript
 module.exports = {
     // 初始化
     init,
@@ -699,3 +609,172 @@ module.exports = {
     pollCheck,
     logTimer
 };
+```
+
+---
+
+## 4. 调用方修改清单
+
+### 4.1 `server.js`（~5866 行）
+
+**删除**：
+```javascript
+const LejuanTimer = require('./services/lejuan-timer');
+const ApplicationTimer = require('./services/application-timer');
+```
+
+**修改**：
+```javascript
+// 旧
+const TimerManager = require('./services/timer-manager');
+const LejuanTimer = require('./services/lejuan-timer');
+const ApplicationTimer = require('./services/application-timer');
+TimerManager.init({
+    lejuanActivate: function(recordId) { LejuanTimer.activateLejuan(recordId); },
+    applicationRecover: function(applicationId) { ApplicationTimer.executeRecovery(applicationId); }
+});
+
+// 新
+const TimerManager = require('./services/timer-manager');
+TimerManager.init();  // 自包含，无需回调
+```
+
+### 4.2 `routes/applications.js`
+
+**import 修改**（第 14 行）：
+```javascript
+// 旧
+const applicationTimer = require('../services/application-timer');
+// 新
+const timerManager = require('../services/timer-manager');
+```
+
+**调用修改 1**（休息申请创建，~493 行）：
+```javascript
+// 旧
+applicationTimer.addNewRecord({
+    id: parseInt(id),
+    application_type: '休息申请',
+    applicant_phone: application.applicant_phone,
+    coach_no: coach.coach_no,
+    stage_name: coach.stage_name,
+    exec_time: execTime,
+    current_shift: coach.shift
+});
+
+// 新
+timerManager.scheduleApplicationTimer(
+    { id: parseInt(id), exec_time: execTime, application_type: '休息申请' },
+    { coach_no: coach.coach_no, employee_id: coach.employee_id || '-', stage_name: coach.stage_name, application_type: '休息申请' }
+);
+```
+
+**调用修改 2**（请假申请创建，~518 行）：
+```javascript
+// 旧
+applicationTimer.addNewRecord({
+    id: parseInt(id),
+    application_type: '请假申请',
+    applicant_phone: application.applicant_phone,
+    coach_no: coach.coach_no,
+    stage_name: coach.stage_name,
+    exec_time: execTime,
+    current_shift: coach.shift
+});
+
+// 新
+timerManager.scheduleApplicationTimer(
+    { id: parseInt(id), exec_time: execTime, application_type: '请假申请' },
+    { coach_no: coach.coach_no, employee_id: coach.employee_id || '-', stage_name: coach.stage_name, application_type: '请假申请' }
+);
+```
+
+**调用修改 3**（取消申请，~728 行）：
+```javascript
+// 旧
+applicationTimer.cancelRecord(parseInt(id));
+// 新
+timerManager.cancelApplicationTimer(parseInt(id));
+```
+
+### 4.3 `routes/lejuan-records.js`
+
+**import 修改**（第 13 行）：
+```javascript
+// 旧
+const lejuanTimer = require('../services/lejuan-timer');
+// 新
+const timerManager = require('../services/timer-manager');
+```
+
+**调用修改 1**（创建乐捐记录，~190 行）：
+```javascript
+// 旧
+lejuanTimer.addNewRecord(result);
+
+// 新
+// result 包含 coach_no, stage_name 等字段，需查 employee_id
+const coach = await get('SELECT employee_id FROM coaches WHERE coach_no = ?', [result.coach_no]);
+timerManager.scheduleLejuanTimer(result, {
+    coach_no: result.coach_no,
+    employee_id: coach ? (coach.employee_id || '-') : '-',
+    stage_name: result.stage_name
+});
+```
+
+**调用修改 2**（删除乐捐记录，~474 行）：
+```javascript
+// 旧
+lejuanTimer.cancelRecord(recordId);
+// 新
+timerManager.cancelLejuanTimer(recordId);
+```
+
+### 4.4 `routes/system-report.js`
+
+**无需修改**。该文件已经 `require('../services/timer-manager')` 并调用 `timerManager.getActiveTimersWithDetails()`。
+
+---
+
+## 5. 删除文件清单
+
+| 文件 | 说明 |
+|------|------|
+| `services/application-timer.js` | 业务逻辑已迁入 timer-manager.js |
+| `services/lejuan-timer.js` | 业务逻辑已迁入 timer-manager.js |
+
+删除后需确认无其他文件引用这两个模块（`grep -r 'application-timer\|lejuan-timer' backend/` 应无结果）。
+
+---
+
+## 6. 验收标准对照
+
+| 验收项 | 实现方式 | 验证方法 |
+|--------|----------|----------|
+| 系统启动恢复所有定时器 | `init()` 调用 `recoverApplicationTimers()` + `recoverLejuanTimers()` | 重启服务后查看日志，确认恢复数量 |
+| active-timers API 显示完整计时器列表 | `getActiveTimersWithDetails()` 直接从 `activeTimers` 的 `coachInfo` 读取，兜底查库 | `GET /api/system-report/active-timers`，确认返回含 employee_id/stage_name |
+| 正常流程创建的定时器也能显示 | `scheduleApplicationTimer` / `scheduleLejuanTimer` 创建时即存 coachInfo | 创建新申请/乐捐后调用 API，确认列表中有新计时器 |
+
+---
+
+## 7. 风险评估
+
+| 风险 | 影响 | 缓解措施 |
+|------|------|----------|
+| `coach.employee_id` 在 applications.js 事务中可能为空（查询条件是 phone/employee_id） | coachInfo.employee_id 为 '-' | 兜底逻辑确保查库补全，不影响功能 |
+| 恢复时轮询间隔从 60s 变为 300s | 极端情况下遗漏恢复延迟最长 5 分钟 | pollCheck 已存在兜底机制，可接受 |
+| `operation-log` 模块 import 方式 | 在函数内 `require('./operation-log')` 避免循环依赖 | 已使用动态 import 模式 |
+| 双写期间（代码部署中）可能短暂同时存在两套计时器 | 同一记录可能被两个定时器执行 | `executeRecovery` 和 `activateLejuan` 都有幂等保护（检查 status/pending），不会重复执行 |
+
+---
+
+## 8. 修改文件汇总
+
+| 序号 | 文件 | 操作 | 改动量（估算） |
+|------|------|------|----------------|
+| 1 | `services/timer-manager.js` | 大幅修改 | +200 行（迁入业务逻辑 + coachInfo 扩展） |
+| 2 | `routes/applications.js` | import 改名 + 3 处调用修改 | ~10 行 |
+| 3 | `routes/lejuan-records.js` | import 改名 + 2 处调用修改 | ~15 行 |
+| 4 | `server.js` | 删除旧引用 + 简化 init 调用 | ~5 行 |
+| 5 | `services/application-timer.js` | **删除** | - |
+| 6 | `services/lejuan-timer.js` | **删除** | - |

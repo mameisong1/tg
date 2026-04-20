@@ -11,7 +11,7 @@ const { runInTransaction } = require('../db');
 const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const operationLogService = require('../services/operation-log');
-const applicationTimer = require('../services/application-timer');
+const timerManager = require('../services/timer-manager');
 const TimeUtil = require('../utils/time');
 const errorLogger = require('../utils/error-logger');
 
@@ -490,15 +490,10 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
               'UPDATE applications SET extra_data = ?, updated_at = ? WHERE id = ?',
               [updatedExtraData, TimeUtil.nowDB(), id]
             );
-            applicationTimer.addNewRecord({
-              id: parseInt(id),
-              application_type: '休息申请',
-              applicant_phone: application.applicant_phone,
-              coach_no: coach.coach_no,
-              stage_name: coach.stage_name,
-              exec_time: execTime,
-              current_shift: coach.shift
-            });
+            timerManager.scheduleApplicationTimer(
+              { id: parseInt(id), exec_time: execTime, application_type: '休息申请' },
+              { coach_no: coach.coach_no, employee_id: coach.employee_id || '-', stage_name: coach.stage_name, application_type: '休息申请' }
+            );
           }
           
           if (application.application_type === '请假申请') {
@@ -515,15 +510,10 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
               'UPDATE applications SET extra_data = ?, updated_at = ? WHERE id = ?',
               [updatedExtraData, TimeUtil.nowDB(), id]
             );
-            applicationTimer.addNewRecord({
-              id: parseInt(id),
-              application_type: '请假申请',
-              applicant_phone: application.applicant_phone,
-              coach_no: coach.coach_no,
-              stage_name: coach.stage_name,
-              exec_time: execTime,
-              current_shift: coach.shift
-            });
+            timerManager.scheduleApplicationTimer(
+              { id: parseInt(id), exec_time: execTime, application_type: '请假申请' },
+              { coach_no: coach.coach_no, employee_id: coach.employee_id || '-', stage_name: coach.stage_name, application_type: '请假申请' }
+            );
           }
           
           await tx.run(`
@@ -725,7 +715,7 @@ router.delete('/:id', requireBackendPermission(['all']), async (req, res) => {
     
     // 如果是休息/请假且已设置定时器，取消定时器
     if (['休息申请', '请假申请'].includes(application.application_type)) {
-      applicationTimer.cancelRecord(parseInt(id));
+      timerManager.cancelApplicationTimer(parseInt(id));
     }
     
     await runInTransaction(async (tx) => {

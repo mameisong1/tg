@@ -1,0 +1,12 @@
+{
+  "qaRequirement": "重构计时器系统：合并application-timer.js和lejuan-timer.js到timer-manager.js，使其成为唯一计时器管理中心。timer-manager.init()启动时恢复所有申请和乐捐定时器，正常流程创建的定时器也注册到activeTimers Map。删除application-timer.js和lejuan-timer.js，修改调用方（routes/applications.js、routes/lejuan-records.js、server.js）。",
+  "acceptanceFocus": "系统启动恢复所有定时器，active-timers API显示完整计时器列表（含助教信息），正常流程创建的定时器也能显示",
+  "workDir": "/TG/temp/QA-20260420-3",
+  "designAuditRound": 1,
+  "testCasesAuditRound": 1,
+  "fixRound": 0,
+  "currentStep": "deploy",
+  "designSummary": "重构timer-manager为唯一中心，合并application-timer/lejuan-timer，扩展createTimer参数coachInfo，删除2个冗余文件",
+  "userConfirmedAt": "2026-04-20T10:48:36.851Z",
+  "userConfirmedBy": "马哥"
+}

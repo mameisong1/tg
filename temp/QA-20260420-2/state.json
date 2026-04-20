@@ -5,8 +5,9 @@
   "designAuditRound": 1,
   "testCasesAuditRound": 1,
   "fixRound": 0,
-  "currentStep": "deploy",
+  "currentStep": null,
   "designSummary": "修改3文件(timer-manager.js/system-report.js/system-report.html)，新增GET /api/system-report/active-timers，查询时enrichment补充助教信息，无数据库变更",
   "userConfirmedAt": "2026-04-20T09:36:19.813Z",
-  "userConfirmedBy": "马哥"
+  "userConfirmedBy": "马哥",
+  "qaReportPath": "/TG/temp/QA-20260420-2/qa-report.md"
 }

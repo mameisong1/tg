@@ -5862,19 +5862,9 @@ app.listen(PORT, () => {
   logger.info(`天宫国际线上服务已启动: http://localhost:${PORT}`);
   console.log(`🚀 服务已启动: http://localhost:${PORT}`);
 
-  // 初始化公共计时器管理器（恢复 + 5分钟轮询）
+  // 初始化公共计时器管理器（自包含，无需回调）
   const TimerManager = require('./services/timer-manager');
-  const LejuanTimer = require('./services/lejuan-timer');
-  const ApplicationTimer = require('./services/application-timer');
-  
-  TimerManager.init({
-    lejuanActivate: function(recordId) {
-      LejuanTimer.activateLejuan(recordId);
-    },
-    applicationRecover: function(applicationId) {
-      ApplicationTimer.executeRecovery(applicationId);
-    }
-  });
+  TimerManager.init();
   
   // 初始化 Cron 批处理调度器
   require('./services/cron-scheduler').init();
