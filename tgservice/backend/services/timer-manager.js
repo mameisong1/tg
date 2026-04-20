@@ -217,6 +217,21 @@ async function executeApplicationRecovery(applicationId) {
                 return;
             }
 
+            // QA-20260420-4: 水牌状态校验 - 必须是请假/休息状态才能恢复
+            const currentStatus = waterBoard.status;
+            if (currentStatus !== '请假' && currentStatus !== '休息') {
+                console.log(`[TimerManager] 申请 ${applicationId} 水牌状态为「${currentStatus}」，不符合恢复条件，跳过`);
+                // 标记已执行但不改变水牌
+                const extraData = JSON.parse(application.extra_data || '{}');
+                extraData.executed = 1;
+                extraData.skip_reason = `水牌状态为「${currentStatus}」，不符合恢复条件`;
+                await tx.run(
+                    'UPDATE applications SET extra_data = ?, updated_at = ? WHERE id = ?',
+                    [JSON.stringify(extraData), TimeUtil.nowDB(), applicationId]
+                );
+                return; // 不执行恢复
+            }
+
             // 4. 恢复水牌状态
             const newStatus = coach.shift === '早班' ? '早班空闲' : '晚班空闲';
             const now = TimeUtil.nowDB();
