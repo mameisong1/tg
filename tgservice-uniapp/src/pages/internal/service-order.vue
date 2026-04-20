@@ -75,6 +75,26 @@ const adminInfo = ref({})
 const coachInfo = ref({})
 const tableAuthExpireMinutes = ref(5) // 默认5分钟
 
+// 2026-04-20 fix: 提取为独立函数
+const checkAuthExpiration = () => {
+  const authStr = uni.getStorageSync('tableAuth')
+  if (authStr) {
+    try {
+      const auth = JSON.parse(authStr)
+      const isExpired = (Date.now() - auth.time) > tableAuthExpireMinutes.value * 60 * 1000
+      if (isExpired) {
+        uni.removeStorageSync('tablePinyin')
+        uni.removeStorageSync('tableName')
+        uni.removeStorageSync('tableAuth')
+      }
+    } catch (e) {
+      uni.removeStorageSync('tablePinyin')
+      uni.removeStorageSync('tableName')
+      uni.removeStorageSync('tableAuth')
+    }
+  }
+}
+
 // 加载前端配置（获取授权过期时间）
 const loadFrontConfig = async () => {
   try {
@@ -85,6 +105,8 @@ const loadFrontConfig = async () => {
   } catch (e) {
     console.log('获取前端配置失败')
   }
+  // 配置加载完成后立即检查过期
+  checkAuthExpiration()
 }
 
 const quickTagGroups = [
@@ -180,26 +202,9 @@ const handleSuccessConfirm = () => {
 const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { uni.navigateBack() } else { uni.switchTab({ url: '/pages/member/member' }) } }
 
 // 每次显示页面时检查台桌授权是否过期
-// 2026-04-20: 过期则清空 Storage，未过期则保留
+// 2026-04-20 fix: 先加载配置再检查过期
 onShow(() => {
-  const authStr = uni.getStorageSync('tableAuth')
-  if (authStr) {
-    try {
-      const auth = JSON.parse(authStr)
-      const isExpired = (Date.now() - auth.time) > tableAuthExpireMinutes.value * 60 * 1000
-      if (isExpired) {
-        // 过期：清空三项（与存入一致）
-        uni.removeStorageSync('tablePinyin')
-        uni.removeStorageSync('tableName')
-        uni.removeStorageSync('tableAuth')
-      }
-    } catch (e) {
-      // 解析失败也清空
-      uni.removeStorageSync('tablePinyin')
-      uni.removeStorageSync('tableName')
-      uni.removeStorageSync('tableAuth')
-    }
-  }
+  loadFrontConfig()
   form.value.table_no = ''
 })
 

@@ -568,6 +568,29 @@ const scrollToProduct = (name) => {
   }, 3000)
 }
 
+// 2026-04-20 fix: 提取为独立函数，确保配置加载后再检查
+const checkAuthExpiration = () => {
+  const authStr = uni.getStorageSync('tableAuth')
+  if (authStr) {
+    try {
+      const auth = JSON.parse(authStr)
+      const isExpired = (Date.now() - auth.time) > tableAuthExpireMinutes.value * 60 * 1000
+      if (isExpired) {
+        uni.removeStorageSync('tablePinyin')
+        uni.removeStorageSync('tableName')
+        uni.removeStorageSync('tableAuth')
+        tableName.value = ''
+        console.log('[过期检查] 已过期，清空三项 Storage')
+      }
+    } catch (e) {
+      uni.removeStorageSync('tablePinyin')
+      uni.removeStorageSync('tableName')
+      uni.removeStorageSync('tableAuth')
+      tableName.value = ''
+    }
+  }
+}
+
 // 加载前端配置（获取授权过期时间）
 const loadFrontConfig = async () => {
   try {
@@ -578,6 +601,8 @@ const loadFrontConfig = async () => {
   } catch (e) {
     console.log('获取前端配置失败，使用默认值')
   }
+  // 配置加载完成后立即检查过期
+  checkAuthExpiration()
 }
 
 onMounted(() => {
@@ -630,27 +655,8 @@ const scrollToTop = () => {
 
 // 每次显示页面时刷新
 onShow(() => {
-  // 2026-04-20: 检查台桌授权是否过期，过期则清空（所有人）
-  const authStr = uni.getStorageSync('tableAuth')
-  if (authStr) {
-    try {
-      const auth = JSON.parse(authStr)
-      const isExpired = (Date.now() - auth.time) > tableAuthExpireMinutes.value * 60 * 1000
-      if (isExpired) {
-        // 过期：清空三项（与存入一致）
-        uni.removeStorageSync('tablePinyin')
-        uni.removeStorageSync('tableName')
-        uni.removeStorageSync('tableAuth')
-        tableName.value = ''
-      }
-    } catch (e) {
-      // 解析失败也清空
-      uni.removeStorageSync('tablePinyin')
-      uni.removeStorageSync('tableName')
-      uni.removeStorageSync('tableAuth')
-      tableName.value = ''
-    }
-  }
+  // 2026-04-20 fix: 先加载配置（会触发 checkAuthExpiration），再刷新页面数据
+  loadFrontConfig()
   
   // 原有逻辑
   tableInfoRef.value?.loadTableInfo()

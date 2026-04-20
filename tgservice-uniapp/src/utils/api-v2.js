@@ -167,6 +167,8 @@ export const missingTableOutOrders = {
 }
 
 export default {
+  // 前端配置（授权过期时间等）
+  getFrontConfig: () => request({ url: '/front-config' }),
   waterBoards,
   serviceOrders,
   tableActionOrders,
