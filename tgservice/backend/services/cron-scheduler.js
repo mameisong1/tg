@@ -4,10 +4,13 @@
  *   - end_lejuan_morning:  晚上 23:00 自动结束早班助教的乐捐，水牌设为下班
  *   - end_lejuan_evening:  凌晨 02:00 自动结束晚班助教的乐捐，水牌设为下班
  *   - sync_reward_penalty:  中午 12:00 奖罚自动同步（去重逻辑）
+ *   - lock_guest_invitation_morning: 下午 16:00 自动锁定早班应约客人员
+ *   - lock_guest_invitation_evening: 晚上 20:00 自动锁定晚班应约客人员
  */
 
 const { all, get, enqueueRun, runInTransaction } = require('../db');
 const TimeUtil = require('../utils/time');
+const http = require('http');
 
 // Cron 任务执行间隔（毫秒）
 const CRON_CHECK_INTERVAL = 60 * 1000; // 每分钟检查一次
@@ -93,6 +96,22 @@ async function initDefaultTasks() {
     nextSync.setHours(12, 0, 0, 0);
     const nextSyncStr = formatBeijing(nextSync);
 
+    // 计算下午 16:00（早班约客锁定）
+    let nextLockMorning = new Date(now);
+    if (now.getHours() >= 16) {
+        nextLockMorning.setDate(nextLockMorning.getDate() + 1);
+    }
+    nextLockMorning.setHours(16, 0, 0, 0);
+    const nextLockMorningStr = formatBeijing(nextLockMorning);
+
+    // 计算晚上 20:00（晚班约客锁定）
+    let nextLockEvening = new Date(now);
+    if (now.getHours() >= 20) {
+        nextLockEvening.setDate(nextLockEvening.getDate() + 1);
+    }
+    nextLockEvening.setHours(20, 0, 0, 0);
+    const nextLockEveningStr = formatBeijing(nextLockEvening);
+
     const tasks = [
         {
             task_name: 'end_lejuan_morning',
@@ -114,6 +133,20 @@ async function initDefaultTasks() {
             description: '中午12点奖罚自动同步（去重逻辑）',
             cron_expression: '0 12 * * *',
             next_run: nextSyncStr
+        },
+        {
+            task_name: 'lock_guest_invitation_morning',
+            task_type: 'lock_guest_invitation',
+            description: '下午16点自动锁定早班应约客人员',
+            cron_expression: '0 16 * * *',
+            next_run: nextLockMorningStr
+        },
+        {
+            task_name: 'lock_guest_invitation_evening',
+            task_type: 'lock_guest_invitation',
+            description: '晚上20点自动锁定晚班应约客人员',
+            cron_expression: '0 20 * * *',
+            next_run: nextLockEveningStr
         }
     ];
 
@@ -534,6 +567,110 @@ async function taskSyncRewardPenalty() {
 }
 
 /**
+ * 任务：自动锁定约客应约客人员
+ * @param {string} shiftType - 班次类型：'早班' 或 '晚班'
+ * 调用内部 API 执行锁定逻辑
+ */
+async function taskLockGuestInvitation(shiftType) {
+    const taskName = shiftType === '早班' ? 'lock_guest_invitation_morning' : 'lock_guest_invitation_evening';
+    const taskType = 'lock_guest_invitation';
+    const startedAt = TimeUtil.nowDB();
+
+    console.log(`[CronScheduler] 开始执行: ${taskName} (${shiftType})`);
+
+    try {
+        const today = TimeUtil.todayStr();
+
+        // 内部 HTTP 调用
+        const postData = JSON.stringify({ date: today, shift: shiftType });
+
+        const options = {
+            hostname: '127.0.0.1',
+            port: process.env.TGSERVICE_ENV === 'test' ? 8088 : 8081,
+            path: '/api/internal/guest-invitations/lock',
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(postData)
+            }
+        };
+
+        const result = await new Promise((resolve, reject) => {
+            const req = http.request(options, (res) => {
+                let data = '';
+                res.on('data', chunk => { data += chunk; });
+                res.on('end', () => {
+                    try {
+                        resolve(JSON.parse(data));
+                    } catch (e) {
+                        reject(new Error(`解析响应失败: ${data}`));
+                    }
+                });
+            });
+
+            req.on('error', reject);
+            req.write(postData);
+            req.end();
+        });
+
+        const finishedAt = TimeUtil.nowDB();
+        const nextRun = calcNextRun(shiftType === '早班' ? '0 16 * * *' : '0 20 * * *');
+
+        if (result.success) {
+            const lockedCount = result.data?.locked_count || 0;
+            const totalCount = result.data?.total_count || 0;
+
+            await logCron(
+                taskName, taskType, 'success', lockedCount,
+                `${shiftType} 锁定 ${lockedCount} 名应约客助教，总计 ${totalCount} 人`,
+                null, startedAt, finishedAt
+            );
+
+            await updateTaskStatus(taskName, {
+                lastRun: finishedAt,
+                nextRun: nextRun,
+                lastStatus: 'success',
+                lastError: null
+            });
+
+            console.log(`[CronScheduler] ${taskName} 完成: 锁定 ${lockedCount} 人`);
+        } else {
+            // API 返回失败（如时间未到、已锁定等）
+            const errorMsg = result.error || '未知错误';
+
+            await logCron(
+                taskName, taskType, 'failed', 0,
+                errorMsg,
+                errorMsg, startedAt, finishedAt
+            );
+
+            await updateTaskStatus(taskName, {
+                lastRun: finishedAt,
+                nextRun: nextRun,
+                lastStatus: 'failed',
+                lastError: errorMsg
+            });
+
+            console.log(`[CronScheduler] ${taskName} 执行失败: ${errorMsg}`);
+        }
+    } catch (err) {
+        const finishedAt = TimeUtil.nowDB();
+        console.error('[CronScheduler] taskLockGuestInvitation 失败:', err);
+
+        await logCron(
+            taskName, taskType, 'failed', 0, null,
+            err.message, startedAt, finishedAt
+        );
+
+        await updateTaskStatus(taskName, {
+            lastRun: finishedAt,
+            lastStatus: 'failed',
+            lastError: err.message
+        });
+    }
+}
+
+/**
  * 计算下次运行时间
  */
 function calcNextRun(cronExpression) {
@@ -562,6 +699,22 @@ function calcNextRun(cronExpression) {
             next.setDate(next.getDate() + 1);
         }
         next.setHours(12, 0, 0, 0);
+        return formatBeijing(next);
+    } else if (cronExpression.includes('16 *')) {
+        // 下午16点
+        const next = new Date(now);
+        if (now.getHours() >= 16) {
+            next.setDate(next.getDate() + 1);
+        }
+        next.setHours(16, 0, 0, 0);
+        return formatBeijing(next);
+    } else if (cronExpression.includes('20 *')) {
+        // 晚上20点
+        const next = new Date(now);
+        if (now.getHours() >= 20) {
+            next.setDate(next.getDate() + 1);
+        }
+        next.setHours(20, 0, 0, 0);
         return formatBeijing(next);
     }
 
@@ -602,6 +755,10 @@ async function checkAndRunTasks() {
                 await taskEndLejuan(shiftType);
             } else if (task.task_type === 'sync_reward_penalty') {
                 await taskSyncRewardPenalty();
+            } else if (task.task_type === 'lock_guest_invitation') {
+                // 根据任务名判断班次
+                const shiftType = task.task_name === 'lock_guest_invitation_morning' ? '早班' : '晚班';
+                await taskLockGuestInvitation(shiftType);
             }
 
             // 更新下次运行时间
@@ -646,6 +803,10 @@ async function triggerTask(taskName) {
         await taskEndLejuan(shiftType);
     } else if (task.task_type === 'sync_reward_penalty') {
         await taskSyncRewardPenalty();
+    } else if (task.task_type === 'lock_guest_invitation') {
+        // 根据任务名判断班次
+        const shiftType = task.task_name === 'lock_guest_invitation_morning' ? '早班' : '晚班';
+        await taskLockGuestInvitation(shiftType);
     }
 
     const nextRun = calcNextRun(task.cron_expression);
@@ -705,6 +866,7 @@ module.exports = {
     // 内部方法（供测试）
     taskEndLejuan,
     taskSyncRewardPenalty,
+    taskLockGuestInvitation,
     ensureTables,
     initDefaultTasks
 };

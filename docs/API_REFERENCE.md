@@ -2035,4 +2035,68 @@ MQTT 发送失败时返回 HTTP 502：
 
 ---
 
-*文档更新时间：2026年4月19日 15:30*
+## 活跃计时器接口（2026-04-20 新增）
+
+> QA-20260420-3 新增接口：合并计时器系统后，统一查看所有活跃计时器
+
+### GET /api/active-timers
+
+**用途**：获取当前所有活跃的计时器列表（乐捐 + 申请），含完整助教信息
+
+**响应示例**：
+```json
+{
+  "success": true,
+  "total": 2,
+  "timers": [
+    {
+      "timerId": "lejuan_10080",
+      "type": "lejuan",
+      "coach_no": "10080",
+      "employee_id": "80",
+      "stage_name": "歪歪",
+      "executeAt": "2026-04-20 23:00:00",
+      "remainingMinutes": 180,
+      "createdAt": "2026-04-20 10:00:00"
+    },
+    {
+      "timerId": "app_rest_10083",
+      "type": "application",
+      "application_type": "休息申请",
+      "coach_no": "10083",
+      "employee_id": "80",
+      "stage_name": "AA",
+      "executeAt": "2026-04-21 14:00:00",
+      "remainingMinutes": 960,
+      "createdAt": "2026-04-20 12:00:00"
+    }
+  ]
+}
+```
+
+**字段说明**：
+| 字段 | 说明 |
+|------|------|
+| timerId | 计时器唯一标识 |
+| type | 类型：lejuan / application |
+| coach_no | 助教内部编号 |
+| employee_id | 助教工号（页面显示用） |
+| stage_name | 助教艺名 |
+| executeAt | 执行时间（北京时间） |
+| remainingMinutes | 剩余分钟数 |
+| createdAt | 创建时间 |
+
+### 架构改进
+
+**重构前**（三套独立系统）：
+- TimerManager、LejuanTimer、ApplicationTimer 三套独立轮询
+- 三套内存 Map 分散存储
+
+**重构后**（单一管理中心）：
+- TimerManager 成为唯一计时器管理中心
+- 一套 activeTimers Map 统一存储所有计时器
+- coachInfo 内存存储助教完整信息
+
+---
+
+*文档更新时间：2026年4月20日 20:55*

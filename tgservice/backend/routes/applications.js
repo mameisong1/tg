@@ -1,7 +1,7 @@
 /**
  * 申请事项 API
- * 路径：/api/applications
- * 功能：加班申请、公休申请、约客记录提交与审批
+ * 路径:/api/applications
+ * 功能:加班申请、公休申请、约客记录提交与审批
  */
 
 const express = require('express');
@@ -15,12 +15,12 @@ const timerManager = require('../services/timer-manager');
 const TimeUtil = require('../utils/time');
 const errorLogger = require('../utils/error-logger');
 
-// 权限中间件：需要登录
+// 权限中间件:需要登录
 router.use(auth.required);
 
 /**
  * POST /api/applications
- * 提交申请（加班/公休/乐捐/约客记录）- 助教可提交
+ * 提交申请(加班/公休/乐捐/约客记录)- 助教可提交
  */
 router.post('/', requireBackendPermission(['all']), async (req, res) => {
   try {
@@ -33,11 +33,11 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
       images,
       extra_data
     } = req.body;
-    
+
     if (!applicant_phone || !application_type) {
       throw { status: 400, error: '缺少必填字段' };
     }
-    
+
     const validTypes = [
       '早加班申请',
       '晚加班申请',
@@ -47,35 +47,67 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
       '请假申请',
       '休息申请'
     ];
-    
+
     if (!validTypes.includes(application_type)) {
       throw { status: 400, error: '无效的申请类型' };
     }
-    
+
     const status = 0; // 新申请状态为待处理
-    
+
     // === 新增申请类型校验 ===
-    
-    // 班次切换：校验每月2次限制
+
+    // === QA-20260420-4:时间段校验和水牌状态校验 ===
+
+    // 时间段校验函数
+    const validateTimeWindow = (nowHour, startHour, endHour, errorMsg) => {
+      if (nowHour < startHour || nowHour >= endHour) {
+        throw { status: 400, error: errorMsg };
+      }
+      return true;
+    };
+
+    const nowHour = new Date(TimeUtil.nowDB()).getHours();
+
+    // 加班/公休申请时间校验:0:00 - 14:00
+    if (['早加班申请', '晚加班申请', '公休申请'].includes(application_type)) {
+      validateTimeWindow(nowHour, 0, 14, '加班/公休申请时间已截止(仅限 0:00 - 14:00),请明天再申请');
+
+      // 水牌状态校验:必须是「下班」状态
+      const coach = await tx.get(
+        'SELECT coach_no, stage_name FROM coaches WHERE employee_id = ? OR phone = ?',
+        [applicant_phone, applicant_phone]
+      );
+      if (coach) {
+        const waterBoard = await tx.get(
+          'SELECT status FROM water_boards WHERE coach_no = ?',
+          [coach.coach_no]
+        );
+        if (waterBoard && waterBoard.status !== '下班') {
+          throw { status: 400, error: `当前水牌状态为「${waterBoard.status}」,只能从「下班」状态申请加班/公休` };
+        }
+      }
+    }
+
+    // 班次切换:校验每月2次限制
     if (application_type === '班次切换申请') {
       const todayStr = TimeUtil.todayStr();
       const monthStart = todayStr.substring(0, 7) + '-01 00:00:00';
       const monthEnd = todayStr.substring(0, 7) + '-31 23:59:59';
       const count = await tx.get(
-        `SELECT COUNT(*) as cnt FROM applications 
+        `SELECT COUNT(*) as cnt FROM applications
          WHERE applicant_phone = ? AND application_type = ? AND status = 1
          AND created_at >= ? AND created_at <= ?`,
         [applicant_phone, '班次切换申请', monthStart, monthEnd]
       );
       if (count.cnt >= 2) {
-        throw { status: 400, error: '本月班次切换次数已达上限（2次/月）' };
+        throw { status: 400, error: '本月班次切换次数已达上限(2次/月)' };
       }
       if (!extra_data || !extra_data.target_shift || !['早班', '晚班'].includes(extra_data.target_shift)) {
-        throw { status: 400, error: '请选择目标班次（早班/晚班）' };
+        throw { status: 400, error: '请选择目标班次(早班/晚班)' };
       }
     }
-    
-    // 休息申请：校验每月4天限制 + 日期范围
+
+    // 休息申请:校验每月4天限制 + 日期范围
     if (application_type === '休息申请') {
       if (!extra_data || !extra_data.rest_date) {
         throw { status: 400, error: '请选择休息日期' };
@@ -91,15 +123,15 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
       }
       // 检查是否已有该日期的休息/请假申请
       const existing = await tx.get(
-        `SELECT id FROM applications 
+        `SELECT id FROM applications
          WHERE applicant_phone = ? AND application_type IN ('休息申请', '请假申请')
          AND status = 1 AND extra_data LIKE ?`,
         [applicant_phone, `\'%"rest_date":"${restDate}"%\'`]
       );
-      // 如果 LIKE 匹配不到，用 JSON.parse 方式再查
+      // 如果 LIKE 匹配不到,用 JSON.parse 方式再查
       if (!existing) {
         const existing2 = await tx.get(
-          `SELECT id FROM applications 
+          `SELECT id FROM applications
            WHERE applicant_phone = ? AND application_type IN ('休息申请', '请假申请')
            AND status = 1 AND extra_data LIKE ?`,
           [applicant_phone, `\'%"${restDate}"%\'`]
@@ -114,8 +146,8 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
       const monthStart = todayStr.substring(0, 7) + '-01 00:00:00';
       const monthEnd = todayStr.substring(0, 7) + '-31 23:59:59';
       const restRecords = await tx.all(
-        `SELECT extra_data FROM applications 
-         WHERE applicant_phone = ? AND application_type IN ('休息申请', '请假申请') 
+        `SELECT extra_data FROM applications
+         WHERE applicant_phone = ? AND application_type IN ('休息申请', '请假申请')
          AND status = 1 AND created_at >= ? AND created_at <= ?`,
         [applicant_phone, monthStart, monthEnd]
       );
@@ -128,14 +160,14 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
         } catch(e) {}
       }
       if (restDays.size >= 4) {
-        throw { status: 400, error: '本月休息日已达上限（4天/月）' };
+        throw { status: 400, error: '本月休息日已达上限(4天/月)' };
       }
     }
-    
-    // 请假申请：校验必填字段
+
+    // 请假申请:校验必填字段
     if (application_type === '请假申请') {
       if (!extra_data || !extra_data.leave_type || !['事假', '病假'].includes(extra_data.leave_type)) {
-        throw { status: 400, error: '请选择请假类型（事假/病假）' };
+        throw { status: 400, error: '请选择请假类型(事假/病假)' };
       }
       if (!extra_data || !extra_data.leave_date) {
         throw { status: 400, error: '请选择请假日期' };
@@ -154,7 +186,7 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
       }
       // 检查日期重复
       const existing = await tx.get(
-        `SELECT id FROM applications 
+        `SELECT id FROM applications
          WHERE applicant_phone = ? AND application_type IN ('休息申请', '请假申请')
          AND status = 1 AND extra_data LIKE ?`,
         [applicant_phone, `\'%"${leaveDate}"%\'`]
@@ -162,12 +194,12 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
       if (existing) {
         throw { status: 400, error: '该日期已有审批通过的休息/请假申请' };
       }
-      // 月度4天限制（复用逻辑）
+      // 月度4天限制(复用逻辑)
       const monthStart = todayStr.substring(0, 7) + '-01 00:00:00';
       const monthEnd = todayStr.substring(0, 7) + '-31 23:59:59';
       const restRecords = await tx.all(
-        `SELECT extra_data FROM applications 
-         WHERE applicant_phone = ? AND application_type IN ('休息申请', '请假申请') 
+        `SELECT extra_data FROM applications
+         WHERE applicant_phone = ? AND application_type IN ('休息申请', '请假申请')
          AND status = 1 AND created_at >= ? AND created_at <= ?`,
         [applicant_phone, monthStart, monthEnd]
       );
@@ -180,10 +212,10 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
         } catch(e) {}
       }
       if (restDays.size >= 4) {
-        throw { status: 400, error: '本月休息日已达上限（4天/月）' };
+        throw { status: 400, error: '本月休息日已达上限(4天/月)' };
       }
     }
-    
+
     const insertResult = await tx.run(`
       INSERT INTO applications (
         applicant_phone,
@@ -205,9 +237,9 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
       TimeUtil.nowDB(),
       TimeUtil.nowDB()
     ]);
-    
+
     const applicationId = insertResult.lastID;
-    
+
     const user = req.user;
     await operationLogService.create(tx, {
       operator_phone: applicant_phone,
@@ -222,10 +254,10 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
       }),
       remark: `提交${application_type}`
     });
-    
+
     return { id: applicationId, status };
     });
-    
+
     res.json({
       success: true,
       data: {
@@ -248,10 +280,10 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
 
 /**
  * GET /api/applications/approved-recent
- * 获取近N天内已审批（同意/拒绝）的申请记录
- * 参数：
- *   - application_types: 逗号分隔的申请类型，如 "早加班申请,晚加班申请"
- *   - days: 天数，默认2
+ * 获取近N天内已审批(同意/拒绝)的申请记录
+ * 参数:
+ *   - application_types: 逗号分隔的申请类型,如 "早加班申请,晚加班申请"
+ *   - days: 天数,默认2
  *   - status: 1=已同意, 2=已拒绝
  */
 router.get('/approved-recent', requireBackendPermission(['coachManagement']), async (req, res) => {
@@ -259,9 +291,9 @@ router.get('/approved-recent', requireBackendPermission(['coachManagement']), as
     const { application_types, days = 2, status } = req.query;
     const daysNum = parseInt(days, 10);
     const sinceTime = TimeUtil.offsetDB(-daysNum * 24);
-    
+
     let sql = `
-      SELECT a.id, a.applicant_phone, a.application_type, a.remark, 
+      SELECT a.id, a.applicant_phone, a.application_type, a.remark,
              a.status, a.approver_phone, a.approve_time, a.extra_data, a.created_at,
              c.stage_name, c.coach_no, c.employee_id, c.shift
       FROM applications a
@@ -270,23 +302,23 @@ router.get('/approved-recent', requireBackendPermission(['coachManagement']), as
         AND a.created_at >= ?
     `;
     const params = [sinceTime];
-    
+
     if (application_types) {
       const types = application_types.split(',').map(t => t.trim());
       sql += ' AND a.application_type IN (' + types.map(() => '?').join(',') + ')';
       params.push(...types);
     }
-    
+
     if (status !== undefined) {
       sql += ' AND a.status = ?';
       params.push(parseInt(status, 10));
     }
-    
+
     sql += ' ORDER BY a.approve_time DESC';
-    
+
     const records = await db.all(sql, params);
-    
-    // 格式化返回：提取小时数
+
+    // 格式化返回:提取小时数
     const formatted = records.map(r => {
       let hours = null;
       if (r.extra_data) {
@@ -295,12 +327,12 @@ router.get('/approved-recent', requireBackendPermission(['coachManagement']), as
           hours = extra.hours || null;
         } catch (e) {}
       }
-      // 如果 extra_data 没有，尝试从 remark 解析
+      // 如果 extra_data 没有,尝试从 remark 解析
       if (hours === null && r.remark) {
         const match = r.remark.match(/(\d+)小时/);
         if (match) hours = parseInt(match[1], 10);
       }
-      
+
       return {
         id: r.id,
         applicant_phone: r.applicant_phone,
@@ -315,7 +347,7 @@ router.get('/approved-recent', requireBackendPermission(['coachManagement']), as
         created_at: r.created_at
       };
     });
-    
+
     res.json({ success: true, data: formatted });
   } catch (error) {
     console.error('获取近期审批记录失败:', error);
@@ -325,7 +357,7 @@ router.get('/approved-recent', requireBackendPermission(['coachManagement']), as
 
 /**
  * GET /api/applications
- * 获取申请列表（支持 since 参数和 status 多值）
+ * 获取申请列表(支持 since 参数和 status 多值)
  */
 router.get('/', requireBackendPermission(['all']), async (req, res) => {
   try {
@@ -337,7 +369,7 @@ router.get('/', requireBackendPermission(['all']), async (req, res) => {
       approver_phone,
       limit = 50
     } = req.query;
-    
+
     let sql = `
       SELECT a.*, c.stage_name
       FROM applications a
@@ -345,14 +377,14 @@ router.get('/', requireBackendPermission(['all']), async (req, res) => {
       WHERE 1=1
     `;
     const params = [];
-    
+
     if (application_type) {
       sql += ' AND a.application_type = ?';
       params.push(application_type);
     }
-    
+
     if (status !== undefined) {
-      // 支持逗号分隔的多状态，如 "1,2"
+      // 支持逗号分隔的多状态,如 "1,2"
       const statusList = String(status).split(',').map(s => parseInt(s.trim()));
       if (statusList.length > 1) {
         sql += ' AND a.status IN (' + statusList.map(() => '?').join(',') + ')';
@@ -362,27 +394,27 @@ router.get('/', requireBackendPermission(['all']), async (req, res) => {
         params.push(statusList[0]);
       }
     }
-    
+
     if (since) {
       sql += ' AND a.created_at >= ?';
       params.push(since);
     }
-    
+
     if (applicant_phone) {
       sql += ' AND a.applicant_phone = ?';
       params.push(applicant_phone);
     }
-    
+
     if (approver_phone) {
       sql += ' AND a.approver_phone = ?';
       params.push(approver_phone);
     }
-    
+
     sql += ' ORDER BY a.created_at DESC LIMIT ?';
     params.push(parseInt(limit, 10));
-    
+
     const applications = await db.all(sql, params);
-    
+
     res.json({
       success: true,
       data: applications
@@ -405,24 +437,44 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
     const result = await runInTransaction(async (tx) => {
     const { id } = req.params;
     const { approver_phone, status: approveStatus } = req.body;
-    
+
     if (approveStatus !== 1 && approveStatus !== 2) {
       throw { status: 400, error: '无效的审批状态' };
     }
-    
+
     const application = await tx.get(
       'SELECT * FROM applications WHERE id = ?',
       [id]
     );
-    
+
     if (!application) {
       throw { status: 404, error: '申请记录不存在' };
     }
-    
+
     if (application.status !== 0) {
       throw { status: 400, error: '该申请已审批过' };
     }
-    
+
+    // === QA-20260420-4:时间段校验和过期申请校验 ===
+
+    const nowDB = TimeUtil.nowDB();
+    const nowHour = new Date(nowDB).getHours();
+    const todayStr = TimeUtil.todayStr();
+
+    // 审批时间校验:12:00 - 18:00
+    if (nowHour < 12 || nowHour >= 18) {
+      throw { status: 400, error: '审批时间仅限 12:00 - 18:00' };
+    }
+
+    // 过期申请校验:加班/公休只能审批当天提交的申请
+    if (approveStatus === 1 && ['早加班申请', '晚加班申请', '公休申请'].includes(application.application_type)) {
+      const applyDate = application.created_at.substring(0, 10);
+      if (applyDate !== todayStr) {
+        throw { status: 400, error: '只能审批当天提交的加班/公休申请,过期申请只能拒绝' };
+      }
+    }
+
+    // 更新申请状态(审批永远成功)
     await tx.run(`
       UPDATE applications
       SET status = ?,
@@ -430,103 +482,220 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
           approve_time = ?,
           updated_at = ?
       WHERE id = ?
-    `, [approveStatus, approver_phone || req.user.username, TimeUtil.nowDB(), TimeUtil.nowDB(), id]);
+    `, [approveStatus, approver_phone || req.user.username, nowDB, nowDB, id]);
     
-    if (approveStatus === 1) {
+    // 审批同意:处理水牌状态
       const coach = await tx.get(
         'SELECT coach_no, stage_name, shift FROM coaches WHERE employee_id = ? OR phone = ?',
         [application.applicant_phone, application.applicant_phone]
       );
-      
+
       if (coach) {
         const currentWaterBoard = await tx.get(
           'SELECT * FROM water_boards WHERE coach_no = ?',
           [coach.coach_no]
         );
-        
+
         if (currentWaterBoard) {
           const currentStatus = currentWaterBoard.status;
+          // QA-20260420-4:上桌状态仍拒绝审批(安全考虑)
           const isOnTable = currentStatus === '早班上桌' || currentStatus === '晚班上桌';
-          
           if (isOnTable) {
-            throw { status: 400, error: `助教${coach.stage_name}正在上桌服务（${currentStatus}），无法审批通过${application.application_type}` };
+            throw { status: 400, error: `助教${coach.stage_name}正在上桌服务(${currentStatus}),无法审批通过${application.application_type}` };
           }
-          
+
           const oldValue = {
             status: currentWaterBoard.status,
             table_no: currentWaterBoard.table_no
           };
-          
+
           let newStatus = currentWaterBoard.status;
-          
-          if (application.application_type === '早加班申请') {
-            newStatus = '早加班';
-          } else if (application.application_type === '晚加班申请') {
-            newStatus = '晚加班';
-          } else if (application.application_type === '公休申请') {
-            newStatus = '公休';
+          let shouldChangeWaterBoard = false; // 是否立即修改水牌
+          let needTimer = false; // 是否需要设置Timer
+
+          // === 加班/公休审批:水牌状态检查 ===
+          if (['早加班申请', '晚加班申请', '公休申请'].includes(application.application_type)) {
+            if (currentStatus === '下班') {
+              // 水牌为下班状态,立即修改
+              if (application.application_type === '早加班申请') newStatus = '早加班';
+              else if (application.application_type === '晚加班申请') newStatus = '晚加班';
+              else if (application.application_type === '公休申请') newStatus = '公休';
+              shouldChangeWaterBoard = true;
+            } else {
+              // 水牌非下班状态,不修改水牌(但审批仍成功)
+              console.log(`[QA-20260420-4] 加班审批同意,但水牌状态为「${currentStatus}」非下班,不修改水牌`);
+              shouldChangeWaterBoard = false;
+              // 记录extra_data
+              const updatedExtraData = JSON.stringify({
+                ...JSON.parse(application.extra_data || '{}'),
+                water_board_skipped: true,
+                water_board_skipped_reason: `水牌状态为「${currentStatus}」,不满足立即变更条件`
+              });
+              await tx.run(
+                'UPDATE applications SET extra_data = ?, updated_at = ? WHERE id = ?',
+                [updatedExtraData, nowDB, id]
+              );
+            }
           }
-          
+
+          // === 班次切换审批 ===
           if (application.application_type === '班次切换申请') {
             const targetShift = JSON.parse(application.extra_data).target_shift;
             await tx.run(
               'UPDATE coaches SET shift = ?, updated_at = ? WHERE coach_no = ?',
-              [targetShift, TimeUtil.nowDB(), coach.coach_no]
+              [targetShift, nowDB, coach.coach_no]
             );
             newStatus = targetShift === '早班' ? '早班空闲' : '晚班空闲';
+            shouldChangeWaterBoard = true;
           }
-          
+
+          // === 休息申请审批:当天+已过12点不设Timer ===
           if (application.application_type === '休息申请') {
-            newStatus = '休息';
             const restDate = JSON.parse(application.extra_data).rest_date;
-            const execTime = restDate + ' 12:00:00';
-            const updatedExtraData = JSON.stringify({
-              ...JSON.parse(application.extra_data),
-              scheduled: 1,
-              timer_set: true,
-              exec_time: execTime
-            });
-            await tx.run(
-              'UPDATE applications SET extra_data = ?, updated_at = ? WHERE id = ?',
-              [updatedExtraData, TimeUtil.nowDB(), id]
-            );
-            timerManager.scheduleApplicationTimer(
-              { id: parseInt(id), exec_time: execTime, application_type: '休息申请' },
-              { coach_no: coach.coach_no, employee_id: coach.employee_id || '-', stage_name: coach.stage_name, application_type: '休息申请' }
-            );
+            const execTime = restDate + ' 12:00:00'; // Timer执行时间
+
+            // 检查是否是当天 + 审批时间已过Timer时间
+            if (restDate === todayStr && nowDB >= execTime) {
+              // 当天 + 已过12点:不设Timer,直接修改水牌(如果水牌是离店状态)
+              const offStatuses = ['下班', '公休', '请假', '休息'];
+              if (offStatuses.includes(currentStatus)) {
+                newStatus = '休息';
+                shouldChangeWaterBoard = true;
+                console.log(`[QA-20260420-4] 休息审批当天+已过12点,直接修改水牌`);
+              } else {
+                // 非离店状态,不修改水牌
+                console.log(`[QA-20260420-4] 休息审批当天+已过12点,但水牌非离店状态「${currentStatus}」,不修改水牌`);
+                shouldChangeWaterBoard = false;
+                const updatedExtraData = JSON.stringify({
+                  ...JSON.parse(application.extra_data || '{}'),
+                  water_board_skipped: true,
+                  water_board_skipped_reason: `水牌状态为「${currentStatus}」非离店状态`
+                });
+                await tx.run(
+                  'UPDATE applications SET extra_data = ?, updated_at = ? WHERE id = ?',
+                  [updatedExtraData, nowDB, id]
+                );
+              }
+              needTimer = false; // 当天已过12点,不设Timer
+            } else {
+              // 未来日期或当天未过12点:设置Timer
+              // 如果是离店状态,立即修改水牌
+              const offStatuses = ['下班', '公休', '请假', '休息'];
+              if (offStatuses.includes(currentStatus)) {
+                newStatus = '休息';
+                shouldChangeWaterBoard = true;
+              } else {
+                // 非离店状态,不立即修改水牌,但设置Timer
+                console.log(`[QA-20260420-4] 休息审批未来日期,水牌非离店状态「${currentStatus}」,不立即修改,但设置Timer`);
+                shouldChangeWaterBoard = false;
+                const updatedExtraData = JSON.stringify({
+                  ...JSON.parse(application.extra_data || '{}'),
+                  water_board_skipped_now: true,
+                  water_board_skipped_reason: `水牌状态为「${currentStatus}」非离店状态,Timer到期再判断`
+                });
+                await tx.run(
+                  'UPDATE applications SET extra_data = ?, updated_at = ? WHERE id = ?',
+                  [updatedExtraData, nowDB, id]
+                );
+              }
+              needTimer = true;
+              const timerExtraData = JSON.stringify({
+                ...JSON.parse(application.extra_data),
+                scheduled: 1,
+                timer_set: true,
+                exec_time: execTime
+              });
+              await tx.run(
+                'UPDATE applications SET extra_data = ?, updated_at = ? WHERE id = ?',
+                [timerExtraData, nowDB, id]
+              );
+              timerManager.scheduleApplicationTimer(
+                { id: parseInt(id), exec_time: execTime, application_type: '休息申请' },
+                { coach_no: coach.coach_no, employee_id: coach.employee_id || '-', stage_name: coach.stage_name, application_type: '休息申请' }
+              );
+            }
           }
-          
+
+          // === 请假申请审批:当天+已过12点不设Timer ===
           if (application.application_type === '请假申请') {
-            newStatus = '请假';
             const leaveDate = JSON.parse(application.extra_data).leave_date;
-            const execTime = leaveDate + ' 12:00:00';
-            const updatedExtraData = JSON.stringify({
-              ...JSON.parse(application.extra_data),
-              scheduled: 1,
-              timer_set: true,
-              exec_time: execTime
-            });
-            await tx.run(
-              'UPDATE applications SET extra_data = ?, updated_at = ? WHERE id = ?',
-              [updatedExtraData, TimeUtil.nowDB(), id]
-            );
-            timerManager.scheduleApplicationTimer(
-              { id: parseInt(id), exec_time: execTime, application_type: '请假申请' },
-              { coach_no: coach.coach_no, employee_id: coach.employee_id || '-', stage_name: coach.stage_name, application_type: '请假申请' }
-            );
+            const execTime = leaveDate + ' 12:00:00'; // Timer执行时间
+
+            // 检查是否是当天 + 审批时间已过Timer时间
+            if (leaveDate === todayStr && nowDB >= execTime) {
+              // 当天 + 已过12点:不设Timer,直接修改水牌(如果水牌是离店状态)
+              const offStatuses = ['下班', '公休', '请假', '休息'];
+              if (offStatuses.includes(currentStatus)) {
+                newStatus = '请假';
+                shouldChangeWaterBoard = true;
+                console.log(`[QA-20260420-4] 请假审批当天+已过12点,直接修改水牌`);
+              } else {
+                // 非离店状态,不修改水牌
+                console.log(`[QA-20260420-4] 请假审批当天+已过12点,但水牌非离店状态「${currentStatus}」,不修改水牌`);
+                shouldChangeWaterBoard = false;
+                const updatedExtraData = JSON.stringify({
+                  ...JSON.parse(application.extra_data || '{}'),
+                  water_board_skipped: true,
+                  water_board_skipped_reason: `水牌状态为「${currentStatus}」非离店状态`
+                });
+                await tx.run(
+                  'UPDATE applications SET extra_data = ?, updated_at = ? WHERE id = ?',
+                  [updatedExtraData, nowDB, id]
+                );
+              }
+              needTimer = false; // 当天已过12点,不设Timer
+            } else {
+              // 未来日期或当天未过12点:设置Timer
+              // 如果是离店状态,立即修改水牌
+              const offStatuses = ['下班', '公休', '请假', '休息'];
+              if (offStatuses.includes(currentStatus)) {
+                newStatus = '请假';
+                shouldChangeWaterBoard = true;
+              } else {
+                // 非离店状态,不立即修改水牌,但设置Timer
+                console.log(`[QA-20260420-4] 请假审批未来日期,水牌非离店状态「${currentStatus}」,不立即修改,但设置Timer`);
+                shouldChangeWaterBoard = false;
+                const updatedExtraData = JSON.stringify({
+                  ...JSON.parse(application.extra_data || '{}'),
+                  water_board_skipped_now: true,
+                  water_board_skipped_reason: `水牌状态为「${currentStatus}」非离店状态,Timer到期再判断`
+                });
+                await tx.run(
+                  'UPDATE applications SET extra_data = ?, updated_at = ? WHERE id = ?',
+                  [updatedExtraData, nowDB, id]
+                );
+              }
+              needTimer = true;
+              const timerExtraData = JSON.stringify({
+                ...JSON.parse(application.extra_data),
+                scheduled: 1,
+                timer_set: true,
+                exec_time: execTime
+              });
+              await tx.run(
+                'UPDATE applications SET extra_data = ?, updated_at = ? WHERE id = ?',
+                [timerExtraData, nowDB, id]
+              );
+              timerManager.scheduleApplicationTimer(
+                { id: parseInt(id), exec_time: execTime, application_type: '请假申请' },
+                { coach_no: coach.coach_no, employee_id: coach.employee_id || '-', stage_name: coach.stage_name, application_type: '请假申请' }
+              );
+            }
           }
-          
-          await tx.run(`
-            UPDATE water_boards 
-            SET status = ?, table_no = NULL, clock_in_time = NULL, updated_at = ? 
-            WHERE coach_no = ?
-          `, [newStatus, TimeUtil.nowDB(), coach.coach_no]);
-          
+
+          // === 执行水牌修改 ===
+          if (shouldChangeWaterBoard) {
+            await tx.run(`
+              UPDATE water_boards
+              SET status = ?, table_no = NULL, clock_in_time = NULL, updated_at = ?
+              WHERE coach_no = ?
+            `, [newStatus, nowDB, coach.coach_no]);
+
           const newValue = {
             status: newStatus,
             table_no: null
           };
-          
+
           const user = req.user;
           await operationLogService.create(tx, {
             operator_phone: user.username,
@@ -536,12 +705,12 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
             target_id: currentWaterBoard.id,
             old_value: JSON.stringify(oldValue),
             new_value: JSON.stringify(newValue),
-            remark: `${application.application_type}审批通过，水牌状态：${oldValue.status} → ${newStatus}`
+            remark: `${application.application_type}审批通过,水牌状态:${oldValue.status} → ${newStatus}`
           });
         }
       }
     }
-    
+
     const user = req.user;
     await operationLogService.create(tx, {
       operator_phone: approver_phone || user.username,
@@ -551,9 +720,9 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
       target_id: parseInt(id, 10),
       old_value: JSON.stringify({ status: '待处理' }),
       new_value: JSON.stringify({ status: approveStatus === 1 ? '同意' : '拒绝' }),
-      remark: `审批${application.application_type}：${approveStatus === 1 ? '同意' : '拒绝'}`
+      remark: `审批${application.application_type}:${approveStatus === 1 ? '同意' : '拒绝'}`
     });
-    
+
     return {
       id: parseInt(id, 10),
       status: approveStatus,
@@ -561,7 +730,7 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
       approve_time: TimeUtil.nowDB()
     };
     });
-    
+
     res.json({
       success: true,
       data: {
@@ -586,12 +755,12 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
 
 /**
  * GET /api/applications/today-approved-overtime
- * 获取当天所有已同意的加班申请的小时数（批量接口）
+ * 获取当天所有已同意的加班申请的小时数(批量接口)
  */
 router.get('/today-approved-overtime', auth.required, requireBackendPermission(['waterBoardManagement']), async (req, res) => {
   try {
     const todayStr = TimeUtil.todayStr(); // "YYYY-MM-DD"
-    
+
     const records = await db.all(`
       SELECT a.applicant_phone, a.extra_data, a.remark,
              c.coach_no, c.shift, c.employee_id
@@ -601,7 +770,7 @@ router.get('/today-approved-overtime', auth.required, requireBackendPermission([
         AND a.application_type IN ('早加班申请', '晚加班申请')
         AND date(a.created_at) = ?
     `, [todayStr]);
-    
+
     const result = {};
     for (const r of records) {
       let hours = null;
@@ -616,7 +785,7 @@ router.get('/today-approved-overtime', auth.required, requireBackendPermission([
         if (match) hours = parseInt(match[1], 10);
       }
       if (hours !== null) {
-        // 使用 employee_id 作为 key（前端 waterBoards 返回的 employee_id 匹配）
+        // 使用 employee_id 作为 key(前端 waterBoards 返回的 employee_id 匹配)
         const key = r.employee_id || r.applicant_phone;
         result[key] = {
           hours,
@@ -625,7 +794,7 @@ router.get('/today-approved-overtime', auth.required, requireBackendPermission([
         };
       }
     }
-    
+
     res.json({ success: true, data: result });
   } catch (error) {
     console.error('获取当天加班小时数失败:', error);
@@ -697,11 +866,11 @@ router.delete('/:id', requireBackendPermission(['all']), async (req, res) => {
   try {
     const { id } = req.params;
     const { applicant_phone } = req.query;
-    
+
     if (!applicant_phone) {
       throw { status: 400, error: '缺少 applicant_phone 参数' };
     }
-    
+
     const application = await db.get(
       'SELECT * FROM applications WHERE id = ? AND applicant_phone = ?',
       [id, applicant_phone]
@@ -712,16 +881,16 @@ router.delete('/:id', requireBackendPermission(['all']), async (req, res) => {
     if (application.status !== 0) {
       throw { status: 400, error: '只能取消待处理状态的申请' };
     }
-    
-    // 如果是休息/请假且已设置定时器，取消定时器
+
+    // 如果是休息/请假且已设置定时器,取消定时器
     if (['休息申请', '请假申请'].includes(application.application_type)) {
       timerManager.cancelApplicationTimer(parseInt(id));
     }
-    
+
     await runInTransaction(async (tx) => {
       await tx.run('DELETE FROM applications WHERE id = ?', [id]);
     });
-    
+
     res.json({ success: true, message: '申请已取消' });
   } catch (error) {
     errorLogger.logApiRejection(req, error);
@@ -740,21 +909,21 @@ router.delete('/:id', requireBackendPermission(['all']), async (req, res) => {
 router.get('/my-month-count', requireBackendPermission(['all']), async (req, res) => {
   try {
     const { applicant_phone, application_type } = req.query;
-    
+
     if (!applicant_phone || !application_type) {
       throw { status: 400, error: '缺少必要参数' };
     }
-    
+
     const todayStr = TimeUtil.todayStr();
     const monthStart = todayStr.substring(0, 7) + '-01 00:00:00';
     const monthEnd = todayStr.substring(0, 7) + '-31 23:59:59';
-    
+
     let count = 0;
     let limit = 0;
-    
+
     if (application_type === '班次切换申请') {
       const result = await db.get(
-        `SELECT COUNT(*) as cnt FROM applications 
+        `SELECT COUNT(*) as cnt FROM applications
          WHERE applicant_phone = ? AND application_type = ? AND status = 1
          AND created_at >= ? AND created_at <= ?`,
         [applicant_phone, '班次切换申请', monthStart, monthEnd]
@@ -763,8 +932,8 @@ router.get('/my-month-count', requireBackendPermission(['all']), async (req, res
       limit = 2;
     } else if (application_type === '休息申请' || application_type === '请假申请') {
       const records = await db.all(
-        `SELECT extra_data FROM applications 
-         WHERE applicant_phone = ? AND application_type IN ('休息申请', '请假申请') 
+        `SELECT extra_data FROM applications
+         WHERE applicant_phone = ? AND application_type IN ('休息申请', '请假申请')
          AND status = 1 AND created_at >= ? AND created_at <= ?`,
         [applicant_phone, monthStart, monthEnd]
       );
@@ -779,7 +948,7 @@ router.get('/my-month-count', requireBackendPermission(['all']), async (req, res
       count = restDays.size;
       limit = 4;
     }
-    
+
     res.json({
       success: true,
       data: {

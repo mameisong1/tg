@@ -5,8 +5,9 @@
   "designAuditRound": 1,
   "testCasesAuditRound": 1,
   "fixRound": 0,
-  "currentStep": "deploy",
+  "currentStep": null,
   "designSummary": "重构timer-manager为唯一中心，合并application-timer/lejuan-timer，扩展createTimer参数coachInfo，删除2个冗余文件",
   "userConfirmedAt": "2026-04-20T10:48:36.851Z",
-  "userConfirmedBy": "马哥"
+  "userConfirmedBy": "马哥",
+  "qaReportPath": "/TG/temp/QA-20260420-3/qa-report.md"
 }
