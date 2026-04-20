@@ -5362,14 +5362,14 @@ app.get('/api/reward-penalty/stats/detail', authMiddleware, requireBackendPermis
   }
 });
 
-// GET /api/reward-penalty/recent-count — 获取昨天和今天的已确认奖罚数据条数
+// GET /api/reward-penalty/recent-count — 获取昨天和今天新增生成的奖罚数据条数
 app.get('/api/reward-penalty/recent-count', authMiddleware, async (req, res) => {
   try {
     const today = TimeUtil.todayStr(); // YYYY-MM-DD
     const yesterday = TimeUtil.offsetDateStr(-1); // 昨天
     
-    // 查询昨天和今天的奖罚记录条数
-    const sql = `SELECT COUNT(*) as count FROM reward_penalties WHERE confirm_date IN (?, ?)`;
+    // 查询昨天和今天 created_at 的奖罚记录条数（新增生成的数据）
+    const sql = `SELECT COUNT(*) as count FROM reward_penalties WHERE date(created_at) IN (?, ?)`;
     const row = await dbGet(sql, [yesterday, today]);
     
     res.json({ success: true, count: row?.count || 0 });

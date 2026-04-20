@@ -262,5 +262,10 @@ export default {
   // =============== 申请/审批管理 ===============
   applications: {
     getPendingCount: () => request({ url: '/applications/pending-count', authType: 'admin' })
+  },
+
+  // =============== 奖罚管理 ===============
+  rewardPenalty: {
+    getRecentCount: () => request({ url: '/reward-penalty/recent-count', authType: 'admin' })
   }
 }
