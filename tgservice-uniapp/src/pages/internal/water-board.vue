@@ -60,7 +60,7 @@
             <text class="coach-name coach-name--offduty">{{ coach.stage_name }}</text>
           </view>
         </view>
-        <!-- 下班助教单独一行 -->
+        <!-- 下班助教单独一行（不显示加班角标） -->
         <view class="coach-grid off-duty-row" v-if="group.coaches.some(c => c._offDuty)">
           <view class="coach-card coach-card--offduty"
                 v-for="coach in group.coaches.filter(c => c._offDuty)"
@@ -68,7 +68,6 @@
                 @longpress="showStatusChange(coach)">
             <text class="coach-id coach-id--offduty">{{ coach.employee_id || '未知' }}</text>
             <text class="coach-name coach-name--offduty">{{ coach.stage_name }}</text>
-            <text class="overtime-hours" v-if="getOvertimeHours(coach) > 0">{{ getOvertimeHours(coach) }}</text>
           </view>
         </view>
         <!-- 加班助教单独一行 -->
@@ -112,7 +111,7 @@
               <text class="expand-name expand-name--offduty">{{ coach.stage_name }}</text>
             </view>
           </view>
-          <!-- 下班助教单独一行 -->
+          <!-- 下班助教单独一行（不显示加班角标） -->
           <view class="expand-grid off-duty-row" v-if="expandCoaches.some(c => c._offDuty)">
             <view class="expand-card expand-card--offduty"
                   v-for="coach in expandCoaches.filter(c => c._offDuty)"
@@ -120,7 +119,6 @@
                   @longpress="showStatusChange(coach)">
               <text class="expand-id expand-id--offduty">{{ coach.employee_id || '未知' }}</text>
               <text class="expand-name expand-name--offduty">{{ coach.stage_name }}</text>
-              <text class="overtime-hours" v-if="getOvertimeHours(coach) > 0">{{ getOvertimeHours(coach) }}</text>
             </view>
           </view>
           <!-- 加班助教单独一行 -->
