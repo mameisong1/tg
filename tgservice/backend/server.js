@@ -5418,6 +5418,54 @@ app.post('/api/reward-penalty/detail/:id', authMiddleware, requireBackendPermiss
   }
 });
 
+// DELETE /api/reward-penalty/detail/:id — 删除奖罚明细（仅管理员）
+app.delete('/api/reward-penalty/detail/:id', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'id必须是数字' });
+    }
+
+    // 检查是否是管理员（只有管理员可以删除）
+    const userRole = req.user?.role || '';
+    const isAdmin = ['管理员', '超级管理员'].includes(userRole);
+    if (!isAdmin) {
+      return res.status(403).json({ error: '只有管理员才能删除奖罚记录' });
+    }
+
+    // 检查记录是否存在
+    const record = await dbGet('SELECT id, exec_status, type, confirm_date, phone, name, amount FROM reward_penalties WHERE id = ?', [id]);
+    if (!record) {
+      return res.status(404).json({ error: '记录不存在' });
+    }
+
+    // 已执行记录禁止删除
+    if (record.exec_status === '已执行') {
+      return res.status(400).json({ error: '已执行记录不可删除' });
+    }
+
+    // 执行删除
+    await enqueueRun('DELETE FROM reward_penalties WHERE id = ?', [id]);
+
+    logger.info(`删除奖罚记录: id=${id}, type=${record.type}, phone=${record.phone}, amount=${record.amount}`);
+
+    res.json({
+      success: true,
+      deleted: {
+        id,
+        type: record.type,
+        confirm_date: record.confirm_date,
+        phone: record.phone,
+        name: record.name,
+        amount: record.amount
+      }
+    });
+  } catch (err) {
+    logger.error(`删除奖罚明细失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
 // POST /api/reward-penalty/stats/execute-person — 一键执行某人所有未执行明细
 app.post('/api/reward-penalty/stats/execute-person', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {

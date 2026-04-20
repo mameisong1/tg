@@ -323,7 +323,7 @@ async function taskSyncRewardPenalty() {
                 SELECT gi.*, c.phone, c.stage_name, c.employee_id
                 FROM guest_invitation_results gi
                 LEFT JOIN coaches c ON gi.coach_no = c.coach_no
-                WHERE gi.result IN ('应约客')
+                WHERE gi.result IN ('应约客', '约客无效')
                     AND gi.date IN (?, ?)
                     AND c.phone IS NOT NULL
                     AND NOT EXISTS (
