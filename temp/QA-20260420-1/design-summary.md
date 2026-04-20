@@ -1,0 +1,1 @@
+新增backend/utils/error-logger.js工具函数，修改约81处catch块（routes/*.js和server.js），在每个catch块添加errorLogger.logApiRejection(req,error)记录API拒绝日志，包含操作人、请求路径、状态码、拒绝原因、请求体（脱敏）

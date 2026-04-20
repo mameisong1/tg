@@ -1,0 +1,1 @@
+完善API错误日志：所有API拒绝用户操作时，记录完整错误日志（请求内容、返回错误、拒绝原因）。使用方案A：在每个路由catch块中添加operationLogService.logToFile调用。涉及约70处catch块，主要文件：routes/table-action-orders.js、routes/coaches.js、routes/applications.js、routes/water-boards.js、routes/guest-invitations.js、routes/service-orders.js、server.js等。

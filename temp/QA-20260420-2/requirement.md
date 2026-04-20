@@ -1,0 +1,1 @@
+在系统报告页面新增「活跃计时器」Tab，显示当前内存中的计时器状态，包含助教工号、姓名、申请事项/乐捐信息。需要：(1) 扩展 timer-manager 内存存储，增加 coach_no、employee_id、stage_name、application_type 字段；(2) 新增 API /api/system-report/active-timers；(3) 前端新增展示 Tab。不修改数据库表结构。

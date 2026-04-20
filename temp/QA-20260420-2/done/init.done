@@ -1,0 +1,13 @@
+{
+  "done": true,
+  "stateUpdate": {
+    "workDir": "/TG/temp/QA-20260420-2",
+    "qaRequirement": "在系统报告页面新增「活跃计时器」Tab，显示当前内存中的计时器状态，包含助教工号、姓名、申请事项/乐捐信息。需要：(1) 扩展 timer-manager 内存存储，增加 coach_no、employee_id、stage_name、application_type 字段；(2) 新增 API /api/system-report/active-timers；(3) 前端新增展示 Tab。不修改数据库表结构。",
+    "acceptanceFocus": "活跃计时器列表显示完整助教信息，能实时反映内存状态，剩余时间计算准确",
+    "designAuditRound": 0,
+    "testCasesAuditRound": 0,
+    "fixRound": 0,
+    "currentStep": "parallel-design"
+  },
+  "userMessage": "✅ QA任务已初始化\n\n工作目录：`/TG/temp/QA-20260420-2`\n需求：在系统报告页面新增「活跃计时器」Tab，显示当前内存中的计时器状态，包含助教工号、姓名、申请事项/乐捐信息。需要：(1) 扩展 timer-manager 内存存储，增加 coach_no、employee_id、stage_name、application_type 字段；(2) 新增 API /api/system-report/active-timers；(3) 前端新增展示 Tab。不修改数据库表结构。"
+}

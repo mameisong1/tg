@@ -367,6 +367,99 @@ async function pollCheck(lejuanActivateCallback, applicationRecoverCallback) {
 }
 
 /**
+ * 补全乐捐定时器详细信息
+ * @param {object} detail - 定时器详情对象（会被修改）
+ * @param {string} recordId - 乐捐记录 ID
+ */
+async function enrichLejuanTimer(detail, recordId) {
+    try {
+        const record = await get(`
+            SELECT lr.coach_no, lr.stage_name, c.employee_id
+            FROM lejuan_records lr
+            LEFT JOIN coaches c ON lr.coach_no = c.coach_no
+            WHERE lr.id = ?
+        `, [recordId]);
+
+        if (record) {
+            detail.coach_no = record.coach_no;
+            detail.employee_id = record.employee_id || '-';
+            detail.stage_name = record.stage_name || '-';
+        }
+    } catch (err) {
+        console.error(`[TimerManager] 补全乐捐定时器 ${recordId} 信息失败:`, err);
+    }
+}
+
+/**
+ * 补全申请定时器详细信息
+ * @param {object} detail - 定时器详情对象（会被修改）
+ * @param {string} recordId - 申请记录 ID
+ */
+async function enrichApplicationTimer(detail, recordId) {
+    try {
+        const record = await get(`
+            SELECT a.id, a.application_type, a.applicant_phone,
+                   a.extra_data,
+                   c.coach_no, c.stage_name, c.employee_id
+            FROM applications a
+            LEFT JOIN coaches c ON a.applicant_phone = c.employee_id
+                                OR a.applicant_phone = c.phone
+            WHERE a.id = ?
+        `, [recordId]);
+
+        if (record) {
+            detail.application_type = record.application_type || '-';
+            detail.coach_no = record.coach_no;
+            detail.employee_id = record.employee_id || '-';
+            detail.stage_name = record.stage_name || '-';
+        }
+    } catch (err) {
+        console.error(`[TimerManager] 补全申请定时器 ${recordId} 信息失败:`, err);
+    }
+}
+
+/**
+ * 获取所有活跃计时器的详细信息（含助教信息）
+ * @returns {Array} 活跃计时器详情列表
+ */
+async function getActiveTimersWithDetails() {
+    const timers = getActiveTimers();
+    const detailedTimers = [];
+
+    for (const timer of timers) {
+        const detail = {
+            timerId: timer.timerId,
+            type: timer.type,
+            recordId: timer.recordId,
+            execTime: timer.execTime,
+            employee_id: null,
+            stage_name: null,
+            coach_no: null,
+            application_type: null,
+            remainingSeconds: null
+        };
+
+        // 计算剩余时间
+        if (timer.execTime) {
+            const now = new Date(TimeUtil.nowDB() + '+08:00');
+            const execDate = new Date(timer.execTime + '+08:00');
+            detail.remainingSeconds = Math.max(0, Math.round((execDate.getTime() - now.getTime()) / 1000));
+        }
+
+        // 根据类型从数据库获取详细信息
+        if (timer.type === 'lejuan') {
+            await enrichLejuanTimer(detail, timer.recordId);
+        } else if (timer.type === 'application') {
+            await enrichApplicationTimer(detail, timer.recordId);
+        }
+
+        detailedTimers.push(detail);
+    }
+
+    return detailedTimers;
+}
+
+/**
  * 初始化：创建表 + 恢复定时器 + 启动轮询
  * @param {object} callbacks - { lejuanActivate: Function, applicationRecover: Function }
  */
@@ -396,6 +489,7 @@ module.exports = {
     getActiveCount,
     getCountByType,
     getActiveTimers,
+    getActiveTimersWithDetails,
     pollCheck,
     recoverLejuanTimers,
     recoverApplicationTimers,

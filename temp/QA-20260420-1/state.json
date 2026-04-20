@@ -1,0 +1,13 @@
+{
+  "qaRequirement": "完善API错误日志：所有API拒绝用户操作时，记录完整错误日志（请求内容、返回错误、拒绝原因）。使用方案A：在每个路由catch块中添加operationLogService.logToFile调用。涉及约70处catch块，主要文件：routes/table-action-orders.js、routes/coaches.js、routes/applications.js、routes/water-boards.js、routes/guest-invitations.js、routes/service-orders.js、server.js等。",
+  "acceptanceFocus": "1. 所有throw {status: xxx, error: xxx}类型的业务拒绝错误都被记录到operation.log 2. 日志格式包含：操作人、请求内容、拒绝原因、HTTP状态码 3. 测试验证：故意触发拒绝场景（如重复上桌、状态不允许）后能在日志中找到记录",
+  "workDir": "/TG/temp/QA-20260420-1",
+  "designAuditRound": 1,
+  "testCasesAuditRound": 1,
+  "fixRound": 0,
+  "currentStep": null,
+  "designSummary": "新增backend/utils/error-logger.js工具函数，修改约81处catch块（routes/*.js和server.js），在每个catch块添加errorLogger.logApiRejection(req,error)记录API拒绝日志，包含操作人、请求路径、状态码、拒绝原因、请求体（脱敏）",
+  "userConfirmedAt": "2026-04-20T08:03:49.893Z",
+  "userConfirmedBy": "马哥",
+  "qaReportPath": "/TG/temp/QA-20260420-1/qa-report.md"
+}

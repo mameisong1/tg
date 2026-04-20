@@ -180,4 +180,23 @@ router.post('/cron/:taskName/toggle', async (req, res) => {
     }
 });
 
+/**
+ * GET /api/system-report/active-timers
+ * 获取当前内存中所有活跃计时器的详细信息
+ */
+router.get('/active-timers', async (req, res) => {
+    try {
+        const timers = await timerManager.getActiveTimersWithDetails();
+
+        res.json({
+            success: true,
+            data: timers,
+            total: timers.length
+        });
+    } catch (err) {
+        console.error(`获取活跃计时器失败: ${err.message}`);
+        res.status(500).json({ error: '服务器错误' });
+    }
+});
+
 module.exports = router;
