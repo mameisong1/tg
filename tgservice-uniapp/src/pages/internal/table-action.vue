@@ -148,18 +148,19 @@ const statusClass = (status) => {
   return 'status-other'
 }
 
-const onTableSelected = (tableNo) => {
-  form.value.table_no = tableNo
+// 2026-04-20: TableSelector 现在返回完整 table 对象
+const onTableSelected = (table) => {
+  form.value.table_no = table.name
   showTableSelector.value = false
 }
 
-const onTableOutSelected = (tableNo) => {
-  form.value.table_out_no = tableNo
+const onTableOutSelected = (table) => {
+  form.value.table_out_no = table.name
   showTableOutSelector.value = false
 }
 
-const onTableCancelSelected = (tableNo) => {
-  form.value.table_cancel_no = tableNo
+const onTableCancelSelected = (table) => {
+  form.value.table_cancel_no = table.name
   showTableCancelSelector.value = false
 }
 

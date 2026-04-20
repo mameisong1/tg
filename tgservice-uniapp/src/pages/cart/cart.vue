@@ -199,18 +199,21 @@ const openTableSelector = async () => {
 }
 
 // 台桌选择回调
-const onTableSelected = async (tableNo) => {
+// 2026-04-20: 与扫码存储保持一致，存入 tablePinyin、tableName、tableAuth 三项
+const onTableSelected = async (table) => {
   showTableSelector.value = false
-  // 保存台桌号到 localStorage
-  uni.setStorageSync('tableName', tableNo)
-  // 当作扫码成功：同时写入 tableAuth
-  uni.setStorageSync('tableAuth', JSON.stringify({ table: tableNo, time: Date.now() }))
-  // 同步更新 ref（让页面立即响应）
-  tableName.value = tableNo
+  uni.setStorageSync('tablePinyin', table.name_pinyin)
+  uni.setStorageSync('tableName', table.name)
+  uni.setStorageSync('tableAuth', JSON.stringify({
+    table: table.name_pinyin,
+    tableName: table.name,
+    time: Date.now()
+  }))
+  tableName.value = table.name
   
   // 更新购物车中所有商品的 table_no
   try {
-    await api.updateCartTable({ sessionId: sessionId.value, tableNo })
+    await api.updateCartTable({ sessionId: sessionId.value, tableNo: table.name })
   } catch (e) {
     console.log('更新购物车台桌号失败', e)
   }
@@ -218,7 +221,7 @@ const onTableSelected = async (tableNo) => {
   // 刷新购物车
   loadCart()
   
-  uni.showToast({ title: `已切换到 ${tableNo}`, icon: 'success' })
+  uni.showToast({ title: `已切换到 ${table.name}`, icon: 'success' })
 }
 
 // 加载默认台桌号（已上桌助教）

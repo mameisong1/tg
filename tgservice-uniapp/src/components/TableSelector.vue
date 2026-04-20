@@ -194,9 +194,10 @@ const hallSegments = computed(() => {
 })
 
 // 选中台桌后立即关闭提交
+// 2026-04-20: 返回完整 table 对象（包含 name 和 name_pinyin），与扫码存储保持一致
 const selectTable = (table) => {
   if (table.status === '占用') return
-  emit('confirm', table.name)
+  emit('confirm', table)  // 返回完整对象: { name, name_pinyin, area, status }
 }
 
 const handleCancel = () => {

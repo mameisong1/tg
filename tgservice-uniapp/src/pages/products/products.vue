@@ -376,13 +376,17 @@ const loadDefaultTableNo = async () => {
 }
 
 // 台桌选择回调（商品页）
-const onTableSelected = (tableNo) => {
+// 2026-04-20: 与扫码存储保持一致，存入 tablePinyin、tableName、tableAuth 三项
+const onTableSelected = (table) => {
   showTableSelector.value = false
-  uni.setStorageSync('tableName', tableNo)
-  // 当作扫码成功：同时写入 tableAuth
-  uni.setStorageSync('tableAuth', JSON.stringify({ table: tableNo, time: Date.now() }))
-  // 手动更新 ref（让页面立即响应，解决 computed 不响应 localStorage 变化问题）
-  tableName.value = tableNo
+  uni.setStorageSync('tablePinyin', table.name_pinyin)
+  uni.setStorageSync('tableName', table.name)
+  uni.setStorageSync('tableAuth', JSON.stringify({
+    table: table.name_pinyin,
+    tableName: table.name,
+    time: Date.now()
+  }))
+  tableName.value = table.name
   tableInfoRef.value?.loadTableInfo()
 }
 

@@ -118,13 +118,18 @@ const loadDefaultTable = async () => {
   } catch (e) {}
 }
 
-const onTableSelected = (tableNo) => {
-  form.value.table_no = tableNo
+// 台桌选择回调
+// 2026-04-20: 与扫码存储保持一致，存入 tablePinyin、tableName、tableAuth 三项
+const onTableSelected = (table) => {
+  form.value.table_no = table.name
   showTableSelector.value = false
-  // 同步到 localStorage，让商品页/购物车的台桌号也更新
-  uni.setStorageSync('tableName', tableNo)
-  // 当作扫码成功：同时写入 tableAuth
-  uni.setStorageSync('tableAuth', JSON.stringify({ table: tableNo, time: Date.now() }))
+  uni.setStorageSync('tablePinyin', table.name_pinyin)
+  uni.setStorageSync('tableName', table.name)
+  uni.setStorageSync('tableAuth', JSON.stringify({
+    table: table.name_pinyin,
+    tableName: table.name,
+    time: Date.now()
+  }))
 }
 
 // 点击快捷需求，直接填入需求内容
