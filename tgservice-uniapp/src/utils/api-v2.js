@@ -166,6 +166,12 @@ export const missingTableOutOrders = {
   getDetail: (params) => request({ url: '/missing-table-out-orders/detail', data: params })
 }
 
+// ========== 奖罚管理 ==========
+export const rewardPenalty = {
+  // 获取昨天和今天的已确认奖罚数据条数
+  getRecentCount: () => request({ url: '/reward-penalty/recent-count' })
+}
+
 export default {
   // 前端配置（授权过期时间等）
   getFrontConfig: () => request({ url: '/front-config' }),
@@ -178,5 +184,6 @@ export default {
   operationLogs,
   authV2,
   lejuanRecords,
-  missingTableOutOrders
+  missingTableOutOrders,
+  rewardPenalty
 }

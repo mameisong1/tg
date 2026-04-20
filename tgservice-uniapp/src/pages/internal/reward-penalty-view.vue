@@ -14,6 +14,12 @@
     <view class="header-placeholder" :style="{ height: (statusBarHeight + 44) + 'px' }"></view>
     
     <view class="container">
+      <!-- QA-20260421-1: 模拟测试提示 -->
+      <view class="test-notice">
+        <text class="notice-icon">⚠️</text>
+        <text class="notice-text">本周是模拟测试阶段，所有处罚数据暂不执行仅供参考。</text>
+      </view>
+      
       <!-- 筛选栏 -->
       <view class="filter-section">
         <view class="filter-row">
@@ -178,6 +184,24 @@ onMounted(() => {
 .header-title { font-size: 17px; font-weight: 600; }
 .back-placeholder { width: 44px; }
 .container { padding: 16px; }
+
+/* QA-20260421-1: 模拟测试提示样式 */
+.test-notice {
+  background: rgba(255, 193, 7, 0.15);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.notice-icon { font-size: 16px; }
+.notice-text {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.5;
+}
 
 .filter-section {
   background: rgba(20,20,30,0.8); border-radius: 12px; padding: 16px; margin-bottom: 16px;

@@ -49,6 +49,19 @@ function todayStr() {
 }
 
 /**
+ * 获取偏移 N 天的日期字符串（北京时间）
+ * @param {number} days - 偏移天数（正数=未来，负数=过去）
+ * 返回: "2026-04-13"
+ */
+function offsetDateStr(days) {
+  const d = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/**
  * 把数据库中的时间字符串转成 JavaScript Date 对象（已正确解释为北京时间）
  * @param {string} dbTime - "2026-04-14 07:23:00"
  * 返回: Date 对象（UTC 内部值正确对应北京时间）
@@ -127,6 +140,7 @@ module.exports = {
   nowDB,
   offsetDB,
   todayStr,
+  offsetDateStr,
   toDate,
   format,
   formatDate,

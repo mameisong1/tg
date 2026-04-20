@@ -124,8 +124,13 @@
             <text class="internal-btn-text">服务下单</text>
           </view>
           <view class="internal-btn internal-btn-disabled" @click="showUnderConstruction">
+            <text class="internal-btn-icon">🚨</text>
+            <text class="internal-btn-text">漏单统计</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/reward-penalty-view')">
             <text class="internal-btn-icon">🏆</text>
             <text class="internal-btn-text">我的奖罚</text>
+            <view class="badge" v-if="rewardPenaltyCount > 0">{{ rewardPenaltyCount }}</view>
           </view>
         </view>
       </view>
@@ -1162,6 +1167,7 @@ const shiftChangeCount = ref(0)
 const leaveRequestCount = ref(0)
 const restCount = ref(0)
 const lejuanCount = ref(0)
+const rewardPenaltyCount = ref(0)
 
 // === 前端错误收集上报 ===
 const reportError = (action, details) => {
@@ -1229,6 +1235,10 @@ const loadPendingCounts = async () => {
     leaveRequestCount.value = d.leave || 0
     restCount.value = d.rest || 0
     lejuanCount.value = d.lejuan || 0
+    
+    // 加载奖罚计数
+    const rpRes = await api.rewardPenalty.getRecentCount()
+    rewardPenaltyCount.value = rpRes.count || 0
   } catch (e) {
     reportError('loadPendingCounts_failed', {
       message: e.message,

@@ -5362,6 +5362,23 @@ app.get('/api/reward-penalty/stats/detail', authMiddleware, requireBackendPermis
   }
 });
 
+// GET /api/reward-penalty/recent-count — 获取昨天和今天的已确认奖罚数据条数
+app.get('/api/reward-penalty/recent-count', authMiddleware, async (req, res) => {
+  try {
+    const today = TimeUtil.todayStr(); // YYYY-MM-DD
+    const yesterday = TimeUtil.offsetDateStr(-1); // 昨天
+    
+    // 查询昨天和今天的奖罚记录条数
+    const sql = `SELECT COUNT(*) as count FROM reward_penalties WHERE confirm_date IN (?, ?)`;
+    const row = await dbGet(sql, [yesterday, today]);
+    
+    res.json({ success: true, count: row?.count || 0 });
+  } catch (err) {
+    logger.error(`查询奖罚计数失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
 // POST /api/reward-penalty/detail/:id — 修改明细金额
 app.post('/api/reward-penalty/detail/:id', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
