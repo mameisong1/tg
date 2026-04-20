@@ -10,6 +10,12 @@
     </view>
     <view class="header-placeholder" :style="{ height: (statusBarHeight + 44) + 'px' }"></view>
 
+    <!-- QA-20260420-4: 时间段提示栏 -->
+    <view class="time-notice" :class="timeNoticeClass">
+      <text class="notice-icon">{{ timeNoticeIcon }}</text>
+      <text class="notice-text">{{ timeNoticeText }}</text>
+    </view>
+
     <!-- 标签页 -->
     <view class="tabs">
       <view class="tab-item" :class="{ active: activeTab === 'pending' }" @click="switchTab('pending')">
@@ -26,6 +32,8 @@
     <!-- 等待审批列表（照片改小） -->
     <view class="list-section" v-if="activeTab === 'pending'">
       <view class="app-card" v-for="app in pendingList" :key="app.id">
+        <!-- QA-20260420-4: 过期申请标记 -->
+        <view v-if="isExpired(app)" class="expired-tag"><text>过期申请（只能拒绝）</text></view>
         <view class="app-header">
           <text class="app-type">{{ app.application_type }}</text>
           <text class="app-status status-0">待处理</text>
@@ -93,22 +101,61 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import api from '@/utils/api-v2.js'
 
 const statusBarHeight = ref(0)
 const adminInfo = ref({})
-const activeTab = ref('pending')  // pending | approved | rejected
+const activeTab = ref('pending')
+const serverHour = ref(null)
+const todayStr = ref(null)
 
 const pendingList = ref([])
 const approvedRecentList = ref([])
 
-onMounted(() => {
+// QA-20260420-4: 时间段提示栏 computed
+const timeNoticeClass = computed(() => {
+  const hour = serverHour.value !== null ? serverHour.value : new Date().getHours()
+  return hour >= 12 && hour < 18 ? 'success' : 'error'
+})
+const timeNoticeIcon = computed(() => {
+  const hour = serverHour.value !== null ? serverHour.value : new Date().getHours()
+  return hour >= 12 && hour < 18 ? '✅' : '❌'
+})
+const timeNoticeText = computed(() => {
+  const hour = serverHour.value !== null ? serverHour.value : new Date().getHours()
+  return hour >= 12 && hour < 18 ? '审批时间：12:00 - 18:00' : '审批时间仅限 12:00 - 18:00'
+})
+
+// QA-20260420-4: 过期申请判断
+const isExpired = (app) => {
+  if (!todayStr.value) return false
+  const applyDate = app.created_at ? app.created_at.substring(0, 10) : null
+  return applyDate && applyDate !== todayStr.value
+}
+
+onMounted(async () => {
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 20
   adminInfo.value = uni.getStorageSync('adminInfo') || {}
+  await fetchServerTime()
   loadData()
 })
+
+async function fetchServerTime() {
+  try {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api'
+    const res = await new Promise((resolve, reject) => {
+      uni.request({
+        url: baseUrl + '/server-time', method: 'GET',
+        success: (r) => r.statusCode === 200 ? resolve(r.data) : reject(new Error('请求失败')),
+        fail: reject
+      })
+    })
+    serverHour.value = res.hour
+    todayStr.value = res.date || new Date().toISOString().substring(0, 10)
+  } catch (e) { serverHour.value = new Date().getHours(); todayStr.value = new Date().toISOString().substring(0, 10) }
+}
 
 const switchTab = (tab) => {
   activeTab.value = tab
@@ -186,6 +233,17 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .back-placeholder { width: 32px; }
 .header-title { font-size: 17px; font-weight: 600; color: #d4af37; letter-spacing: 2px; }
 .header-placeholder { background: #0a0a0f; }
+
+/* QA-20260420-4: 提示栏样式 */
+.time-notice { margin: 12px 16px; padding: 12px 16px; border-radius: 8px; display: flex; align-items: center; gap: 8px; }
+.time-notice.success { background: rgba(46,204,113,0.15); border: 1px solid rgba(46,204,113,0.3); }
+.time-notice.error { background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3); }
+.notice-icon { font-size: 16px; }
+.notice-text { font-size: 13px; color: rgba(255,255,255,0.8); }
+
+/* QA-20260420-4: 过期申请标记 */
+.expired-tag { margin: 0 0 8px 0; padding: 6px 12px; background: rgba(231,76,60,0.2); border-radius: 4px; }
+.expired-tag text { font-size: 12px; color: #e74c3c; }
 
 /* 标签页 */
 .tabs {

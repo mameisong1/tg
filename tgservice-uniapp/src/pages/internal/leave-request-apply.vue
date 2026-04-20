@@ -10,6 +10,12 @@
     </view>
     <view class="header-placeholder" :style="{ height: (statusBarHeight + 44) + 'px' }"></view>
 
+    <!-- QA-20260420-4: 时间段提示栏 -->
+    <view class="time-notice" :class="timeNoticeClass">
+      <text class="notice-icon">{{ timeNoticeIcon }}</text>
+      <text class="notice-text">{{ timeNoticeText }}</text>
+    </view>
+
     <view class="form-section">
       <!-- 本月次数提示 -->
       <view class="form-item">
@@ -126,11 +132,28 @@ const myApplications = ref([])
 const monthCount = ref({ count: 0, limit: 4, remaining: 4 })
 
 const form = ref({ leaveType: '', leaveDate: '', remark: '' })
+const serverHour = ref(null)
 
-// 自定义日期选项：今天 + 未来30天
+// QA-20260420-4: 时间段提示栏 computed
+const timeNoticeClass = computed(() => {
+  const hour = serverHour.value !== null ? serverHour.value : new Date().getHours()
+  return hour >= 16 ? 'warning' : 'success'
+})
+const timeNoticeIcon = computed(() => {
+  const hour = serverHour.value !== null ? serverHour.value : new Date().getHours()
+  return hour >= 16 ? '⚠️' : '✅'
+})
+const timeNoticeText = computed(() => {
+  const hour = serverHour.value !== null ? serverHour.value : new Date().getHours()
+  return hour >= 16 ? '已过16:00，只能选择明天以后的日期' : '可申请当日请假'
+})
+
+// QA-20260420-4: 自定义日期选项（16点后不含当天）
 const dateOptions = computed(() => {
   const options = []
-  for (let i = 0; i <= 30; i++) {
+  const hour = serverHour.value !== null ? serverHour.value : new Date().getHours()
+  const startIndex = hour >= 16 ? 1 : 0 // 16点后从明天开始
+  for (let i = startIndex; i <= 30; i++) {
     const value = offsetBeijingDate(i)
     let label
     if (i === 0) label = '今天'
@@ -153,9 +176,24 @@ onMounted(async () => {
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 20
   coachInfo.value = uni.getStorageSync('coachInfo') || {}
+  await fetchServerHour()
   await loadMonthCount()
   await loadMyApplications()
 })
+
+async function fetchServerHour() {
+  try {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api'
+    const res = await new Promise((resolve, reject) => {
+      uni.request({
+        url: baseUrl + '/server-time', method: 'GET',
+        success: (r) => r.statusCode === 200 ? resolve(r.data) : reject(new Error('请求失败')),
+        fail: reject
+      })
+    })
+    serverHour.value = res.hour
+  } catch (e) { serverHour.value = new Date().getHours() }
+}
 
 function selectDate(value) {
   form.value.leaveDate = value
@@ -258,6 +296,13 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .back-placeholder { width: 32px; }
 .header-title { font-size: 17px; font-weight: 600; color: #d4af37; letter-spacing: 2px; }
 .header-placeholder { background: #0a0a0f; }
+
+/* QA-20260420-4: 提示栏样式 */
+.time-notice { margin: 12px 16px; padding: 12px 16px; border-radius: 8px; display: flex; align-items: center; gap: 8px; }
+.time-notice.success { background: rgba(46,204,113,0.15); border: 1px solid rgba(46,204,113,0.3); }
+.time-notice.warning { background: rgba(241,196,15,0.15); border: 1px solid rgba(241,196,15,0.3); }
+.notice-icon { font-size: 16px; }
+.notice-text { font-size: 13px; color: rgba(255,255,255,0.8); }
 
 .form-section { margin: 16px; }
 .form-item { margin-bottom: 24px; }
