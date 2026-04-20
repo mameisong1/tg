@@ -56,7 +56,13 @@ router.post('/', auth.required, requireBackendPermission(['cashierDashboard']), 
     let newTableNo = waterBoard.table_no;
     
     if (order_type === '上桌单') {
-      // 支持重复上桌：空闲或上桌状态都允许，但不能重复上已有台桌
+      // 禁止离店状态提交上桌单
+      const forbiddenStatuses = ['下班', '公休', '早加班', '晚加班', '休息', '请假'];
+      if (forbiddenStatuses.includes(waterBoard.status)) {
+        throw { status: 400, error: `当前状态（${waterBoard.status}）不允许提交上桌单` };
+      }
+      
+      // 支持多桌上桌：不能重复上已有台桌
       const currentTables = parseTables(waterBoard.table_no);
       
       if (currentTables.includes(table_no)) {
