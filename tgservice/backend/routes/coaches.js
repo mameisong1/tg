@@ -10,6 +10,7 @@ const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const TimeUtil = require('../utils/time');
 const operationLogService = require('../services/operation-log');
+const errorLogger = require('../utils/error-logger');
 
 /**
  * POST /api/coaches/:coach_no/clock-in
@@ -126,6 +127,7 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
       }
     });
   } catch (error) {
+    errorLogger.logApiRejection(req, error);
     if (error.status) {
       return res.status(error.status).json({ success: false, error: error.error });
     }
@@ -217,6 +219,7 @@ router.post('/:coach_no/clock-out', auth.required, requireBackendPermission(['co
       }
     });
   } catch (error) {
+    errorLogger.logApiRejection(req, error);
     if (error.status) {
       return res.status(error.status).json({ success: false, error: error.error });
     }
@@ -340,6 +343,7 @@ router.put('/batch-shift', auth.required, requireBackendPermission(['coachManage
       }
     });
   } catch (error) {
+    errorLogger.logApiRejection(req, error);
     if (error.status) {
       return res.status(error.status).json({ success: false, error: error.error });
     }
@@ -444,6 +448,7 @@ router.put('/:coach_no/shift', auth.required, requireBackendPermission(['coachMa
       }
     });
   } catch (error) {
+    errorLogger.logApiRejection(req, error);
     if (error.status) {
       return res.status(error.status).json({ success: false, error: error.error });
     }

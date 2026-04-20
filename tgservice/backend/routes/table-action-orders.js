@@ -16,6 +16,7 @@ const TimeUtil = require('../utils/time');
 const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const operationLogService = require('../services/operation-log');
+const errorLogger = require('../utils/error-logger');
 
 /**
  * POST /api/table-action-orders
@@ -143,6 +144,7 @@ router.post('/', auth.required, requireBackendPermission(['cashierDashboard']), 
       }
     });
   } catch (error) {
+    errorLogger.logApiRejection(req, error);
     if (error.status) {
       return res.status(error.status).json({ success: false, error: error.error });
     }
@@ -357,6 +359,7 @@ router.put('/:id/status', auth.required, requireBackendPermission(['cashierDashb
       }
     });
   } catch (error) {
+    errorLogger.logApiRejection(req, error);
     if (error.status) {
       return res.status(error.status).json({ success: false, error: error.error });
     }

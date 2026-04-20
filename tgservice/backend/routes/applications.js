@@ -13,6 +13,7 @@ const { requireBackendPermission } = require('../middleware/permission');
 const operationLogService = require('../services/operation-log');
 const applicationTimer = require('../services/application-timer');
 const TimeUtil = require('../utils/time');
+const errorLogger = require('../utils/error-logger');
 
 // 权限中间件：需要登录
 router.use(auth.required);
@@ -233,6 +234,7 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
       }
     });
   } catch (error) {
+    errorLogger.logApiRejection(req, error);
     if (error.status) {
       return res.status(error.status).json({ success: false, error: error.error });
     }
@@ -580,6 +582,7 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
       }
     });
   } catch (error) {
+    errorLogger.logApiRejection(req, error);
     if (error.status) {
       return res.status(error.status).json({ success: false, error: error.error });
     }
@@ -731,6 +734,7 @@ router.delete('/:id', requireBackendPermission(['all']), async (req, res) => {
     
     res.json({ success: true, message: '申请已取消' });
   } catch (error) {
+    errorLogger.logApiRejection(req, error);
     if (error.status) {
       return res.status(error.status).json({ success: false, error: error.error });
     }
@@ -795,6 +799,7 @@ router.get('/my-month-count', requireBackendPermission(['all']), async (req, res
       }
     });
   } catch (error) {
+    errorLogger.logApiRejection(req, error);
     if (error.status) {
       return res.status(error.status).json({ success: false, error: error.error });
     }

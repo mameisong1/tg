@@ -11,6 +11,7 @@ const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const TimeUtil = require('../utils/time');
 const operationLogService = require('../services/operation-log');
+const errorLogger = require('../utils/error-logger');
 
 /**
  * GET /api/water-boards
@@ -234,6 +235,7 @@ router.put('/:coach_no/status', auth.required, requireBackendPermission(['waterB
       }
     });
   } catch (error) {
+    errorLogger.logApiRejection(req, error);
     if (error.status) {
       return res.status(error.status).json({ success: false, error: error.error });
     }

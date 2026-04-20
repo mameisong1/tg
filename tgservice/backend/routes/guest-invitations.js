@@ -12,6 +12,7 @@ const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const operationLogService = require('../services/operation-log');
 const TimeUtil = require('../utils/time');
+const errorLogger = require('../utils/error-logger');
 
 // 锁定状态标记（内存变量，重启后丢失）
 const lockFlags = new Set(); // 'YYYY-MM-DD-早班' / 'YYYY-MM-DD-晚班'
@@ -131,6 +132,7 @@ router.post('/lock-should-invite', auth.required, requireBackendPermission(['inv
       }
     });
   } catch (error) {
+    errorLogger.logApiRejection(req, error);
     if (error.status) {
       return res.status(error.status).json({ success: false, error: error.error });
     }
@@ -284,6 +286,7 @@ router.post('/', auth.required, requireBackendPermission(['all']), async (req, r
       }
     });
   } catch (error) {
+    errorLogger.logApiRejection(req, error);
     if (error.status) {
       return res.status(error.status).json({ success: false, error: error.error });
     }
@@ -438,6 +441,7 @@ router.put('/:id/review', auth.required, requireBackendPermission(['invitationRe
       }
     });
   } catch (error) {
+    errorLogger.logApiRejection(req, error);
     if (error.status) {
       return res.status(error.status).json({ success: false, error: error.error });
     }
@@ -558,6 +562,7 @@ router.post('/statistics', auth.required, requireBackendPermission(['invitationS
       }
     });
   } catch (error) {
+    errorLogger.logApiRejection(req, error);
     if (error.status) {
       return res.status(error.status).json({ success: false, error: error.error });
     }
