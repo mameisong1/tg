@@ -10,6 +10,18 @@
     </view>
     <view class="header-placeholder" :style="{ height: (statusBarHeight + 44) + 'px' }"></view>
 
+    <!-- QA-20260420-4: 时间段提示栏 -->
+    <view class="time-notice" :class="timeNoticeClass">
+      <text class="notice-icon">{{ timeNoticeIcon }}</text>
+      <text class="notice-text">{{ timeNoticeText }}</text>
+    </view>
+
+    <!-- QA-20260420-4: 水牌状态提示栏 -->
+    <view v-if="waterBoardNotice" class="time-notice warning">
+      <text class="notice-icon">⚠️</text>
+      <text class="notice-text">{{ waterBoardNotice }}</text>
+    </view>
+
     <view class="form-section">
       <view class="form-item">
         <text class="form-label">申请类型</text>
@@ -66,6 +78,30 @@ const statusBarHeight = ref(0)
 const coachInfo = ref({})
 const showSuccess = ref(false)
 const serverHour = ref(null) // 服务器北京时间小时
+const waterBoardStatus = ref(null) // 水牌状态
+
+// QA-20260420-4: 时间段提示栏 computed
+const timeNoticeClass = computed(() => {
+  const hour = serverHour.value !== null ? serverHour.value : new Date().getHours()
+  return hour >= 14 ? 'error' : 'success'
+})
+const timeNoticeIcon = computed(() => {
+  const hour = serverHour.value !== null ? serverHour.value : new Date().getHours()
+  return hour >= 14 ? '❌' : '✅'
+})
+const timeNoticeText = computed(() => {
+  const hour = serverHour.value !== null ? serverHour.value : new Date().getHours()
+  return hour >= 14 ? '申请时间已截止（仅限 0:00 - 14:00）' : '申请时间：0:00 - 14:00'
+})
+
+// QA-20260420-4: 水牌状态提示
+const waterBoardNotice = computed(() => {
+  if (!waterBoardStatus.value) return null
+  if (waterBoardStatus.value !== '下班') {
+    return `当前水牌状态为「${waterBoardStatus.value}」，只能从「下班」状态申请加班`
+  }
+  return null
+})
 
 const form = ref({ remark: '' })
 
@@ -93,11 +129,38 @@ async function fetchServerHour() {
   }
 }
 
+/**
+ * QA-20260420-4: 获取水牌状态
+ */
+async function fetchWaterBoardStatus() {
+  try {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api'
+    const phone = coachInfo.value.phone || coachInfo.value.employeeId
+    if (!phone) return
+    const res = await new Promise((resolve, reject) => {
+      uni.request({
+        url: baseUrl + '/water-boards/my',
+        method: 'GET',
+        data: { employee_id: phone },
+        success: (r) => r.statusCode === 200 ? resolve(r.data) : reject(new Error('请求失败')),
+        fail: reject
+      })
+    })
+    if (res.success && res.data) {
+      waterBoardStatus.value = res.data.status
+    }
+  } catch (e) {
+    console.error('[加班申请] 获取水牌状态失败:', e)
+  }
+}
+
 onMounted(async () => {
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 20
   coachInfo.value = uni.getStorageSync('coachInfo') || {}
   await fetchServerHour()
+  await fetchWaterBoardStatus() // QA-20260420-4
+})
 })
 
 const applicationType = computed(() => {
@@ -166,6 +229,14 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .back-placeholder { width: 32px; }
 .header-title { font-size: 17px; font-weight: 600; color: #d4af37; letter-spacing: 2px; }
 .header-placeholder { background: #0a0a0f; }
+
+/* QA-20260420-4: 提示栏样式 */
+.time-notice { margin: 12px 16px; padding: 12px 16px; border-radius: 8px; display: flex; align-items: center; gap: 8px; }
+.time-notice.success { background: rgba(46,204,113,0.15); border: 1px solid rgba(46,204,113,0.3); }
+.time-notice.warning { background: rgba(241,196,15,0.15); border: 1px solid rgba(241,196,15,0.3); }
+.time-notice.error { background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3); }
+.notice-icon { font-size: 16px; }
+.notice-text { font-size: 13px; color: rgba(255,255,255,0.8); }
 
 .form-section { margin: 16px; }
 .form-item { margin-bottom: 24px; }
