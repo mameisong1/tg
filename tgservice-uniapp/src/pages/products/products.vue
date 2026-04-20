@@ -580,7 +580,9 @@ const checkAuthExpiration = () => {
         uni.removeStorageSync('tableName')
         uni.removeStorageSync('tableAuth')
         tableName.value = ''
-        console.log('[过期检查] 已过期，清空三项 Storage')
+      } else {
+        // 2026-04-20 fix: 未过期时同步最新台桌号（解决购物车切换后返回不更新问题）
+        tableName.value = uni.getStorageSync('tableName') || ''
       }
     } catch (e) {
       uni.removeStorageSync('tablePinyin')
@@ -588,6 +590,9 @@ const checkAuthExpiration = () => {
       uni.removeStorageSync('tableAuth')
       tableName.value = ''
     }
+  } else {
+    // 无授权信息也清空
+    tableName.value = ''
   }
 }
 
