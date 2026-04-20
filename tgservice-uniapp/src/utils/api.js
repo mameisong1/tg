@@ -266,6 +266,6 @@ export default {
 
   // =============== 奖罚管理 ===============
   rewardPenalty: {
-    getRecentCount: () => request({ url: '/reward-penalty/recent-count', authType: 'admin' })
+    getRecentCount: (params) => request({ url: '/reward-penalty/recent-count', data: params, authType: 'admin' })
   }
 }

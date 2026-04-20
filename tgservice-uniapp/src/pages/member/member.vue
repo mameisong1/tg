@@ -1232,9 +1232,14 @@ const loadPendingCounts = async () => {
     restCount.value = d.rest || 0
     lejuanCount.value = d.lejuan || 0
     
-    // 加载奖罚计数
-    const rpRes = await api.rewardPenalty.getRecentCount()
-    rewardPenaltyCount.value = rpRes.count || 0
+    // 加载奖罚计数（传入用户phone）
+    const adminInfo = uni.getStorageSync('adminInfo') || {}
+    const coachInfo = uni.getStorageSync('coachInfo') || {}
+    const userPhone = adminInfo.username || coachInfo.phone || ''
+    if (userPhone) {
+      const rpRes = await api.rewardPenalty.getRecentCount({ phone: userPhone })
+      rewardPenaltyCount.value = rpRes.count || 0
+    }
   } catch (e) {
     reportError('loadPendingCounts_failed', {
       message: e.message,
