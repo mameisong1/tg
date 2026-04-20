@@ -73,6 +73,19 @@ const showTableSelector = ref(false)
 const showSuccess = ref(false)
 const adminInfo = ref({})
 const coachInfo = ref({})
+const tableAuthExpireMinutes = ref(5) // 默认5分钟
+
+// 加载前端配置（获取授权过期时间）
+const loadFrontConfig = async () => {
+  try {
+    const data = await api.getFrontConfig()
+    if (data.tableAuthExpireMinutes) {
+      tableAuthExpireMinutes.value = data.tableAuthExpireMinutes
+    }
+  } catch (e) {
+    console.log('获取前端配置失败')
+  }
+}
 
 const quickTagGroups = [
   { label: '账务', color: '#e74c3c', tags: ['看账单'] },
@@ -106,7 +119,7 @@ onMounted(() => {
   statusBarHeight.value = systemInfo.statusBarHeight || 20
   adminInfo.value = uni.getStorageSync('adminInfo') || {}
   coachInfo.value = uni.getStorageSync('coachInfo') || {}
-
+  loadFrontConfig()
 })
 
 const loadDefaultTable = async () => {
@@ -166,8 +179,27 @@ const handleSuccessConfirm = () => {
 
 const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { uni.navigateBack() } else { uni.switchTab({ url: '/pages/member/member' }) } }
 
-// 每次显示页面时清空台桌号
+// 每次显示页面时检查台桌授权是否过期
+// 2026-04-20: 过期则清空 Storage，未过期则保留
 onShow(() => {
+  const authStr = uni.getStorageSync('tableAuth')
+  if (authStr) {
+    try {
+      const auth = JSON.parse(authStr)
+      const isExpired = (Date.now() - auth.time) > tableAuthExpireMinutes.value * 60 * 1000
+      if (isExpired) {
+        // 过期：清空三项（与存入一致）
+        uni.removeStorageSync('tablePinyin')
+        uni.removeStorageSync('tableName')
+        uni.removeStorageSync('tableAuth')
+      }
+    } catch (e) {
+      // 解析失败也清空
+      uni.removeStorageSync('tablePinyin')
+      uni.removeStorageSync('tableName')
+      uni.removeStorageSync('tableAuth')
+    }
+  }
   form.value.table_no = ''
 })
 

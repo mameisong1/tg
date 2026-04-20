@@ -88,10 +88,13 @@
 
       <!-- 台桌信息显示 -->
       <view class="table-info-wrapper">
-        <!-- 员工模式 -->
-        <view v-if="isEmployee" class="table-info employee-mode">
-          <text class="table-label">当前台桌：</text>
+        <!-- 员工模式：台桌号 + 切换按钮 -->
+        <view v-if="isEmployee" class="employee-table-bar">
+          <text class="table-label">台桌：</text>
           <text class="table-value">{{ tableName || '未选择' }}</text>
+          <view class="switch-btn" @click="showTableSelector = true">
+            <text>切换台桌</text>
+          </view>
         </view>
         <!-- 非员工模式 -->
         <TableInfo v-else ref="tableInfoRef" hideWhenValid />
@@ -627,13 +630,27 @@ const scrollToTop = () => {
 
 // 每次显示页面时刷新
 onShow(() => {
-  // 【新增】员工进入时清空旧台桌号
-  if (isEmployee.value) {
-    uni.removeStorageSync('tableName')
-    uni.removeStorageSync('tableAuth')
-    tableName.value = ''
+  // 2026-04-20: 检查台桌授权是否过期，过期则清空（所有人）
+  const authStr = uni.getStorageSync('tableAuth')
+  if (authStr) {
+    try {
+      const auth = JSON.parse(authStr)
+      const isExpired = (Date.now() - auth.time) > tableAuthExpireMinutes.value * 60 * 1000
+      if (isExpired) {
+        // 过期：清空三项（与存入一致）
+        uni.removeStorageSync('tablePinyin')
+        uni.removeStorageSync('tableName')
+        uni.removeStorageSync('tableAuth')
+        tableName.value = ''
+      }
+    } catch (e) {
+      // 解析失败也清空
+      uni.removeStorageSync('tablePinyin')
+      uni.removeStorageSync('tableName')
+      uni.removeStorageSync('tableAuth')
+      tableName.value = ''
+    }
   }
-  // 普通用户：不需要处理，TableInfo组件会自动显示
   
   // 原有逻辑
   tableInfoRef.value?.loadTableInfo()
@@ -772,8 +789,8 @@ onShow(() => {
   font-weight: 600;
 }
 
-/* 员工模式台桌信息 */
-.table-info.employee-mode {
+/* 员工模式：顶部台桌号 + 切换按钮 */
+.employee-table-bar {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -781,15 +798,30 @@ onShow(() => {
   background: rgba(212, 175, 55, 0.1);
   border: 1px solid rgba(212, 175, 55, 0.3);
   border-radius: 12px;
+  margin-bottom: 16px;
 }
-.table-info.employee-mode .table-label {
+.employee-table-bar .table-label {
   font-size: 14px;
   color: rgba(255, 255, 255, 0.6);
 }
-.table-info.employee-mode .table-value {
+.employee-table-bar .table-value {
   font-size: 16px;
   color: #d4af37;
   font-weight: 600;
+  min-width: 50px;
+}
+.employee-table-bar .switch-btn {
+  margin-left: auto;
+  padding: 6px 16px;
+  background: linear-gradient(135deg, #d4af37, #ffd700);
+  border-radius: 20px;
+  font-size: 12px;
+  color: #000;
+  font-weight: 600;
+}
+.employee-table-bar .switch-btn:active {
+  opacity: 0.8;
+  transform: scale(0.95);
 }
 /* #endif */
 
