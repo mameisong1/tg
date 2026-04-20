@@ -277,8 +277,23 @@ async function taskEndLejuan(shiftType) {
 }
 
 /**
+ * 格式化日期为 YYYY-MM-DD
+ */
+function formatBeijingDate(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+}
+
+/**
  * 任务：中午 12:00 奖罚自动同步（去重逻辑）
- * 从乐捐记录和申请表中同步奖罚数据，去重插入 reward_penalties 表
+ * 同步四种奖罚类型到 reward_penalties 表：
+ *   - 未约客罚金：确定日期=约客数据生成日，罚金20元/条
+ *   - 漏单罚金：确定日期=上桌单发出日，罚金10元/条
+ *   - 漏卡罚金：确定日期=上班卡日期，罚金10元/条
+ *   - 助教日常（请假罚金）：确定日期=请假日期，病假-200，事假-300
+ * 去重规则：如果已存在（确定日期+奖罚类型+手机号）则跳过
  */
 async function taskSyncRewardPenalty() {
     const taskName = 'sync_reward_penalty';
@@ -287,117 +302,209 @@ async function taskSyncRewardPenalty() {
 
     console.log('[CronScheduler] 开始执行: sync_reward_penalty');
 
+    // 计算昨天和前天的日期字符串
+    const today = new Date(TimeUtil.nowDB() + '+08:00');
+    const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+    const beforeYesterday = new Date(today); beforeYesterday.setDate(beforeYesterday.getDate() - 2);
+    const yesterdayStr = formatBeijingDate(yesterday);
+    const beforeYesterdayStr = formatBeijingDate(beforeYesterday);
+    console.log(`[CronScheduler] 处理日期范围: ${beforeYesterdayStr} ~ ${yesterdayStr}`);
+
     try {
         const result = await runInTransaction(async (tx) => {
             const now = TimeUtil.nowDB();
             let affected = 0;
+            const stats = { guest: 0, missingTable: 0, missingClock: 0, leave: 0 };
 
-            // === 1. 从乐捐记录同步 ===
-            // 将 active/ended 状态的乐捐同步到奖罚表
-            // 使用 confirm_date = 乐捐的 actual_start_time 或 scheduled_start_time 日期部分
-            // 去重: ON CONFLICT(confirm_date, type, phone) DO UPDATE
-            const lejuanRecords = await tx.all(`
-                SELECT lr.*, c.phone, c.stage_name, c.employee_id
-                FROM lejuan_records lr
-                LEFT JOIN coaches c ON lr.coach_no = c.coach_no
-                WHERE lr.lejuan_status IN ('active', 'ended')
-                    AND (lr.extra_data IS NULL
-                         OR lr.extra_data NOT LIKE '%"reward_synced":true%')
-                ORDER BY lr.id
-            `);
+            // === 1. 未约客罚金 ===
+            // 查找昨天和前天的未约客+无效约客记录
+            // 确定日期 = 约客数据生成日（guest_invitation_results.date）
+            const guestRecords = await tx.all(`
+                SELECT gi.*, c.phone, c.stage_name, c.employee_id
+                FROM guest_invitation_results gi
+                LEFT JOIN coaches c ON gi.coach_no = c.coach_no
+                WHERE gi.result IN ('应约客')
+                    AND gi.date IN (?, ?)
+                    AND c.phone IS NOT NULL
+                    AND NOT EXISTS (
+                        SELECT 1 FROM reward_penalties rp
+                        WHERE rp.confirm_date = gi.date
+                        AND rp.type = '未约客罚金'
+                        AND rp.phone = c.phone
+                    )
+            `, [yesterdayStr, beforeYesterdayStr]);
 
-            for (const record of lejuanRecords) {
-                // 使用 employee_id 或 phone 作为联系标识
-                const contactPhone = record.phone || record.employee_id;
-                if (!contactPhone) {
-                    console.log(`[CronScheduler] sync_reward_penalty: 乐捐记录 ${record.id} 无关联联系方式，跳过`);
-                    continue;
-                }
-
-                const syncTime = record.actual_start_time || record.scheduled_start_time;
-                const confirmDate = syncTime ? syncTime.substring(0, 10) : TimeUtil.todayStr();
-                const type = '乐捐';
-                const amount = 0; // 乐捐金额由后续手动设置
+            for (const record of guestRecords) {
+                const type = '未约客罚金';
+                const confirmDate = record.date;
+                const amount = -20; // 一条处罚20块
                 const name = record.stage_name || '';
 
                 await tx.run(
                     `INSERT INTO reward_penalties (type, confirm_date, phone, name, amount, remark, exec_status, updated_at)
                      VALUES (?, ?, ?, ?, ?, ?, '未执行', ?)
-                     ON CONFLICT(confirm_date, type, phone) DO UPDATE SET
-                         name = excluded.name,
-                         remark = excluded.remark,
-                         updated_at = excluded.updated_at`,
-                    [type, confirmDate, contactPhone, name, amount,
-                     `乐捐同步: ${record.stage_name || ''} (${syncTime || ''})`, now]
+                     ON CONFLICT(confirm_date, type, phone) DO NOTHING`,
+                    [type, confirmDate, record.phone, name, amount,
+                     `未约客: ${name} (${record.shift || ''})`, now]
                 );
-
-                // 标记已同步（用 extra_data JSON 字段）
-                const extraData = record.extra_data ? JSON.parse(record.extra_data) : {};
-                extraData.reward_synced = true;
-                extraData.reward_synced_at = now;
-                await tx.run(
-                    'UPDATE lejuan_records SET extra_data = ?, updated_at = ? WHERE id = ?',
-                    [JSON.stringify(extraData), now, record.id]
-                );
-
+                stats.guest++;
                 affected++;
             }
+            console.log(`[CronScheduler] 未约客罚金: ${stats.guest} 条`);
 
-            // === 2. 从申请表同步（休息/请假扣款）===
-            const applicationRecords = await tx.all(`
-                SELECT a.*, c.phone, c.stage_name
+            // === 2. 漏单罚金 ===
+            // 查找昨天和前天的上桌单缺失下桌单记录
+            // 确定日期 = 上桌单发出日期（table_action_orders.created_at）
+            const missingTableOrders = await tx.all(`
+                SELECT t_in.*, c.phone, c.stage_name, c.employee_id,
+                       DATE(t_in.created_at) AS table_date
+                FROM table_action_orders t_in
+                LEFT JOIN coaches c ON t_in.coach_no = c.coach_no
+                WHERE t_in.order_type = '上桌单'
+                    AND DATE(t_in.created_at) IN (?, ?)
+                    AND c.phone IS NOT NULL
+                    AND NOT EXISTS (
+                        SELECT 1 FROM table_action_orders t_out
+                        WHERE t_out.order_type = '下桌单'
+                            AND t_out.coach_no = t_in.coach_no
+                            AND t_out.table_no = t_in.table_no
+                            AND t_out.stage_name = t_in.stage_name
+                            AND t_out.created_at > t_in.created_at
+                            AND t_out.created_at <= datetime(t_in.created_at, '+15 hours')
+                    )
+                    AND NOT EXISTS (
+                        SELECT 1 FROM reward_penalties rp
+                        WHERE rp.confirm_date = DATE(t_in.created_at)
+                        AND rp.type = '漏单罚金'
+                        AND rp.phone = c.phone
+                    )
+            `, [yesterdayStr, beforeYesterdayStr]);
+
+            for (const record of missingTableOrders) {
+                const type = '漏单罚金';
+                const confirmDate = record.table_date;
+                const amount = -10; // 一条处罚10块
+                const name = record.stage_name || '';
+
+                await tx.run(
+                    `INSERT INTO reward_penalties (type, confirm_date, phone, name, amount, remark, exec_status, updated_at)
+                     VALUES (?, ?, ?, ?, ?, ?, '未执行', ?)
+                     ON CONFLICT(confirm_date, type, phone) DO NOTHING`,
+                    [type, confirmDate, record.phone, name, amount,
+                     `漏单: ${name} ${record.table_no}`, now]
+                );
+                stats.missingTable++;
+                affected++;
+            }
+            console.log(`[CronScheduler] 漏单罚金: ${stats.missingTable} 条`);
+
+            // === 3. 漏卡罚金 ===
+            // 查找昨天和前天的漏卡记录
+            // 漏卡定义：上班打卡后，次日12点前无下班打卡
+            // 确定日期 = 上班卡日期（attendance_records.date）
+            const missingClockRecords = await tx.all(`
+                SELECT ar.*, c.phone, c.stage_name, c.employee_id
+                FROM attendance_records ar
+                LEFT JOIN coaches c ON ar.coach_no = c.coach_no
+                WHERE ar.date IN (?, ?)
+                    AND ar.clock_in_time IS NOT NULL
+                    AND c.phone IS NOT NULL
+                    AND (
+                        ar.clock_out_time IS NULL
+                        OR (
+                            DATE(ar.clock_out_time) = DATE(ar.clock_in_time, '+1 day')
+                            AND TIME(ar.clock_out_time) > '12:00:00'
+                        )
+                    )
+                    AND NOT EXISTS (
+                        SELECT 1 FROM reward_penalties rp
+                        WHERE rp.confirm_date = ar.date
+                        AND rp.type = '漏卡罚金'
+                        AND rp.phone = c.phone
+                    )
+            `, [yesterdayStr, beforeYesterdayStr]);
+
+            for (const record of missingClockRecords) {
+                const type = '漏卡罚金';
+                const confirmDate = record.date;
+                const amount = -10; // 一条处罚10块
+                const name = record.stage_name || '';
+
+                await tx.run(
+                    `INSERT INTO reward_penalties (type, confirm_date, phone, name, amount, remark, exec_status, updated_at)
+                     VALUES (?, ?, ?, ?, ?, ?, '未执行', ?)
+                     ON CONFLICT(confirm_date, type, phone) DO NOTHING`,
+                    [type, confirmDate, record.phone, name, amount,
+                     `漏卡: ${name} (${record.date})`, now]
+                );
+                stats.missingClock++;
+                affected++;
+            }
+            console.log(`[CronScheduler] 漏卡罚金: ${stats.missingClock} 条`);
+
+            // === 4. 请假罚金（助教日常）===
+            // 查找请假日期在昨天和前天的已审批请假申请
+            // 确定日期 = 请假日期（不是申请日期），在 extra_data.leave_date 中
+            // 病假-200，事假-300
+            const leaveRecords = await tx.all(`
+                SELECT a.*, c.phone, c.stage_name, c.employee_id
                 FROM applications a
                 LEFT JOIN coaches c ON a.applicant_phone = c.phone OR a.applicant_phone = c.employee_id
                 WHERE a.status = 1
-                    AND a.application_type IN ('休息申请', '请假申请')
-                    AND (a.extra_data NOT LIKE '%"reward_penalty_synced":true%'
-                         OR a.extra_data NOT LIKE '%"reward_penalty_synced_at"%')
-                ORDER BY a.id
+                    AND a.application_type = '请假申请'
+                    AND c.phone IS NOT NULL
+                    AND a.extra_data IS NOT NULL
+                    AND a.extra_data LIKE '%leave_date%'
             `);
 
-            for (const record of applicationRecords) {
+            for (const record of leaveRecords) {
                 if (!record.phone) continue;
 
-                const confirmDate = record.updated_at ? record.updated_at.substring(0, 10) : TimeUtil.todayStr();
-                const type = record.application_type === '休息申请' ? '休息扣款' : '请假扣款';
-                const amount = -100; // 默认扣款金额，可配置
-                const name = record.stage_name || '';
-
-                await tx.run(
-                    `INSERT INTO reward_penalties (type, confirm_date, phone, name, amount, remark, exec_status, updated_at)
-                     VALUES (?, ?, ?, ?, ?, ?, '未执行', ?)
-                     ON CONFLICT(confirm_date, type, phone) DO UPDATE SET
-                         amount = excluded.amount,
-                         updated_at = excluded.updated_at`,
-                    [type, confirmDate, record.phone, name, amount,
-                     `${record.application_type}同步: ID ${record.id}`, now]
-                );
-
-                // 标记已同步
                 try {
                     const extraData = JSON.parse(record.extra_data || '{}');
-                    extraData.reward_penalty_synced = true;
-                    extraData.reward_penalty_synced_at = now;
-                    await tx.run(
-                        'UPDATE applications SET extra_data = ?, updated_at = ? WHERE id = ?',
-                        [JSON.stringify(extraData), now, record.id]
+                    const leaveDate = extraData.leave_date; // 请假日期
+                    const leaveType = extraData.leave_type; // 病假/事假
+
+                    // 只处理昨天和前天的请假
+                    if (leaveDate !== yesterdayStr && leaveDate !== beforeYesterdayStr) continue;
+
+                    // 检查是否已存在（去重）
+                    const existing = await tx.get(
+                        'SELECT id FROM reward_penalties WHERE confirm_date = ? AND type = ? AND phone = ?',
+                        [leaveDate, '助教日常', record.phone]
                     );
+                    if (existing) continue;
+
+                    const type = '助教日常';
+                    const confirmDate = leaveDate;
+                    const amount = leaveType === '病假' ? -200 : -300;
+                    const name = record.stage_name || '';
+
+                    await tx.run(
+                        `INSERT INTO reward_penalties (type, confirm_date, phone, name, amount, remark, exec_status, updated_at)
+                         VALUES (?, ?, ?, ?, ?, ?, '未执行', ?)
+                         ON CONFLICT(confirm_date, type, phone) DO NOTHING`,
+                        [type, confirmDate, record.phone, name, amount,
+                         `请假: ${leaveType} (${leaveDate})`, now]
+                    );
+                    stats.leave++;
+                    affected++;
                 } catch (e) {
-                    console.error(`[CronScheduler] 更新申请 extra_data 失败:`, e);
+                    console.error(`[CronScheduler] 解析请假申请 extra_data 失败:`, e, record.extra_data);
                 }
-
-                affected++;
             }
+            console.log(`[CronScheduler] 请假罚金: ${stats.leave} 条`);
 
-            return { affected };
+            return { affected, stats };
         });
 
         const finishedAt = TimeUtil.nowDB();
         const nextRun = calcNextRun('0 12 * * *');
 
+        const details = `未约客:${result.stats.guest} 漏单:${result.stats.missingTable} 漏卡:${result.stats.missingClock} 请假:${result.stats.leave}`;
         await logCron(
             taskName, taskType, 'success', result.affected,
-            `同步 ${result.affected} 条奖罚记录`,
+            details,
             null, startedAt, finishedAt
         );
 
@@ -408,7 +515,7 @@ async function taskSyncRewardPenalty() {
             lastError: null
         });
 
-        console.log(`[CronScheduler] sync_reward_penalty 完成: 同步 ${result.affected} 条记录`);
+        console.log(`[CronScheduler] sync_reward_penalty 完成: ${details}`);
     } catch (err) {
         const finishedAt = TimeUtil.nowDB();
         console.error('[CronScheduler] sync_reward_penalty 失败:', err);
