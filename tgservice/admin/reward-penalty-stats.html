@@ -110,6 +110,10 @@
     }
     .detail-table th { color: rgba(255,255,255,0.6); font-weight: 500; }
     .detail-table tr:hover { background: rgba(212,175,55,0.03); }
+
+    /* 删除按钮样式 */
+    .btn-delete { background: rgba(231,76,60,0.1); color: #e74c3c; padding: 4px 10px; font-size: 12px; border-radius: 4px; cursor: pointer; border: 1px solid rgba(231,76,60,0.2); }
+    .btn-delete:hover { background: rgba(231,76,60,0.2); }
   </style>
   <link rel="stylesheet" href="sidebar.css">
 </head>
@@ -186,6 +190,7 @@
               <th style="width:120px">金额</th>
               <th>备注</th>
               <th style="width:80px">状态</th>
+              <th style="width:70px" id="deleteColHeader">操作</th>
             </tr>
           </thead>
           <tbody id="detailTableBody">
@@ -215,6 +220,25 @@
     // 弹框相关
     let currentDetailPhone = '';
     let currentDetailRecords = [];
+    let isAdmin = false;  // 管理员标识
+
+    // 从 token 解析角色判断是否管理员
+    function checkAdminRole() {
+      try {
+        const parts = token.split('.');
+        if (parts.length !== 3) return false;
+        let b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        while (b64.length % 4) b64 += '=';
+        const binary = atob(b64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const payload = JSON.parse(new TextDecoder('utf-8').decode(bytes));
+        const role = payload.role || '';
+        return ['管理员', '超级管理员'].includes(role);
+      } catch (e) {
+        return false;
+      }
+    }
 
     async function api(url, options = {}) {
       options.headers = { ...options.headers, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
@@ -232,6 +256,14 @@
 
     // ============ 初始化 ============
     async function init() {
+      // 初始化管理员标识
+      isAdmin = checkAdminRole();
+      // 非管理员隐藏操作列
+      if (!isAdmin) {
+        const delHeader = document.getElementById('deleteColHeader');
+        if (delHeader) delHeader.style.display = 'none';
+      }
+
       const res = await api('/api/admin/reward-penalty/types');
       if (res.success && res.types) {
         rewardTypes = res.types;
@@ -361,7 +393,7 @@
       document.getElementById('modalTitle').textContent = `${empId}号 ${person.name} - 奖罚明细`;
 
       // 先清空，显示加载中
-      document.getElementById('detailTableBody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:rgba(255,255,255,0.4)">加载中...</td></tr>';
+      document.getElementById('detailTableBody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:rgba(255,255,255,0.4)">加载中...</td></tr>';
       document.getElementById('detailStats').innerHTML = '';
       showModal();
 
@@ -372,13 +404,13 @@
           renderDetailModal(person);
         }
       } catch (e) {
-        document.getElementById('detailTableBody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:#e74c3c">加载失败: ' + e.message + '</td></tr>';
+        document.getElementById('detailTableBody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#e74c3c">加载失败: ' + e.message + '</td></tr>';
       }
     }
 
     function renderDetailModal(person) {
       if (currentDetailRecords.length === 0) {
-        document.getElementById('detailTableBody').innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:rgba(255,255,255,0.4)">暂无明细数据</td></tr>';
+        document.getElementById('detailTableBody').innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:rgba(255,255,255,0.4)">暂无明细数据</td></tr>';
         document.getElementById('detailStats').innerHTML = '';
         return;
       }
@@ -411,6 +443,8 @@
       currentDetailRecords.forEach((r, rIdx) => {
         const isExecuted = r.exec_status === '已执行';
         const inputDisabled = isExecuted ? 'disabled' : '';
+        // 删除按钮：只有管理员可见且只对未执行记录显示
+        const deleteBtn = (isAdmin && !isExecuted) ? `<button class="btn-delete" onclick="deleteRecord(${rIdx})">删除</button>` : '<span style="color:rgba(255,255,255,0.2)">-</span>';
         html += `<tr data-ridx="${rIdx}" data-id="${r.id}">
           <td>${r.type}</td>
           <td>${r.confirm_date}</td>
@@ -424,6 +458,7 @@
           </td>
           <td>${r.remark || '-'}</td>
           <td><span class="badge ${isExecuted ? 'badge-executed' : 'badge-pending'}">${r.exec_status}</span></td>
+          <td>${deleteBtn}</td>
         </tr>`;
       });
       document.getElementById('detailTableBody').innerHTML = html;
@@ -465,6 +500,60 @@
       } catch (e) {
         showToast('保存失败: ' + e.message);
         inputEl.value = Math.round(originalAmount);
+      }
+    }
+
+    // ============ 删除奖罚明细（仅管理员）============
+    async function deleteRecord(rIdx) {
+      if (!isAdmin) {
+        showToast('只有管理员才能删除');
+        return;
+      }
+      const record = currentDetailRecords[rIdx];
+      if (!record) return;
+
+      // 已执行记录禁止删除
+      if (record.exec_status === '已执行') {
+        showToast('已执行记录不可删除');
+        return;
+      }
+
+      // 确认删除
+      const confirmMsg = `确认删除该奖罚记录？\n类型: ${record.type}\n金额: ¥${Math.round(record.amount)}\n日期: ${record.confirm_date}`;
+      if (!confirm(confirmMsg)) return;
+
+      try {
+        const res = await api(`/api/reward-penalty/detail/${record.id}`, { method: 'DELETE' });
+        if (res.success) {
+          // 从本地数据中移除
+          currentDetailRecords.splice(rIdx, 1);
+
+          // 更新弹框内统计
+          updateDetailStats();
+
+          // 更新主表对应人员的金额和计数
+          const idx = summaryData.findIndex(p => p.phone === currentDetailPhone);
+          if (idx !== -1) {
+            summaryData[idx].totalCount -= 1;
+            summaryData[idx].pendingCount -= 1;
+            summaryData[idx].personTotal -= record.amount;
+            // 移除 pendingIds 中的该 ID
+            const pidIdx = summaryData[idx].pendingIds.indexOf(record.id);
+            if (pidIdx !== -1) summaryData[idx].pendingIds.splice(pidIdx, 1);
+          }
+
+          // 重新渲染弹框内容
+          renderDetailModal(summaryData[idx] || { name: '', employee_id: '-' });
+
+          // 更新主表显示
+          renderTable();
+
+          showToast('已删除');
+        } else {
+          showToast(res.error || '删除失败');
+        }
+      } catch (e) {
+        showToast('删除失败: ' + e.message);
       }
     }
 
