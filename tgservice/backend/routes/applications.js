@@ -484,7 +484,8 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
       WHERE id = ?
     `, [approveStatus, approver_phone || req.user.username, nowDB, nowDB, id]);
     
-    // 审批同意:处理水牌状态
+    // === 审批同意:处理水牌状态 ===
+    if (approveStatus === 1) {
       const coach = await tx.get(
         'SELECT coach_no, stage_name, shift FROM coaches WHERE employee_id = ? OR phone = ?',
         [application.applicant_phone, application.applicant_phone]
@@ -707,9 +708,10 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
             new_value: JSON.stringify(newValue),
             remark: `${application.application_type}审批通过,水牌状态:${oldValue.status} → ${newStatus}`
           });
-        }
-      }
-    }
+          } // 结束 if (shouldChangeWaterBoard)
+        } // 结束 if (currentWaterBoard)
+      } // 结束 if (coach)
+    } // 结束 if (approveStatus === 1)
 
     const user = req.user;
     await operationLogService.create(tx, {
