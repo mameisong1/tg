@@ -1666,6 +1666,68 @@ MQTT 发送失败时返回 HTTP 502：
 
 ---
 
+## 约客管理接口（2026-04-20更新）
+
+### 锁定应约客人员
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/guest-invitations/lock-should-invite` | POST | 手动锁定（需权限校验） |
+| `/api/guest-invitations/internal/lock` | POST | 自动锁定（内部调用，无权限校验） |
+| `/api/guest-invitations/check-lock` | GET | 检查是否已锁定 |
+
+#### POST /api/guest-invitations/lock-should-invite
+
+**用途**：手动触发锁定应约客人员（管理员操作）
+
+**认证**：需要登录 + `invitationReview` 权限
+
+**请求体**：
+```json
+{
+  "date": "2026-04-20",
+  "shift": "早班"
+}
+```
+
+**时间校验**：
+- 早班锁定需在 16:00 后
+- 晚班锁定需在 20:00 后
+
+**响应示例**：
+```json
+{
+  "success": true,
+  "data": {
+    "date": "2026-04-20",
+    "shift": "早班",
+    "locked_count": 4,
+    "total_count": 4,
+    "coaches": [{"coach_no":"10002","stage_name":"陆飞"}]
+  }
+}
+```
+
+#### POST /api/guest-invitations/internal/lock
+
+**用途**：Cron 自动调用锁定应约客人员（无权限校验）
+
+**认证**：无（仅允许 127.0.0.1 内部调用）
+
+**请求体**：同上
+
+**特殊处理**：
+- 跳过 16:00/20:00 时间校验
+- 操作人记录为 `cron_system` / `系统自动`
+
+**响应示例**：同上
+
+**错误响应**：
+- `403` - 仅允许内部调用（非 127.0.0.1 来源）
+- `400` - 今日已开始审查，无需重复锁定
+
+---
+
 ## 规约客统计接口（2026-04-17新增）
 
 ### 按周期统计约客情况
@@ -1981,6 +2043,22 @@ MQTT 发送失败时返回 HTTP 502：
       "cron_expression": "0 12 * * *",
       "next_run": "2026-04-20 12:00:00",
       "is_enabled": 1
+    },
+    {
+      "task_name": "lock_guest_invitation_morning",
+      "task_type": "lock_guest_invitation",
+      "description": "下午16点自动锁定早班应约客人员",
+      "cron_expression": "0 16 * * *",
+      "next_run": "2026-04-21 16:00:00",
+      "is_enabled": 1
+    },
+    {
+      "task_name": "lock_guest_invitation_evening",
+      "task_type": "lock_guest_invitation",
+      "description": "晚上20点自动锁定晚班应约客人员",
+      "cron_expression": "0 20 * * *",
+      "next_run": "2026-04-21 20:00:00",
+      "is_enabled": 1
     }
   ],
   "recentLogs": [...]
@@ -2001,7 +2079,7 @@ MQTT 发送失败时返回 HTTP 502：
 **参数**：
 | 参数 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| taskName | string | 否 | 任务名称：end_lejuan_morning / end_lejuan_evening / sync_reward_penalty |
+| taskName | string | 否 | 任务名称：end_lejuan_morning / end_lejuan_evening / sync_reward_penalty / lock_guest_invitation_morning / lock_guest_invitation_evening |
 | status | string | 否 | 执行状态：success / failed |
 | limit | number | 否 | 返回条数，默认 50 |
 
