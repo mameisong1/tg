@@ -599,7 +599,7 @@ async function taskLockGuestInvitation(shiftType) {
         const options = {
             hostname: '127.0.0.1',
             port: parseInt(process.env.PORT) || (process.env.TGSERVICE_ENV === 'test' ? 8088 : 80),
-            path: '/api/internal/guest-invitations/lock',
+            path: '/api/guest-invitations/internal/lock',
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

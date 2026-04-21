@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  tinytuya-controller:
+    build: .
+    container_name: tinytuya-controller
+    restart: unless-stopped
+    environment:
+      # MQTT 配置
+      - MQTT_HOST=8.134.248.240
+      - MQTT_PORT=1883
+      - MQTT_USERNAME=admin
+      - MQTT_PASSWORD=mms6332628
+      - MQTT_CLIENT_ID=tinytuya-controller
+      
+      # 涂鸦设备配置
+      # 需要通过 tinytuya wizard 获取 local_key
+      - TUYA_LOCAL_KEY=${TUYA_LOCAL_KEY:-}
+      - TUYA_DEVICE_IP=${TUYA_DEVICE_IP:-}
+    
+    # 如果需要访问局域网内的涂鸦设备
+    network_mode: host
+    
+    # 或者使用 bridge 模式（需要知道设备IP）
+    # networks:
+    #   - tuya_network
+    
+    volumes:
+      - ./logs:/app/logs
+    
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  tuya_network:
+    driver: bridge
