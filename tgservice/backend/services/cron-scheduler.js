@@ -420,7 +420,7 @@ async function taskSyncRewardPenalty() {
                         WHERE rp.confirm_date = DATE(t_in.created_at)
                         AND rp.type = '漏单罚金'
                         AND rp.phone = c.phone
-                        AND rp.remark = `漏单 ` || t_in.table_no
+                        AND rp.remark = '漏单 ' || t_in.table_no
                     )
             `, [yesterdayStr, beforeYesterdayStr]);
 
@@ -465,7 +465,7 @@ async function taskSyncRewardPenalty() {
                         WHERE rp.confirm_date = ar.date
                         AND rp.type = '漏卡罚金'
                         AND rp.phone = c.phone
-                        AND rp.remark = `漏卡 (` || ar.date || `)`
+                        AND rp.remark = '漏卡 (' || ar.date || ')'
                     )
             `, [yesterdayStr, beforeYesterdayStr]);
 
