@@ -191,7 +191,6 @@ onMounted(() => {
 
 /* 迟到状态徽章 */
 .late-badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: auto; }
-}
 .late-badge.is-late { background: rgba(231,76,60,0.2); color: #e74c3c; }
 .late-badge:not(.is-late) { background: rgba(46,204,113,0.2); color: #2ecc71; }
 </style>
