@@ -54,7 +54,9 @@ async function calculateIsLate(clockInTime, shift, coachNo, date, tx) {
     return 0;
   }
 
-  const expectedHour = Math.max(0, baseHour - overtimeHours);
+  // 加班 = 可以晚到，应上班时间延后
+  // 早加班/晚加班 → 应上班时间 = 正常时间 + 加班小时数
+  const expectedHour = Math.min(24, baseHour + overtimeHours);
   const expectedTime = `${date} ${String(expectedHour).padStart(2, '0')}:00:00`;
 
   // 字符串比较（"YYYY-MM-DD HH:MM:SS" 格式可直接比较）

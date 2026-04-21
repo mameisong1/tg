@@ -6,8 +6,9 @@
   "designAuditRound": 1,
   "testCasesAuditRound": 1,
   "fixRound": 0,
-  "currentStep": "deploy",
+  "currentStep": null,
   "designSummary": "打卡审查改进：6文件变更(迁移脚本+coaches.js+attendance-review.js+api-v2.js+member.vue+attendance-review.vue)；新增2个API(pending-count/markReviewed)；迟到计算在打卡时写入；角标显示迟到未审查人数；审查页面直接读is_late字段；历史数据默认不迟到。",
   "userConfirmedAt": "2026-04-21T23:32:17.141Z",
-  "userConfirmedBy": "马哥"
+  "userConfirmedBy": "马哥",
+  "qaReportPath": "/TG/temp/QA-20260422-01/qa-report.md"
 }
