@@ -5,7 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { get, run } = require('../db');
+const { all, get, run } = require('../db');
 const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const TimeUtil = require('../utils/time');
@@ -59,7 +59,7 @@ router.get('/', auth.required, requireBackendPermission(['店长', '助教管理
       ORDER BY ar.clock_in_time DESC
     `;
 
-    const records = await get(sql, [targetDate, shift, shift]);
+    const records = await all(sql, [targetDate, shift, shift]);
 
     // 处理返回数据
     const parsedRecords = records.map(r => {
