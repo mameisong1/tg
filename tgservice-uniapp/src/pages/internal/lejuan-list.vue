@@ -104,6 +104,13 @@
           </view>
         </view>
 
+        <!-- 乐捐归来按钮（仅店长/管理员/助教管理/教练可见） -->
+        <view class="lj-actions" v-if="item.lejuan_status === 'active' && canReturnLejuan">
+          <view class="lj-btn-return" @click="handleReturnLejuan(item)" @click.stop>
+            <text class="lj-btn-text">乐捐归来</text>
+          </view>
+        </view>
+
       </view>
     </view>
     <view class="empty" v-else-if="!loading"><text>暂无乐捐记录</text></view>
@@ -120,6 +127,7 @@ const recordList = ref([])
 const loading = ref(false)
 const statusFilter = ref('all')
 const daysFilter = ref(3)
+const adminInfo = ref({})
 
 const statusOptions = ref(['全部状态', '乐捐中', '待出发', '已归来'])
 const statusMap = { '全部状态': 'all', '乐捐中': 'active', '待出发': 'pending', '已归来': 'returned' }
@@ -132,6 +140,11 @@ const daysMapReverse = { 1: '近1天', 3: '近3天', 7: '近7天' }
 const statusDisplay = computed(() => statusMapReverse[statusFilter.value])
 const daysDisplay = computed(() => daysMapReverse[daysFilter.value])
 
+// 权限判断（店长/管理员/助教管理/教练可以使用乐捐归来按钮）
+const canReturnLejuan = computed(() => {
+  return ['店长', '管理员', '助教管理', '教练'].includes(adminInfo.value.role)
+})
+
 // 统计
 const statActive = computed(() => recordList.value.filter(r => r.lejuan_status === 'active').length)
 const statPending = computed(() => recordList.value.filter(r => r.lejuan_status === 'pending').length)
@@ -140,6 +153,7 @@ const statReturned = computed(() => recordList.value.filter(r => r.lejuan_status
 onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 20
+  adminInfo.value = uni.getStorageSync('adminInfo') || {}
   loadData()
 })
 
@@ -199,6 +213,31 @@ const previewProofImages = (item, idx) => {
 
 const previewProof = (url) => {
   uni.previewImage({ urls: [url] })
+}
+
+// 乐捐归来
+const handleReturnLejuan = async (item) => {
+  const localAdminInfo = uni.getStorageSync('adminInfo') || {}
+  if (!['店长', '管理员', '助教管理', '教练'].includes(localAdminInfo.role)) {
+    uni.showToast({ title: '权限不足', icon: 'none' })
+    return
+  }
+  
+  uni.showModal({
+    title: '确认操作',
+    content: `确定结束 ${item.stage_name} 的乐捐吗？`,
+    success: async (res) => {
+      if (res.confirm) {
+        try {
+          const result = await api.lejuanRecords.returnRecord(item.id, { operator: localAdminInfo.username })
+          uni.showToast({ title: '乐捐归来成功', icon: 'success' })
+          loadData() // 刷新列表
+        } catch (e) {
+          uni.showToast({ title: e.error || '操作失败', icon: 'none' })
+        }
+      }
+    }
+  })
 }
 
 const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { uni.navigateBack() } else { uni.switchTab({ url: '/pages/member/member' }) } }

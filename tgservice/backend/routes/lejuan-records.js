@@ -288,7 +288,15 @@ router.get('/list', requireBackendPermission(['coachManagement']), async (req, r
 });
 
 /**
- * POST /api/lejuan-records/:id/return — 乐捐归来（助教管理/店长）
+ * POST /api/lejuan-records/:id/return — 乐捐归来（助教管理/店长/管理员/教练）
+ * 
+ * 计算逻辑：
+ * 1. 根据助教班次确定下班时间：早班 23:00，晚班次日 02:00
+ * 2. 对比当前时间和下班时间：
+ *    - 当前时间 >= 下班时间：按下班时间计算时长，水牌设为“下班”
+ *    - 当前时间 < 下班时间：按当前时间计算时长，水牌设为“空闲”
+ * 3. 乐捐时长计算：结束分钟 > 10 算一小时，否则不算
+ * 4. 只有水牌当前状态为“乐捐”时才更新水牌状态
  */
 router.post('/:id/return', requireBackendPermission(['coachManagement']), async (req, res) => {
     try {
@@ -296,11 +304,11 @@ router.post('/:id/return', requireBackendPermission(['coachManagement']), async 
         const { operator } = req.body;
 
         if (!operator) {
-            return res.status(400).json({ error: '缺少 operator 参数' });
+            return res.status(400).json({ error: '缺少操作人信息' });
         }
 
         const result = await runInTransaction(async (tx) => {
-            // 获取记录
+            // 获取乐捐记录
             const record = await tx.get(
                 'SELECT * FROM lejuan_records WHERE id = ? AND lejuan_status = ?',
                 [recordId, 'active']
@@ -309,16 +317,55 @@ router.post('/:id/return', requireBackendPermission(['coachManagement']), async 
                 throw { status: 400, error: '记录不存在或不是乐捐中状态' };
             }
 
-            const now = TimeUtil.nowDB();
+            // 获取助教班次
+            const coach = await tx.get(
+                'SELECT shift, stage_name FROM coaches WHERE coach_no = ?',
+                [record.coach_no]
+            );
+            if (!coach) {
+                throw { status: 400, error: '找不到助教信息' };
+            }
 
-            // 计算外出小时数（结束分钟>10算一小时，否则不算）
+            const now = TimeUtil.nowDB();
+            const nowDate = new Date(now + '+08:00');
+
+            // 计算下班时间（北京时间）
+            let offWorkTime;
+            if (coach.shift === '早班') {
+                // 早班：当天 23:00
+                const todayStr = TimeUtil.todayStr();
+                offWorkTime = new Date(`${todayStr} 23:00:00+08:00`);
+            } else {
+                // 晚班：次日 02:00
+                const tomorrow = new Date(nowDate);
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+                offWorkTime = new Date(`${tomorrowStr} 02:00:00+08:00`);
+            }
+
+            // 确定计算时间和水牌状态
+            let calculateTime;
+            let waterStatus;
+            if (nowDate.getTime() >= offWorkTime.getTime()) {
+                // 已过下班时间：按下班时间计算，水牌设为下班
+                calculateTime = offWorkTime;
+                waterStatus = '下班';
+            } else {
+                // 未到下班时间：按当前时间计算，水牌设为空闲
+                calculateTime = nowDate;
+                waterStatus = coach.shift === '早班' ? '早班空闲' : '晚班空闲';
+            }
+
+            // 计算乐捐时长（分钟>10算一小时）
             const actualStart = new Date(record.actual_start_time + '+08:00');
-            const returnTime = new Date(now + '+08:00');
-            const diffMs = returnTime.getTime() - actualStart.getTime();
+            const diffMs = calculateTime.getTime() - actualStart.getTime();
             const baseHours = Math.floor(diffMs / (60 * 60 * 1000));
-            const endMinute = returnTime.getMinutes();
+            const endMinute = calculateTime.getMinutes();
             const extraHour = endMinute > 10 ? 1 : 0;
             const lejuanHours = Math.max(1, baseHours + extraHour);
+
+            // 格式化归来时间（用于存储）
+            const returnTimeStr = TimeUtil.format(calculateTime).replace(/\//g, '-').replace(' ', ' ') + ':00';
 
             // 更新乐捐记录
             await tx.run(
@@ -329,23 +376,21 @@ router.post('/:id/return', requireBackendPermission(['coachManagement']), async 
                      returned_by = ?,
                      updated_at = ?
                  WHERE id = ? AND lejuan_status = 'active'`,
-                [now, lejuanHours, operator, now, recordId]
+                [returnTimeStr, lejuanHours, operator, now, recordId]
             );
 
-            // 更新水牌状态
-            const coach = await tx.get('SELECT shift FROM coaches WHERE coach_no = ?', [record.coach_no]);
-            const newWaterStatus = coach?.shift === '早班' ? '早班空闲' : '晚班空闲';
-
+            // 检查并更新水牌状态（只有当前状态为“乐捐”时才更新）
             const waterBoard = await tx.get(
                 'SELECT * FROM water_boards WHERE coach_no = ?',
                 [record.coach_no]
             );
-            if (waterBoard) {
+            
+            if (waterBoard && waterBoard.status === '乐捐') {
                 await tx.run(
                     `UPDATE water_boards 
                      SET status = ?, updated_at = ?
                      WHERE coach_no = ?`,
-                    [newWaterStatus, now, record.coach_no]
+                    [waterStatus, now, record.coach_no]
                 );
 
                 // 操作日志
@@ -356,16 +401,30 @@ router.post('/:id/return', requireBackendPermission(['coachManagement']), async 
                     target_type: 'water_board',
                     target_id: waterBoard.id,
                     old_value: JSON.stringify({ status: '乐捐' }),
-                    new_value: JSON.stringify({ status: newWaterStatus }),
-                    remark: `${record.stage_name} 乐捐归来，外出 ${lejuanHours} 小时`
+                    new_value: JSON.stringify({ status: waterStatus }),
+                    remark: `${coach.stage_name} 乐捐归来，外出 ${lejuanHours} 小时（${waterStatus === '下班' ? '已过下班时间' : '正常归来'}）`
+                });
+            } else if (waterBoard && waterBoard.status !== '乐捐') {
+                // 水牌状态不是乐捐，只记录日志，不修改水牌
+                await operationLogService.create(tx, {
+                    operator_phone: operator,
+                    operator_name: operator,
+                    operation_type: '乐捐归来',
+                    target_type: 'lejuan_record',
+                    target_id: recordId,
+                    old_value: JSON.stringify({ lejuan_status: 'active' }),
+                    new_value: JSON.stringify({ lejuan_status: 'returned', lejuan_hours: lejuanHours }),
+                    remark: `${coach.stage_name} 乐捐归来，外出 ${lejuanHours} 小时（水牌当前状态: ${waterBoard.status}，未修改水牌）`
                 });
             }
 
             return {
                 id: recordId,
                 lejuan_hours: lejuanHours,
-                return_time: now,
-                stage_name: record.stage_name
+                return_time: returnTimeStr,
+                stage_name: coach.stage_name,
+                water_status: waterBoard?.status === '乐捐' ? waterStatus : waterBoard?.status || null,
+                water_updated: waterBoard?.status === '乐捐'
             };
         });
 
