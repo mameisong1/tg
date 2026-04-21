@@ -465,7 +465,8 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .result-time .result-label, .result-time .result-value { font-size: 11px; color: rgba(255,255,255,0.3); }
 
 .cancel-btn-wrap { margin-top: 12px; }
-.cancel-btn { height: 40px; background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3); color: #e74c3c; border-radius: 10px; display: flex; align-items: center; justify: center; font-size: 14px; font-weight: 500; }
+.cancel-btn { height: 40px; background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3); border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+.cancel-btn text { font-size: 14px; font-weight: 500; color: #e74c3c; }
 
 .empty { text-align: center; padding: 60px 20px; color: rgba(255,255,255,0.3); }
 </style>
