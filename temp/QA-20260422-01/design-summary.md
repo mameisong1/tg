@@ -1,0 +1,1 @@
+打卡审查改进：6文件变更(迁移脚本+coaches.js+attendance-review.js+api-v2.js+member.vue+attendance-review.vue)；新增2个API(pending-count/markReviewed)；迟到计算在打卡时写入；角标显示迟到未审查人数；审查页面直接读is_late字段；历史数据默认不迟到。

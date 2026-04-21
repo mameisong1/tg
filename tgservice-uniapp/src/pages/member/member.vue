@@ -227,6 +227,7 @@
           <view class="internal-btn" @click="navigateTo('/pages/internal/attendance-review')">
             <text class="internal-btn-icon">📋</text>
             <text class="internal-btn-text">打卡审查</text>
+            <view class="badge" v-if="attendanceReviewCount > 0">{{ attendanceReviewCount }}</view>
           </view>
           <view class="internal-btn" @click="navigateTo('/pages/internal/guest-invitation-stats')">
             <text class="internal-btn-icon">📊</text>
@@ -1189,6 +1190,7 @@ const leaveRequestCount = ref(0)
 const restCount = ref(0)
 const lejuanCount = ref(0)
 const rewardPenaltyCount = ref(0)
+const attendanceReviewCount = ref(0)
 
 // === 前端错误收集上报 ===
 const reportError = (action, details) => {
@@ -1256,6 +1258,14 @@ const loadPendingCounts = async () => {
     leaveRequestCount.value = d.leave || 0
     restCount.value = d.rest || 0
     lejuanCount.value = d.lejuan || 0
+
+    // 加载打卡审查待审数量
+    try {
+      const arRes = await api.attendanceReview.getPendingCount()
+      attendanceReviewCount.value = arRes.data?.count || 0
+    } catch (e) {
+      // 忽略
+    }
     
     // 加载奖罚计数（传入用户phone）
     const adminInfo = uni.getStorageSync('adminInfo') || {}

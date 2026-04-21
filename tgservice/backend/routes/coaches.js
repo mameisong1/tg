@@ -13,6 +13,55 @@ const operationLogService = require('../services/operation-log');
 const errorLogger = require('../utils/error-logger');
 
 /**
+ * 计算是否迟到
+ * @param {string} clockInTime - 打卡时间 "YYYY-MM-DD HH:MM:SS"
+ * @param {string} shift - 班次 "早班" 或 "晚班"
+ * @param {number} coachNo - 助教工号
+ * @param {string} date - 日期 "YYYY-MM-DD"
+ * @param {object} tx - 数据库事务对象
+ * @returns {number} 0=正常, 1=迟到
+ */
+async function calculateIsLate(clockInTime, shift, coachNo, date, tx) {
+  if (!shift) return 0;
+
+  // 查询助教手机号
+  const coach = await tx.get(
+    'SELECT phone FROM coaches WHERE coach_no = ?',
+    [coachNo]
+  );
+  if (!coach || !coach.phone) return 0;
+
+  // 查询当天已审批的加班申请小时数
+  const app = await tx.get(`
+    SELECT COALESCE(CAST(JSON_EXTRACT(extra_data, '$.hours') AS INTEGER), 0) as hours
+    FROM applications
+    WHERE applicant_phone = ?
+      AND application_type IN ('早加班申请', '晚加班申请')
+      AND status = 1
+      AND date(created_at) = ?
+    LIMIT 1
+  `, [coach.phone, date]);
+
+  const overtimeHours = app ? app.hours : 0;
+
+  // 计算应上班时间
+  let baseHour;
+  if (shift === '早班') {
+    baseHour = 14;
+  } else if (shift === '晚班') {
+    baseHour = 18;
+  } else {
+    return 0;
+  }
+
+  const expectedHour = Math.max(0, baseHour - overtimeHours);
+  const expectedTime = `${date} ${String(expectedHour).padStart(2, '0')}:00:00`;
+
+  // 字符串比较（"YYYY-MM-DD HH:MM:SS" 格式可直接比较）
+  return clockInTime > expectedTime ? 1 : 0;
+}
+
+/**
  * POST /api/coaches/:coach_no/clock-in
  * 助教上班(助教只能打自己的卡)
  */
@@ -96,12 +145,13 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
       WHERE coach_no = ?
     `, [newStatus, nowDB, nowDB, coach_no]);
 
-    // 新增:写入打卡记录（含打卡截图）
+    // 新增:写入打卡记录（含打卡截图 + 迟到计算）
     const todayStr = TimeUtil.todayStr();
+    const isLate = await calculateIsLate(nowDB, coach.shift, coach_no, todayStr, tx);
     await tx.run(`
-      INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, clock_in_time, clock_out_time, clock_in_photo, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?)
-    `, [todayStr, coach_no, coach.employee_id, coach.stage_name, nowDB, clock_in_photo || null, nowDB, nowDB]);
+      INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, clock_in_time, clock_out_time, clock_in_photo, is_late, is_reviewed, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 0, ?, ?)
+    `, [todayStr, coach_no, coach.employee_id, coach.stage_name, nowDB, clock_in_photo || null, isLate, nowDB, nowDB]);
 
     // 记录操作日志
     const user = req.user;

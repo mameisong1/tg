@@ -1,0 +1,13 @@
+{
+  "qaRequirement": "打卡审查改进：1.上下班打卡表新增两个字段（是否迟到、是否审查完毕）；2.提交上班打卡时计算是否迟到并写入打卡表；3.打卡审查按钮加上角标（显示当天迟到且未审查的人数）；4.打卡审查页面新增两条提示（审查打卡时间和截图时间是否一致、处理迟到的处罚）；5.打卡审查页面不再计算迟到，直接显示打卡表的是否迟到字段；6.每条未审查完毕的打卡数据增加审查完毕按钮。",
+  "acceptanceFocus": "用户强调：没有用户指令不能操作生产环境数据库，不能在生产环境测试",
+  "createdAt": "2026-04-22T07:09:00+08:00",
+  "workDir": "/TG/temp/QA-20260422-01",
+  "designAuditRound": 1,
+  "testCasesAuditRound": 1,
+  "fixRound": 0,
+  "currentStep": "deploy",
+  "designSummary": "打卡审查改进：6文件变更(迁移脚本+coaches.js+attendance-review.js+api-v2.js+member.vue+attendance-review.vue)；新增2个API(pending-count/markReviewed)；迟到计算在打卡时写入；角标显示迟到未审查人数；审查页面直接读is_late字段；历史数据默认不迟到。",
+  "userConfirmedAt": "2026-04-21T23:32:17.141Z",
+  "userConfirmedBy": "马哥"
+}

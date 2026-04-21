@@ -31,12 +31,24 @@
       </view>
     </view>
 
+    <!-- 审查提示 -->
+    <view class="review-tips">
+      <view class="tip-item">
+        <text class="tip-icon">📌</text>
+        <text class="tip-text">请审查打卡时间和截图时间是否一致</text>
+      </view>
+      <view class="tip-item">
+        <text class="tip-icon">⚠️</text>
+        <text class="tip-text">迟到人员请按迟到处罚规则处理</text>
+      </view>
+    </view>
+
     <!-- 打卡记录列表 -->
     <view class="attendance-list">
       <view v-if="records.length === 0" class="empty-tip">
         <text>暂无打卡记录</text>
       </view>
-      <view v-for="(record, index) in records" :key="index" class="record-card">
+      <view v-for="(record, index) in records" :key="record.id || index" class="record-card">
         <view class="record-header">
           <text class="record-id">{{ record.employee_id }}号</text>
           <text class="record-name">{{ record.stage_name }}</text>
@@ -67,6 +79,15 @@
           <view class="record-photo" v-if="record.clock_in_photo">
             <image :src="record.clock_in_photo" mode="aspectFill" class="photo-img" @click="previewPhoto(record.clock_in_photo)" />
           </view>
+        </view>
+        <!-- 审查操作按钮 -->
+        <view v-if="record.is_reviewed === 0" class="review-action">
+          <view class="review-btn" @click="handleMarkReviewed(record)">
+            <text>审查完毕</text>
+          </view>
+        </view>
+        <view v-else class="review-done">
+          <text class="done-text">✓ 已审查</text>
         </view>
       </view>
     </view>
@@ -126,6 +147,29 @@ const loadRecords = async () => {
   }
 }
 
+// 标记审查完毕
+const handleMarkReviewed = async (record) => {
+  uni.showModal({
+    title: '确认',
+    content: '确定标记此条打卡记录为已审查吗？',
+    success: async (res) => {
+      if (res.confirm) {
+        try {
+          uni.showLoading({ title: '处理中...' })
+          await api.attendanceReview.markReviewed(record.id)
+          uni.hideLoading()
+          uni.showToast({ title: '已标记', icon: 'success' })
+          // 重新加载列表
+          await loadRecords()
+        } catch (e) {
+          uni.hideLoading()
+          uni.showToast({ title: e.error || '操作失败', icon: 'none' })
+        }
+      }
+    }
+  })
+}
+
 // 预览照片
 const previewPhoto = (url) => {
   uni.previewImage({ urls: [url] })
@@ -168,6 +212,13 @@ onMounted(() => {
   font-weight: 600;
 }
 
+/* 审查提示 */
+.review-tips { margin: 0 16px 16px; padding: 12px; background: rgba(255,193,7,0.1); border: 1px solid rgba(255,193,7,0.3); border-radius: 10px; }
+.tip-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.tip-item:last-child { margin-bottom: 0; }
+.tip-icon { font-size: 14px; }
+.tip-text { font-size: 12px; color: rgba(255,255,255,0.7); line-height: 1.4; }
+
 /* 打卡记录列表 */
 .attendance-list { padding: 0 16px; }
 .empty-tip { text-align: center; padding: 60px 20px; color: rgba(255,255,255,0.4); }
@@ -193,4 +244,11 @@ onMounted(() => {
 .late-badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: auto; }
 .late-badge.is-late { background: rgba(231,76,60,0.2); color: #e74c3c; }
 .late-badge:not(.is-late) { background: rgba(46,204,113,0.2); color: #2ecc71; }
+
+/* 审查操作按钮 */
+.review-action { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); }
+.review-btn { height: 32px; background: rgba(46,204,113,0.2); border: 1px solid rgba(46,204,113,0.3); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+.review-btn text { font-size: 13px; color: #2ecc71; font-weight: 600; }
+.review-done { margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); text-align: center; }
+.done-text { font-size: 12px; color: rgba(46,204,113,0.6); }
 </style>

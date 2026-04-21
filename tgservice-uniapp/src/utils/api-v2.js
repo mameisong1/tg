@@ -185,7 +185,11 @@ export const leaveCalendar = {
 // ========== 打卡审查 ==========
 export const attendanceReview = {
   // 获取打卡审查列表
-  getList: (params) => request({ url: '/attendance-review', data: params })
+  getList: (params) => request({ url: '/attendance-review', data: params }),
+  // 获取当天迟到且未审查的人数（用于角标）
+  getPendingCount: () => request({ url: '/attendance-review/pending-count' }),
+  // 标记单条打卡记录为已审查
+  markReviewed: (id) => request({ url: `/attendance-review/${id}/review`, method: 'PUT' })
 }
 
 export default {
