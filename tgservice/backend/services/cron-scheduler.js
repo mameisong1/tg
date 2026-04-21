@@ -378,7 +378,7 @@ async function taskSyncRewardPenalty() {
                      VALUES (?, ?, ?, ?, ?, ?, '未执行', ?)
                      ON CONFLICT(confirm_date, type, phone) DO NOTHING`,
                     [type, confirmDate, record.phone, name, amount,
-                     `未约客: ${name} (${record.shift || ''})`, now]
+                     `未约客 (${record.shift || ''})`, now]
                 );
                 stats.guest++;
                 affected++;
@@ -424,7 +424,7 @@ async function taskSyncRewardPenalty() {
                      VALUES (?, ?, ?, ?, ?, ?, '未执行', ?)
                      ON CONFLICT(confirm_date, type, phone) DO NOTHING`,
                     [type, confirmDate, record.phone, name, amount,
-                     `漏单: ${name} ${record.table_no}`, now]
+                     `漏单 ${record.table_no}`, now]
                 );
                 stats.missingTable++;
                 affected++;
@@ -468,7 +468,7 @@ async function taskSyncRewardPenalty() {
                      VALUES (?, ?, ?, ?, ?, ?, '未执行', ?)
                      ON CONFLICT(confirm_date, type, phone) DO NOTHING`,
                     [type, confirmDate, record.phone, name, amount,
-                     `漏卡: ${name} (${record.date})`, now]
+                     `漏卡 (${record.date})`, now]
                 );
                 stats.missingClock++;
                 affected++;
