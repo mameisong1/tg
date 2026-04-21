@@ -93,7 +93,9 @@ export const applications = {
   // 新增：取消申请
   delete: (id, phone) => request({ url: `/applications/${id}?applicant_phone=${phone}`, method: 'DELETE' }),
   // 新增：我的本月申请次数
-  getMyMonthCount: (phone, type) => request({ url: `/applications/my-month-count?applicant_phone=${phone}&application_type=${type}` })
+  getMyMonthCount: (phone, type) => request({ url: `/applications/my-month-count?applicant_phone=${phone}&application_type=${type}` }),
+  // 新增：撤销已同意的预约申请
+  cancelApproved: (id) => request({ url: `/applications/${id}/cancel-approved`, method: 'POST' })
 }
 
 // ========== 约客管理 ==========

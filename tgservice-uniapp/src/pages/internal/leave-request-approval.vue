@@ -27,6 +27,9 @@
       <view class="tab-item" :class="{ active: activeTab === 'rejected' }" @click="switchTab('rejected')">
         <text>已拒绝</text>
       </view>
+      <view class="tab-item" :class="{ active: activeTab === 'cancelled' }" @click="switchTab('cancelled')">
+        <text>已撤销</text>
+      </view>
     </view>
 
     <!-- 待审批列表 -->
@@ -80,8 +83,8 @@
       <view class="empty" v-if="pendingList.length === 0"><text>暂无待审批申请</text></view>
     </view>
 
-    <!-- 已同意/已拒绝列表 -->
-    <view class="list-section" v-if="activeTab !== 'pending'">
+    <!-- 已同意列表（带撤销按钮） -->
+    <view class="list-section" v-if="activeTab === 'approved'">
       <view class="result-card" v-for="item in approvedList" :key="item.id">
         <view class="result-row">
           <text class="result-label">助教工号</text>
@@ -101,9 +104,46 @@
         </view>
         <view class="result-row">
           <text class="result-label">审批结果</text>
-          <text class="result-value" :class="activeTab === 'approved' ? 'text-approved' : 'text-rejected'">
-            {{ activeTab === 'approved' ? '已同意' : '已拒绝' }}
-          </text>
+          <text class="result-value text-approved">已同意</text>
+        </view>
+        <view class="result-row result-time">
+          <text class="result-label">审批时间</text>
+          <text class="result-value">{{ item.approve_time || item.created_at }}</text>
+        </view>
+        <!-- 撤销按钮 -->
+        <view v-if="canCancel(item)" class="cancel-btn-wrap">
+          <view class="cancel-btn" @click="cancelApproved(item)">
+            <text>撤销申请</text>
+          </view>
+        </view>
+      </view>
+      <view class="empty" v-if="approvedList.length === 0">
+        <text>暂无记录</text>
+      </view>
+    </view>
+
+    <!-- 已拒绝列表 -->
+    <view class="list-section" v-if="activeTab === 'rejected'">
+      <view class="result-card" v-for="item in approvedList" :key="item.id">
+        <view class="result-row">
+          <text class="result-label">助教工号</text>
+          <text class="result-value">{{ item.employee_id || '-' }}</text>
+        </view>
+        <view class="result-row">
+          <text class="result-label">艺名</text>
+          <text class="result-value">{{ item.stage_name }}</text>
+        </view>
+        <view class="result-row">
+          <text class="result-label">请假类型</text>
+          <text class="result-value">{{ getLeaveType(item) }}</text>
+        </view>
+        <view class="result-row">
+          <text class="result-label">请假日期</text>
+          <text class="result-value">{{ getLeaveDate(item) }}</text>
+        </view>
+        <view class="result-row">
+          <text class="result-label">审批结果</text>
+          <text class="result-value text-rejected">已拒绝</text>
         </view>
         <view class="result-row result-time">
           <text class="result-label">审批时间</text>
@@ -111,6 +151,39 @@
         </view>
       </view>
       <view class="empty" v-if="approvedList.length === 0">
+        <text>暂无记录</text>
+      </view>
+    </view>
+
+    <!-- 已撤销列表 -->
+    <view class="list-section" v-if="activeTab === 'cancelled'">
+      <view class="result-card" v-for="item in cancelledList" :key="item.id">
+        <view class="result-row">
+          <text class="result-label">助教工号</text>
+          <text class="result-value">{{ item.employee_id || '-' }}</text>
+        </view>
+        <view class="result-row">
+          <text class="result-label">艺名</text>
+          <text class="result-value">{{ item.stage_name }}</text>
+        </view>
+        <view class="result-row">
+          <text class="result-label">请假类型</text>
+          <text class="result-value">{{ getLeaveType(item) }}</text>
+        </view>
+        <view class="result-row">
+          <text class="result-label">请假日期</text>
+          <text class="result-value">{{ getLeaveDate(item) }}</text>
+        </view>
+        <view class="result-row">
+          <text class="result-label">审批结果</text>
+          <text class="result-value text-cancelled">已撤销</text>
+        </view>
+        <view class="result-row result-time">
+          <text class="result-label">更新时间</text>
+          <text class="result-value">{{ item.updated_at }}</text>
+        </view>
+      </view>
+      <view class="empty" v-if="cancelledList.length === 0">
         <text>暂无记录</text>
       </view>
     </view>
@@ -128,6 +201,7 @@ const serverHour = ref(null)
 
 const pendingList = ref([])
 const approvedList = ref([])
+const cancelledList = ref([])
 
 // 预计休息人数缓存（按日期）
 const dayRestCountCache = ref({})
@@ -176,6 +250,8 @@ const switchTab = (tab) => {
 const loadData = async () => {
   if (activeTab.value === 'pending') {
     await loadPendingWithRestCount()
+  } else if (activeTab.value === 'cancelled') {
+    await loadCancelled()
   } else {
     await loadApprovedRecent()
   }
@@ -198,6 +274,46 @@ const loadApprovedRecent = async () => {
     })
     approvedList.value = res.data || []
   } catch (e) { uni.showToast({ title: '加载失败', icon: 'none' }) }
+}
+
+// 加载已撤销列表
+const loadCancelled = async () => {
+  try {
+    const res = await api.applications.getList({
+      application_type: '请假申请',
+      status: 3,
+      limit: 50
+    })
+    cancelledList.value = res.data || []
+  } catch (e) { uni.showToast({ title: '加载失败', icon: 'none' }) }
+}
+
+// 判断是否可撤销：当前时间 < 请假日期 12:00
+const canCancel = (item) => {
+  const leaveDate = getLeaveDate(item)
+  if (!leaveDate || leaveDate === '-') return false
+
+  const deadline = new Date(leaveDate + ' 12:00:00+08:00')
+  const now = new Date()
+  return now.getTime() < deadline.getTime()
+}
+
+// 撤销申请
+const cancelApproved = async (item) => {
+  const leaveDate = getLeaveDate(item)
+  uni.showModal({
+    title: '确认撤销',
+    content: `确定撤销 ${item.stage_name} 的请假申请（${leaveDate}）？`,
+    success: async (res) => {
+      if (res.confirm) {
+        try {
+          await api.applications.cancelApproved(item.id)
+          uni.showToast({ title: '撤销成功', icon: 'success' })
+          loadData()
+        } catch (e) { uni.showToast({ title: e.error || '撤销失败', icon: 'none' }) }
+      }
+    }
+  })
 }
 
 const getLeaveType = (app) => {
@@ -345,7 +461,11 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .result-value { font-size: 13px; color: #fff; font-weight: 500; }
 .text-approved { color: #2ecc71 !important; }
 .text-rejected { color: #e74c3c !important; }
+.text-cancelled { color: #f39c12 !important; }
 .result-time .result-label, .result-time .result-value { font-size: 11px; color: rgba(255,255,255,0.3); }
+
+.cancel-btn-wrap { margin-top: 12px; }
+.cancel-btn { height: 40px; background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3); color: #e74c3c; border-radius: 10px; display: flex; align-items: center; justify: center; font-size: 14px; font-weight: 500; }
 
 .empty { text-align: center; padding: 60px 20px; color: rgba(255,255,255,0.3); }
 </style>
