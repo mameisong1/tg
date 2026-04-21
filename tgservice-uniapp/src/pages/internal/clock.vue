@@ -34,9 +34,33 @@
       </template>
     </view>
 
+    <!-- 打卡截图上传区域 -->
+    <view class="photo-section">
+      <text class="photo-title">上传打卡截图（必填）</text>
+      <view class="photo-grid">
+        <view v-if="imageUrls.length > 0" class="photo-item">
+          <image :src="imageUrls[0]" mode="aspectFill" class="photo-img" @click="previewImage" />
+          <view class="photo-remove" @click="removeImage(0)"><text>✕</text></view>
+        </view>
+        <view v-else class="photo-upload" @click="chooseAndUpload">
+          <text class="photo-icon">📷</text>
+          <text class="photo-text">点击上传</text>
+        </view>
+      </view>
+      <text class="photo-tip">请拍摄能证明您已到岗的照片</text>
+    </view>
+
+    <!-- 上传进度 -->
+    <view class="upload-progress" v-if="uploading">
+      <text>{{ uploadText }}</text>
+      <view class="progress-bar">
+        <view class="progress-fill" :style="{ width: uploadProgress + '%' }"></view>
+      </view>
+    </view>
+
     <!-- 操作按钮 -->
     <view class="action-section">
-      <view class="action-btn clock-in-btn" :class="{ disabled: !canClockIn }" @click="handleClockIn">
+      <view class="action-btn clock-in-btn" :class="{ disabled: !canClockIn || imageUrls.length === 0 || uploading }" @click="handleClockIn">
         <text class="action-icon">⏰</text>
         <text class="action-text">上班</text>
       </view>
@@ -59,10 +83,15 @@
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import api from '@/utils/api-v2.js'
+import { useImageUpload } from '@/utils/image-upload.js'
 
 const statusBarHeight = ref(0)
 const coachInfo = ref({})
 const waterBoard = ref(null)
+
+// 图片上传模块
+const { imageUrls, uploading, uploadProgress, uploadText, chooseAndUpload, removeImage } =
+  useImageUpload({ maxCount: 1, ossDir: 'TgTemp/', errorType: 'clock_in' })
 
 onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
@@ -107,11 +136,19 @@ const statusClass = (status) => {
 
 const handleClockIn = async () => {
   if (!canClockIn.value) return
+  if (imageUrls.value.length === 0) {
+    uni.showToast({ title: '请先上传打卡截图', icon: 'none' })
+    return
+  }
   try {
     uni.showLoading({ title: '上班中...' })
-    await api.coachesV2.clockIn(coachInfo.value.coachNo)
+    await api.coachesV2.clockIn(coachInfo.value.coachNo, {
+      clock_in_photo: imageUrls.value[0] // 传递图片URL
+    })
     uni.hideLoading()
     uni.showToast({ title: '上班成功', icon: 'success' })
+    // 清空图片
+    imageUrls.value = []
     await loadWaterBoard()
   } catch (e) {
     uni.hideLoading()
@@ -139,6 +176,13 @@ const handleClockOut = async () => {
       }
     }
   })
+}
+
+// 预览图片
+const previewImage = () => {
+  if (imageUrls.value.length > 0) {
+    uni.previewImage({ urls: imageUrls.value })
+  }
 }
 
 const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { uni.navigateBack() } else { uni.switchTab({ url: '/pages/member/member' }) } }
@@ -182,4 +226,23 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .tips { margin: 16px; padding: 16px; background: rgba(255,255,255,0.03); border-radius: 10px; }
 .tips-title { font-size: 14px; color: rgba(255,255,255,0.6); font-weight: 600; display: block; margin-bottom: 8px; }
 .tips-text { font-size: 12px; color: rgba(255,255,255,0.4); display: block; margin-bottom: 4px; line-height: 1.5; }
+
+/* 打卡截图上传区域 */
+.photo-section { margin: 16px; padding: 16px; background: rgba(20,20,30,0.6); border: 1px solid rgba(218,165,32,0.1); border-radius: 12px; }
+.photo-title { font-size: 14px; color: #d4af37; font-weight: 600; display: block; margin-bottom: 10px; }
+.photo-grid { display: flex; justify-content: center; }
+.photo-item { position: relative; width: 80px; height: 80px; }
+.photo-img { width: 80px; height: 80px; border-radius: 8px; object-fit: cover; }
+.photo-remove { position: absolute; top: -6px; right: -6px; width: 20px; height: 20px; background: #e74c3c; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+.photo-remove text { font-size: 12px; color: #fff; line-height: 1; }
+.photo-upload { width: 80px; height: 80px; border-radius: 8px; background: rgba(212,175,55,0.1); border: 1px dashed rgba(212,175,55,0.3); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+.photo-icon { font-size: 24px; }
+.photo-text { font-size: 11px; color: rgba(255,255,255,0.5); }
+.photo-tip { font-size: 12px; color: rgba(255,255,255,0.4); display: block; margin-top: 10px; text-align: center; }
+
+/* 上传进度 */
+.upload-progress { margin: 16px; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; text-align: center; }
+.upload-progress text { font-size: 13px; color: rgba(255,255,255,0.6); display: block; margin-bottom: 8px; }
+.progress-bar { height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; overflow: hidden; }
+.progress-fill { height: 100%; background: #d4af37; transition: width 0.3s; }
 </style>

@@ -122,8 +122,8 @@ export const guestInvitations = {
 
 // ========== 助教管理（V2） ==========
 export const coachesV2 = {
-  // 上班
-  clockIn: (coachNo) => request({ url: `/coaches/v2/${coachNo}/clock-in`, method: 'POST' }),
+  // 上班（支持传递打卡截图等参数）
+  clockIn: (coachNo, data = {}) => request({ url: `/coaches/v2/${coachNo}/clock-in`, method: 'POST', data }),
   // 下班
   clockOut: (coachNo) => request({ url: `/coaches/v2/${coachNo}/clock-out`, method: 'POST' }),
   // 批量修改班次
@@ -182,6 +182,12 @@ export const leaveCalendar = {
   getDayCount: (date) => request({ url: '/leave-calendar/day-count', data: { date } })
 }
 
+// ========== 打卡审查 ==========
+export const attendanceReview = {
+  // 获取打卡审查列表
+  getList: (params) => request({ url: '/attendance-review', data: params })
+}
+
 export default {
   // 前端配置（授权过期时间等）
   getFrontConfig: () => request({ url: '/front-config' }),
@@ -196,5 +202,6 @@ export default {
   lejuanRecords,
   missingTableOutOrders,
   rewardPenalty,
-  leaveCalendar
+  leaveCalendar,
+  attendanceReview
 }

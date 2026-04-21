@@ -48,6 +48,9 @@ const tableActionOrdersRouter = require('./routes/table-action-orders');
 const operationLogsRouter = require('./routes/operation-logs');
 const operationLogService = require('./services/operation-log');
 
+// 打卡审查路由
+const attendanceReviewRouter = require('./routes/attendance-review');
+
 // 乐捐记录路由
 const lejuanRecordsRouter = require('./routes/lejuan-records');
 
@@ -347,6 +350,7 @@ app.use('/api/coaches/v2', coachesV2Router);
 app.use('/api/service-orders', serviceOrdersRouter);
 app.use('/api/table-action-orders', tableActionOrdersRouter);
 app.use('/api/operation-logs', operationLogsRouter);
+app.use('/api/attendance-review', attendanceReviewRouter);
 
 // 乐捐记录路由
 app.use('/api/lejuan-records', lejuanRecordsRouter);

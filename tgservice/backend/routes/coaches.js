@@ -20,6 +20,7 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
   try {
     const result = await runInTransaction(async (tx) => {
     const { coach_no } = req.params;
+    const { clock_in_photo } = req.body; // 新增：打卡截图参数
 
     // 获取助教信息(包括班次和工号)
     const coach = await tx.get(`
@@ -95,12 +96,12 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
       WHERE coach_no = ?
     `, [newStatus, nowDB, nowDB, coach_no]);
 
-    // 新增:写入打卡记录
+    // 新增:写入打卡记录（含打卡截图）
     const todayStr = TimeUtil.todayStr();
     await tx.run(`
-      INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, clock_in_time, clock_out_time, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, NULL, ?, ?)
-    `, [todayStr, coach_no, coach.employee_id, coach.stage_name, nowDB, nowDB, nowDB]);
+      INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, clock_in_time, clock_out_time, clock_in_photo, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, NULL, ?, ?, ?)
+    `, [todayStr, coach_no, coach.employee_id, coach.stage_name, nowDB, clock_in_photo || null, nowDB, nowDB]);
 
     // 记录操作日志
     const user = req.user;

@@ -45,6 +45,10 @@
         <view class="coach-grid">
           <!-- 正常助教（排除休息/公休/请假） -->
           <view class="coach-card" v-for="coach in group.coaches.filter(c => !c._offDuty && !c._overtime && !c._free)" :key="coach.coach_no">
+            <!-- 等级徽章 -->
+            <view class="level-badge" :class="'level-' + coach.level" v-if="shouldShowLevel(coach.status) && coach.level">
+              <text class="level-icon">{{ getLevelIcon(coach.level) }}</text>
+            </view>
             <image class="coach-avatar" :src="getAvatar(coach)" mode="aspectFill" />
             <text class="coach-id">{{ coach.employee_id || '未知' }}</text>
             <text class="coach-name">{{ coach.stage_name }}</text>
@@ -104,6 +108,10 @@
           <view class="expand-grid">
             <!-- 正常助教（排除休息/公休/请假） -->
             <view class="expand-card" v-for="coach in expandCoaches.filter(c => !c._offDuty && !c._overtime && !c._free)" :key="coach.coach_no">
+              <!-- 等级徽章 -->
+              <view class="level-badge" :class="'level-' + coach.level" v-if="shouldShowLevel(expandStatus) && coach.level">
+                <text class="level-icon">{{ getLevelIcon(coach.level) }}</text>
+              </view>
               <image class="expand-avatar" :src="getAvatar(coach)" mode="aspectFill" />
               <text class="expand-id">{{ coach.employee_id || '未知' }}</text>
               <text class="expand-name">{{ coach.stage_name }}</text>
@@ -234,6 +242,25 @@ onUnmounted(() => {
     refreshTimer = null
   }
 })
+
+// 显示等级的状态列表
+const showLevelStatuses = ['早班空闲', '早班上桌', '晚班空闲', '晚班上桌', '乐捐']
+
+// 等级图标映射
+const getLevelIcon = (level) => {
+  const icons = {
+    '初级': '🛡️',
+    '中级': '⭐',
+    '高级': '👑',
+    '女神': '💎'
+  }
+  return icons[level] || ''
+}
+
+// 是否显示等级
+const shouldShowLevel = (status) => {
+  return showLevelStatuses.includes(status)
+}
 
 const loadData = async () => {
   try {
@@ -468,6 +495,7 @@ const toggleFullscreen = () => {
   -webkit-user-select: none;
   -webkit-touch-callout: none;
   touch-action: manipulation;
+  position: relative;
 }
 .coach-avatar {
   width: 40px;
@@ -626,6 +654,7 @@ const toggleFullscreen = () => {
   -webkit-user-select: none;
   -webkit-touch-callout: none;
   touch-action: manipulation;
+  position: relative;
 }
 .expand-avatar {
   width: 36px;
@@ -682,4 +711,47 @@ const toggleFullscreen = () => {
   color: #000;
 }
 /* #endif */
+
+/* ===== 等级徽章 ===== */
+.level-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  pointer-events: none;
+}
+.level-badge.level-初级 {
+  background: #CD7F32;
+}
+.level-badge.level-中级 {
+  background: #E8E8E8;
+}
+.level-badge.level-高级 {
+  background: #FFD700;
+}
+.level-badge.level-女神 {
+  background: linear-gradient(135deg, #B9F2FF, #FFFFFF);
+}
+.level-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+.level-badge.level-初级 .level-icon {
+  color: #fff;
+}
+.level-badge.level-中级 .level-icon {
+  color: #333;
+}
+.level-badge.level-高级 .level-icon {
+  color: #000;
+}
+.level-badge.level-女神 .level-icon {
+  color: #1a1a2e;
+}
 </style>
