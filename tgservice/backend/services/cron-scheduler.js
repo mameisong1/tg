@@ -376,7 +376,7 @@ async function taskSyncRewardPenalty() {
                 await tx.run(
                     `INSERT INTO reward_penalties (type, confirm_date, phone, name, amount, remark, exec_status, updated_at)
                      VALUES (?, ?, ?, ?, ?, ?, '未执行', ?)
-                     ON CONFLICT(confirm_date, type, phone) DO NOTHING`,
+                     ON CONFLICT(confirm_date, type, phone, remark) DO NOTHING`,
                     [type, confirmDate, record.phone, name, amount,
                      `未约客 (${record.shift || ''})`, now]
                 );
@@ -420,6 +420,7 @@ async function taskSyncRewardPenalty() {
                         WHERE rp.confirm_date = DATE(t_in.created_at)
                         AND rp.type = '漏单罚金'
                         AND rp.phone = c.phone
+                        AND rp.remark = `漏单 ` || t_in.table_no
                     )
             `, [yesterdayStr, beforeYesterdayStr]);
 
@@ -432,7 +433,7 @@ async function taskSyncRewardPenalty() {
                 await tx.run(
                     `INSERT INTO reward_penalties (type, confirm_date, phone, name, amount, remark, exec_status, updated_at)
                      VALUES (?, ?, ?, ?, ?, ?, '未执行', ?)
-                     ON CONFLICT(confirm_date, type, phone) DO NOTHING`,
+                     ON CONFLICT(confirm_date, type, phone, remark) DO NOTHING`,
                     [type, confirmDate, record.phone, name, amount,
                      `漏单 ${record.table_no}`, now]
                 );
@@ -464,6 +465,7 @@ async function taskSyncRewardPenalty() {
                         WHERE rp.confirm_date = ar.date
                         AND rp.type = '漏卡罚金'
                         AND rp.phone = c.phone
+                        AND rp.remark = `漏卡 (` || ar.date || `)`
                     )
             `, [yesterdayStr, beforeYesterdayStr]);
 
@@ -476,7 +478,7 @@ async function taskSyncRewardPenalty() {
                 await tx.run(
                     `INSERT INTO reward_penalties (type, confirm_date, phone, name, amount, remark, exec_status, updated_at)
                      VALUES (?, ?, ?, ?, ?, ?, '未执行', ?)
-                     ON CONFLICT(confirm_date, type, phone) DO NOTHING`,
+                     ON CONFLICT(confirm_date, type, phone, remark) DO NOTHING`,
                     [type, confirmDate, record.phone, name, amount,
                      `漏卡 (${record.date})`, now]
                 );

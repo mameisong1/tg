@@ -5226,8 +5226,8 @@ app.post('/api/reward-penalty/upsert', authMiddleware, requireBackendPermission(
     // amount === 0 → 删除
     if (amount === 0) {
       const result = await enqueueRun(
-        'DELETE FROM reward_penalties WHERE confirm_date = ? AND type = ? AND phone = ?',
-        [confirmDate, type, phone]
+        'DELETE FROM reward_penalties WHERE confirm_date = ? AND type = ? AND phone = ? AND remark = ?',
+        [confirmDate, type, phone, remark || '']
       );
       return res.json({ success: true, action: 'deleted', changes: result.changes });
     }
@@ -5236,7 +5236,7 @@ app.post('/api/reward-penalty/upsert', authMiddleware, requireBackendPermission(
     await enqueueRun(
       `INSERT INTO reward_penalties (type, confirm_date, phone, name, amount, remark, exec_status, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, '未执行', ?)
-       ON CONFLICT(confirm_date, type, phone) DO UPDATE SET
+       ON CONFLICT(confirm_date, type, phone, remark) DO UPDATE SET
          name = excluded.name,
          amount = excluded.amount,
          remark = excluded.remark,
@@ -5245,7 +5245,7 @@ app.post('/api/reward-penalty/upsert', authMiddleware, requireBackendPermission(
     );
 
     // 判断是新增还是更新
-    const record = await dbGet('SELECT created_at, updated_at FROM reward_penalties WHERE confirm_date = ? AND type = ? AND phone = ?', [confirmDate, type, phone]);
+    const record = await dbGet('SELECT created_at, updated_at FROM reward_penalties WHERE confirm_date = ? AND type = ? AND phone = ? AND remark = ?', [confirmDate, type, phone, remark || '']);
     const action = (record && record.created_at === record.updated_at) ? 'created' : 'updated';
 
     res.json({ success: true, action });
