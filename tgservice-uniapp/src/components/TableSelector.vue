@@ -112,7 +112,7 @@ async function fetchTables() {
   if (allTables.value.length > 0) return
   loading.value = true
   try {
-    const baseUrl = import.meta.env.VITE_API_URL || 'https://tg.tiangong.club/api'
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api'
     const res = await uni.request({
       url: `${baseUrl}/tables`,
       method: 'GET'
