@@ -55,6 +55,7 @@ function formatDate(d) {
 // ========== 核心 SQL ==========
 
 // 统计 SQL：按教练聚合缺失数量（不返回明细）
+// 修复：排除有取消单的上桌单，不算漏单
 const MISSING_STATS_SQL = `
   SELECT 
     t_in.coach_no,
@@ -75,11 +76,21 @@ const MISSING_STATS_SQL = `
         AND t_out.created_at > t_in.created_at
         AND t_out.created_at <= datetime(t_in.created_at, '+15 hours')
     )
+    AND NOT EXISTS (
+      SELECT 1 FROM table_action_orders t_cancel
+      WHERE t_cancel.order_type = '取消单'
+        AND t_cancel.coach_no = t_in.coach_no
+        AND t_cancel.table_no = t_in.table_no
+        AND t_cancel.stage_name = t_in.stage_name
+        AND t_cancel.created_at > t_in.created_at
+        AND t_cancel.created_at <= datetime(t_in.created_at, '+15 hours')
+    )
   GROUP BY t_in.coach_no
   ORDER BY missing_count DESC
 `;
 
 // 明细 SQL：按教练编号查询缺失明细（用户点击时才调用）
+// 修复：排除有取消单的上桌单，不算漏单
 const MISSING_DETAIL_SQL = `
   SELECT 
     t_in.id,
@@ -101,6 +112,15 @@ const MISSING_DETAIL_SQL = `
         AND t_out.stage_name = t_in.stage_name
         AND t_out.created_at > t_in.created_at
         AND t_out.created_at <= datetime(t_in.created_at, '+15 hours')
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM table_action_orders t_cancel
+      WHERE t_cancel.order_type = '取消单'
+        AND t_cancel.coach_no = t_in.coach_no
+        AND t_cancel.table_no = t_in.table_no
+        AND t_cancel.stage_name = t_in.stage_name
+        AND t_cancel.created_at > t_in.created_at
+        AND t_cancel.created_at <= datetime(t_in.created_at, '+15 hours')
     )
 `;
 

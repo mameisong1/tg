@@ -388,6 +388,7 @@ async function taskSyncRewardPenalty() {
             // === 2. 漏单罚金 ===
             // 查找昨天和前天的上桌单缺失下桌单记录
             // 确定日期 = 上桌单发出日期（table_action_orders.created_at）
+            // 修复：排除有取消单的上桌单，不算漏单
             const missingTableOrders = await tx.all(`
                 SELECT t_in.*, c.phone, c.stage_name, c.employee_id,
                        DATE(t_in.created_at) AS table_date
@@ -404,6 +405,15 @@ async function taskSyncRewardPenalty() {
                             AND t_out.stage_name = t_in.stage_name
                             AND t_out.created_at > t_in.created_at
                             AND t_out.created_at <= datetime(t_in.created_at, '+15 hours')
+                    )
+                    AND NOT EXISTS (
+                        SELECT 1 FROM table_action_orders t_cancel
+                        WHERE t_cancel.order_type = '取消单'
+                            AND t_cancel.coach_no = t_in.coach_no
+                            AND t_cancel.table_no = t_in.table_no
+                            AND t_cancel.stage_name = t_in.stage_name
+                            AND t_cancel.created_at > t_in.created_at
+                            AND t_cancel.created_at <= datetime(t_in.created_at, '+15 hours')
                     )
                     AND NOT EXISTS (
                         SELECT 1 FROM reward_penalties rp
