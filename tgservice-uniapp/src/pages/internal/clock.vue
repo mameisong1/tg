@@ -34,8 +34,8 @@
       </template>
     </view>
 
-    <!-- 打卡截图上传区域 -->
-    <view class="photo-section">
+    <!-- 打卡截图上传区域（仅上班时显示） -->
+    <view class="photo-section" v-if="canClockIn">
       <text class="photo-title">上传打卡截图（必填）</text>
       <view class="photo-grid">
         <view v-if="imageUrls.length > 0" class="photo-item">
