@@ -673,54 +673,33 @@ async function taskLockGuestInvitation(shiftType) {
 /**
  * 计算下次运行时间
  */
+/**
+ * 计算下次运行时间（精确解析 cron 表达式）
+ * cron 格式: minute hour day-of-month month day-of-week
+ * 例如: '0 12 * * *' 表示每天中午12点
+ */
 function calcNextRun(cronExpression) {
     const now = new Date(TimeUtil.nowDB() + '+08:00');
 
-    if (cronExpression.includes('23 *')) {
-        // 晚上23点
+    // 精确解析 cron 表达式的小时字段
+    const parts = cronExpression.split(' ');
+    if (parts.length < 2) {
+        // 无效的 cron 表达式，默认下一个整点
         const next = new Date(now);
-        if (now.getHours() >= 23) {
-            next.setDate(next.getDate() + 1);
-        }
-        next.setHours(23, 0, 0, 0);
-        return formatBeijing(next);
-    } else if (cronExpression.includes('2 *')) {
-        // 凌晨2点
-        const next = new Date(now);
-        if (now.getHours() >= 2) {
-            next.setDate(next.getDate() + 1);
-        }
-        next.setHours(2, 0, 0, 0);
-        return formatBeijing(next);
-    } else if (cronExpression.includes('12 *')) {
-        // 中午12点
-        const next = new Date(now);
-        if (now.getHours() >= 12) {
-            next.setDate(next.getDate() + 1);
-        }
-        next.setHours(12, 0, 0, 0);
-        return formatBeijing(next);
-    } else if (cronExpression.includes('16 *')) {
-        // 下午16点
-        const next = new Date(now);
-        if (now.getHours() >= 16) {
-            next.setDate(next.getDate() + 1);
-        }
-        next.setHours(16, 0, 0, 0);
-        return formatBeijing(next);
-    } else if (cronExpression.includes('20 *')) {
-        // 晚上20点
-        const next = new Date(now);
-        if (now.getHours() >= 20) {
-            next.setDate(next.getDate() + 1);
-        }
-        next.setHours(20, 0, 0, 0);
+        next.setHours(next.getHours() + 1, 0, 0, 0);
         return formatBeijing(next);
     }
 
-    // 默认：下一个整点
+    const hour = parseInt(parts[1], 10); // 小时字段
+
+    // 根据小时计算下次运行时间
     const next = new Date(now);
-    next.setHours(next.getHours() + 1, 0, 0, 0);
+    if (now.getHours() >= hour) {
+        // 已过或正在执行，设置到明天
+        next.setDate(next.getDate() + 1);
+    }
+    next.setHours(hour, 0, 0, 0);
+
     return formatBeijing(next);
 }
 
