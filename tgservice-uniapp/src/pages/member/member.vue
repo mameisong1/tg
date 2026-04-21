@@ -18,8 +18,15 @@
     </view>
     <!-- #endif -->
     
+    <!-- 登录检查状态 -->
+    <view class="login-section" v-if="isCheckingLogin">
+      <view class="loading-card">
+        <text class="loading-text">加载中...</text>
+      </view>
+    </view>
+    
     <!-- 未登录状态 -->
-    <view class="login-section" v-if="!memberInfo.memberNo">
+    <view class="login-section" v-else-if="!memberInfo.memberNo">
       <!-- #ifdef MP-WEIXIN -->
       <!-- 小程序：原有样式 -->
       <view class="login-card">
@@ -73,7 +80,7 @@
     </view>
     
     <!-- 已登录状态 -->
-    <view class="member-section" v-if="memberInfo.memberNo">
+    <view class="member-section" v-if="!isCheckingLogin && memberInfo.memberNo">
       <view class="member-card" @click="goProfile">
         <view class="member-avatar">
           <text class="avatar-text">{{ memberInfo.name ? memberInfo.name.charAt(0) : '会' }}</text>
@@ -109,7 +116,7 @@
     <!-- V2.0 内部专用（直接显示在「我的」页面，不再跳转内部首页） -->
     
     <!-- 常用功能板块（大分组） - 所有后台用户可见 -->
-    <view class="internal-group" v-if="memberInfo.memberNo && showCommonFeatures">
+    <view class="internal-group" v-if="!isCheckingLogin && memberInfo.memberNo && showCommonFeatures">
       <view class="group-header">
         <text class="group-title">🔧 常用功能</text>
       </view>
@@ -133,7 +140,7 @@
     </view>
 
     <!-- 助教专用板块（大分组） -->
-    <view class="internal-group" v-if="memberInfo.memberNo && isCoach">
+    <view class="internal-group" v-if="!isCheckingLogin && memberInfo.memberNo && isCoach">
       <view class="group-header">
         <text class="group-title">🎱 助教专用</text>
       </view>
@@ -198,7 +205,7 @@
     </view>
 
     <!-- 管理功能板块（大分组） -->
-    <view class="internal-group" v-if="memberInfo.memberNo && isManager">
+    <view class="internal-group" v-if="!isCheckingLogin && memberInfo.memberNo && isManager">
       <view class="group-header">
         <text class="group-title">⚙️ 管理功能</text>
       </view>
@@ -289,7 +296,7 @@
     </view>
 
     <!-- 人气值板块 - 原教练专用板块 -->
-    <view class="coach-section" v-if="memberInfo.memberNo && coachInfo.coachNo && coachInfo.status !== '离职'">
+    <view class="coach-section" v-if="!isCheckingLogin && memberInfo.memberNo && coachInfo.coachNo && coachInfo.status !== '离职'">
       <view class="section-header">
         <text class="section-title">🔥 人气值</text>
       </view>
@@ -380,7 +387,7 @@
     </view>
     
     <!-- 会员设置 - 登录后显示 -->
-    <view class="settings-section" v-if="memberInfo.memberNo">
+    <view class="settings-section" v-if="!isCheckingLogin && memberInfo.memberNo">
     </view>
     
     <!-- 底部协议信息 -->
@@ -589,6 +596,7 @@ const topCoaches = ref([])
 
 // 从组件获取台桌名
 // 会员相关
+const isCheckingLogin = ref(true)  // 登录检查状态
 const memberInfo = ref({})
 const agreed = ref(false)
 
@@ -899,7 +907,11 @@ const CHECK_COOLDOWN = 10 * 60 * 1000 // 10分钟
 
 const checkAutoLogin = async () => {
   const now = Date.now()
-  if (now - lastCheckTime < CHECK_COOLDOWN) return // 冷却期内跳过
+  if (now - lastCheckTime < CHECK_COOLDOWN) {
+    // 冷却期内跳过，直接结束 loading
+    isCheckingLogin.value = false
+    return
+  }
 
   const token = uni.getStorageSync('memberToken')
   if (token) {
@@ -940,6 +952,9 @@ const checkAutoLogin = async () => {
         autoFillPhone()
       }
       // 其他错误：静默忽略，不设置冷却时间，下次立即重试
+    } finally {
+      // ✅ 无论成功失败，都结束 loading 状态
+      isCheckingLogin.value = false
     }
   } else {
     // 无token，先清空会员和教练信息
@@ -947,6 +962,8 @@ const checkAutoLogin = async () => {
     coachInfo.value = {}
     // 自动填充上次手机号
     autoFillPhone()
+    // ✅ 结束 loading 状态
+    isCheckingLogin.value = false
   }
 }
 
@@ -2029,5 +2046,17 @@ onShow(() => {
   color: #000;
 }
 /* #endif */
+
+/* 登录检查加载状态 */
+.loading-card {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 120px 20px;
+}
+.loading-text {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.5);
+}
 
 </style>
