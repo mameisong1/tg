@@ -381,11 +381,12 @@ function cancelLejuanTimer(recordId) {
  */
 async function recoverApplicationTimers() {
     try {
+        // 恢复计时器时不查询水牌状态，只看申请记录本身
+        // 执行计时器时才检查水牌状态（executeApplicationRecovery 中已有校验）
         const pendingRecords = await all(`
-            SELECT a.*, c.coach_no, c.stage_name, c.shift, w.status as water_status
+            SELECT a.*, c.coach_no, c.stage_name, c.shift
             FROM applications a
             LEFT JOIN coaches c ON a.applicant_phone = c.employee_id OR a.applicant_phone = c.phone
-            LEFT JOIN water_boards w ON c.coach_no = w.coach_no
             WHERE a.application_type IN ('休息申请', '请假申请')
                 AND a.status = 1
                 AND a.extra_data LIKE '%"timer_set":true%'
@@ -393,20 +394,17 @@ async function recoverApplicationTimers() {
 
         console.log(`[TimerManager] 恢复申请定时器: 找到 ${pendingRecords.length} 条 timer_set=true 记录`);
 
-        let scheduled = 0, executed = 0, skipped = 0;
+        let scheduled = 0, skipped = 0;
 
         for (const record of pendingRecords) {
             try {
                 const extraData = JSON.parse(record.extra_data || '{}');
+                
+                // 1. 已执行 → 跳过
                 if (extraData.executed === 1) { skipped++; continue; }
+                
+                // 2. 无执行时间 → 跳过
                 if (!extraData.exec_time) { skipped++; continue; }
-                if (record.water_status && record.water_status !== '休息' && record.water_status !== '请假') {
-                    extraData.executed = 1;
-                    await enqueueRun('UPDATE applications SET extra_data = ? WHERE id = ?',
-                        [JSON.stringify(extraData), record.id]);
-                    skipped++;
-                    continue;
-                }
 
                 const coachInfo = {
                     coach_no: record.coach_no,
