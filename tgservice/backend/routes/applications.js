@@ -372,7 +372,7 @@ router.get('/', requireBackendPermission(['all']), async (req, res) => {
     } = req.query;
 
     let sql = `
-      SELECT a.*, c.stage_name
+      SELECT a.*, c.stage_name, c.employee_id, c.coach_no
       FROM applications a
       LEFT JOIN coaches c ON a.applicant_phone = c.employee_id OR a.applicant_phone = c.phone
       WHERE 1=1

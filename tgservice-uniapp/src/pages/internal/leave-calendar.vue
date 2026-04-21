@@ -120,10 +120,37 @@ const loadCalendarStats = async () => {
     if (res.success) {
       currentMonth.value = res.data.currentMonth
       nextMonth.value = res.data.nextMonth
+    } else {
+      // 发送错误日志到后端
+      sendErrorLog('leave-calendar-load-failed', { message: res.error || '加载失败' })
+      uni.showToast({ title: '加载失败', icon: 'none' })
     }
   } catch (e) {
+    // 发送错误日志到后端
+    sendErrorLog('leave-calendar-load-exception', { message: e.message || String(e) })
     uni.showToast({ title: '加载失败', icon: 'none' })
   }
+}
+
+// 发送前端错误日志到后端
+const sendErrorLog = async (action, details) => {
+  try {
+    const adminInfo = uni.getStorageSync('adminInfo') || {}
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api'
+    await uni.request({
+      url: baseUrl + '/admin/frontend-error-log',
+      method: 'POST',
+      data: {
+        user: adminInfo.username || 'unknown',
+        action: action,
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        userToken: adminInfo.role || 'unknown',
+        state: JSON.stringify({ currentMonth: currentMonth.value, nextMonth: nextMonth.value }),
+        details: details
+      }
+    })
+  } catch (e) {}
 }
 
 const goBack = () => {
