@@ -41,28 +41,32 @@
           <text class="record-id">{{ record.employee_id }}号</text>
           <text class="record-name">{{ record.stage_name }}</text>
           <text class="record-shift">{{ record.shift }}</text>
-        </view>
-        <view class="record-body">
-          <view class="record-row">
-            <text class="label">上班时间:</text>
-            <text class="value">{{ formatTime(record.clock_in_time) || '-' }}</text>
-          </view>
-          <view class="record-row">
-            <text class="label">下班时间:</text>
-            <text class="value">{{ formatTime(record.clock_out_time) || '-' }}</text>
-          </view>
-          <view class="record-row">
-            <text class="label">加班小时:</text>
-            <text class="value">{{ record.overtime_hours }}小时</text>
+          <!-- 迟到状态徽章放在header末尾 -->
+          <view class="late-badge" :class="{ 'is-late': record.is_late === 1 }">
+            <text>{{ record.is_late_text }}</text>
           </view>
         </view>
-        <!-- 打卡照片 -->
-        <view class="record-photo" v-if="record.clock_in_photo">
-          <image :src="record.clock_in_photo" mode="aspectFill" class="photo-img" @click="previewPhoto(record.clock_in_photo)" />
-        </view>
-        <!-- 迟到状态 -->
-        <view class="late-badge" :class="{ 'is-late': record.is_late === 1 }">
-          <text>{{ record.is_late_text }}</text>
+        <!-- 左右布局：文字信息 + 图片 -->
+        <view class="record-content">
+          <!-- 左侧文字信息 -->
+          <view class="record-info">
+            <view class="record-row">
+              <text class="label">上班时间:</text>
+              <text class="value">{{ formatTime(record.clock_in_time) || '-' }}</text>
+            </view>
+            <view class="record-row">
+              <text class="label">下班时间:</text>
+              <text class="value">{{ formatTime(record.clock_out_time) || '-' }}</text>
+            </view>
+            <view class="record-row">
+              <text class="label">加班小时:</text>
+              <text class="value">{{ record.overtime_hours }}小时</text>
+            </view>
+          </view>
+          <!-- 右侧打卡照片 -->
+          <view class="record-photo" v-if="record.clock_in_photo">
+            <image :src="record.clock_in_photo" mode="aspectFill" class="photo-img" @click="previewPhoto(record.clock_in_photo)" />
+          </view>
         </view>
       </view>
     </view>
@@ -168,34 +172,26 @@ onMounted(() => {
 .attendance-list { padding: 0 16px; }
 .empty-tip { text-align: center; padding: 60px 20px; color: rgba(255,255,255,0.4); }
 .record-card {
-  background: rgba(255,255,255,0.05);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 12px;
-  position: relative;
-}
-.record-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-.record-id { color: #FFD700; font-weight: bold; font-size: 16px; }
-.record-name { color: #fff; font-size: 16px; }
-.record-shift { color: rgba(255,255,255,0.5); font-size: 12px; margin-left: auto; }
+  background: rgba(255,255,255,0.05); border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; }
+.record-header { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.record-id { color: #FFD700; font-weight: bold; font-size: 14px; }
+.record-name { color: #fff; font-size: 14px; }
+.record-shift { color: rgba(255,255,255,0.5); font-size: 12px; }
 
-.record-body { display: flex; flex-direction: column; gap: 8px; }
+/* 左右布局 */
+.record-content { display: flex; gap: 12px; }
+.record-info { flex: 1; display: flex; flex-direction: column; gap: 5px; }
 .record-row { display: flex; align-items: center; }
-.label { color: rgba(255,255,255,0.5); width: 80px; font-size: 13px; }
-.value { color: #fff; font-size: 14px; }
+.label { color: rgba(255,255,255,0.5); width: 70px; font-size: 12px; }
+.value { color: #fff; font-size: 13px; }
 
 /* 打卡照片 */
-.record-photo { margin-top: 12px; }
-.photo-img { width: 80px; height: 80px; border-radius: 8px; }
+.record-photo { flex-shrink: 0; }
+.photo-img { width: 60px; height: 60px; border-radius: 6px; }
 
 /* 迟到状态徽章 */
-.late-badge {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 12px;
+.late-badge { padding: 2px 8px; border-radius: 10px; font-size: 11px; margin-left: auto; }
 }
 .late-badge.is-late { background: rgba(231,76,60,0.2); color: #e74c3c; }
 .late-badge:not(.is-late) { background: rgba(46,204,113,0.2); color: #2ecc71; }
+</style>
