@@ -757,6 +757,80 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
 });
 
 /**
+ * POST /api/applications/:id/cancel-approved
+ * 撤销已同意的请假/休息预约申请
+ * 条件：当前时间 < 请假/休息日期 12:00
+ * 操作：取消Timer + 更新状态为已撤销(status=3)
+ */
+router.post('/:id/cancel-approved', requireBackendPermission(['coachManagement']), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await runInTransaction(async (tx) => {
+      // 1. 查询申请记录
+      const application = await tx.get('SELECT * FROM applications WHERE id = ?', [id]);
+      if (!application) throw { status: 404, error: '申请记录不存在' };
+
+      // 2. 校验类型和状态
+      if (!['请假申请', '休息申请'].includes(application.application_type)) {
+        throw { status: 400, error: '只能撤销请假/休息申请' };
+      }
+      if (application.status !== 1) throw { status: 400, error: '只能撤销已同意的申请' };
+
+      // 3. 解析预约日期
+      const extraData = JSON.parse(application.extra_data || '{}');
+      const targetDate = extraData.rest_date || extraData.leave_date;
+      if (!targetDate) throw { status: 400, error: '申请记录缺少日期信息' };
+
+      // 4. 时间校验：当前 < 预约日期 12:00
+      const nowDB = TimeUtil.nowDB();
+      const nowTime = new Date(nowDB + '+08:00');
+      const deadlineTime = new Date(targetDate + ' 12:00:00+08:00');
+      if (nowTime >= deadlineTime) throw { status: 400, error: '撤销时间已截止（预约当日12:00前）' };
+
+      // 5. 查询助教信息
+      const coach = await tx.get(
+        'SELECT coach_no, stage_name FROM coaches WHERE employee_id = ? OR phone = ?',
+        [application.applicant_phone, application.applicant_phone]
+      );
+
+      // 6. 取消 Timer
+      const timerId = `application_${id}`;
+      timerManager.cancelTimer(timerId);
+
+      // 7. 更新状态为已撤销(status=3)
+      await tx.run(`
+        UPDATE applications
+        SET status = 3, updated_at = ?
+        WHERE id = ?
+      `, [nowDB, id]);
+
+      // 8. 记录操作日志
+      await operationLogService.create(tx, {
+        operator_phone: req.user.username,
+        operator_name: req.user.name,
+        operation_type: '撤销申请',
+        target_type: 'application',
+        target_id: parseInt(id, 10),
+        old_value: JSON.stringify({ status: 1 }),
+        new_value: JSON.stringify({ status: 3, cancelled_by: req.user.username }),
+        remark: `撤销预约申请（${targetDate}）`
+      });
+
+      return { success: true, target_date: targetDate, new_status: 3 };
+    });
+
+    res.json(result);
+
+  } catch (error) {
+    errorLogger.logApiRejection(req, error);
+    if (error.status) return res.status(error.status).json({ success: false, error: error.error });
+    console.error('撤销申请失败:', error);
+    res.status(500).json({ success: false, error: '撤销申请失败' });
+  }
+});
+
+/**
  * GET /api/applications/today-approved-overtime
  * 获取当天所有已同意的加班申请的小时数(批量接口)
  */
