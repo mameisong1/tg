@@ -53,6 +53,11 @@
             <text class="info-label">请假日期</text>
             <text class="info-value">{{ getLeaveDate(app) }}</text>
           </view>
+          <!-- 预计休息人数高亮行 -->
+          <view class="info-row highlight-row">
+            <text class="info-label">预计休息人数</text>
+            <text class="info-value highlight">{{ getDayRestCount(app) }} 人</text>
+          </view>
           <text class="app-remark" v-if="app.remark">理由：{{ app.remark }}</text>
           <!-- 照片 -->
           <scroll-view v-if="getImageUrls(app).length > 0" class="image-scroll" scroll-x>
@@ -124,6 +129,9 @@ const serverHour = ref(null)
 const pendingList = ref([])
 const approvedList = ref([])
 
+// 预计休息人数缓存（按日期）
+const dayRestCountCache = ref({})
+
 // QA-20260420-4: 时间段提示栏 computed
 const timeNoticeClass = computed(() => {
   const hour = serverHour.value !== null ? serverHour.value : new Date().getHours()
@@ -167,7 +175,7 @@ const switchTab = (tab) => {
 
 const loadData = async () => {
   if (activeTab.value === 'pending') {
-    await loadPending()
+    await loadPendingWithRestCount()
   } else {
     await loadApprovedRecent()
   }
@@ -208,6 +216,46 @@ const getLeaveDate = (app) => {
   } catch (e) {
     return '-'
   }
+}
+
+// 获取预计休息人数（当天已同意的请假+休息人数）
+const getDayRestCount = (app) => {
+  try {
+    const ed = JSON.parse(app.extra_data || '{}')
+    const date = ed.leave_date
+    if (!date) return '-'
+    // 从缓存获取
+    return dayRestCountCache.value[date] || 0
+  } catch (e) {
+    return '-'
+  }
+}
+
+// 加载待处理列表时，预加载休息人数
+const loadPendingWithRestCount = async () => {
+  try {
+    const res = await api.applications.getList({ application_type: '请假申请', status: 0, limit: 50 })
+    pendingList.value = res.data || []
+    
+    // 预加载每条申请日期的休息人数
+    const dates = new Set()
+    for (const app of pendingList.value) {
+      try {
+        const ed = JSON.parse(app.extra_data || '{}')
+        if (ed.leave_date) dates.add(ed.leave_date)
+      } catch (e) {}
+    }
+    
+    // 并行请求每个日期的休息人数
+    for (const date of dates) {
+      try {
+        const countRes = await api.leaveCalendar.getDayCount(date)
+        if (countRes.success) {
+          dayRestCountCache.value[date] = countRes.data.count
+        }
+      } catch (e) {}
+    }
+  } catch (e) { uni.showToast({ title: '加载失败', icon: 'none' }) }
 }
 
 const getImageUrls = (record) => {
@@ -276,6 +324,9 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .info-row { display: flex; justify-content: space-between; align-items: center; }
 .info-label { font-size: 12px; color: rgba(255,255,255,0.4); }
 .info-value { font-size: 13px; color: #fff; font-weight: 500; }
+.highlight-row { background: rgba(241,196,15,0.15); border-radius: 6px; padding: 6px 8px; margin: 4px 0; }
+.highlight-row .info-label { color: #f1c40f; }
+.highlight { color: #f1c15f !important; font-weight: 600; }
 .app-remark { font-size: 13px; color: rgba(255,255,255,0.6); }
 .app-time { font-size: 11px; color: rgba(255,255,255,0.3); }
 

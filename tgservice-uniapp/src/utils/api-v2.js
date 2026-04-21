@@ -172,6 +172,14 @@ export const rewardPenalty = {
   getRecentCount: () => request({ url: '/reward-penalty/recent-count' })
 }
 
+// ========== 助教休假日历 ==========
+export const leaveCalendar = {
+  // 获取本月和下月休假日历统计
+  getStats: (yearMonth) => request({ url: '/leave-calendar/stats', data: yearMonth ? { yearMonth } : {} }),
+  // 获取指定日期的休息人数
+  getDayCount: (date) => request({ url: '/leave-calendar/day-count', data: { date } })
+}
+
 export default {
   // 前端配置（授权过期时间等）
   getFrontConfig: () => request({ url: '/front-config' }),
@@ -185,5 +193,6 @@ export default {
   authV2,
   lejuanRecords,
   missingTableOutOrders,
-  rewardPenalty
+  rewardPenalty,
+  leaveCalendar
 }

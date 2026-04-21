@@ -3797,6 +3797,131 @@ app.put('/api/admin/home-config', authMiddleware, requireBackendPermission(['all
   }
 });
 
+// =============== 助教休假日历 API ===============
+
+/**
+ * GET /api/leave-calendar/stats
+ * 获取本月和下月的休假日历统计（每天预计休息人数）
+ * 参数：yearMonth（可选，默认本月）
+ * 返回：本月和下月每天的休息人数
+ */
+app.get('/api/leave-calendar/stats', authMiddleware, async (req, res) => {
+  try {
+    const { yearMonth } = req.query;
+    const today = TimeUtil.todayStr();
+    const currentYearMonth = yearMonth || today.substring(0, 7);
+    
+    // 计算下个月
+    const [year, month] = currentYearMonth.split('-');
+    const nextYear = month === '12' ? parseInt(year) + 1 : year;
+    const nextMonth = month === '12' ? '01' : String(parseInt(month) + 1).padStart(2, '0');
+    const nextYearMonth = `${nextYear}-${nextMonth}`;
+    
+    // 查询本月数据
+    const currentMonthData = await getLeaveCalendarMonthStats(currentYearMonth);
+    
+    // 查询下月数据
+    const nextMonthData = await getLeaveCalendarMonthStats(nextYearMonth);
+    
+    res.json({
+      success: true,
+      data: {
+        currentMonth: {
+          yearMonth: currentYearMonth,
+          days: currentMonthData
+        },
+        nextMonth: {
+          yearMonth: nextYearMonth,
+          days: nextMonthData
+        }
+      }
+    });
+  } catch (error) {
+    console.error('获取休假日历统计失败:', error);
+    res.status(500).json({ success: false, error: '获取休假日历统计失败' });
+  }
+});
+
+/**
+ * GET /api/leave-calendar/day-count
+ * 获取指定日期的预计休息人数
+ * 参数：date（必填，如 2026-04-27）
+ * 返回：当天的休息人数
+ */
+app.get('/api/leave-calendar/day-count', authMiddleware, async (req, res) => {
+  try {
+    const { date } = req.query;
+    if (!date) {
+      return res.status(400).json({ success: false, error: '缺少日期参数' });
+    }
+    
+    const count = await getLeaveCalendarDayCount(date);
+    
+    res.json({
+      success: true,
+      data: {
+        date,
+        count
+      }
+    });
+  } catch (error) {
+    console.error('获取日期休息人数失败:', error);
+    res.status(500).json({ success: false, error: '获取日期休息人数失败' });
+  }
+});
+
+/**
+ * 辅助函数：获取指定月份每天的休息人数
+ */
+async function getLeaveCalendarMonthStats(yearMonth) {
+  const sql = `
+    SELECT 
+      COALESCE(
+        JSON_EXTRACT(extra_data, '$.leave_date'),
+        JSON_EXTRACT(extra_data, '$.rest_date')
+      ) as leave_date,
+      COUNT(DISTINCT applicant_phone) as count
+    FROM applications
+    WHERE application_type IN ('请假申请', '休息申请')
+      AND status = 1
+      AND (
+        JSON_EXTRACT(extra_data, '$.leave_date') LIKE ?
+        OR JSON_EXTRACT(extra_data, '$.rest_date') LIKE ?
+      )
+    GROUP BY leave_date
+  `;
+  const params = [`${yearMonth}%`, `${yearMonth}%`];
+  const rows = await dbAll(sql, params);
+  
+  // 转换为对象 { '2026-04-02': 3, '2026-04-06': 2 }
+  const result = {};
+  for (const row of rows) {
+    if (row.leave_date) {
+      result[row.leave_date] = row.count;
+    }
+  }
+  return result;
+}
+
+/**
+ * 辅助函数：获取指定日期的休息人数
+ */
+async function getLeaveCalendarDayCount(date) {
+  const sql = `
+    SELECT COUNT(DISTINCT applicant_phone) as count
+    FROM applications
+    WHERE application_type IN ('请假申请', '休息申请')
+      AND status = 1
+      AND (
+        JSON_EXTRACT(extra_data, '$.leave_date') = ?
+        OR JSON_EXTRACT(extra_data, '$.rest_date') = ?
+      )
+  `;
+  const params = [date, date];
+  const row = await dbGet(sql, params);
+  return row ? row.count : 0;
+}
+
 // =============== 台桌管理 API ===============
 
 // 汉字转拼音映射(扩展版)

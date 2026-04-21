@@ -307,6 +307,15 @@
       }
     },
     {
+      "path": "pages/internal/leave-calendar",
+      "style": {
+        "navigationBarTitleText": "助教休假日历",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
       "path": "pages/internal/rest-approval",
       "style": {
         "navigationBarTitleText": "休息审批",

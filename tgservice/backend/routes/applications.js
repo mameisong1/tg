@@ -342,6 +342,7 @@ router.get('/approved-recent', requireBackendPermission(['coachManagement']), as
         shift: r.shift || '-',
         application_type: r.application_type,
         hours: hours,
+        extra_data: r.extra_data,  // 返回 extra_data，用于解析请假/休息日期
         status: r.status,
         approve_time: r.approve_time,
         created_at: r.created_at
