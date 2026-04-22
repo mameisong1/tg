@@ -257,13 +257,14 @@ router.post('/:coach_no/clock-out', auth.required, requireBackendPermission(['co
       WHERE coach_no = ?
     `, [newStatus, nowDB, coach_no]);
 
-    // 新增：查找当天最新的未打卡下班的上班记录，更新下班时间
+    // 新增：查找当天或昨天的未下班上班记录（凌晨下班时上班记录在昨天）
     const todayStr = TimeUtil.todayStr();
+    const yesterdayStr = TimeUtil.offsetDateStr(-1);
     const attendanceRecord = await tx.get(`
       SELECT id FROM attendance_records
-      WHERE coach_no = ? AND date = ? AND clock_out_time IS NULL
+      WHERE coach_no = ? AND date IN (?, ?) AND clock_out_time IS NULL
       ORDER BY clock_in_time DESC LIMIT 1
-    `, [coach_no, todayStr]);
+    `, [coach_no, todayStr, yesterdayStr]);
 
     if (attendanceRecord) {
       await tx.run(`
