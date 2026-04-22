@@ -197,13 +197,17 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
             'Content-Length': Buffer.byteLength(postData)
           }
         };
-        const triggerReq = http.request(options, () => {});
-        triggerReq.on('error', () => {}); // 静默忽略错误
+        const triggerReq = http.request(options, (resp) => {
+          console.log(`[GuestRanking] 打卡后排序触发成功: coach_no=${coach_no}, shift=${coach.shift}`);
+        });
+        triggerReq.on('error', (err) => {
+          console.error(`[GuestRanking] 打卡后排序触发失败: coach_no=${coach_no}, error=${err.message}`);
+        });
         triggerReq.write(postData);
         triggerReq.end();
       }
     } catch (e) {
-      // 静默忽略，不影响打卡主流程
+      console.error('[GuestRanking] 打卡后排序触发异常:', e.message);
     }
   } catch (error) {
     errorLogger.logApiRejection(req, error);
