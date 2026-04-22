@@ -224,19 +224,6 @@
             <text class="internal-btn-icon">📅</text>
             <text class="internal-btn-text">助教日历</text>
           </view>
-          <view class="internal-btn" @click="navigateTo('/pages/internal/attendance-review')">
-            <text class="internal-btn-icon">📋</text>
-            <text class="internal-btn-text">打卡审查</text>
-            <view class="badge" v-if="attendanceReviewCount > 0">{{ attendanceReviewCount }}</view>
-          </view>
-          <view class="internal-btn" @click="navigateTo('/pages/internal/guest-invitation-stats')">
-            <text class="internal-btn-icon">📊</text>
-            <text class="internal-btn-text">约客统计</text>
-          </view>
-          <view class="internal-btn" @click="navigateTo('/pages/internal/missing-table-out-stats')">
-            <text class="internal-btn-icon">📊</text>
-            <text class="internal-btn-text">漏单统计</text>
-          </view>
           <view class="internal-btn" @click="navigateTo('/pages/internal/reward-penalty-set?type=服务日奖')">
             <text class="internal-btn-icon">🏆</text>
             <text class="internal-btn-text">服务日奖</text>
@@ -252,7 +239,42 @@
         </view>
       </view>
 
-      <!-- 组2: 审批 -->
+      <!-- 组2: 审查 -->
+      <view class="group-section">
+        <view class="section-header">
+          <text class="section-title">🔍 审查</text>
+        </view>
+        <view class="internal-btns">
+          <view class="internal-btn" @click="navigateTo('/pages/internal/attendance-review')">
+            <text class="internal-btn-icon">📋</text>
+            <text class="internal-btn-text">打卡审查</text>
+            <view class="badge" v-if="attendanceReviewCount > 0">{{ attendanceReviewCount }}</view>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/lejuan-list')">
+            <text class="internal-btn-icon">💰</text>
+            <text class="internal-btn-text">乐捐一览</text>
+            <view class="badge" v-if="lejuanCount > 0">{{ lejuanCount }}</view>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-review?shift=早班')">
+            <text class="internal-btn-icon">🌅</text>
+            <text class="internal-btn-text">早班约客</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-review?shift=晚班')">
+            <text class="internal-btn-icon">🌙</text>
+            <text class="internal-btn-text">晚班约客</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/guest-invitation-stats')">
+            <text class="internal-btn-icon">📊</text>
+            <text class="internal-btn-text">约客统计</text>
+          </view>
+          <view class="internal-btn" @click="navigateTo('/pages/internal/missing-table-out-stats')">
+            <text class="internal-btn-icon">📊</text>
+            <text class="internal-btn-text">漏单统计</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 组3: 审批 -->
       <view class="group-section">
         <view class="section-header">
           <text class="section-title">✅ 审批</text>
@@ -267,19 +289,6 @@
             <text class="internal-btn-icon">🏖️</text>
             <text class="internal-btn-text">公休审批</text>
             <view class="badge" v-if="publicLeaveCount > 0">{{ publicLeaveCount }}</view>
-          </view>
-          <view class="internal-btn" @click="navigateTo('/pages/internal/lejuan-list')">
-            <text class="internal-btn-icon">💰</text>
-            <text class="internal-btn-text">乐捐一览</text>
-            <view class="badge" v-if="lejuanCount > 0">{{ lejuanCount }}</view>
-          </view>
-          <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-review?shift=早班')">
-            <text class="internal-btn-icon">🌅</text>
-            <text class="internal-btn-text">早班约客</text>
-          </view>
-          <view class="internal-btn" @click="navigateTo('/pages/internal/invitation-review?shift=晚班')">
-            <text class="internal-btn-icon">🌙</text>
-            <text class="internal-btn-text">晚班约客</text>
           </view>
           <view class="internal-btn" @click="navigateTo('/pages/internal/shift-change-approval')">
             <text class="internal-btn-icon">🔄</text>
