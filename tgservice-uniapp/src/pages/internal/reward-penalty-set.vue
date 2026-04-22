@@ -310,7 +310,7 @@ async function savePerson(person) {
       type: currentType.value,
       confirmDate: confirmDate.value,
       phone: phone,
-      name: person.name || person.displayName,
+      name: person.stage_name || person.name || person.displayName,  // QA-20260422: 优先用艺名
       amount: amount,
       remark: person.tempRemark || ''
     })
