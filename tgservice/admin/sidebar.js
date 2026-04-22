@@ -10,37 +10,35 @@
 var MENU_CONFIG = [
   // 顶级项
   { label: '数据概览', icon: '\uD83D\uDCCA', href: 'index.html', group: null },
-  { label: '会员管理', icon: '\uD83D\uDC65', href: 'members.html', group: null },
+  // 【管理】（原人事）
+  { label: '首页配置', icon: '\uD83C\uDFE0', href: 'home.html', group: '管理' },
+  { label: '会员管理', icon: '\uD83D\uDC65', href: 'members.html', group: '管理' },
+  { label: '用户管理', icon: '\uD83D\uDC65', href: 'users.html', group: '管理' },
+  { label: '奖罚统计', icon: '\uD83C\uDFC6', href: 'reward-penalty-stats.html', group: '管理' },
   // 【前厅】
   { label: '收银看板', icon: '\uD83D\uDCB0', href: 'cashier-dashboard.html', group: '前厅' },
   { label: '商品管理', icon: '\uD83D\uDCE6', href: 'products.html', group: '前厅' },
   { label: '包房管理', icon: '\uD83D\uDECB\uFE0F', href: 'vip-rooms.html', group: '前厅' },
   { label: '台桌管理', icon: '\uD83C\uDFB1', href: 'tables.html', group: '前厅' },
   { label: '商品分类', icon: '\uD83C\uDFF7\uFE0F', href: 'categories.html', group: '前厅' },
-  // 【助教管理】
-  { label: '助教列表', icon: '\uD83D\uDC69', href: 'coaches.html', group: '助教管理' },
-  { label: '批量更新班次', icon: '\uD83D\uDD04', href: 'coaches.html#batch-shift', group: '助教管理' },
-  // 【设备管理】
-  { label: '设备开关管理', icon: '\uD83D\uDD0C', href: 'switch-devices.html', group: '设备管理' },
-  { label: '台桌设备关系', icon: '\uD83C\uDFB1', href: 'table-devices.html', group: '设备管理' },
-  { label: '开关场景管理', icon: '\uD83C\uDFAC', href: 'switch-scenes.html', group: '设备管理' },
+  // 【助教】（原助教管理）
+  { label: '助教列表', icon: '\uD83D\uDC69', href: 'coaches.html', group: '助教' },
+  { label: '批量更新班次', icon: '\uD83D\uDD04', href: 'coaches.html#batch-shift', group: '助教' },
   // 【系统】
-  { label: '操作日志', icon: '\uD83D\uDCDC', href: 'operation-logs.html', group: '系统' },
   { label: '系统报告', icon: '\uD83D\uDC8A', href: 'system-report.html', group: '系统' },
-  { label: '首页配置', icon: '\uD83C\uDFE0', href: 'home.html', group: '系统' },
-  { label: '用户管理', icon: '\uD83D\uDC65', href: 'users.html', group: '系统' },
   { label: '系统配置', icon: '\uD83D\uDEE1\uFE0F', href: 'settings.html', group: '系统' },
-  // 【人事】
-  { label: '奖罚统计', icon: '\uD83C\uDFC6', href: 'reward-penalty-stats.html', group: '人事' },
+  { label: '设备开关管理', icon: '\uD83D\uDD0C', href: 'switch-devices.html', group: '系统' },
+  { label: '台桌设备关系', icon: '\uD83C\uDFB1', href: 'table-devices.html', group: '系统' },
+  { label: '开关场景管理', icon: '\uD83C\uDFAC', href: 'switch-scenes.html', group: '系统' },
+  { label: '操作日志', icon: '\uD83D\uDCDC', href: 'operation-logs.html', group: '系统' },
 ];
 
 // 分组图标
 var GROUP_ICONS = {
+  '管理': '\uD83D\uDC65',
   '前厅': '\uD83C\uDFE0',
-  '助教管理': '\uD83D\uDC69\u200D\uD83C\uDFEB',
-  '设备管理': '\uD83D\uDCA1',
-  '系统': '\u2699\uFE0F',
-  '人事': '\uD83D\uDC65'
+  '助教': '\uD83D\uDC69\u200D\uD83C\uDFEB',
+  '系统': '\u2699\uFE0F'
 };
 
 // 角色名映射（中英文兼容）

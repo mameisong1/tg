@@ -1,0 +1,57 @@
+[
+  {
+    "test": "管理员登录",
+    "status": "PASS",
+    "detail": "获取adminToken"
+  },
+  {
+    "test": "前端登录",
+    "status": "PASS",
+    "detail": "显示陆飞用户名"
+  },
+  {
+    "test": "上班打卡",
+    "status": "FAIL",
+    "detail": "助教已在班状态,无需重复上班"
+  },
+  {
+    "test": "上桌单",
+    "status": "PASS",
+    "detail": "记录数+1"
+  },
+  {
+    "test": "下桌单",
+    "status": "PASS",
+    "detail": "记录数+1"
+  },
+  {
+    "test": "乐捐报备",
+    "status": "FAIL",
+    "detail": "乐捐报备时间为每日14:00-次日01:00，请选择有效时段"
+  },
+  {
+    "test": "下班打卡",
+    "status": "PASS",
+    "detail": "记录数+1"
+  },
+  {
+    "test": "商品点单",
+    "status": "FAIL",
+    "detail": "购物车为空"
+  },
+  {
+    "test": "服务下单",
+    "status": "PASS",
+    "detail": "服务单数+1, 最新: 36|雀1|需要一杯水|陆飞|待处理"
+  },
+  {
+    "test": "商品点单",
+    "status": "PASS",
+    "detail": "订单号:TG1776875202799, 台桌:雀1, 商品:2件"
+  },
+  {
+    "test": "服务下单",
+    "status": "PASS",
+    "detail": "38|雀2|需要两杯可乐"
+  }
+]

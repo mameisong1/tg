@@ -1,0 +1,42 @@
+[
+  {
+    "test": "登录测试",
+    "status": "PASS",
+    "detail": "显示陆飞用户名"
+  },
+  {
+    "test": "商品下单",
+    "status": "FAIL",
+    "detail": "订单数未增加"
+  },
+  {
+    "test": "服务下单",
+    "status": "FAIL",
+    "detail": "服务单数未增加"
+  },
+  {
+    "test": "上班打卡",
+    "status": "FAIL",
+    "detail": "打卡记录数未增加"
+  },
+  {
+    "test": "上桌单",
+    "status": "FAIL",
+    "detail": "上桌记录数未增加"
+  },
+  {
+    "test": "下桌单",
+    "status": "FAIL",
+    "detail": "下桌记录数未增加"
+  },
+  {
+    "test": "乐捐报备",
+    "status": "FAIL",
+    "detail": "乐捐记录数未增加"
+  },
+  {
+    "test": "下班打卡",
+    "status": "FAIL",
+    "detail": "下班记录数未增加"
+  }
+]

@@ -1,0 +1,42 @@
+[
+  {
+    "test": "登录测试",
+    "status": "FAIL",
+    "detail": "登录失败，仍在登录页"
+  },
+  {
+    "test": "商品下单",
+    "status": "ERROR",
+    "detail": "Node is either not clickable or not an Element"
+  },
+  {
+    "test": "服务下单",
+    "status": "FAIL",
+    "detail": "服务订单数未增加"
+  },
+  {
+    "test": "上班打卡",
+    "status": "FAIL",
+    "detail": "打卡记录未增加"
+  },
+  {
+    "test": "上桌单",
+    "status": "FAIL",
+    "detail": "上桌记录未增加"
+  },
+  {
+    "test": "下桌单",
+    "status": "FAIL",
+    "detail": "下桌记录未增加"
+  },
+  {
+    "test": "乐捐报备",
+    "status": "FAIL",
+    "detail": "乐捐记录未增加"
+  },
+  {
+    "test": "下班打卡",
+    "status": "FAIL",
+    "detail": "下班打卡记录未增加"
+  }
+]

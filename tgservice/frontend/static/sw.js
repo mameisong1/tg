@@ -1,5 +1,5 @@
 // 天宫国际 PWA Service Worker
-const CACHE_NAME = 'tgservice-v1.7.0'; // 修复API参数传递问题
+const CACHE_NAME = 'tgservice-v1.5.0';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
