@@ -41,7 +41,8 @@ const request = (options) => {
     const memberToken = uni.getStorageSync('memberToken')
     const coachToken = uni.getStorageSync('coachToken')
     const adminToken = uni.getStorageSync('adminToken')
-    const token = options.authType === 'member' ? memberToken : (options.authType === 'coach' ? coachToken : (options.authType === 'admin' ? adminToken : (memberToken || coachToken || adminToken)))
+    // QA-20260422: 修复 token 优先级 - 当有 coachToken 或 adminToken 时优先使用（内部员工权限）
+    const token = options.authType === 'member' ? memberToken : (options.authType === 'coach' ? coachToken : (options.authType === 'admin' ? adminToken : (adminToken || coachToken || memberToken)))
     
     uni.request({
       url: BASE_URL + options.url,
@@ -252,7 +253,7 @@ export default {
   getRewardPenaltyTypes: () => request({ url: "/admin/reward-penalty/types", authType: "admin" }),
   updateRewardPenaltyTypes: (data) => request({ url: "/admin/reward-penalty/types", method: "PUT", data, authType: "admin" }),
   upsertRewardPenalty: (data) => request({ url: "/reward-penalty/upsert", method: "POST", data, authType: "admin" }),
-  getRewardPenaltyList: (params) => request({ url: "/reward-penalty/list", data: params, authType: "admin" }),
+  getRewardPenaltyList: (params) => request({ url: "/reward-penalty/list", data: params }), // 不指定 authType，支持教练和后台用户
   getRewardPenaltyStats: (params) => request({ url: "/reward-penalty/stats", data: params, authType: "admin" }),
   batchExecuteRewardPenalty: (data) => request({ url: "/reward-penalty/batch-execute", method: "POST", data, authType: "admin" }),
   executeRewardPenalty: (id) => request({ url: `/reward-penalty/execute/${id}`, method: "POST", authType: "admin" }),
@@ -266,6 +267,6 @@ export default {
 
   // =============== 奖罚管理 ===============
   rewardPenalty: {
-    getRecentCount: (params) => request({ url: '/reward-penalty/recent-count', data: params, authType: 'admin' })
+    getRecentCount: (params) => request({ url: '/reward-penalty/recent-count', data: params }) // 不指定 authType，支持教练和后台用户
   }
 }
