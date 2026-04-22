@@ -4,7 +4,7 @@
  * 数据持久化到 system_config 表
  */
 
-const { get, runInTransaction, enqueueRun } = require('../db');
+const { get, all, runInTransaction, enqueueRun } = require('../db');
 const TimeUtil = require('../utils/time');
 
 class GuestRankingService {
@@ -144,7 +144,7 @@ class GuestRankingService {
     const placeholders = statusList.map(() => '?').join(',');
 
     // 查询空闲/上桌助教
-    const rows = await get(`
+    const rows = await all(`
       SELECT wb.coach_no, wb.clock_in_time
       FROM water_boards wb
       WHERE wb.status IN (${placeholders})

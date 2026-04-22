@@ -82,6 +82,14 @@
 
 ---
 
+## Git 提交
+
+- 仓库: `/TG`
+- Commit: `73b8990 feat: 新增助教门迎排序功能`
+- 包含后端 + 前端所有修改
+
+---
+
 ## 注意事项
 
 1. `batchRank` 方法中，由于 SQL 中免门迎过滤在 JS 层面完成，SQL 查询使用了 `NOT IN (SELECT coach_no FROM coaches WHERE 0 = 1)` 作为占位符（始终为真，不过滤），真正的免门迎过滤在 JS 中通过 `this._exempt` Set 完成

@@ -7,7 +7,7 @@ import json
 import logging
 import time
 from typing import Dict, Any, Optional
-from config import TUYA_DEVICES, DEVICE_PARAMS
+from config import TUYA_DEVICES, DEVICE_PARAMS, GATEWAY_ID
 
 logger = logging.getLogger(__name__)
 
@@ -15,40 +15,43 @@ logger = logging.getLogger(__name__)
 class TuyaLocalController:
     """TinyTuya 本地控制器"""
     
-    def __init__(self):
-        self.devices: Dict[str, tinytuya.Device] = {}
+    def __init__():
         self.gateway: Optional[tinytuya.Device] = None
-        self._init_devices()
+        self.sub_devices: Dict[str, dict] = {}  # 子设备配置缓存
+        self._init_gateway()
     
-    def _init_devices(self):
-        """初始化设备"""
-        for device_id, config in TUYA_DEVICES.items():
-            # 跳过子设备（子设备通过网关控制）
-            if config.get("is_sub_device"):
-                logger.info(f"子设备 {config.get('name')} 将通过网关控制")
-                continue
+    def _init_gateway(self):
+        """初始化网关设备"""
+        gateway_config = TUYA_DEVICES.get(GATEWAY_ID)
+        if not gateway_config:
+            logger.error(f"网关配置不存在: {GATEWAY_ID}")
+            return
+        
+        local_key = gateway_config.get("local_key")
+        if not local_key:
+            logger.error("网关缺少 local_key")
+            return
+        
+        try:
+            # 创建网关设备对象
+            self.gateway = tinytuya.Device(
+                dev_id=GATEWAY_ID,
+                address=gateway_config.get("ip", "Auto"),
+                local_key=local_key,
+                version=float(gateway_config.get("version", "3.3"))
+            )
             
-            if not config.get("local_key"):
-                logger.warning(f"设备 {config.get('name', device_id)} 缺少 local_key")
-                continue
+            logger.info(f"网关 {gateway_config.get('name')} 初始化成功")
             
-            try:
-                device = tinytuya.Device(
-                    dev_id=device_id,
-                    address=config.get("ip", "auto"),
-                    local_key=config["local_key"],
-                    version=float(config.get("version", "3.3"))
-                )
-                
-                if config.get("is_gateway"):
-                    self.gateway = device
-                    logger.info(f"网关 {config.get('name')} 初始化成功")
-                else:
-                    self.devices[device_id] = device
-                    logger.info(f"设备 {config.get('name')} 初始化成功")
-                    
-            except Exception as e:
-                logger.error(f"设备 {device_id} 初始化失败: {e}")
+            # 缓存子设备配置
+            for device_id, config in TUYA_DEVICES.items():
+                if config.get("is_sub_device"):
+                    self.sub_devices[device_id] = config
+                    logger.info(f"子设备 {config.get('name')} 已注册")
+            
+        except Exception as e:
+            logger.error(f"网关初始化失败: {e}")
+            self.gateway = None
     
     def control(self, device_id: str, params: Dict[str, Any]) -> Dict[str, Any]:
         """控制设备"""
@@ -61,91 +64,79 @@ class TuyaLocalController:
         if not config:
             return {"success": False, "error": "未知设备"}
         
+        device_name = config.get("name", device_id)
+        
         # 子设备通过网关控制
         if config.get("is_sub_device"):
-            if not self.gateway:
-                return {"success": False, "error": "网关未初始化"}
-            return self._control_sub_device(device_id, validated)
+            return self._control_sub_device(device_id, validated, device_name)
         
-        # 直接控制设备
-        device = self.devices.get(device_id)
-        if not device:
-            return {"success": False, "error": "设备未初始化"}
+        # 网关本身的状态控制
+        if device_id == GATEWAY_ID:
+            return {"success": False, "error": "网关不支持直接控制"}
         
-        return self._control_device(device, validated)
+        return {"success": False, "error": "未知的设备类型"}
     
-    def _control_device(self, device: tinytuya.Device, params: Dict) -> Dict:
-        """直接控制设备"""
-        try:
-            # 发送控制命令
-            # DPS映射: 1=开关, 2=温度, 4=模式, 5=风速
-            dps_map = {
-                "switch": 1,
-                "temp_set": 2,
-                "mode": 4,
-                "fan_speed_enum": 5,
-            }
-            
-            results = []
-            for key, value in params.items():
-                dps = dps_map.get(key)
-                if dps:
-                    result = device.set_value(dps, value)
-                    results.append((key, result))
-                    logger.info(f"设置 {key}={value}, DPS={dps}, 结果: {result}")
-            
-            return {"success": True, "results": results}
-            
-        except Exception as e:
-            logger.error(f"控制失败: {e}")
-            return {"success": False, "error": str(e)}
-    
-    def _control_sub_device(self, device_id: str, params: Dict) -> Dict:
+    def _control_sub_device(self, device_id: str, params: Dict, device_name: str) -> Dict:
         """通过网关控制子设备"""
+        if not self.gateway:
+            return {"success": False, "error": "网关未初始化"}
+        
         try:
-            # 子设备控制需要使用网关的set_multiple_values
-            # 或者发送特殊格式的命令
-            
-            dps_map = {
-                "switch": 1,
-                "temp_set": 2,
-                "mode": 4,
-                "fan_speed_enum": 5,
-            }
-            
-            # 构建控制数据
-            control_data = {}
+            # 构建DPS数据
+            dps_data = {}
             for key, value in params.items():
-                dps = dps_map.get(key)
-                if dps:
-                    control_data[str(dps)] = value
+                param_config = DEVICE_PARAMS.get(key)
+                if param_config:
+                    dps = param_config["dps"]
+                    dps_data[str(dps)] = value
             
-            # 通过网关发送（TinyTuya会自动处理子设备）
-            # 需要使用gateway的ID和子设备的local_key
+            if not dps_data:
+                return {"success": False, "error": "无有效参数"}
             
-            gateway_config = TUYA_DEVICES.get("6cedfa65e9e0d2f95bv8dw")
-            sub_config = TUYA_DEVICES.get(device_id)
+            # TinyTuya 子设备控制方式
+            # 需要使用网关发送命令，指定子设备ID
             
-            if not gateway_config or not sub_config:
-                return {"success": False, "error": "缺少设备配置"}
+            sub_config = self.sub_devices.get(device_id)
+            node_id = sub_config.get("node_id", "") if sub_config else ""
             
-            # 创建子设备控制对象
+            logger.info(f"控制子设备 {device_name} (node_id={node_id}): {dps_data}")
+            
+            # 方式1: 使用gateway发送控制命令
+            # TinyTuya 会自动处理子设备路由
+            
+            # 创建子设备控制对象（指向网关IP）
             sub_device = tinytuya.Device(
                 dev_id=device_id,
-                address=gateway_config.get("ip", "auto"),
+                address=self.gateway.address,
                 local_key=sub_config.get("local_key", ""),
                 version=3.3
             )
             
-            # 发送控制
-            result = sub_device.set_multiple_values(control_data)
-            logger.info(f"子设备控制: {control_data}, 结果: {result}")
+            # 发送控制命令
+            result = sub_device.set_multiple_values(dps_data)
             
-            return {"success": True, "result": result}
+            logger.info(f"控制结果: {result}")
+            
+            # 检查结果
+            if result and "dps" in result:
+                return {
+                    "success": True,
+                    "device_name": device_name,
+                    "params": params,
+                    "dps": dps_data,
+                    "result": result
+                }
+            
+            return {
+                "success": True,
+                "device_name": device_name,
+                "params": params,
+                "result": result
+            }
             
         except Exception as e:
             logger.error(f"子设备控制失败: {e}")
-            return {"success": False, "error": str(e)}
+            return {"success": False, "error": str(e), "device_name": device_name}
     
     def get_status(self, device_id: str) -> Dict[str, Any]:
         """获取设备状态"""
@@ -153,15 +144,49 @@ class TuyaLocalController:
         if not config:
             return {"error": "未知设备"}
         
-        device = self.devices.get(device_id) or self.gateway
-        if not device:
-            return {"error": "设备未初始化"}
+        device_name = config.get("name", device_id)
+        
+        if not self.gateway:
+            return {"error": "网关未初始化"}
         
         try:
-            status = device.status()
-            return status
+            if config.get("is_sub_device"):
+                # 获取子设备状态
+                sub_device = tinytuya.Device(
+                    dev_id=device_id,
+                    address=self.gateway.address,
+                    local_key=config.get("local_key", ""),
+                    version=3.3
+                )
+                status = sub_device.status()
+                
+                if "dps" in status:
+                    # 转换DPS为友好名称
+                    friendly_status = {}
+                    for key, param_config in DEVICE_PARAMS.items():
+                        dps = str(param_config["dps"])
+                        if dps in status["dps"]:
+                            friendly_status[key] = status["dps"][dps]
+                    
+                    return {
+                        "success": True,
+                        "device_name": device_name,
+                        "status": friendly_status,
+                        "raw": status
+                    }
+                
+                return {"success": True, "device_name": device_name, "raw": status}
+            
+            # 获取网关状态
+            if device_id == GATEWAY_ID:
+                status = self.gateway.status()
+                return {"success": True, "device_name": device_name, "raw": status}
+            
+            return {"error": "未知的设备类型"}
+            
         except Exception as e:
-            return {"error": str(e)}
+            logger.error(f"获取状态失败: {e}")
+            return {"error": str(e), "device_name": device_name}
     
     def _validate_params(self, params: Dict[str, Any]) -> Dict[str, Any]:
         """验证参数"""
@@ -169,36 +194,59 @@ class TuyaLocalController:
         
         for key, value in params.items():
             if key not in DEVICE_PARAMS:
+                logger.warning(f"未知参数: {key}")
                 continue
             
             param_config = DEVICE_PARAMS[key]
             
-            if param_config["type"] == "bool":
-                validated[key] = bool(value)
-            elif param_config["type"] == "int":
-                try:
+            try:
+                if param_config["type"] == "bool":
+                    validated[key] = bool(value)
+                elif param_config["type"] == "int":
                     v = int(value)
-                    if param_config.get("min", 0) <= v <= param_config.get("max", 100):
+                    min_val = param_config.get("min", 0)
+                    max_val = param_config.get("max", 100)
+                    if min_val <= v <= max_val:
                         validated[key] = v
-                except:
-                    pass
-            elif param_config["type"] == "str":
-                if value in param_config.get("values", []):
-                    validated[key] = value
+                    else:
+                        logger.warning(f"{key} 值超出范围: {v} (范围: {min_val}-{max_val})")
+                elif param_config["type"] == "str":
+                    allowed = param_config.get("values", [])
+                    if value in allowed:
+                        validated[key] = value
+                    else:
+                        logger.warning(f"{key} 值不在允许列表: {value} (允许: {allowed})")
+            except Exception as e:
+                logger.warning(f"参数 {key} 验证失败: {e}")
         
         return validated
     
     def scan_devices(self) -> list:
-        """扫描局域网设备"""
+        """扫描局域网涂鸦设备"""
         logger.info("扫描涂鸦设备...")
         try:
-            devices = tinytuya.deviceScan()
+            devices = tinytuya.scanDevices()
             logger.info(f"发现 {len(devices)} 个设备")
+            for dev in devices:
+                logger.info(f"  - {dev.get('name', 'Unknown')} ({dev.get('id')}) IP: {dev.get('ip')}")
             return devices
         except Exception as e:
             logger.error(f"扫描失败: {e}")
             return []
+    
+    def discover_gateway_ip(self) -> Optional[str]:
+        """发现网关IP"""
+        try:
+            devices = self.scan_devices()
+            for dev in devices:
+                if dev.get("id") == GATEWAY_ID:
+                    ip = dev.get("ip")
+                    logger.info(f"发现网关 IP: {ip}")
+                    return ip
+        except Exception as e:
+            logger.error(f"发现网关失败: {e}")
+        return None
 
 
-# 全局控制器
+# 全局控制器实例
 controller = TuyaLocalController()
