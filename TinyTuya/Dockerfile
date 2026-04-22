@@ -6,13 +6,14 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# 复制代码
+# ★ 复制所有代码文件（确保不遗漏）
 COPY config.py .
 COPY main.py .
-COPY tuya_controller.py .
 COPY mqtt_client.py .
-COPY test_connection.py .
+COPY tuya_controller.py .
 COPY scan_devices.py .
+COPY test_connection.py .
+COPY requirements.txt .
 
 # 创建日志目录
 RUN mkdir -p /app/logs

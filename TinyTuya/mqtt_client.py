@@ -1,6 +1,6 @@
 """
 MQTT 客户端
-订阅外网 MQTT 消息，控制涂鸦设备
+订阅主题: tiangongguojikongtiao
 """
 import json
 import logging
@@ -8,7 +8,7 @@ import paho.mqtt.client as mqtt
 from typing import Callable, Dict, Any
 from config import (
     MQTT_HOST, MQTT_PORT, MQTT_USERNAME, MQTT_PASSWORD, MQTT_CLIENT_ID,
-    MQTT_TOPIC_PREFIX
+    MQTT_TOPIC, MQTT_RESPONSE_TOPIC
 )
 
 logger = logging.getLogger(__name__)
@@ -17,15 +17,15 @@ logger = logging.getLogger(__name__)
 class MQTTClient:
     """MQTT 客户端"""
     
-    def __init__(self, on_command: Callable[[str, str, Dict], None]):
+    def __init__(self, on_message: Callable[[Dict], None]):
         """
         初始化 MQTT 客户端
         
         Args:
-            on_command: 命令处理回调函数 (device_id, command, params)
+            on_message: 消息处理回调函数 (message_dict)
         """
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=MQTT_CLIENT_ID)
-        self.on_command = on_command
+        self.on_message = on_message
         self.connected = False
         
         # 设置认证
@@ -42,15 +42,9 @@ class MQTTClient:
             logger.info(f"MQTT 连接成功: {MQTT_HOST}:{MQTT_PORT}")
             self.connected = True
             
-            # 订阅所有设备的命令主题
-            topic = f"{MQTT_TOPIC_PREFIX}/+/command"
-            client.subscribe(topic)
-            logger.info(f"订阅主题: {topic}")
-            
-            # 订阅状态查询主题
-            status_topic = f"{MQTT_TOPIC_PREFIX}/+/status"
-            client.subscribe(status_topic)
-            logger.info(f"订阅主题: {status_topic}")
+            # ★ 订阅主题
+            client.subscribe(MQTT_TOPIC)
+            logger.info(f"订阅主题: {MQTT_TOPIC}")
         else:
             logger.error(f"MQTT 连接失败，原因码: {reason_code}")
     
@@ -70,30 +64,14 @@ class MQTTClient:
     def _on_message(self, client, userdata, msg):
         """消息接收回调"""
         try:
-            # 解析主题: tuya/device/{device_id}/command 或 status
-            topic_parts = msg.topic.split("/")
-            if len(topic_parts) < 4:
-                logger.warning(f"无效主题格式: {msg.topic}")
-                return
-            
-            device_id = topic_parts[2]
-            command = topic_parts[3]
-            
             # 解析消息体
             payload = msg.payload.decode("utf-8")
+            message = json.loads(payload)
             
-            # 状态查询可能是空消息
-            if command == "status" and not payload:
-                logger.info(f"收到状态查询 - 设备: {device_id}")
-                self.on_command(device_id, "status", {})
-                return
+            logger.info(f"收到消息 [{msg.topic}]: {json.dumps(message, ensure_ascii=False)}")
             
-            params = json.loads(payload)
-            
-            logger.info(f"收到命令 - 设备: {device_id}, 命令: {command}, 参数: {params}")
-            
-            # 调用命令处理回调
-            self.on_command(device_id, command, params)
+            # 调用消息处理回调
+            self.on_message(message)
             
         except json.JSONDecodeError as e:
             logger.error(f"JSON 解析失败: {e}, 原始消息: {msg.payload}")
@@ -109,25 +87,23 @@ class MQTTClient:
             logger.error(f"MQTT 连接失败: {e}")
             raise
     
-    def publish_status(self, device_id: str, status: Dict[str, Any]):
+    def publish_response(self, response: Dict[str, Any]):
         """
-        发布设备状态
+        发布响应消息
         
         Args:
-            device_id: 设备ID
-            status: 状态信息
+            response: 响应信息
         """
-        topic = f"{MQTT_TOPIC_PREFIX}/{device_id}/status"
-        payload = json.dumps(status, ensure_ascii=False)
+        payload = json.dumps(response, ensure_ascii=False)
         
         if self.connected:
-            result = self.client.publish(topic, payload)
+            result = self.client.publish(MQTT_RESPONSE_TOPIC, payload)
             if result.rc == mqtt.MQTT_ERR_SUCCESS:
-                logger.info(f"发布状态成功 - 设备: {device_id}")
+                logger.info(f"发布响应成功: {MQTT_RESPONSE_TOPIC}")
             else:
-                logger.error(f"发布状态失败 - 设备: {device_id}, 错误码: {result.rc}")
+                logger.error(f"发布响应失败，错误码: {result.rc}")
         else:
-            logger.warning(f"MQTT未连接，无法发布状态")
+            logger.warning(f"MQTT未连接，无法发布响应")
     
     def start(self):
         """启动客户端（阻塞）"""

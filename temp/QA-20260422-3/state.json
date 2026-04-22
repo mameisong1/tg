@@ -1,0 +1,11 @@
+{
+  "qaRequirement": "后端错误日志完善：除了低优先级（故意静默处理）的错误外，其他所有返回错误的API都要记录日志。包括：(1) 认证中间件 authMiddleware 的所有401错误；(2) 权限相关的403错误；(3) 所有catch块中没有日志的地方。核心目标：确保任何API返回错误时都有日志记录，便于排查问题。",
+  "acceptanceFocus": "验证所有认证错误(401/403)都有logger记录，验证catch块不再静默处理错误",
+  "workDir": "/TG/temp/QA-20260422-3",
+  "designAuditRound": 0,
+  "testCasesAuditRound": 0,
+  "fixRound": 0,
+  "currentStep": "audit-design",
+  "designSummary": "## 设计摘要（用户已确认）\n\n### P0优先级\n- authMiddleware：添加401日志（无token、token无效）\n- permission.js：添加403日志（权限拒绝）\n- 教练登录失败：添加失败日志\n\n### P1优先级  \n- 会员资料更新/登出 catch 块\n\n### P2优先级\n- 约40处其他 catch 块\n\n### 日志规范\n- 认证失败用 logger.warn()\n- 系统异常用 logger.error()\n- 日志输出到 /TG/run/logs（生产挂载目录）\n\n### 保持静默（不改）\n- JSON解析失败（使用默认值）\n- 配置表不存在（使用默认值）\n- 数据库列已存在（跳过）\n",
+  "userConfirmedAt": "2026-04-22T13:04:53.184Z"
+}

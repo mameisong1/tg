@@ -3,6 +3,12 @@
  * 天宫国际 V2.0
  */
 
+// QA-20260422-3: 添加日志支持
+const logger = {
+  warn: (msg) => console.log('[WARN] ' + new Date().toISOString() + ' ' + msg),
+  error: (msg) => console.error('[ERROR] ' + new Date().toISOString() + ' ' + msg)
+};
+
 // 角色权限矩阵
 const PERMISSION_MATRIX = {
   // 后台权限
@@ -323,6 +329,8 @@ function requireBackendPermission(requiredPermissions, options = {}) {
   return (req, res, next) => {
     const user = req.user;
     if (!user || !user.role) {
+      // QA-20260422-3: 权限拒绝日志
+      logger.warn(`权限拒绝: 用户信息缺失 - ${req.method} ${req.url} - IP: ${req.ip}`);
       return res.status(403).json({ error: '未授权' });
     }
     
@@ -334,6 +342,8 @@ function requireBackendPermission(requiredPermissions, options = {}) {
       );
       
       if (!hasCoachPermission) {
+        // QA-20260422-3: 权限拒绝日志
+        logger.warn(`权限拒绝: 助教无权限 - ${user.coachNo} 访问 ${requiredPermissions.join(',')} - ${req.method} ${req.url}`);
         return res.status(403).json({ error: '权限不足' });
       }
       
@@ -343,6 +353,8 @@ function requireBackendPermission(requiredPermissions, options = {}) {
         const targetCoachNo = req.params.coach_no || req.body.coach_no;
         // 类型转换后再比较（SQLite 返回数字，params 是字符串）
         if (targetCoachNo && String(targetCoachNo) !== String(user.coachNo)) {
+          // QA-20260422-3: 权限拒绝日志
+          logger.warn(`权限拒绝: 助教跨账号操作 - ${user.coachNo} 尝试操作 ${targetCoachNo} - ${req.method} ${req.url}`);
           return res.status(403).json({ error: '只能操作自己的数据' });
         }
       }
@@ -355,6 +367,8 @@ function requireBackendPermission(requiredPermissions, options = {}) {
     
     // 服务员禁止访问后台
     if (user.role === '服务员') {
+      // QA-20260422-3: 权限拒绝日志
+      logger.warn(`权限拒绝: 服务员尝试访问后台 - ${req.method} ${req.url} - IP: ${req.ip}`);
       return res.status(403).json({ error: '服务员禁止访问后台管理系统' });
     }
     

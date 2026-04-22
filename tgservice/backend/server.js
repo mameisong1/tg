@@ -1145,11 +1145,15 @@ app.post('/api/coach/login', async (req, res) => {
     );
 
     if (!coach) {
+      // QA-20260422-3: 登录失败日志
+      logger.warn(`助教登录失败: 信息不匹配 - 工号=${employeeId}, 艺名=${stageName}`);
       return res.status(401).json({ error: '助教信息不匹配' });
     }
 
     // 离职助教禁止登录
     if (coach.status === '离职') {
+      // QA-20260422-3: 登录失败日志
+      logger.warn(`助教登录失败: 账号已离职 - 工号=${employeeId}, 艺名=${stageName}`);
       return res.status(403).json({ error: '该账号已离职' });
     }
 
@@ -1157,6 +1161,8 @@ app.post('/api/coach/login', async (req, res) => {
     if (!coach.id_card_last6) {
       await enqueueRun('UPDATE coaches SET id_card_last6 = ? WHERE coach_no = ?', [idCardLast6, coach.coach_no]);
     } else if (coach.id_card_last6 !== idCardLast6) {
+      // QA-20260422-3: 登录失败日志
+      logger.warn(`助教登录失败: 身份证不匹配 - 工号=${employeeId}`);
       return res.status(401).json({ error: '身份证后6位不正确' });
     }
 
@@ -1859,6 +1865,8 @@ app.put('/api/member/profile', async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
+    // QA-20260422-3: 会员资料更新失败日志
+    logger.error(`会员资料更新失败: ${err.message} - ${req.ip}`);
     res.status(500).json({ error: '服务器错误' });
   }
 });
@@ -1882,6 +1890,8 @@ app.post('/api/member/logout', async (req, res) => {
     operationLog.info(`会员退出登录: ${decoded.memberNo}`);
     res.json({ success: true });
   } catch (err) {
+    // QA-20260422-3: 会员登出失败日志
+    logger.error(`会员登出失败: ${err.message} - ${req.ip}`);
     res.status(500).json({ error: '服务器错误' });
   }
 });
@@ -1936,6 +1946,8 @@ app.post('/api/admin/login', async (req, res) => {
 const authMiddleware = (req, res, next) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
+    // QA-20260422-3: 认证失败日志
+    logger.warn(`认证失败: 未提供token - ${req.method} ${req.url} - IP: ${req.ip}`);
     return res.status(401).json({ error: '未登录' });
   }
 
@@ -1958,7 +1970,12 @@ const authMiddleware = (req, res, next) => {
         };
         return next();
       }
-    } catch (e) {}
+      // QA-20260422-3: Base64解析成功但格式不对
+      logger.warn(`认证失败: token格式无效 - ${req.method} ${req.url} - IP: ${req.ip}`);
+    } catch (e) {
+      // QA-20260422-3: JWT和Base64都解析失败
+      logger.warn(`认证失败: token无效 - ${req.method} ${req.url} - IP: ${req.ip} - JWT错误: ${err.message}`);
+    }
     return res.status(401).json({ error: 'token无效' });
   }
 };

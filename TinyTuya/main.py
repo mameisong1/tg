@@ -1,6 +1,7 @@
 """
-TinyTuya + MQTT 控制器主程序
-支持多网关、多子设备控制
+TinyTuya + MQTT 空调控制系统
+支持多网关，通过dev_id区分
+订阅主题: tiangongguojikongtiao
 """
 import os
 import sys
@@ -11,12 +12,11 @@ from datetime import datetime
 from typing import Dict, Any
 
 from config import (
-    MQTT_TOPIC_PREFIX, MQTT_HOST, MQTT_PORT,
-    GATEWAYS, SUB_DEVICES, ALL_DEVICES,
-    print_config_summary
+    MQTT_HOST, MQTT_PORT, MQTT_TOPIC, MQTT_RESPONSE_TOPIC,
+    get_gateway_config, get_sub_device_name, print_config
 )
-from tuya_controller import controller
 from mqtt_client import MQTTClient
+from tuya_controller import multi_controller
 
 # 日志配置
 logging.basicConfig(
@@ -27,84 +27,114 @@ logging.basicConfig(
 logger = logging.getLogger("main")
 
 
-def handle_command(device_id: str, command: str, params: Dict[str, Any]):
-    """处理MQTT命令"""
-    logger.info(f"收到命令: 设备={device_id}, 命令={command}, 参数={params}")
+# 全局变量
+mqtt_client = None
+
+
+def handle_message(message: Dict[str, Any]):
+    """处理MQTT消息
     
-    config = ALL_DEVICES.get(device_id)
-    if not config:
-        mqtt_client.publish_status(device_id, {
+    消息格式（支持多网关）:
+    {
+        "dev_id": "6cedfa65e9e0d2f95bv8dw",  // 网关ID（必填）
+        "node_id": "3",                       // 子设备编号（必填）
+        "switch": true,                       // 开关
+        "temp_set": 24,                       // 温度
+        "mode": "cold",                       // 模式
+        "fan_speed_enum": "auto"              // 风速
+    }
+    """
+    logger.info(f"收到消息: {json.dumps(message, ensure_ascii=False)}")
+    
+    # 获取dev_id（网关ID）- 必填
+    dev_id = message.get("dev_id")
+    if not dev_id:
+        logger.error("消息缺少 dev_id（网关ID）")
+        mqtt_client.publish_response({
             "success": False,
-            "error": "未知设备",
+            "error": "缺少dev_id（网关ID）",
+            "hint": "请指定网关ID，例如: dev_id=6cedfa65e9e0d2f95bv8dw",
             "timestamp": datetime.now().isoformat()
         })
         return
     
-    device_name = config.get("name", device_id)
-    
-    try:
-        if command == "command":
-            # 控制设备
-            result = controller.control(device_id, params)
-            
-            response = {
-                "success": result.get("success", False),
-                "device_name": device_name,
-                "params": params,
-                "timestamp": datetime.now().isoformat()
-            }
-            
-            # 添加网关信息（如果是子设备）
-            if config.get("is_sub_device"):
-                gateway_id = config.get("gateway_id")
-                gateway_config = GATEWAYS.get(gateway_id)
-                if gateway_config:
-                    response["gateway"] = gateway_config.get("name")
-            
-            # 添加结果详情
-            if "result" in result:
-                response["result"] = result["result"]
-            if "results" in result:
-                response["results"] = result["results"]
-            if "error" in result:
-                response["error"] = result["error"]
-            
-            mqtt_client.publish_status(device_id, response)
-            
-        elif command == "status":
-            # 获取状态
-            status = controller.get_status(device_id)
-            
-            response = {
-                "success": status.get("success", "error" not in status),
-                "device_name": device_name,
-                "timestamp": datetime.now().isoformat()
-            }
-            
-            if "status" in status:
-                response["status"] = status["status"]
-            if "raw" in status:
-                response["raw"] = status["raw"]
-            if "error" in status:
-                response["error"] = status["error"]
-            
-            mqtt_client.publish_status(device_id, response)
-            
-        else:
-            mqtt_client.publish_status(device_id, {
-                "success": False,
-                "error": f"未知命令: {command}",
-                "timestamp": datetime.now().isoformat()
-            })
-            
-    except Exception as e:
-        logger.error(f"命令处理失败: {e}")
-        mqtt_client.publish_status(device_id, {
+    # 获取node_id（子设备编号）- 必填
+    node_id = message.get("node_id")
+    if not node_id:
+        logger.error("消息缺少 node_id")
+        mqtt_client.publish_response({
             "success": False,
-            "error": str(e),
-            "device_name": device_name,
+            "error": "缺少node_id（子设备编号）",
+            "dev_id": dev_id,
             "timestamp": datetime.now().isoformat()
         })
+        return
+    
+    # 获取网关名称
+    gw_cfg = get_gateway_config(dev_id)
+    gw_name = gw_cfg.get("name", dev_id[:16]) if gw_cfg else dev_id[:16]
+    
+    # 获取子设备名称
+    sub_name = get_sub_device_name(dev_id, node_id)
+    
+    logger.info(f"目标: 网关[{gw_name}] 子设备[{sub_name}]")
+    
+    # 提取控制参数（排除dev_id和node_id）
+    params = {}
+    for key in ["switch", "temp_set", "mode", "fan_speed_enum"]:
+        if key in message:
+            params[key] = message[key]
+    
+    if not params:
+        logger.info("消息无控制参数，获取状态")
+        # 如果没有控制参数，返回状态
+        status = multi_controller.get_status(dev_id, node_id)
+        
+        response = {
+            "success": status.get("success", False),
+            "dev_id": dev_id,
+            "gateway_name": gw_name,
+            "node_id": node_id,
+            "sub_device_name": sub_name,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        if "status" in status:
+            response["status"] = status["status"]
+        if "error" in status:
+            response["error"] = status["error"]
+        
+        mqtt_client.publish_response(response)
+        return
+    
+    # ★ 执行控制命令
+    logger.info(f"执行控制: {params}")
+    
+    result = multi_controller.control(dev_id, node_id, params)
+    
+    # 发布响应
+    response = {
+        "success": result.get("success", False),
+        "dev_id": dev_id,
+        "gateway_name": gw_name,
+        "node_id": node_id,
+        "sub_device_name": sub_name,
+        "params": params,
+        "timestamp": datetime.now().isoformat()
+    }
+    
+    if "error" in result:
+        response["error"] = result["error"]
+    if "result" in result:
+        response["result"] = result["result"]
+    
+    mqtt_client.publish_response(response)
+    
+    # 日志记录
+    if result.get("success"):
+        logger.info(f"✓ 控制成功: {gw_name}/{sub_name}")
+    else:
+        logger.warning(f"✗ 控制失败: {result.get('error')}")
 
 
 def print_banner():
@@ -112,19 +142,21 @@ def print_banner():
     print("""
 ╔═══════════════════════════════════════════════════════════╗
 ║       TinyTuya + MQTT 空调控制系统                        ║
-║       支持多网关、多子设备远程控制                         ║
+║       支持多网关，通过dev_id区分                           ║
+║       订阅主题: tiangongguojikongtiao                     ║
 ╚═══════════════════════════════════════════════════════════╝
 """)
     
-    # 打印配置摘要
-    print_config_summary()
+    print_config()
     
-    # 显示网关状态
-    logger.info("\n网关状态:")
-    gateway_status = controller.get_gateway_status_summary()
-    for gw_id, status in gateway_status.items():
-        init_status = "✓" if status["initialized"] else "✗"
-        logger.info(f"  {init_status} {status['name']} (IP: {status['ip']}, 子设备: {status['sub_device_count']}台)")
+    logger.info("\n消息格式（必填dev_id和node_id）:")
+    logger.info("  {")
+    logger.info("    \"dev_id\":\"网关ID\",")
+    logger.info("    \"node_id\":\"子设备编号\",")
+    logger.info("    \"switch\":true,")
+    logger.info("    \"temp_set\":24,")
+    logger.info("    \"mode\":\"cold\"")
+    logger.info("  }")
 
 
 def signal_handler(signum, frame):
@@ -135,23 +167,20 @@ def signal_handler(signum, frame):
     sys.exit(0)
 
 
-mqtt_client = None
-
-
 def main():
     global mqtt_client
     
     print_banner()
     
     # 初始化MQTT客户端
-    mqtt_client = MQTTClient(on_command=handle_command)
+    mqtt_client = MQTTClient(on_message=handle_message)
     
     # 注册信号处理
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
     
     try:
-        logger.info("\n启动MQTT客户端，开始监听命令...")
+        logger.info(f"\n启动MQTT客户端，订阅主题: {MQTT_TOPIC}")
         mqtt_client.start()
     except KeyboardInterrupt:
         logger.info("用户中断")
