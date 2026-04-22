@@ -73,6 +73,29 @@
       <div class="page-title">系统配置</div>
     </div>
     
+    <!-- QA-20260422-3: API鉴权配置 -->
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🔐 API鉴权配置</div>
+      </div>
+      <div class="card-body">
+        <div class="info-box" style="background: rgba(231,76,60,0.1); border-color: rgba(231,76,60,0.3);">
+          <p style="color: #e74c3c;"><strong>⚠️ 警告：关闭鉴权后所有 API 将无保护！</strong></p>
+          <p>任何人都可以访问管理功能、修改数据。生产环境强烈不建议关闭！</p>
+        </div>
+        
+        <div style="margin-bottom: 20px;">
+          <label style="font-size: 13px; color: rgba(255,255,255,0.6); display: block; margin-bottom: 12px;">当前状态</label>
+          <div id="authStatus" style="font-size: 18px; font-weight: 500;">加载中...</div>
+        </div>
+        
+        <div style="display: flex; gap: 12px;">
+          <button id="authDisableBtn" class="btn btn-danger" onclick="switchAuth(false)" disabled>关闭鉴权</button>
+          <button id="authEnableBtn" class="btn btn-primary" onclick="switchAuth(true)" disabled>启用鉴权</button>
+        </div>
+      </div>
+    </div>
+    
     <!-- 短信服务配置 -->
     <div class="card">
       <div class="card-header">
@@ -228,6 +251,68 @@
       if (res.status === 401) { localStorage.removeItem('adminToken'); window.location.href = 'login.html'; }
       return res.json();
     }
+    
+    // =============== QA-20260422-3: 鉴权配置相关 ===============
+    let currentAuthEnabled = true;
+    
+    async function loadAuthConfig() {
+      try {
+        const data = await api('/api/admin/auth-config');
+        currentAuthEnabled = data.enabled;
+        updateAuthUI();
+      } catch (err) {
+        document.getElementById('authStatus').textContent = '加载失败';
+        document.getElementById('authStatus').style.color = '#e74c3c';
+      }
+    }
+    
+    function updateAuthUI() {
+      const statusEl = document.getElementById('authStatus');
+      const disableBtn = document.getElementById('authDisableBtn');
+      const enableBtn = document.getElementById('authEnableBtn');
+      
+      if (currentAuthEnabled) {
+        statusEl.innerHTML = '✅ 鉴权已启用';
+        statusEl.style.color = '#2ecc71';
+        disableBtn.disabled = false;
+        enableBtn.disabled = true;
+        enableBtn.style.opacity = '0.5';
+        disableBtn.style.opacity = '1';
+      } else {
+        statusEl.innerHTML = '❌ 鉴权已关闭（所有 API 无保护）';
+        statusEl.style.color = '#e74c3c';
+        disableBtn.disabled = true;
+        enableBtn.disabled = false;
+        disableBtn.style.opacity = '0.5';
+        enableBtn.style.opacity = '1';
+      }
+    }
+    
+    async function switchAuth(enabled) {
+      const action = enabled ? '启用' : '关闭';
+      const warning = enabled ? '' : '\n\n⚠️ 关闭后所有 API 将无保护，任何人都可以访问管理功能！';
+      
+      if (!confirm(`确定要${action}鉴权吗？${warning}`)) return;
+      
+      try {
+        const result = await api('/api/admin/auth-config', {
+          method: 'PUT',
+          body: JSON.stringify({ enabled })
+        });
+        
+        if (result.success) {
+          currentAuthEnabled = enabled;
+          updateAuthUI();
+          showToast(result.message);
+        } else {
+          showToast(result.error || '操作失败');
+        }
+      } catch (err) {
+        showToast('操作失败');
+      }
+    }
+    
+    // =============== 鉴权配置相关结束 ===============
     
     // 加载黑名单列表
     async function loadBlacklist() {
@@ -481,6 +566,7 @@
     }
     
     // 初始化
+    loadAuthConfig();  // QA-20260422-3: 鉴权配置
     loadSmsConfig();
     loadBlacklist();
     loadRewardPenaltyTypes();

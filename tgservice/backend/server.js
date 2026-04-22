@@ -120,6 +120,34 @@ const configPath = path.join(__dirname, '../' + configFileName);
 const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
 console.log(`[环境] 加载配置文件: ${configFileName}, 环境名称: ${config.env?.name || 'production'}`);
 
+// ========== 鉴权开关缓存（启动时加载，动态更新）==========
+let authEnabledCache = true;  // 默认开启
+
+// 启动时从数据库加载鉴权配置
+async function loadAuthConfig() {
+  try {
+    const row = await dbGet('SELECT value FROM system_config WHERE key = ?', ['auth_enabled']);
+    if (row) {
+      authEnabledCache = row.value === 'true';
+    } else {
+      // 无记录，自动插入默认值
+      await enqueueRun('INSERT INTO system_config (key, value, description) VALUES (?, ?, ?)', 
+        ['auth_enabled', 'true', 'API鉴权开关: true=启用, false=关闭']);
+      authEnabledCache = true;
+    }
+    logger.info(`[鉴权配置] 已加载: ${authEnabledCache ? '启用' : '关闭'}`);
+  } catch (err) {
+    logger.error(`[鉴权配置] 加载失败: ${err.message}, 默认启用`);
+    authEnabledCache = true;
+  }
+}
+
+// 更新鉴权缓存（供 API 调用）
+function updateAuthCache(enabled) {
+  authEnabledCache = enabled;
+  logger.info(`[鉴权配置] 已更新: ${enabled ? '启用' : '关闭'}`);
+}
+
 // OSS配置
 const OSS = require('ali-oss');
 
@@ -1944,6 +1972,12 @@ app.post('/api/admin/login', async (req, res) => {
 
 // 后台认证中间件 - 支持 JWT 和 base64 两种 token
 const authMiddleware = (req, res, next) => {
+  // QA-20260422-3: 鉴权开关检查（直接读内存缓存）
+  if (authEnabledCache === false) {
+    req.user = { username: 'bypass', role: '管理员', userType: 'system' };  
+    return next();
+  }
+
   const token = req.headers.authorization?.replace('Bearer ', '');
   if (!token) {
     // QA-20260422-3: 认证失败日志
@@ -6050,6 +6084,58 @@ app.put('/api/admin/users/:username/status', authMiddleware, requireBackendPermi
 
 // =============== 奖罚管理 API 结束 ===============
 
+// =============== QA-20260422-3: 鉴权配置 API（独立验证，不走 authMiddleware）==============
+
+// 获取鉴权配置
+app.get('/api/admin/auth-config', async (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: '未登录' });
+  
+  try {
+    jwt.verify(token, config.jwt.secret);
+    res.json({ enabled: authEnabledCache });
+  } catch (err) {
+    res.status(401).json({ error: 'token无效' });
+  }
+});
+
+// 更新鉴权配置
+app.put('/api/admin/auth-config', async (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: '未登录' });
+  
+  try {
+    const decoded = jwt.verify(token, config.jwt.secret);
+    const { enabled } = req.body;
+    
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ error: '参数错误，enabled 必须为 boolean' });
+    }
+    
+    // 确保 DB 有记录（无则自动插入）
+    const existing = await dbGet('SELECT value FROM system_config WHERE key = ?', ['auth_enabled']);
+    if (!existing) {
+      await enqueueRun('INSERT INTO system_config (key, value, description) VALUES (?, ?, ?)',
+        ['auth_enabled', enabled.toString(), 'API鉴权开关']);
+    } else {
+      await enqueueRun('UPDATE system_config SET value = ?, updated_at = ? WHERE key = ?',
+        [enabled.toString(), TimeUtil.nowDB(), 'auth_enabled']);
+    }
+    
+    // 更新内存缓存
+    updateAuthCache(enabled);
+    
+    // 操作日志
+    operationLog.info(`${decoded.username} 修改鉴权配置: ${enabled ? '启用' : '关闭'}`);
+    
+    res.json({ success: true, message: `鉴权已${enabled ? '启用' : '关闭'}` });
+  } catch (err) {
+    res.status(401).json({ error: 'token无效' });
+  }
+});
+
+// =============== 鉴权配置 API 结束 ===============
+
 // Bug #3 修复：JSON 解析错误返回 400 而非 500
 app.use((err, req, res, next) => {
   // Express JSON 解析失败（SyntaxError）→ 返回 400
@@ -6067,9 +6153,12 @@ app.use((err, req, res, next) => {
 
 // 启动服务器
 const PORT = process.env.PORT || config.server.port || 8081;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   logger.info(`天宫国际线上服务已启动: http://localhost:${PORT}`);
   console.log(`🚀 服务已启动: http://localhost:${PORT}`);
+
+  // QA-20260422-3: 加载鉴权配置缓存
+  await loadAuthConfig();
 
   // 初始化公共计时器管理器（自包含，无需回调）
   const TimerManager = require('./services/timer-manager');
