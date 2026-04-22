@@ -225,11 +225,10 @@
       document.getElementById('formName').value = '';
       document.getElementById('formPassword').value = '';
       document.getElementById('formUsername').disabled = false;
-      document.getElementById('formRole').value = '店长';
       document.getElementById('formRole').disabled = false;
       document.getElementById('formEmploymentStatus').value = '在职';
-      // 更新角色下拉框选项
-      updateRoleOptions();
+      // 更新角色下拉框选项，默认选中店长
+      updateRoleOptions('店长');
       document.getElementById('modal').classList.add('show');
     }
 
@@ -241,11 +240,10 @@
       document.getElementById('formUsername').disabled = true;
       document.getElementById('formName').value = user?.name || '';
       document.getElementById('formPassword').value = '';
-      document.getElementById('formRole').value = user?.role || '店长';
       document.getElementById('formRole').disabled = false;
       document.getElementById('formEmploymentStatus').value = user?.employment_status || '在职';
-      // 更新角色下拉框选项
-      updateRoleOptions();
+      // 先更新角色下拉框选项，再设置当前值
+      updateRoleOptions(user?.role);
       document.getElementById('modal').classList.add('show');
     }
 
@@ -285,8 +283,8 @@
       } catch (err) { showToast('删除失败'); }
     }
 
-    // 根据当前用户角色更新下拉框选项
-    function updateRoleOptions() {
+    // 根据当前用户角色更新下拉框选项，并设置当前选中值
+    function updateRoleOptions(currentRole) {
       const roleSelect = document.getElementById('formRole');
       roleSelect.innerHTML = ''; // 清空
 
@@ -304,6 +302,11 @@
         option.textContent = role;
         roleSelect.appendChild(option);
       });
+
+      // 设置当前选中的角色
+      if (currentRole && roles.includes(currentRole)) {
+        roleSelect.value = currentRole;
+      }
     }
 
     loadUsers();
