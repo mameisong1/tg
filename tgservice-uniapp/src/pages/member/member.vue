@@ -1212,7 +1212,7 @@ const reportError = (action, details) => {
       method: 'POST',
       header: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + (localStorage.getItem('adminToken') || '')
+        'Authorization': 'Bearer ' + (localStorage.getItem('adminToken') || localStorage.getItem('coachToken') || localStorage.getItem('memberToken') || '')
       },
       data: {
         action: action,
@@ -1282,28 +1282,13 @@ const loadPendingCounts = async () => {
     const coachInfo = uni.getStorageSync('coachInfo') || {}
     const userPhone = adminInfo.username || coachInfo.phone || ''
     
-    // QA-20260422: 日志上报，追踪奖罚角标加载
-    try {
-      await uni.request({
-        url: import.meta.env.VITE_API_BASE_URL + '/admin/frontend-error-log',
-        method: 'POST',
-        header: {
-          'Authorization': 'Bearer ' + (uni.getStorageSync('adminToken') || uni.getStorageSync('coachToken') || '')
-        },
-        data: {
-          errorType: 'member_reward_penalty_count_load',
-          errorMsg: `userPhone=${userPhone}, adminInfo.username=${adminInfo.username || ''}, coachInfo.phone=${coachInfo.phone || ''}`,
-          page: 'member',
-          timestamp: new Date().toISOString()
-        },
-        success: () => {},
-        fail: () => {}
-      })
-    } catch (logErr) {}
-    
     if (userPhone) {
-      const rpRes = await api.rewardPenalty.getRecentCount({ phone: userPhone })
-      rewardPenaltyCount.value = rpRes.count || 0
+      try {
+        const rpRes = await api.rewardPenalty.getRecentCount({ phone: userPhone })
+        rewardPenaltyCount.value = rpRes.count || 0
+      } catch (e) {
+        console.error('加载奖罚计数失败:', e)
+      }
     }
   } catch (e) {
     reportError('loadPendingCounts_failed', {
