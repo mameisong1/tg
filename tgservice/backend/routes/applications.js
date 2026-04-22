@@ -576,6 +576,7 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
                 [updatedExtraData, nowDB, id]
               );
             }
+          }
 
           // === 休息申请审批:当天+已过12点不设Timer ===
           if (application.application_type === '休息申请') {
