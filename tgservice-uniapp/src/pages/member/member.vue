@@ -587,7 +587,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import api from '@/utils/api.js'
-import { attendanceReview } from '@/utils/api-v2.js'
+import { attendanceReview } from '@/utils/api.js'
 import { format, toDate } from '@/utils/time-util.js'
 
 // 格式化订单时间：M/D HH:mm
@@ -828,7 +828,7 @@ const loginBySms = async () => {
         uni.setStorageSync('adminInfo', data.adminInfo)
         console.log('自动内部登录:', data.adminInfo.role, data.adminInfo.name)
       }
-      // ⚠️ 保存 adminToken（内部页面 api-v2.js 认证必需）
+      // ⚠️ 保存 adminToken（内部页面 api.js 认证必需）
       if (data.adminToken) {
         uni.setStorageSync('adminToken', data.adminToken)
         console.log('已保存 adminToken')
@@ -895,7 +895,7 @@ const onGetPhoneNumber = async (e) => {
         uni.setStorageSync('adminInfo', data.adminInfo)
         console.log('自动内部登录:', data.adminInfo.role, data.adminInfo.name)
       }
-      // ⚠️ 保存 adminToken（内部页面 api-v2.js 认证必需）
+      // ⚠️ 保存 adminToken（内部页面 api.js 认证必需）
       if (data.adminToken) {
         uni.setStorageSync('adminToken', data.adminToken)
       }
@@ -942,7 +942,7 @@ const checkAutoLogin = async () => {
       if (profile.adminInfo) {
         uni.setStorageSync('adminInfo', profile.adminInfo)
       }
-      // ⚠️ 保存 adminToken（内部页面 api-v2.js 认证必需）
+      // ⚠️ 保存 adminToken（内部页面 api.js 认证必需）
       if (profile.adminToken) {
         uni.setStorageSync('adminToken', profile.adminToken)
       }

@@ -77,7 +77,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import api from '@/utils/api-v2.js'
+import api from '@/utils/api.js'
 import { getBeijingDate } from '@/utils/time-util.js'
 import SuccessModal from '@/components/SuccessModal.vue'
 

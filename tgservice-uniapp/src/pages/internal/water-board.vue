@@ -172,7 +172,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import api from '@/utils/api-v2.js'
+import api from '@/utils/api.js'
 
 // ===== 自动刷新机制 =====
 let refreshTimer = null

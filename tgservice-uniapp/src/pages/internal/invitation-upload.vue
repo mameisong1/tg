@@ -63,7 +63,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { guestInvitations } from '@/utils/api-v2.js'
+import { guestInvitations } from '@/utils/api.js'
 import { useImageUpload } from '@/utils/image-upload.js'
 import { getBeijingDate } from '@/utils/time-util.js'
 

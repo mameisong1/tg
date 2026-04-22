@@ -192,7 +192,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import api from '@/utils/api-v2.js'
+import api from '@/utils/api.js'
 
 const statusBarHeight = ref(0)
 const adminInfo = ref({})

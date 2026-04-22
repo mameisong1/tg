@@ -70,7 +70,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { applications } from '@/utils/api-v2.js'
+import { applications } from '@/utils/api.js'
 import { useImageUpload } from '@/utils/image-upload.js'
 import SuccessModal from '@/components/SuccessModal.vue'
 

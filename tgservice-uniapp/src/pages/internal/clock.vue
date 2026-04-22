@@ -82,7 +82,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import api from '@/utils/api-v2.js'
+import api from '@/utils/api.js'
 import { useImageUpload } from '@/utils/image-upload.js'
 
 const statusBarHeight = ref(0)

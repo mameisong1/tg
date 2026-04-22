@@ -97,7 +97,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { missingTableOutOrders } from '@/utils/api-v2.js'
+import { missingTableOutOrders } from '@/utils/api.js'
 
 const statusBarHeight = ref(0)
 const loading = ref(false)
