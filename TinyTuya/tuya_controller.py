@@ -225,8 +225,21 @@ class TuyaLocalController:
         """扫描局域网涂鸦设备"""
         logger.info("扫描涂鸦设备...")
         try:
-            # TinyTuya 1.18 版本使用 scan() 方法
-            devices = tinytuya.scan()
+            # TinyTuya 1.18 版本使用 DeviceScan 类
+            scanner = tinytuya.DeviceScan()
+            scanner.scan()
+            
+            # 获取发现的设备
+            devices = []
+            for device_ip, device_info in scanner.devices_found.items():
+                devices.append({
+                    'id': device_info.get('gwId', ''),
+                    'ip': device_ip,
+                    'name': device_info.get('name', 'Unknown'),
+                    'version': device_info.get('ver', 'Unknown'),
+                    'key': device_info.get('key', '')
+                })
+            
             logger.info(f"发现 {len(devices)} 个设备")
             for dev in devices:
                 logger.info(f"  - ID: {dev.get('id')}, IP: {dev.get('ip')}, Name: {dev.get('name', 'Unknown')}")

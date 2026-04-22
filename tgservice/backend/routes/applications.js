@@ -547,9 +547,35 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
               'UPDATE coaches SET shift = ?, updated_at = ? WHERE coach_no = ?',
               [targetShift, nowDB, coach.coach_no]
             );
-            newStatus = targetShift === '早班' ? '早班空闲' : '晚班空闲';
-            shouldChangeWaterBoard = true;
-          }
+
+            // 只有上桌/空闲/加班状态才能修改水牌
+            const allowedStatuses = ['早班上桌', '晚班上桌', '早班空闲', '晚班空闲', '早加班', '晚加班'];
+            if (allowedStatuses.includes(currentStatus)) {
+              // 状态映射：早班→晚班,晚班→早班
+              const statusMap = {
+                '早班上桌': '晚班上桌',
+                '晚班上桌': '早班上桌',
+                '早班空闲': '晚班空闲',
+                '晚班空闲': '早班空闲',
+                '早加班': '晚加班',
+                '晚加班': '早加班'
+              };
+              newStatus = statusMap[currentStatus];
+              shouldChangeWaterBoard = true;
+            } else {
+              // 非上桌/空闲/加班状态，禁止修改水牌
+              console.log(`[班次切换] 水牌状态为「${currentStatus}」非上桌/空闲/加班状态,禁止修改水牌`);
+              shouldChangeWaterBoard = false;
+              const updatedExtraData = JSON.stringify({
+                ...JSON.parse(application.extra_data || '{}'),
+                water_board_skipped: true,
+                water_board_skipped_reason: `水牌状态为「${currentStatus}」非上桌/空闲/加班状态`
+              });
+              await tx.run(
+                'UPDATE applications SET extra_data = ?, updated_at = ? WHERE id = ?',
+                [updatedExtraData, nowDB, id]
+              );
+            }
 
           // === 休息申请审批:当天+已过12点不设Timer ===
           if (application.application_type === '休息申请') {
