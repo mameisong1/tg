@@ -607,26 +607,9 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
               }
               needTimer = false; // 当天已过12点,不设Timer
             } else {
-              // 未来日期或当天未过12点:设置Timer
-              // 如果是离店状态,立即修改水牌
-              const offStatuses = ['下班', '公休', '请假', '休息'];
-              if (offStatuses.includes(currentStatus)) {
-                newStatus = '休息';
-                shouldChangeWaterBoard = true;
-              } else {
-                // 非离店状态,不立即修改水牌,但设置Timer
-                console.log(`[QA-20260420-4] 休息审批未来日期,水牌非离店状态「${currentStatus}」,不立即修改,但设置Timer`);
-                shouldChangeWaterBoard = false;
-                const updatedExtraData = JSON.stringify({
-                  ...JSON.parse(application.extra_data || '{}'),
-                  water_board_skipped_now: true,
-                  water_board_skipped_reason: `水牌状态为「${currentStatus}」非离店状态,Timer到期再判断`
-                });
-                await tx.run(
-                  'UPDATE applications SET extra_data = ?, updated_at = ? WHERE id = ?',
-                  [updatedExtraData, nowDB, id]
-                );
-              }
+              // 未来日期或当天未过12点:只挂Timer,不立即修改水牌
+              console.log(`[QA-20260422] 休息审批:未满足立即修改条件,只挂Timer`);
+              shouldChangeWaterBoard = false;
               needTimer = true;
               const timerExtraData = JSON.stringify({
                 ...JSON.parse(application.extra_data),
@@ -674,26 +657,9 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
               }
               needTimer = false; // 当天已过12点,不设Timer
             } else {
-              // 未来日期或当天未过12点:设置Timer
-              // 如果是离店状态,立即修改水牌
-              const offStatuses = ['下班', '公休', '请假', '休息'];
-              if (offStatuses.includes(currentStatus)) {
-                newStatus = '请假';
-                shouldChangeWaterBoard = true;
-              } else {
-                // 非离店状态,不立即修改水牌,但设置Timer
-                console.log(`[QA-20260420-4] 请假审批未来日期,水牌非离店状态「${currentStatus}」,不立即修改,但设置Timer`);
-                shouldChangeWaterBoard = false;
-                const updatedExtraData = JSON.stringify({
-                  ...JSON.parse(application.extra_data || '{}'),
-                  water_board_skipped_now: true,
-                  water_board_skipped_reason: `水牌状态为「${currentStatus}」非离店状态,Timer到期再判断`
-                });
-                await tx.run(
-                  'UPDATE applications SET extra_data = ?, updated_at = ? WHERE id = ?',
-                  [updatedExtraData, nowDB, id]
-                );
-              }
+              // 未来日期或当天未过12点:只挂Timer,不立即修改水牌
+              console.log(`[QA-20260422] 请假审批:未满足立即修改条件,只挂Timer`);
+              shouldChangeWaterBoard = false;
               needTimer = true;
               const timerExtraData = JSON.stringify({
                 ...JSON.parse(application.extra_data),
