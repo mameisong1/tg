@@ -1,24 +1,21 @@
-FROM python:3.11-slim
-
-LABEL maintainer="mameisong"
-LABEL description="TinyTuya MQTT Controller"
-LABEL version="1.0"
+FROM python:3.12-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    && rm -rf /var/lib/apt/lists/*
-
+# 安装依赖
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# 复制代码
+COPY config.py .
+COPY main.py .
+COPY tuya_controller.py .
+COPY mqtt_client.py .
+COPY test_connection.py .
+COPY scan_devices.py .
 
-ENV PYTHONUNBUFFERED=1
-ENV MQTT_HOST=8.134.248.240
-ENV MQTT_PORT=1883
-ENV MQTT_USERNAME=admin
-ENV MQTT_PASSWORD=mms6332628
+# 创建日志目录
+RUN mkdir -p /app/logs
 
+# 启动服务
 CMD ["python", "main.py"]

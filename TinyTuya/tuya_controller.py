@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class TuyaLocalController:
     """TinyTuya 本地控制器"""
     
-    def __init__():
+    def __init__(self):
         self.gateway: Optional[tinytuya.Device] = None
         self.sub_devices: Dict[str, dict] = {}  # 子设备配置缓存
         self._init_gateway()
@@ -225,10 +225,11 @@ class TuyaLocalController:
         """扫描局域网涂鸦设备"""
         logger.info("扫描涂鸦设备...")
         try:
-            devices = tinytuya.scanDevices()
+            # TinyTuya 1.18 版本使用 scan() 方法
+            devices = tinytuya.scan()
             logger.info(f"发现 {len(devices)} 个设备")
             for dev in devices:
-                logger.info(f"  - {dev.get('name', 'Unknown')} ({dev.get('id')}) IP: {dev.get('ip')}")
+                logger.info(f"  - ID: {dev.get('id')}, IP: {dev.get('ip')}, Name: {dev.get('name', 'Unknown')}")
             return devices
         except Exception as e:
             logger.error(f"扫描失败: {e}")

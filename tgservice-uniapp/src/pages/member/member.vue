@@ -578,6 +578,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import api from '@/utils/api.js'
+import { attendanceReview } from '@/utils/api-v2.js'
 import { format, toDate } from '@/utils/time-util.js'
 
 // 格式化订单时间：M/D HH:mm
@@ -1261,7 +1262,7 @@ const loadPendingCounts = async () => {
 
     // 加载打卡审查待审数量
     try {
-      const arRes = await api.attendanceReview.getPendingCount()
+      const arRes = await attendanceReview.getPendingCount()
       attendanceReviewCount.value = arRes.data?.count || 0
     } catch (e) {
       // 忽略

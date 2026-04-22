@@ -894,29 +894,31 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 }
 /* #endif */
 
-/* 门迎序号徽章 */
+/* 门迎序号徽章 - 灰白底黑字 */
 .rank-badge {
   position: absolute;
   top: 2px;
   right: 4px;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: #ff6b35;
-  color: #fff;
-  font-size: 10px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #333;
+  font-size: 9px;
   font-weight: bold;
-  line-height: 18px;
+  line-height: 16px;
   text-align: center;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  border: 1px solid rgba(0, 0, 0, 0.15);
 }
 
 .free-section .rank-badge {
-  background: #e74c3c;
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
 }
 
 .rank-badge.late-shift {
-  background: #9b59b6;
+  background: rgba(240, 240, 240, 0.9);
+  color: #555;
 }
 
 /* 名称行容器 */

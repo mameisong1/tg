@@ -1,77 +1,75 @@
 """
-扫描涂鸦设备脚本
-
-运行此脚本获取设备的 local_key 和 IP 地址
+扫描局域网涂鸦设备
+用于发现网关IP地址
 """
 import tinytuya
 import json
+import time
+from config import GATEWAY_ID
 
-def scan_devices():
-    """扫描局域网内的涂鸦设备"""
-    print("正在扫描涂鸦设备...")
-    print("=" * 60)
-    
-    # 扫描设备
-    devices = tinytuya.deviceScan(timeout=10.0)
-    
-    if not devices:
-        print("未发现设备")
-        print("\n提示：")
-        print("1. 确保设备已通电并连接到 WiFi")
-        print("2. 确保设备和此电脑在同一局域网")
-        print("3. 运行: python -m tinytuya wizard（需要涂鸦账号）")
-        return
+print("=" * 60)
+print("TinyTuya 设备扫描")
+print("=" * 60)
+
+print("\n正在扫描局域网涂鸦设备...")
+print("注意: 请确保运行此脚本的设备与涂鸦网关在同一局域网\n")
+
+try:
+    # TinyTuya 1.18 版本使用 scan() 方法
+    print("扫描中...")
+    devices = tinytuya.scan(max_attempts=3, timeout=10)
     
     print(f"\n发现 {len(devices)} 个设备:")
-    print("=" * 60)
+    print("-" * 60)
     
-    for device_id, info in devices.items():
-        print(f"\n设备ID: {device_id}")
-        print(f"  IP: {info.get('ip', 'unknown')}")
-        print(f"  名称: {info.get('name', 'unknown')}")
-        print(f"  Key: {info.get('key', 'unknown')}")
-        print(f"  版本: {info.get('ver', 'unknown')}")
+    gateway_found = False
+    gateway_ip = None
     
-    print("\n" + "=" * 60)
-    print("将上述信息复制到 config.py 中的 TUYA_DEVICES 配置")
-    print("=" * 60)
-
-
-def wizard_mode():
-    """
-    向导模式 - 需要涂鸦账号
+    for dev in devices:
+        device_id = dev.get('id', 'Unknown')
+        ip = dev.get('ip', 'Unknown')
+        name = dev.get('name', 'Unknown')
+        version = dev.get('version', 'Unknown')
+        
+        marker = ""
+        if device_id == GATEWAY_ID:
+            marker = " [★ 网关设备]"
+            gateway_found = True
+            gateway_ip = ip
+        
+        print(f"ID: {device_id}{marker}")
+        print(f"  IP: {ip}")
+        print(f"  Name: {name}")
+        print(f"  Version: {version}")
+        print()
     
-    运行: python -m tinytuya wizard
-    """
-    print("\n向导模式需要涂鸦账号密码")
-    print("请运行: python -m tinytuya wizard")
-    print("\n按提示输入:")
-    print("  1. 涂鸦 IoT 平台 API Key (clientId)")
-    print("  2. 涂鸦 IoT 平台 API Secret")
-    print("  3. 涂鸦账号区域 (cn=中国)")
-    print("\n向导会自动:")
-    print("  - 获取设备列表")
-    print("  - 扫描本地设备")
-    print("  - 生成配置文件")
-
-
-if __name__ == "__main__":
-    print("""
-╔═══════════════════════════════════════════════════════════╗
-║          涂鸦设备扫描工具                                  ║
-╚═══════════════════════════════════════════════════════════╝
-
-方式1: 本地扫描（无需账号）
-  python scan_devices.py
-
-方式2: 向导模式（需要涂鸦账号）
-  python -m tinytuya wizard
-
-""")
+    print("-" * 60)
     
-    import sys
-    
-    if len(sys.argv) > 1 and sys.argv[1] == "wizard":
-        wizard_mode()
+    if gateway_found:
+        print(f"\n✓ 网关设备已找到!")
+        print(f"  网关ID: {GATEWAY_ID}")
+        print(f"  网关IP: {gateway_ip}")
+        print(f"\n请更新 config.py 或设置环境变量:")
+        print(f"  GATEWAY_IP={gateway_ip}")
+        
+        # 保存网关IP到文件
+        with open("/app/logs/gateway_ip.txt", "w") as f:
+            f.write(f"{gateway_ip}\n")
+        print(f"\n网关IP已保存到: /app/logs/gateway_ip.txt")
     else:
-        scan_devices()
+        print(f"\n⚠ 网关设备未找到")
+        print(f"  目标网关ID: {GATEWAY_ID}")
+        print(f"  请检查:")
+        print(f"    1. 网关是否在线")
+        print(f"    2. 是否在同一局域网")
+        print(f"    3. 网关ID是否正确")
+    
+except Exception as e:
+    print(f"\n✗ 扫描失败: {e}")
+    print("请检查:")
+    print("  1. TinyTuya 是否正确安装")
+    print("  2. 网络连接是否正常")
+
+print("\n" + "=" * 60)
+print("扫描完成")
+print("=" * 60)
