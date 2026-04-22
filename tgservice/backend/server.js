@@ -6136,6 +6136,24 @@ app.put('/api/admin/auth-config', async (req, res) => {
 
 // =============== 鉴权配置 API 结束 ===============
 
+// =============== 系统配置总览 API ===============
+
+// 获取所有系统配置（只读）
+app.get('/api/admin/system-config/all', async (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: '未登录' });
+
+  try {
+    jwt.verify(token, config.jwt.secret);
+    const configs = await dbAll('SELECT key, value, description, updated_at FROM system_config ORDER BY key');
+    res.json({ success: true, data: configs });
+  } catch (err) {
+    res.status(401).json({ error: 'token无效' });
+  }
+});
+
+// =============== 系统配置总览 API 结束 ===============
+
 // Bug #3 修复：JSON 解析错误返回 400 而非 500
 app.use((err, req, res, next) => {
   // Express JSON 解析失败（SyntaxError）→ 返回 400
