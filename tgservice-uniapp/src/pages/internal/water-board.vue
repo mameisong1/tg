@@ -894,29 +894,37 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 }
 /* #endif */
 
-/* 门迎序号徽章 - 灰白底黑字 */
+/* 门迎序号徽章 - 在艺名下方显示 */
 .rank-badge {
   position: absolute;
-  top: 2px;
+  bottom: 2px;
   right: 4px;
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(212, 175, 55, 0.85);
   color: #333;
   font-size: 9px;
   font-weight: bold;
   line-height: 16px;
   text-align: center;
+  border: 1px solid rgba(180, 140, 30, 0.3);
+}
+
+/* 空闲状态：灰白色底 */
+.free-section .rank-badge {
+  background: rgba(255, 255, 255, 0.85);
+  color: #333;
   border: 1px solid rgba(0, 0, 0, 0.15);
 }
 
-.free-section .rank-badge {
-  background: rgba(255, 255, 255, 0.9);
-  color: #333;
+/* 晚班徽章（序号>50）*/
+.rank-badge.late-shift {
+  background: rgba(212, 175, 55, 0.75);
+  color: #444;
 }
 
-.rank-badge.late-shift {
+.free-section .rank-badge.late-shift {
   background: rgba(240, 240, 240, 0.9);
   color: #555;
 }
