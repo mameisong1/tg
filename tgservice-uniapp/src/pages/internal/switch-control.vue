@@ -149,6 +149,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { getBeijingTimestamp } from '@/utils/time-util.js'
+import errorReporter from '@/utils/error-reporter.js'
 
 const statusBarHeight = ref(20)
 const autoOffEnabled = ref(false)
@@ -197,41 +198,8 @@ async function checkPermission() {
 /**
  * 错误日志上报
  */
-async function reportError(action, error, extra = {}) {
-  try {
-    const adminToken = uni.getStorageSync('adminToken')
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api'
-    uni.request({
-      url: baseUrl + '/admin/frontend-error-log',
-      method: 'POST',
-      data: {
-        action,
-        timestamp: getBeijingTimestamp(),
-        url: window?.location?.href || '',
-        userAgent: navigator?.userAgent || '',
-        userToken: adminToken || '',
-        state: JSON.stringify({
-          autoOffEnabled: autoOffEnabled.value,
-          scenesCount: scenes.value.length,
-          labelsCount: labels.value.length,
-          selectedLabel: selectedLabel.value,
-          pendingAction: pendingAction
-        }),
-        errorMessage: error?.message || String(error),
-        errorStack: error?.stack || '',
-        ...extra
-      },
-      header: {
-        'Content-Type': 'application/json',
-        'Authorization': adminToken ? `Bearer ${adminToken}` : ''
-      },
-      fail: () => console.error('[错误上报] 上报失败')
-    })
-    console.log('[错误上报]', action, error?.message || error)
-  } catch (e) {
-    console.error('[错误上报] 上报函数异常:', e)
-  }
-}
+// 注意：日志上报已统一使用 errorReporter.track()
+// reportError 函数已移除
 
 async function apiRequest(url, method = 'GET', data = null) {
   const adminToken = uni.getStorageSync('adminToken')
@@ -260,7 +228,7 @@ async function apiRequest(url, method = 'GET', data = null) {
       },
       fail: (err) => {
         console.error('[API失败]', url, err)
-        reportError('api_request_fail', err, { url, method })
+        errorReporter.track('api_request_fail', { url, method, error: err?.message || String(err) })
         uni.showToast({ title: '网络请求失败', icon: 'none' })
         reject(err)
       }
@@ -340,7 +308,7 @@ async function tableControlAction(action) {
     uni.showToast({ title: `${table.table_name_cn} ${action === 'ON' ? '开灯' : '关灯'}成功`, icon: 'success' })
   } catch (e) {
     console.error('[台桌控制异常]', e)
-    reportError('tableControl', e, { table_name_en: table.table_name_en, action })
+    errorReporter.track('tableControl_error', { table_name_en: table.table_name_en, action, error: e?.message || String(e) })
     uni.showToast({ title: e.message || '操作失败', icon: 'none' })
   }
 }
@@ -417,7 +385,7 @@ async function confirmAction() {
     }
   } catch (e) {
     console.error('[执行操作异常]', e)
-    reportError('confirmAction', e, { pendingAction: JSON.stringify(action) })
+    errorReporter.track('confirmAction_error', { pendingAction: JSON.stringify(action), error: e?.message || String(e) })
     uni.showToast({ title: e.message || '操作失败', icon: 'none' })
   }
 }

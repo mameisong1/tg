@@ -5139,30 +5139,36 @@ app.post('/api/admin/sound-failure-log', authMiddleware, requireBackendPermissio
   }
 });
 
-// 前端追踪日志 API(收银看板按钮操作追踪)
-app.post('/api/admin/frontend-error-log', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
+// 前端错误日志 API（支持自动收集 + 业务追踪）
+// 注意：移除权限限制，因为前端错误上报无需权限
+app.post('/api/admin/frontend-error-log', authMiddleware, async (req, res) => {
   try {
-    const { action, timestamp, url, userAgent, userToken, state, ...details } = req.body;
-    const user = req.user?.username || 'unknown';
+    const { type, action, message, stack, route, url, userAgent, user, timestamp, ...rest } = req.body;
 
+    // 构造日志条目（简化格式）
     const logEntry = {
       timestamp: timestamp || TimeUtil.nowDB(),
-      user,
-      action,
-      url,
-      userAgent,
-      userToken,
-      state,
-      details
+      type: type || 'business_track',
+      action: action || '',
+      message: (message || '').substring(0, 500),  // 限制长度
+      stack: (stack || '').substring(0, 1000),      // 限制长度
+      route: route || '',
+      url: (url || '').substring(0, 200),
+      user: user?.type + ':' + (user?.username || user?.coachNo || 'unknown'),
+      userAgent: (userAgent || '').substring(0, 100),
+      ...rest
     };
 
-    // 写入前端错误日志文件
+    // 写入前端错误日志文件（挂载目录）
     const frontendErrorLogPath = path.join(__dirname, '../logs/frontend-error.log');
     const logLine = JSON.stringify(logEntry) + '\n';
     fs.appendFileSync(frontendErrorLogPath, logLine);
 
-    // 同时输出到控制台
-    logger.info(`📋 前端追踪: ${action} | 用户: ${user} | 详情: ${JSON.stringify(details)}`);
+    // 检查并清理过期日志（3天）
+    cleanFrontendErrorLog(frontendErrorLogPath);
+
+    // 输出到控制台
+    logger.info(`📋 前端日志: ${logEntry.type} | ${logEntry.action || logEntry.message?.substring(0, 50)} | ${logEntry.user}`);
 
     res.json({ success: true, message: '日志已记录' });
   } catch (err) {
@@ -5170,6 +5176,33 @@ app.post('/api/admin/frontend-error-log', authMiddleware, requireBackendPermissi
     res.status(500).json({ error: '记录失败' });
   }
 });
+
+// 日志清理函数（保留3天）
+function cleanFrontendErrorLog(logPath) {
+  try {
+    if (!fs.existsSync(logPath)) return;
+
+    const stats = fs.statSync(logPath);
+    const fileAgeDays = (Date.now() - stats.mtimeMs) / (24 * 60 * 60 * 1000);
+
+    // 超过3天，清空文件
+    if (fileAgeDays > 3) {
+      fs.writeFileSync(logPath, '');
+      logger.info('前端错误日志已清空（超过3天）');
+    }
+
+    // 文件超过10MB，截断保留最新部分
+    if (stats.size > 10 * 1024 * 1024) {
+      const content = fs.readFileSync(logPath, 'utf8');
+      const lines = content.split('\n').filter(l => l.trim());
+      const keepLines = lines.slice(-5000);  // 保留最新5000条
+      fs.writeFileSync(logPath, keepLines.join('\n') + '\n');
+      logger.info(`前端错误日志已截断（从${lines.length}条保留${keepLines.length}条）`);
+    }
+  } catch (e) {
+    logger.error('清理前端错误日志失败:', e.message);
+  }
+}
 
 // 前端页面路由
 app.get('/', (req, res) => {

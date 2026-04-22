@@ -60,6 +60,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import api from '@/utils/api-v2.js'
+import errorReporter from '@/utils/error-reporter.js'
 
 const statusBarHeight = ref(0)
 const weekdays = ['日', '一', '二', '三', '四', '五', '六']
@@ -122,36 +123,18 @@ const loadCalendarStats = async () => {
       nextMonth.value = res.data.nextMonth
     } else {
       // 发送错误日志到后端
-      sendErrorLog('leave-calendar-load-failed', { message: res.error || '加载失败' })
+      errorReporter.track('leave-calendar-load-failed', { message: res.error || '加载失败' })
       uni.showToast({ title: '加载失败', icon: 'none' })
     }
   } catch (e) {
     // 发送错误日志到后端
-    sendErrorLog('leave-calendar-load-exception', { message: e.message || String(e) })
+    errorReporter.track('leave-calendar-load-exception', { message: e.message || String(e) })
     uni.showToast({ title: '加载失败', icon: 'none' })
   }
 }
 
-// 发送前端错误日志到后端
-const sendErrorLog = async (action, details) => {
-  try {
-    const adminInfo = uni.getStorageSync('adminInfo') || {}
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api'
-    await uni.request({
-      url: baseUrl + '/admin/frontend-error-log',
-      method: 'POST',
-      data: {
-        user: adminInfo.username || 'unknown',
-        action: action,
-        url: window.location.href,
-        userAgent: navigator.userAgent,
-        userToken: adminInfo.role || 'unknown',
-        state: JSON.stringify({ currentMonth: currentMonth.value, nextMonth: nextMonth.value }),
-        details: details
-      }
-    })
-  } catch (e) {}
-}
+// 注意：日志上报已统一使用 errorReporter.track()
+// sendErrorLog 函数已移除
 
 const goBack = () => {
   const pages = getCurrentPages()

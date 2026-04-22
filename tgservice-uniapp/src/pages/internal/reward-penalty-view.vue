@@ -78,6 +78,7 @@
 import { ref, computed, onMounted } from 'vue'
 import api from '@/utils/api.js'
 import { getBeijingDate } from '@/utils/time-util.js'
+import errorReporter from '@/utils/error-reporter.js'
 
 const statusBarHeight = ref(0)
 const records = ref([])
@@ -117,37 +118,14 @@ function setDateFilter(val) {
   loadRecords()
 }
 
-// QA-20260422: 日志上报函数（统一封装）
-function reportLog(errorType, errorMsg, extraData = {}) {
-  const coachInfo = uni.getStorageSync('coachInfo') || {}
-  const adminInfo = uni.getStorageSync('adminInfo') || {}
-  
-  uni.request({
-    url: import.meta.env.VITE_API_BASE_URL + '/admin/frontend-error-log',
-    method: 'POST',
-    header: {
-      'Authorization': 'Bearer ' + (uni.getStorageSync('adminToken') || uni.getStorageSync('coachToken') || uni.getStorageSync('memberToken'))
-    },
-    data: {
-      errorType,
-      errorMsg,
-      page: 'reward-penalty-view',
-      timestamp: new Date().toISOString(),
-      coachInfo: { coachNo: coachInfo.coachNo, stageName: coachInfo.stageName, phone: coachInfo.phone },
-      adminInfo: { username: adminInfo.username, role: adminInfo.role },
-      userPhone: userPhone.value,
-      ...extraData
-    },
-    success: () => {},
-    fail: () => {}
-  })
-}
+// 注意：日志上报已统一使用 errorReporter.track()
+// reportLog 函数已移除
 
 async function loadRecords() {
   loading.value = true
   
-  // QA-20260422: 进入加载时立即上报（无论成功失败都能追踪）
-  reportLog('reward_penalty_view_load_start', `开始加载: phone=${userPhone.value}, confirmDate=${queryMonth.value}`)
+  // 业务追踪
+  errorReporter.track('reward_penalty_view_load_start', { phone: userPhone.value, confirmDate: queryMonth.value })
   
   try {
     const params = {
@@ -158,17 +136,17 @@ async function loadRecords() {
     const res = await api.getRewardPenaltyList(params)
     
     // 成功时上报
-    reportLog('reward_penalty_view_load_success', `加载成功: phone=${userPhone.value}, confirmDate=${queryMonth.value}, dataCount=${res.data?.length || 0}, total=${res.total || 0}`)
+    errorReporter.track('reward_penalty_view_load_success', { phone: userPhone.value, confirmDate: queryMonth.value, dataCount: res.data?.length || 0, total: res.total || 0 })
     
     if (res.success) {
       records.value = res.data || []
     } else {
       // API返回失败时上报
-      reportLog('reward_penalty_view_load_api_fail', `API返回失败: phone=${userPhone.value}, success=${res.success}, error=${res.error || 'unknown'}`)
+      errorReporter.track('reward_penalty_view_load_api_fail', { phone: userPhone.value, success: res.success, error: res.error || 'unknown' })
     }
   } catch (e) {
     // ⚠️ 异常日志必须上报！
-    reportLog('reward_penalty_view_load_exception', `加载异常: phone=${userPhone.value}, error=${e.message || e.error || 'unknown'}, stack=${e.stack?.substring(0, 200) || 'no stack'}`)
+    errorReporter.track('reward_penalty_view_load_exception', { phone: userPhone.value, error: e.message || e.error || 'unknown', stack: e.stack?.substring(0, 200) || 'no stack' })
     uni.showToast({ title: '加载失败', icon: 'none' })
   } finally {
     loading.value = false
@@ -181,7 +159,7 @@ function detectUserPhone() {
   if (adminInfo && adminInfo.username) {
     userPhone.value = adminInfo.username
     // QA-20260422: 上报用户识别结果
-    reportLog('reward_penalty_view_user_detected', `用户识别(admin): username=${adminInfo.username}, role=${adminInfo.role}`)
+    errorReporter.track('reward_penalty_view_user_detected', { type: 'admin', username: adminInfo.username, role: adminInfo.role })
     return
   }
   
@@ -190,12 +168,12 @@ function detectUserPhone() {
   if (coachInfo && coachInfo.phone) {
     userPhone.value = coachInfo.phone
     // QA-20260422: 上报用户识别结果
-    reportLog('reward_penalty_view_user_detected', `用户识别(coach): coachNo=${coachInfo.coachNo}, stageName=${coachInfo.stageName}, phone=${coachInfo.phone}`)
+    errorReporter.track('reward_penalty_view_user_detected', { type: 'coach', coachNo: coachInfo.coachNo, stageName: coachInfo.stageName, phone: coachInfo.phone })
     return
   }
   
   // QA-20260422: 用户未识别时上报（这是关键问题点）
-  reportLog('reward_penalty_view_user_not_found', `无法识别用户: adminInfo=${JSON.stringify(adminInfo)}, coachInfo=${JSON.stringify(coachInfo)}`)
+  errorReporter.track('reward_penalty_view_user_not_found', { adminInfo: JSON.stringify(adminInfo), coachInfo: JSON.stringify(coachInfo) })
 }
 
 onMounted(() => {
@@ -205,13 +183,13 @@ onMounted(() => {
   // QA-20260422: 页面进入时立即上报
   const coachInfo = uni.getStorageSync('coachInfo') || {}
   const adminInfo = uni.getStorageSync('adminInfo') || {}
-  reportLog('reward_penalty_view_page_enter', `页面进入: coachInfo.phone=${coachInfo.phone}, adminInfo.username=${adminInfo.username}`)
+  errorReporter.track('reward_penalty_view_page_enter', { coachPhone: coachInfo.phone, adminUsername: adminInfo.username })
   
   detectUserPhone()
   
   if (!userPhone.value) {
     // QA-20260422: 未登录时上报（这是关键问题点）
-    reportLog('reward_penalty_view_no_login', `未登录退出: coachInfo=${JSON.stringify(coachInfo)}, adminInfo=${JSON.stringify(adminInfo)}`)
+    errorReporter.track('reward_penalty_view_no_login', { coachInfo: JSON.stringify(coachInfo), adminInfo: JSON.stringify(adminInfo) })
     uni.showToast({ title: '未登录', icon: 'none' })
     setTimeout(() => uni.navigateBack(), 1500)
     return

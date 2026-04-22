@@ -1,0 +1,9 @@
+{
+  "qaRequirement": "合并 api.js 和 api-v2.js：将 api-v2.js 的所有模块迁移到 api.js，使用具名导出（named exports），批量修改前端 26 个内部页面的 import 语句，删除 api-v2.js 文件。",
+  "acceptanceFocus": "1. 编译无错误（npm run build:h5:dev）\n2. 所有内部页面功能正常（水牌、服务单、打卡、申请、审批等）\n3. api-v2.js 已删除\n4. 无运行时错误",
+  "workDir": "/TG/temp/QA-20260422-04",
+  "designAuditRound": 0,
+  "testCasesAuditRound": 0,
+  "fixRound": 0,
+  "currentStep": "audit-design"
+}

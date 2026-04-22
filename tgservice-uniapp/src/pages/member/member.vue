@@ -1202,61 +1202,11 @@ const lejuanCount = ref(0)
 const rewardPenaltyCount = ref(0)
 const attendanceReviewCount = ref(0)
 
-// === 前端错误收集上报 ===
-const reportError = (action, details) => {
-  const adminInfo = uni.getStorageSync('adminInfo') || {}
-  const coachInfo = uni.getStorageSync('coachInfo') || {}
-  try {
-    uni.request({
-      url: '/api/admin/frontend-error-log',
-      method: 'POST',
-      header: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + (localStorage.getItem('adminToken') || localStorage.getItem('coachToken') || localStorage.getItem('memberToken') || '')
-      },
-      data: {
-        action: action,
-        timestamp: new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }),
-        url: window.location.href,
-        userAgent: navigator.userAgent,
-        userToken: adminInfo.role || (coachInfo.coachNo ? 'coach' : 'unknown'),
-        state: JSON.stringify({
-          overtimeCount: overtimeCount.value,
-          publicLeaveCount: publicLeaveCount.value,
-          shiftChangeCount: shiftChangeCount.value,
-          leaveRequestCount: leaveRequestCount.value,
-          restCount: restCount.value,
-          adminRole: adminInfo.role,
-          adminInfo: adminInfo
-        }),
-        ...details
-      }
-    })
-  } catch (e) {
-    // 上报失败不干扰用户
-  }
-}
+// === 业务追踪（使用统一的 errorReporter）===
+import errorReporter from '@/utils/error-reporter.js'
 
-// 全局错误监听
-// #ifdef H5
-if (typeof window !== 'undefined') {
-  window.onerror = function(msg, url, line, col, error) {
-    reportError('js_error', {
-      message: msg,
-      line: line,
-      col: col,
-      errorStack: error ? error.stack : ''
-    })
-    return false
-  }
-  window.addEventListener('unhandledrejection', function(e) {
-    reportError('unhandled_rejection', {
-      reason: e.reason ? String(e.reason) : 'unknown',
-      stack: e.reason && e.reason.stack ? e.reason.stack : ''
-    })
-  })
-}
-// #endif
+// 注意：全局错误监听已移至 error-reporter.js + main.js + App.vue
+// 这里只保留页面特定的业务追踪调用
 
 const loadPendingCounts = async () => {
   try {
@@ -1291,7 +1241,7 @@ const loadPendingCounts = async () => {
       }
     }
   } catch (e) {
-    reportError('loadPendingCounts_failed', {
+    errorReporter.track('loadPendingCounts_failed', {
       message: e.message,
       error: e.error
     })

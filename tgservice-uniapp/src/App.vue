@@ -1,5 +1,6 @@
 <script>
 import api from '@/utils/api.js'
+import errorReporter from '@/utils/error-reporter.js'
 
 export default {
   onLaunch: function (options) {
@@ -17,6 +18,14 @@ export default {
   },
   onHide: function () {
     console.log('App Hide')
+  },
+  // UniApp全局错误捕获
+  onError: function (err) {
+    errorReporter.report({
+      type: 'app_error',
+      message: err?.message || String(err),
+      stack: err?.stack || ''
+    })
   },
   methods: {
     // #ifdef H5
