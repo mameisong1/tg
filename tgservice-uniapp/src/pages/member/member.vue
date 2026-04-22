@@ -1281,6 +1281,26 @@ const loadPendingCounts = async () => {
     const adminInfo = uni.getStorageSync('adminInfo') || {}
     const coachInfo = uni.getStorageSync('coachInfo') || {}
     const userPhone = adminInfo.username || coachInfo.phone || ''
+    
+    // QA-20260422: 日志上报，追踪奖罚角标加载
+    try {
+      await uni.request({
+        url: import.meta.env.VITE_API_BASE_URL + '/admin/frontend-error-log',
+        method: 'POST',
+        header: {
+          'Authorization': 'Bearer ' + (uni.getStorageSync('adminToken') || uni.getStorageSync('coachToken') || '')
+        },
+        data: {
+          errorType: 'member_reward_penalty_count_load',
+          errorMsg: `userPhone=${userPhone}, adminInfo.username=${adminInfo.username || ''}, coachInfo.phone=${coachInfo.phone || ''}`,
+          page: 'member',
+          timestamp: new Date().toISOString()
+        },
+        success: () => {},
+        fail: () => {}
+      })
+    } catch (logErr) {}
+    
     if (userPhone) {
       const rpRes = await api.rewardPenalty.getRecentCount({ phone: userPhone })
       rewardPenaltyCount.value = rpRes.count || 0
