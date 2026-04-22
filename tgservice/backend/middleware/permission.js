@@ -25,25 +25,16 @@ const PERMISSION_MATRIX = {
     lejuanList: true,
     invitationStats: true,
     operationLogs: true,
-    missingTableOutStats: true
+    missingTableOutStats: true,
+    systemSettings: true,
+    systemReport: true,
+    switchDevices: true,
+    tableDevices: true,
+    switchScenes: true,
+    userManagement: true
   },
   '店长': {
-    menu: ['all'],
-    cashierDashboard: true,
-    productManagement: true,
-    vipRoomManagement: true,
-    coachManagement: true,
-    waterBoardManagement: true,
-    invitationReview: true,
-    overtimeApproval: true,
-    leaveApproval: true,
-    lejuanList: true,
-    invitationStats: true,
-    operationLogs: true,
-    missingTableOutStats: true
-  },
-  '助教管理': {
-    menu: ['all'],
+    menu: ['index', 'home', 'members', 'users', 'reward-penalty-stats', 'cashier-dashboard', 'products', 'vip-rooms', 'tables', 'categories', 'coaches'],
     cashierDashboard: true,
     productManagement: true,
     vipRoomManagement: true,
@@ -55,24 +46,58 @@ const PERMISSION_MATRIX = {
     lejuanList: true,
     invitationStats: true,
     operationLogs: false,
-    missingTableOutStats: true
+    missingTableOutStats: true,
+    systemSettings: false,
+    systemReport: false,
+    switchDevices: false,
+    tableDevices: false,
+    switchScenes: false,
+    userManagement: true  // 可以管理用户，但不能授权管理员角色
   },
-  '教练': {
-    menu: ['cashier-dashboard', 'water-boards'],
-    cashierDashboard: true,      // 上下桌单、服务单
+  '助教管理': {
+    menu: ['coaches', 'coaches.html#batch-shift'],
+    cashierDashboard: false,
     productManagement: false,
     vipRoomManagement: false,
-    coachManagement: true,       // 打卡（自己）
-    waterBoardManagement: 'readonly',
-    invitationReview: true,      // 约客提交
+    coachManagement: true,
+    waterBoardManagement: false,
+    invitationReview: false,
     overtimeApproval: false,
     leaveApproval: false,
     lejuanList: false,
     invitationStats: false,
-    operationLogs: false
+    operationLogs: false,
+    missingTableOutStats: false,
+    systemSettings: false,
+    systemReport: false,
+    switchDevices: false,
+    tableDevices: false,
+    switchScenes: false,
+    userManagement: false
+  },
+  '教练': {
+    menu: [],
+    cashierDashboard: false,
+    productManagement: false,
+    vipRoomManagement: false,
+    coachManagement: false,
+    waterBoardManagement: false,
+    invitationReview: false,
+    overtimeApproval: false,
+    leaveApproval: false,
+    lejuanList: false,
+    invitationStats: false,
+    operationLogs: false,
+    missingTableOutStats: false,
+    systemSettings: false,
+    systemReport: false,
+    switchDevices: false,
+    tableDevices: false,
+    switchScenes: false,
+    userManagement: false
   },
   '前厅管理': {
-    menu: ['cashier-dashboard', 'products', 'vip-rooms'],
+    menu: ['cashier-dashboard', 'products', 'vip-rooms', 'tables', 'categories'],
     cashierDashboard: true,
     productManagement: true,
     vipRoomManagement: true,
@@ -83,13 +108,19 @@ const PERMISSION_MATRIX = {
     leaveApproval: false,
     lejuanList: false,
     invitationStats: false,
-    operationLogs: false
+    operationLogs: false,
+    missingTableOutStats: false,
+    systemSettings: false,
+    systemReport: false,
+    switchDevices: false,
+    tableDevices: false,
+    switchScenes: false,
+    userManagement: false
   },
   '收银': {
-    menu: ['cashier-dashboard', 'products'],
+    menu: ['cashier-dashboard'],
     cashierDashboard: true,
-    serviceOrder: true,
-    productManagement: true,
+    productManagement: false,
     vipRoomManagement: false,
     coachManagement: false,
     waterBoardManagement: false,
@@ -98,14 +129,20 @@ const PERMISSION_MATRIX = {
     leaveApproval: false,
     lejuanList: false,
     invitationStats: false,
-    operationLogs: false
+    operationLogs: false,
+    missingTableOutStats: false,
+    systemSettings: false,
+    systemReport: false,
+    switchDevices: false,
+    tableDevices: false,
+    switchScenes: false,
+    userManagement: false
   },
   // 英文角色名映射（兼容数据库中的英文角色）
   'cashier': {
-    menu: ['cashier-dashboard', 'products'],
+    menu: ['cashier-dashboard'],
     cashierDashboard: true,
-    serviceOrder: true,
-    productManagement: true,
+    productManagement: false,
     vipRoomManagement: false,
     coachManagement: false,
     waterBoardManagement: false,
@@ -114,7 +151,14 @@ const PERMISSION_MATRIX = {
     leaveApproval: false,
     lejuanList: false,
     invitationStats: false,
-    operationLogs: false
+    operationLogs: false,
+    missingTableOutStats: false,
+    systemSettings: false,
+    systemReport: false,
+    switchDevices: false,
+    tableDevices: false,
+    switchScenes: false,
+    userManagement: false
   },
   '服务员': {
     menu: [],
@@ -128,7 +172,14 @@ const PERMISSION_MATRIX = {
     leaveApproval: false,
     lejuanList: false,
     invitationStats: false,
-    operationLogs: false
+    operationLogs: false,
+    missingTableOutStats: false,
+    systemSettings: false,
+    systemReport: false,
+    switchDevices: false,
+    tableDevices: false,
+    switchScenes: false,
+    userManagement: false
   }
 };
 

@@ -2539,10 +2539,16 @@ app.get('/api/admin/users/:username/permissions', authMiddleware, requireBackend
 app.post('/api/admin/users', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
     const { username, password, name, role } = req.body;
+
+    // 店长不能授权管理员角色
+    if (req.user.role === '店长' && (role === '管理员' || role === 'admin' || role === 'superadmin')) {
+      return res.status(403).json({ error: '店长不能授权管理员角色' });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await enqueueRun('INSERT INTO admin_users (username, password, name, role) VALUES (?, ?, ?, ?)', [username, hashedPassword, name || '', role || '管理员']);
-    operationLog.info(`创建后台用户: ${username} (${role || '管理员'})`);
+    await enqueueRun('INSERT INTO admin_users (username, password, name, role) VALUES (?, ?, ?, ?)', [username, hashedPassword, name || '', role || '店长']);
+    operationLog.info(`创建后台用户: ${username} (${role || '店长'})`);
     res.json({ success: true });
   } catch (err) {
     if (err.message.includes('UNIQUE constraint failed')) {
@@ -2555,6 +2561,11 @@ app.post('/api/admin/users', authMiddleware, requireBackendPermission(['coachMan
 app.put('/api/admin/users/:username', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
     const { password, name, role, employmentStatus } = req.body;
+
+    // 店长不能授权管理员角色
+    if (role !== undefined && req.user.role === '店长' && (role === '管理员' || role === 'admin' || role === 'superadmin')) {
+      return res.status(403).json({ error: '店长不能授权管理员角色' });
+    }
 
     // 只更新请求中提供的字段，避免覆盖未提供的字段
     const updates = [];

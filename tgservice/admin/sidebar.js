@@ -55,9 +55,9 @@ var ROLE_MAP = {
 // 角色权限配置
 var ROLE_ALLOWED = {
   '\u7BA1\u7406\u5458': 'all',
-  '\u5E97\u957F': 'all',
-  '\u52A9\u6559\u7BA1\u7406': 'all',
-  '\u524D\u5385\u7BA1\u7406': ['cashier-dashboard.html', 'products.html', 'vip-rooms.html', 'tables.html', 'categories.html', 'members.html'],
+  '\u5E97\u957F': ['index.html', 'home.html', 'members.html', 'users.html', 'reward-penalty-stats.html', 'cashier-dashboard.html', 'products.html', 'vip-rooms.html', 'tables.html', 'categories.html', 'coaches.html', 'coaches.html#batch-shift'],
+  '\u52A9\u6559\u7BA1\u7406': ['coaches.html', 'coaches.html#batch-shift'],
+  '\u524D\u5385\u7BA1\u7406': ['cashier-dashboard.html', 'products.html', 'vip-rooms.html', 'tables.html', 'categories.html'],
   '\u6536\u94F6': ['cashier-dashboard.html'],
   '\u6559\u7EC3': [],
   '\u670D\u52A1\u5458': []
@@ -129,9 +129,9 @@ function renderSidebar() {
 
   var role = getRole();
 
-  // 服务员禁止访问后台
-  if (role === '\u670D\u52A1\u5458') {
-    alert('\u670D\u52A1\u5458\u4E0D\u5141\u8BB8\u8BBF\u95EE\u540E\u53F0\u7BA1\u7406\u7CFB\u7EDF');
+  // 教练和服务员禁止访问后台
+  if (role === '\u6559\u7EC3' || role === '\u670D\u52A1\u5458') {
+    alert(role === '\u6559\u7EC3' ? '\u6559\u7EC3\u4E0D\u5141\u8BB3\u8BBF\u95EE\u540E\u53F0\u7BA1\u7406\u7CFB\u7ED3' : '\u670D\u52A1\u5458\u4E0D\u5141\u8BB3\u8BBF\u95EE\u540E\u53F0\u7BA1\u7406\u7CFB\u7ED3');
     window.location.href = 'login.html';
     return;
   }
@@ -228,18 +228,14 @@ function checkRoleAccess() {
   var role = getRole();
   if (!role) return;
 
-  // 教练禁止后台
-  if (role === '\u6559\u7EC3') {
-    var allowed = ROLE_ALLOWED['\u6559\u7EC3'];
-    if (allowed && allowed.length === 0) {
-      // 已登录但角色不允许访问，跳到第一个允许页面或登录
-      alert('\u6559\u7EC3\u4E0D\u5141\u8BB8\u8BBF\u95EE\u540E\u53F0\u7BA1\u7406\u7CFB\u7EDF');
-      window.location.href = 'login.html';
-      return;
-    }
+  // 教练和服务员禁止后台
+  if (role === '\u6559\u7EC3' || role === '\u670D\u52A1\u5458') {
+    alert(role === '\u6559\u7EC3' ? '\u6559\u7EC3\u4E0D\u5141\u8BB3\u8BBF\u95EE\u540E\u53F0\u7BA1\u7406\u7CFB\u7ED3' : '\u670D\u52A1\u5458\u4E0D\u5141\u8BB3\u8BBF\u95EE\u540E\u53F0\u7BA1\u7406\u7CFB\u7ED3');
+    window.location.href = 'login.html';
+    return;
   }
 
-  // 前厅管理/收银：检查当前页面是否允许
+  // 前厅管理/收银/助教管理：检查当前页面是否允许
   var allowed = ROLE_ALLOWED[role];
   if (allowed && Array.isArray(allowed) && allowed.length > 0) {
     var currentPage = getCurrentPage();
