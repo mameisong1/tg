@@ -1970,6 +1970,66 @@ app.post('/api/admin/login', async (req, res) => {
   }
 });
 
+// 后台验证码登录
+app.post('/api/admin/login/sms', async (req, res) => {
+  try {
+    const { phone, code } = req.body;
+
+    // 验证手机号格式
+    if (!phone || !/^1[3-9]\d{9}$/.test(phone)) {
+      return res.status(400).json({ error: '请输入正确的手机号' });
+    }
+
+    // 验证验证码格式
+    if (!code || !/^\d{6}$/.test(code)) {
+      return res.status(400).json({ error: '请输入6位验证码' });
+    }
+
+    // 验证验证码是否正确
+    const cached = smsCodeCache.get(phone);
+    if (!cached || cached.code !== code || Date.now() - cached.timestamp > SMS_CODE_EXPIRE_MS) {
+      return res.status(401).json({ error: '验证码错误或已过期' });
+    }
+
+    // 查询用户（username = 手机号）
+    const user = await dbGet('SELECT * FROM admin_users WHERE username = ?', [phone]);
+    if (!user) {
+      return res.status(401).json({ error: '用户不存在' });
+    }
+
+    // 服务员和教练禁止登录后台
+    const role = user.role || '管理员';
+    if (role === '服务员') {
+      return res.status(403).json({ error: '服务员不允许登录后台管理系统' });
+    }
+    if (role === '教练') {
+      return res.status(403).json({ error: '教练不允许登录后台管理系统' });
+    }
+
+    // 生成 token
+    const token = jwt.sign({ username: user.username, role: role }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
+
+    // 删除验证码缓存（一次性使用）
+    smsCodeCache.delete(phone);
+
+    // 获取用户权限
+    const { getUserPermissions } = require('./middleware/permission');
+    const permissions = getUserPermissions(role);
+
+    operationLog.info(`后台验证码登录:${phone} (${role})`);
+    res.json({
+      success: true,
+      token,
+      role,
+      user: { username: user.username, name: user.name || '', role: role },
+      permissions: permissions.backend
+    });
+  } catch (err) {
+    logger.error(`后台验证码登录失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
 // 后台认证中间件 - 支持 JWT 和 base64 两种 token
 const authMiddleware = (req, res, next) => {
   // QA-20260422-3: 鉴权开关检查（直接读内存缓存）
