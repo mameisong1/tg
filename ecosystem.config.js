@@ -19,8 +19,8 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: '1G',
-      error_file: '/app/logs/tgservice-error.log',
-      out_file: '/app/logs/tgservice-out.log',
+      error_file: '/app/tgservice/logs/pm2-error.log',
+      out_file: '/app/tgservice/logs/pm2-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     },
     {
@@ -36,8 +36,8 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: '1G',
-      error_file: '/app/logs/tgservice-uniapp-error.log',
-      out_file: '/app/logs/tgservice-uniapp-out.log',
+      error_file: '/app/tgservice/logs/pm2-uniapp-error.log',
+      out_file: '/app/tgservice/logs/pm2-uniapp-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss Z'
     }
   ]
