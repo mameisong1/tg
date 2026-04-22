@@ -1015,3 +1015,64 @@ records.sort((a, b) => {
 - 每分钟检查一次是否有 `pending` 状态且 `scheduled_start_time <= 当前时间` 的记录
 - 自动将符合条件的记录状态改为 `active`
 - 同时更新对应助教的水牌状态为"乐捐"
+
+---
+
+## 10. 奖罚管理（2026-04-22 更新）
+
+### 10.1 数据结构
+
+**表**: `reward_penalties`
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | INTEGER | 主键 |
+| type | TEXT | 奖罚类型 |
+| confirm_date | TEXT | 确定日期 (YYYY-MM-DD) |
+| phone | TEXT | 助教手机号 |
+| name | TEXT | **艺名**（2026-04-22 统一）|
+| amount | REAL | 金额（正为奖，负为罚）|
+| remark | TEXT | 备注 |
+| exec_status | TEXT | 执行状态（未执行/已执行）|
+| exec_date | TEXT | 执行日期 |
+
+### 10.2 name 字段统一规则
+
+**问题背景**：
+- 批处理自动生成的数据：name = `stage_name`（艺名）
+- 前台H5手动录入的数据：name = `real_name`（真实姓名）
+- 导致同一手机号出现不同 name，奖罚统计分组时出现重复记录
+
+**修复方案（2026-04-22）**：
+- targets API 返回数据增加 `stage_name`、`real_name` 字段
+- `name` 字段优先取 `stage_name`（艺名）
+- 前台录入时使用 `stage_name || name`
+
+**API 返回示例**：
+```json
+{
+  "phone": "13549845792",
+  "employee_id": "22",
+  "displayName": "22号 小泡 梁晓婷",
+  "name": "小泡",           // 艺名（优先）
+  "stage_name": "小泡",     // 新增
+  "real_name": "梁晓婷",    // 新增
+  "status": "全职"
+}
+```
+
+### 10.3 数据来源
+
+| 来源 | name 字段 | 说明 |
+|------|-----------|------|
+| 批处理（未约客罚金等） | stage_name | 自动从 coaches 表获取 |
+| 前台H5手动录入 | stage_name | 从 targets API 获取 |
+| 后台Admin录入 | 手动输入 | 管理员填写 |
+
+### 10.4 唯一键约束
+
+```sql
+CREATE UNIQUE INDEX idx_rp_unique ON reward_penalties(confirm_date, type, phone, remark);
+```
+
+同一日期、同一类型、同一手机号、同一备注只允许一条记录。
