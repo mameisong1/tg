@@ -5720,7 +5720,9 @@ app.get('/api/reward-penalty/targets', authMiddleware, requireBackendPermission(
         coach_no: c.coach_no,
         employee_id: c.employee_id,
         displayName: `${c.employee_id}号 ${c.stage_name || ''} ${c.real_name || ''}`.trim(),
-        name: c.real_name || c.stage_name || '',
+        name: c.stage_name || c.real_name || '',  // QA-20260422: 优先取艺名，与批处理一致
+        stage_name: c.stage_name || '',          // QA-20260422: 新增，方便前台区分
+        real_name: c.real_name || '',            // QA-20260422: 新增
         status: c.status
       }));
       return res.json({ success: true, data: formatted, role });
