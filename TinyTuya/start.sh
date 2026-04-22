@@ -1,56 +1,38 @@
 #!/bin/bash
-# 中山台球厅空调控制系统启动脚本
-
 echo "========================================"
-echo "TinyTuya + MQTT 空调控制系统"
-echo "中山台球厅本地部署"
+echo "启动 TinyTuya 控制器"
 echo "========================================"
 
-# 检查Docker是否安装
-if ! command -v docker &> /dev/null; then
-    echo "错误: Docker未安装"
-    echo "请先安装Docker: https://docs.docker.com/get-docker/"
-    exit 1
-fi
-
-# 检查镜像是否存在
-if ! docker images | grep -q "tinytuya-controller"; then
-    echo "警告: 镜像不存在，请先加载镜像文件"
-    echo "命令: docker load -i tinytuya-controller.tar"
-    exit 1
-fi
-
-# 停止并删除旧容器（如果存在）
 docker stop tinytuya-controller 2>/dev/null
 docker rm tinytuya-controller 2>/dev/null
 
-echo ""
-echo "启动容器..."
+# 默认网关配置
+DEFAULT_IP="192.168.110.10"
+DEFAULT_KEY="k[BxEj?<'^;cu|]1"
+
+# 使用环境变量或默认值
+GW_IP="${GATEWAY_1_IP:-$DEFAULT_IP}"
+GW_KEY="${GATEWAY_1_KEY:-$DEFAULT_KEY}"
+
+echo "网关IP: $GW_IP"
+echo "网关Key: $GW_KEY"
 echo ""
 
-# 启动容器（host网络模式，确保能访问局域网设备）
 docker run -d \
     --name tinytuya-controller \
     --restart unless-stopped \
     --network host \
+    -e MQTT_HOST=8.134.248.240 \
+    -e MQTT_PORT=1883 \
+    -e MQTT_USERNAME=admin \
+    -e MQTT_PASSWORD=mms6332628 \
+    -e "GATEWAY_1_IP=$GW_IP" \
+    -e "GATEWAY_1_KEY=$GW_KEY" \
     tinytuya-controller:latest
 
 sleep 3
-
+echo ""
 echo "========================================"
-echo "服务已启动"
-echo "========================================"
-echo ""
-echo "查看日志:"
-echo "  docker logs -f tinytuya-controller"
-echo ""
-echo "扫描设备（发现网关IP）:"
-echo "  docker exec tinytuya-controller python scan_devices.py"
-echo ""
-echo "测试连接:"
-echo "  docker exec tinytuya-controller python test_connection.py"
-echo ""
-echo "停止服务:"
-echo "  docker stop tinytuya-controller"
-echo ""
+echo "已启动! 查看日志:"
+echo "docker logs -f tinytuya-controller"
 echo "========================================"

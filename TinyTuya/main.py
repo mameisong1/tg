@@ -1,6 +1,6 @@
 """
 TinyTuya + MQTT 控制器主程序
-本地控制涂鸦设备（天宫国际台球厅空调系统）
+支持多网关、多子设备控制
 """
 import os
 import sys
@@ -10,7 +10,11 @@ import signal
 from datetime import datetime
 from typing import Dict, Any
 
-from config import TUYA_DEVICES, MQTT_TOPIC_PREFIX, MQTT_HOST, MQTT_PORT
+from config import (
+    MQTT_TOPIC_PREFIX, MQTT_HOST, MQTT_PORT,
+    GATEWAYS, SUB_DEVICES, ALL_DEVICES,
+    print_config_summary
+)
 from tuya_controller import controller
 from mqtt_client import MQTTClient
 
@@ -27,8 +31,8 @@ def handle_command(device_id: str, command: str, params: Dict[str, Any]):
     """处理MQTT命令"""
     logger.info(f"收到命令: 设备={device_id}, 命令={command}, 参数={params}")
     
-    device_config = TUYA_DEVICES.get(device_id)
-    if not device_config:
+    config = ALL_DEVICES.get(device_id)
+    if not config:
         mqtt_client.publish_status(device_id, {
             "success": False,
             "error": "未知设备",
@@ -36,35 +40,63 @@ def handle_command(device_id: str, command: str, params: Dict[str, Any]):
         })
         return
     
-    device_name = device_config.get("name", device_id)
+    device_name = config.get("name", device_id)
     
     try:
         if command == "command":
             # 控制设备
             result = controller.control(device_id, params)
-            mqtt_client.publish_status(device_id, {
+            
+            response = {
                 "success": result.get("success", False),
                 "device_name": device_name,
                 "params": params,
-                "result": result.get("result", {}),
                 "timestamp": datetime.now().isoformat()
-            })
+            }
+            
+            # 添加网关信息（如果是子设备）
+            if config.get("is_sub_device"):
+                gateway_id = config.get("gateway_id")
+                gateway_config = GATEWAYS.get(gateway_id)
+                if gateway_config:
+                    response["gateway"] = gateway_config.get("name")
+            
+            # 添加结果详情
+            if "result" in result:
+                response["result"] = result["result"]
+            if "results" in result:
+                response["results"] = result["results"]
+            if "error" in result:
+                response["error"] = result["error"]
+            
+            mqtt_client.publish_status(device_id, response)
+            
         elif command == "status":
             # 获取状态
             status = controller.get_status(device_id)
-            mqtt_client.publish_status(device_id, {
-                "success": "error" not in status,
+            
+            response = {
+                "success": status.get("success", "error" not in status),
                 "device_name": device_name,
-                "status": status.get("status", {}),
-                "raw": status.get("raw", {}),
                 "timestamp": datetime.now().isoformat()
-            })
+            }
+            
+            if "status" in status:
+                response["status"] = status["status"]
+            if "raw" in status:
+                response["raw"] = status["raw"]
+            if "error" in status:
+                response["error"] = status["error"]
+            
+            mqtt_client.publish_status(device_id, response)
+            
         else:
             mqtt_client.publish_status(device_id, {
                 "success": False,
                 "error": f"未知命令: {command}",
                 "timestamp": datetime.now().isoformat()
             })
+            
     except Exception as e:
         logger.error(f"命令处理失败: {e}")
         mqtt_client.publish_status(device_id, {
@@ -80,60 +112,19 @@ def print_banner():
     print("""
 ╔═══════════════════════════════════════════════════════════╗
 ║       TinyTuya + MQTT 空调控制系统                        ║
-║       天宫国际台球厅 - 19台空调远程控制                    ║
+║       支持多网关、多子设备远程控制                         ║
 ╚═══════════════════════════════════════════════════════════╝
 """)
-    logger.info(f"MQTT服务器: {MQTT_HOST}:{MQTT_PORT}")
-    logger.info(f"注册设备: {len(TUYA_DEVICES)} 个")
-
-
-def show_device_list():
-    """显示设备列表"""
-    logger.info("=" * 50)
-    logger.info("设备列表:")
     
-    gateway_count = 0
-    sub_device_count = 0
+    # 打印配置摘要
+    print_config_summary()
     
-    for device_id, config in TUYA_DEVICES.items():
-        if config.get("is_gateway"):
-            gateway_count += 1
-            status = "✓" if controller.gateway else "✗"
-            logger.info(f"  {status} [网关] {config.get('name')}")
-        elif config.get("is_sub_device"):
-            sub_device_count += 1
-            # 子设备状态取决于网关
-            status = "✓" if controller.gateway else "✗"
-            node_id = config.get("node_id", "?")
-            logger.info(f"  {status} [子设备] {config.get('name')} (node_id: {node_id})")
-    
-    logger.info(f"网关: {gateway_count} 个, 室内机: {sub_device_count} 台")
-    logger.info("=" * 50)
-
-
-def check_config():
-    """检查配置"""
-    issues = []
-    
-    # 检查网关
-    gateway_config = TUYA_DEVICES.get("6cedfa65e9e0d2f95bv8dw")
-    if gateway_config and not gateway_config.get("local_key"):
-        issues.append("网关缺少 local_key")
-    
-    # 检查子设备
-    for device_id, config in TUYA_DEVICES.items():
-        if config.get("is_sub_device") and not config.get("local_key"):
-            issues.append(f"{config.get('name')} 缺少 local_key")
-    
-    if issues:
-        logger.warning("=" * 50)
-        logger.warning("配置问题:")
-        for issue in issues:
-            logger.warning(f"  - {issue}")
-        logger.warning("=" * 50)
-        logger.warning("请检查 config.py 中的 TUYA_LOCAL_KEY 配置")
-    else:
-        logger.info("配置检查通过 ✓")
+    # 显示网关状态
+    logger.info("\n网关状态:")
+    gateway_status = controller.get_gateway_status_summary()
+    for gw_id, status in gateway_status.items():
+        init_status = "✓" if status["initialized"] else "✗"
+        logger.info(f"  {init_status} {status['name']} (IP: {status['ip']}, 子设备: {status['sub_device_count']}台)")
 
 
 def signal_handler(signum, frame):
@@ -151,8 +142,6 @@ def main():
     global mqtt_client
     
     print_banner()
-    check_config()
-    show_device_list()
     
     # 初始化MQTT客户端
     mqtt_client = MQTTClient(on_command=handle_command)
@@ -162,7 +151,7 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
     
     try:
-        logger.info("启动MQTT客户端，开始监听命令...")
+        logger.info("\n启动MQTT客户端，开始监听命令...")
         mqtt_client.start()
     except KeyboardInterrupt:
         logger.info("用户中断")

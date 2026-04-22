@@ -169,7 +169,7 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
       remark: `上班:${oldStatus} → ${newStatus}`
     });
 
-    return { coach_no, stage_name: coach.stage_name, status: newStatus };
+    return { coach_no, stage_name: coach.stage_name, status: newStatus, shift: coach.shift };
     });
 
     res.json({
@@ -186,7 +186,7 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
       const currentHour = new Date(TimeUtil.nowDB() + '+08:00').getHours();
       if ((result.status === '早班空闲' && currentHour >= 14) ||
           (result.status === '晚班空闲' && currentHour >= 18)) {
-        const postData = JSON.stringify({ coachNo: result.coach_no, shift: coach.shift });
+        const postData = JSON.stringify({ coachNo: result.coach_no, shift: result.shift });
         const options = {
           hostname: '127.0.0.1',
           port: parseInt(process.env.PORT) || (process.env.TGSERVICE_ENV === 'test' ? 8088 : 80),
@@ -198,7 +198,7 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
           }
         };
         const triggerReq = http.request(options, (resp) => {
-          console.log(`[GuestRanking] 打卡后排序触发成功: coach_no=${coach_no}, shift=${coach.shift}`);
+          console.log(`[GuestRanking] 打卡后排序触发成功: coach_no=${coach_no}, shift=${result.shift}`);
         });
         triggerReq.on('error', (err) => {
           console.error(`[GuestRanking] 打卡后排序触发失败: coach_no=${coach_no}, error=${err.message}`);

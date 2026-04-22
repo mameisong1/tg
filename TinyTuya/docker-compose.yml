@@ -17,9 +17,18 @@ services:
       - MQTT_PASSWORD=mms6332628
       - MQTT_CLIENT_ID=tinytuya-mqtt-tiangong
       
-      # 涂鸦设备配置（所有设备共享）
-      - TUYA_LOCAL_KEY=k[BxEj?<'^;cu|]1
-      - GATEWAY_IP=${GATEWAY_IP:-}
+      # ===== 网关配置 =====
+      # 网关1（包房）
+      - GATEWAY_1_IP=${GATEWAY_1_IP:-192.168.110.10}
+      - GATEWAY_1_KEY=${GATEWAY_1_KEY:-k[BxEj?<'^;cu|]1}
+      
+      # 网关2（新增时取消注释并配置）
+      # - GATEWAY_2_IP=${GATEWAY_2_IP:-192.168.110.11}
+      # - GATEWAY_2_KEY=${GATEWAY_2_KEY:-新的local_key}
+      
+      # 更多网关继续添加...
+      # - GATEWAY_3_IP=...
+      # - GATEWAY_3_KEY=...
     
     volumes:
       - ./logs:/app/logs
