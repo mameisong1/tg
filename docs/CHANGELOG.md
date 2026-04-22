@@ -278,3 +278,37 @@
 ### 技术细节
 - authMiddleware 支持 JWT (adminToken) 和 base64 (coachToken) 两种 token 解析
 - permissionMiddleware 新增 COACH_ALLOWED_PERMISSIONS 白名单 + coachSelfOnly 选项
+
+---
+
+## 2026-04-22 前端错误日志自动收集上报框架
+
+### 新功能
+- 全局自动捕获：Vue错误、JS错误、Promise未捕获错误
+- 统一上报工具：`src/utils/error-reporter.js`
+- 去重机制：Map缓存 + 60秒时间窗口
+- 日志清理：文件修改时间判断，超过3天自动清空，超过10MB截断
+- 日志路径：`/app/tgservice/logs/frontend-error.log`（挂载目录）
+
+### 修改文件
+- 新建：`tgservice-uniapp/src/utils/error-reporter.js`
+- 修改：`tgservice-uniapp/src/main.js` - 新增全局错误处理器
+- 修改：`tgservice-uniapp/src/App.vue` - 新增 onError
+- 修改：`tgservice-uniapp/src/pages/member/member.vue` - 清理重复代码
+- 修改：`tgservice-uniapp/src/pages/internal/reward-penalty-view.vue` - 清理重复代码
+- 修改：`tgservice-uniapp/src/pages/internal/leave-calendar.vue` - 清理重复代码
+- 修改：`tgservice-uniapp/src/pages/internal/switch-control.vue` - 清理重复代码
+- 修改：`tgservice/backend/server.js` - 日志清理逻辑
+
+### Git提交
+- `b23883e`: feat: 前端错误日志自动收集上报框架
+
+### 使用方式
+```javascript
+// 页面业务追踪
+import errorReporter from '@/utils/error-reporter.js'
+errorReporter.track('action_name', { detail1: 'value1' })
+
+// 自动捕获的全局错误无需手动调用
+```
+
