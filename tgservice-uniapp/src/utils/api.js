@@ -215,7 +215,7 @@ export const missingTableOutOrders = {
 // ========== 奖罚管理 ==========
 export const rewardPenalty = {
   // 获取昨天和今天的已确认奖罚数据条数
-  getRecentCount: () => request({ url: '/reward-penalty/recent-count' })
+  getRecentCount: (params) => request({ url: '/reward-penalty/recent-count', data: params })
 }
 
 // ========== 助教休假日历 ==========
