@@ -5,8 +5,9 @@
   "designAuditRound": 1,
   "testCasesAuditRound": 2,
   "fixRound": 0,
-  "currentStep": "deploy",
+  "currentStep": null,
   "designSummary": "api.js合并：修改api.js合并14个模块，批量替换26个页面import，删除api-v2.js，编译验证",
   "userConfirmedAt": "2026-04-22T14:10:21.796Z",
-  "userConfirmedBy": "马哥"
+  "userConfirmedBy": "马哥",
+  "qaReportPath": "/TG/temp/QA-20260422-04/qa-report.md"
 }
