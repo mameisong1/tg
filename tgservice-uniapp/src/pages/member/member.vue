@@ -122,14 +122,17 @@
       </view>
       <view class="group-section">
         <view class="internal-btns">
-          <view class="internal-btn" @click="navigateTo('/pages/internal/water-board-view')">
+          <!-- 水牌查看：收银和服务员不能看 -->
+          <view class="internal-btn" v-if="canViewWaterBoard" @click="navigateTo('/pages/internal/water-board-view')">
             <text class="internal-btn-icon">📋</text>
             <text class="internal-btn-text">水牌查看</text>
           </view>
+          <!-- 服务下单：所有后台用户可用 -->
           <view class="internal-btn" @click="navigateTo('/pages/internal/service-order')">
             <text class="internal-btn-icon">🔔</text>
             <text class="internal-btn-text">服务下单</text>
           </view>
+          <!-- 我的奖罚：所有后台用户可用 -->
           <view class="internal-btn" @click="navigateTo('/pages/internal/reward-penalty-view')">
             <text class="internal-btn-icon">🏆</text>
             <text class="internal-btn-text">我的奖罚</text>
@@ -1177,6 +1180,14 @@ const showCommonFeatures = computed(() => {
   if (adminInfo) return true
   if (coachInfo && coachInfo.status !== '离职') return true
   return false
+})
+
+// 是否能看水牌（收银和服务员不能看）
+const canViewWaterBoard = computed(() => {
+  const adminInfo = uni.getStorageSync('adminInfo')
+  // 收银和服务员不能看水牌
+  if (adminInfo && ['收银', '服务员'].includes(adminInfo.role)) return false
+  return true
 })
 
 // 安全的返回方法：如果没有上一页，返回「我的」tab

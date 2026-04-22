@@ -194,9 +194,10 @@ const FRONTEND_PERMISSION_MATRIX = {
     leaveApply: true,
     lejuan: true,
     invitationUpload: true,
-    serviceOrder: false,
-    waterBoardView: false,
-    waterBoardManage: false
+    serviceOrder: true,        // ✅ 服务下单可用
+    waterBoardView: true,      // ✅ 水牌查看可用
+    waterBoardManage: false,
+    myRewardPenalty: true      // ✅ 我的奖罚可用
   },
   '店长': {
     internalHome: true,
@@ -207,9 +208,10 @@ const FRONTEND_PERMISSION_MATRIX = {
     leaveApply: false,
     lejuan: false,
     invitationUpload: false,
-    serviceOrder: true,
-    waterBoardView: false,
-    waterBoardManage: true
+    serviceOrder: true,        // ✅ 服务下单可用
+    waterBoardView: true,      // ✅ 水牌查看可用
+    waterBoardManage: true,
+    myRewardPenalty: true      // ✅ 我的奖罚可用
   },
   '助教管理': {
     internalHome: true,
@@ -220,9 +222,10 @@ const FRONTEND_PERMISSION_MATRIX = {
     leaveApply: false,
     lejuan: false,
     invitationUpload: false,
-    serviceOrder: true,
-    waterBoardView: false,
-    waterBoardManage: true
+    serviceOrder: true,        // ✅ 服务下单可用
+    waterBoardView: true,      // ✅ 水牌查看可用
+    waterBoardManage: true,
+    myRewardPenalty: true      // ✅ 我的奖罚可用
   },
   '教练': {
     internalHome: true,
@@ -233,9 +236,10 @@ const FRONTEND_PERMISSION_MATRIX = {
     leaveApply: false,
     lejuan: false,
     invitationUpload: false,
-    serviceOrder: true,
-    waterBoardView: true,
-    waterBoardManage: false
+    serviceOrder: true,        // ✅ 服务下单可用
+    waterBoardView: true,      // ✅ 水牌查看可用
+    waterBoardManage: false,
+    myRewardPenalty: true      // ✅ 我的奖罚可用
   },
   '前厅管理': {
     internalHome: false,
@@ -246,9 +250,10 @@ const FRONTEND_PERMISSION_MATRIX = {
     leaveApply: false,
     lejuan: false,
     invitationUpload: false,
-    serviceOrder: true,
-    waterBoardView: false,
-    waterBoardManage: false
+    serviceOrder: true,        // ✅ 服务下单可用
+    waterBoardView: true,      // ✅ 水牌查看可用
+    waterBoardManage: false,
+    myRewardPenalty: true      // ✅ 我的奖罚可用
   },
   '收银': {
     internalHome: false,
@@ -259,9 +264,10 @@ const FRONTEND_PERMISSION_MATRIX = {
     leaveApply: false,
     lejuan: false,
     invitationUpload: false,
-    serviceOrder: true,
-    waterBoardView: false,
-    waterBoardManage: false
+    serviceOrder: true,        // ✅ 服务下单可用
+    waterBoardView: false,     // ❌ 不能看水牌
+    waterBoardManage: false,
+    myRewardPenalty: true      // ✅ 我的奖罚可用
   },
   '服务员': {
     internalHome: false,
@@ -272,9 +278,10 @@ const FRONTEND_PERMISSION_MATRIX = {
     leaveApply: false,
     lejuan: false,
     invitationUpload: false,
-    serviceOrder: false,
-    waterBoardView: false,
-    waterBoardManage: false
+    serviceOrder: true,        // ✅ 服务下单可用
+    waterBoardView: false,     // ❌ 不能看水牌
+    waterBoardManage: false,
+    myRewardPenalty: true      // ✅ 我的奖罚可用
   }
 };
 
