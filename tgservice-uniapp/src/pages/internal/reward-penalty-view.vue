@@ -126,6 +126,24 @@ async function loadRecords() {
     }
     
     const res = await api.getRewardPenaltyList(params)
+    
+    // QA-20260422: 日志上报，方便排查问题
+    uni.request({
+      url: import.meta.env.VITE_API_BASE_URL + '/admin/frontend-error-log',
+      method: 'POST',
+      header: {
+        'Authorization': 'Bearer ' + (uni.getStorageSync('adminToken') || uni.getStorageSync('coachToken') || uni.getStorageSync('memberToken'))
+      },
+      data: {
+        errorType: 'reward_penalty_view_load',
+        errorMsg: `loadRecords: phone=${userPhone.value}, confirmDate=${queryMonth.value}, success=${res.success}, dataCount=${res.data?.length || 0}, total=${res.total || 0}`,
+        page: 'reward-penalty-view',
+        timestamp: new Date().toISOString()
+      },
+      success: () => {},
+      fail: () => {}
+    })
+    
     if (res.success) {
       records.value = res.data || []
     }
