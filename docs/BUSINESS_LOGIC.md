@@ -771,6 +771,25 @@ app.put('/api/cart/table', async (req, res) => {
 - 通过 `coach_no` 关联 `coaches` 表
 - 关联字段:`stage_name`、`shift`(班次)、`photos`、`employee_id`
 
+### 打卡逻辑（2026-04-22 更新）
+
+**上班打卡**:
+- API: `POST /api/coaches/:coach_no/clock-in`
+- 水牌状态从「下班/乐捐/加班」变为对应班次的「空闲」
+- 写入 `attendance_records` 表：`date = 今天`, `clock_in_time = 当前时间`, `clock_out_time = NULL`
+
+**下班打卡**:
+- API: `POST /api/coaches/:coach_no/clock-out`
+- 水牌状态变为「下班」
+- 查找未下班记录：`WHERE coach_no = ? AND date IN (今天, 昨天) AND clock_out_time IS NULL`
+- 更新 `attendance_records.clock_out_time = 当前时间`
+
+**凌晨下班处理**:
+- 晚班助教可能在凌晨（如02:00）下班
+- 此时 `todayStr()` 已变成第二天，上班记录在昨天
+- 查询范围扩大为 `date IN (今天, 昨天)` 确保找到前一天晚上的上班记录
+- 2026-04-22 修复：之前只查当天导致凌晨下班找不到上班记录，误判漏卡
+
 ---
 
 ## 7. 错误处理
