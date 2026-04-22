@@ -54,6 +54,9 @@ const attendanceReviewRouter = require('./routes/attendance-review');
 // 乐捐记录路由
 const lejuanRecordsRouter = require('./routes/lejuan-records');
 
+// 门迎排序路由
+const guestRankingsRouter = require('./routes/guest-rankings');
+
 // 下桌单缺失统计路由
 const missingTableOutOrdersRouter = require('./routes/missing-table-out-orders');
 
@@ -354,6 +357,9 @@ app.use('/api/attendance-review', attendanceReviewRouter);
 
 // 乐捐记录路由
 app.use('/api/lejuan-records', lejuanRecordsRouter);
+
+// 门迎排序路由
+app.use('/api/guest-rankings', guestRankingsRouter);
 
 // 下桌单缺失统计路由
 app.use('/api/missing-table-out-orders', missingTableOutOrdersRouter);
@@ -6016,6 +6022,12 @@ app.listen(PORT, () => {
   // 初始化公共计时器管理器（自包含，无需回调）
   const TimerManager = require('./services/timer-manager');
   TimerManager.init();
+  
+  // 加载今日门迎排序数据
+  const guestRankingService = require('./services/guest-ranking-service');
+  guestRankingService.loadTodayData().catch(err => {
+    console.error('[GuestRanking] 启动时加载数据失败:', err.message);
+  });
   
   // 初始化 Cron 批处理调度器
   require('./services/cron-scheduler').init();

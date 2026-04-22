@@ -11,6 +11,7 @@ const { requireBackendPermission } = require('../middleware/permission');
 const TimeUtil = require('../utils/time');
 const operationLogService = require('../services/operation-log');
 const errorLogger = require('../utils/error-logger');
+const http = require('http');
 
 /**
  * 计算是否迟到
@@ -179,6 +180,31 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
         status: result.status
       }
     });
+
+    // 触发门迎排序（非阻塞，不等待结果）
+    try {
+      const currentHour = new Date(TimeUtil.nowDB() + '+08:00').getHours();
+      if ((result.status === '早班空闲' && currentHour >= 14) ||
+          (result.status === '晚班空闲' && currentHour >= 18)) {
+        const postData = JSON.stringify({ coachNo: result.coach_no, shift: coach.shift });
+        const options = {
+          hostname: '127.0.0.1',
+          port: parseInt(process.env.PORT) || (process.env.TGSERVICE_ENV === 'test' ? 8088 : 80),
+          path: '/api/guest-rankings/internal/after-clock',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(postData)
+          }
+        };
+        const triggerReq = http.request(options, () => {});
+        triggerReq.on('error', () => {}); // 静默忽略错误
+        triggerReq.write(postData);
+        triggerReq.end();
+      }
+    } catch (e) {
+      // 静默忽略，不影响打卡主流程
+    }
   } catch (error) {
     errorLogger.logApiRejection(req, error);
     if (error.status) {

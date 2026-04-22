@@ -1,0 +1,1 @@
+门迎排序：8文件变更(新增guest-ranking-service.js+guest-rankings.js，修改server.js+cron-scheduler.js+coaches.js+water-board.vue+water-board-view.vue+api-v2.js)；新增3个Cron任务(14点早班/18点晚班/24点清空)；复用system_config表存JSON数据；排序规则：14/18点DESC，打卡后ASC，免门迎跳过

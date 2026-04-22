@@ -1,0 +1,13 @@
+{
+  "qaRequirement": "助教门迎排序功能开发：1.排序时机和方法（14点/18点批处理排序、打卡后排序、24点清空）；2.数据持久化（今日免门迎、今日排序配置）；3.免门迎设定（长按菜单新增免门迎选项）；4.门迎排序类（统一管理，批处理用curl调用接口）；5.水牌页面显示门迎序号（圆圈数字）。",
+  "acceptanceFocus": "用户强调：不能去生产环境DB测试，实现方案要发给用户确认",
+  "createdAt": "2026-04-22T09:02:00+08:00",
+  "workDir": "/TG/temp/QA-20260422-02",
+  "designAuditRound": 1,
+  "testCasesAuditRound": 2,
+  "fixRound": 0,
+  "currentStep": "deploy",
+  "designSummary": "门迎排序：8文件变更(新增guest-ranking-service.js+guest-rankings.js，修改server.js+cron-scheduler.js+coaches.js+water-board.vue+water-board-view.vue+api-v2.js)；新增3个Cron任务(14点早班/18点晚班/24点清空)；复用system_config表存JSON数据；排序规则：14/18点DESC，打卡后ASC，免门迎跳过",
+  "userConfirmedAt": "2026-04-22T01:28:25.398Z",
+  "userConfirmedBy": "马哥"
+}

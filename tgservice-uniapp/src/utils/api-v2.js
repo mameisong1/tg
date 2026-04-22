@@ -192,6 +192,16 @@ export const attendanceReview = {
   markReviewed: (id) => request({ url: `/attendance-review/${id}/review`, method: 'PUT' })
 }
 
+
+// ========== 门迎排序 ==========
+export const guestRankings = {
+  // 获取今日排序
+  getToday: () => request({ url: '/guest-rankings/today' }),
+  // 设置免门迎
+  setExempt: (coachNo) => request({ url: `/guest-rankings/exempt/${coachNo}`, method: 'PUT' }),
+  // 取消免门迎
+  removeExempt: (coachNo) => request({ url: `/guest-rankings/exempt/${coachNo}`, method: 'DELETE' })
+}
 export default {
   // 前端配置（授权过期时间等）
   getFrontConfig: () => request({ url: '/front-config' }),
@@ -207,5 +217,6 @@ export default {
   missingTableOutOrders,
   rewardPenalty,
   leaveCalendar,
-  attendanceReview
+  attendanceReview,
+  guestRankings
 }

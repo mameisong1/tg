@@ -47,7 +47,7 @@
           <view class="coach-card" v-for="coach in group.coaches.filter(c => !c._offDuty && !c._overtime && !c._free)" :key="coach.coach_no">
             <image class="coach-avatar" :src="getAvatar(coach)" mode="aspectFill" />
             <text class="coach-id">{{ formatCoachId(coach) }}</text>
-            <text class="coach-name">{{ coach.stage_name }}</text>
+            <view class="name-row"><text class="coach-name">{{ coach.stage_name }}</text><text class="rank-badge" v-if="getRankBadge(coach)" :class="{ 'late-shift': getRankBadge(coach) > 50 }">{{ getRankBadge(coach) }}</text></view>
           </view>
         </view>
         <!-- 休息/公休/请假助教（下班样式） -->
@@ -107,7 +107,7 @@
               <!-- 等级徽章 -->
               <image class="expand-avatar" :src="getAvatar(coach)" mode="aspectFill" />
               <text class="expand-id">{{ formatCoachId({ ...coach, status: expandStatus }) }}</text>
-              <text class="expand-name">{{ coach.stage_name }}</text>
+              <view class="expand-name-row"><text class="expand-name">{{ coach.stage_name }}</text><text class="rank-badge" v-if="getRankBadge(coach)" :class="{ 'late-shift': getRankBadge(coach) > 50 }">{{ getRankBadge(coach) }}</text></view>
             </view>
           </view>
           <!-- 休息/公休/请假助教（下班样式） -->
@@ -164,6 +164,20 @@ import api from '@/utils/api-v2.js'
 
 const statusBarHeight = ref(0)
 const waterBoards = ref([])
+
+// 门迎排序数据
+const guestRankingData = ref({ ranking: {}, exempt: [] })
+
+const loadGuestRanking = async () => {
+  try {
+    const res = await api.guestRankings.getToday()
+    if (res.success) {
+      guestRankingData.value = res.data
+    }
+  } catch (e) {
+    // 静默失败
+  }
+}
 const showExpand = ref(false)
 const expandStatus = ref('')
 const expandCoaches = ref([])
@@ -270,7 +284,18 @@ const loadData = async () => {
     waterBoards.value = res.data || []
     // 同时刷新加班小时数
     await loadOvertimeHours()
+    // 加载门迎排序数据
+    await loadGuestRanking()
   } catch (e) { uni.showToast({ title: '加载失败', icon: 'none' }) }
+}
+
+/**
+ * 获取助教的门迎序号徽章
+ */
+const getRankBadge = (coach) => {
+  if (!coach || !guestRankingData.value.ranking) return null
+  const ranking = guestRankingData.value.ranking
+  return ranking[String(coach.coach_no)] || null
 }
 
 // 筛选按钮人数统计
@@ -713,4 +738,38 @@ const toggleFullscreen = () => {
   color: #000;
 }
 /* #endif */
+
+/* 门迎序号徽章 */
+.rank-badge {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ff6b35;
+  color: #fff;
+  font-size: 10px;
+  font-weight: bold;
+  line-height: 18px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.free-section .rank-badge {
+  background: #e74c3c;
+}
+
+.rank-badge.late-shift {
+  background: #9b59b6;
+}
+
+/* 名称行容器 */
+.name-row,
+.expand-name-row {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
 </style>

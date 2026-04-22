@@ -147,6 +147,27 @@ async function initDefaultTasks() {
             description: '晚上20点自动锁定晚班应约客人员',
             cron_expression: '0 20 * * *',
             next_run: nextLockEveningStr
+        },
+        {
+            task_name: 'guest_ranking_morning',
+            task_type: 'guest_ranking',
+            description: '下午14点自动执行早班门迎排序',
+            cron_expression: '0 14 * * *',
+            next_run: calcNextRun('0 14 * * *')
+        },
+        {
+            task_name: 'guest_ranking_evening',
+            task_type: 'guest_ranking',
+            description: '晚上18点自动执行晚班门迎排序',
+            cron_expression: '0 18 * * *',
+            next_run: calcNextRun('0 18 * * *')
+        },
+        {
+            task_name: 'guest_ranking_midnight',
+            task_type: 'guest_ranking',
+            description: '午夜0点清空门迎排序',
+            cron_expression: '0 0 * * *',
+            next_run: calcNextRun('0 0 * * *')
         }
     ];
 
@@ -726,6 +747,142 @@ function formatBeijing(date) {
 }
 
 /**
+ * 任务：门迎批处理排序 / 清空
+ * @param {string} shift - '早班' | '晚班' | '全部'
+ * @param {number} startRank - 起始序号
+ * @param {number} maxRank - 最大序号
+ */
+async function taskGuestRanking(shift, startRank, maxRank) {
+    let taskName, taskType;
+    let isClear = false;
+
+    if (shift === '全部') {
+        taskName = 'guest_ranking_midnight';
+        taskType = 'guest_ranking';
+        isClear = true;
+    } else if (shift === '早班') {
+        taskName = 'guest_ranking_morning';
+        taskType = 'guest_ranking';
+    } else {
+        taskName = 'guest_ranking_evening';
+        taskType = 'guest_ranking';
+    }
+
+    const startedAt = TimeUtil.nowDB();
+    console.log(`[CronScheduler] 开始执行: ${taskName} (${shift})`);
+
+    try {
+        const apiPath = isClear
+            ? '/api/guest-rankings/internal/clear'
+            : '/api/guest-rankings/internal/batch';
+
+        const postData = isClear
+            ? '{}'
+            : JSON.stringify({ shift, startRank, maxRank });
+
+        const options = {
+            hostname: '127.0.0.1',
+            port: parseInt(process.env.PORT) || (process.env.TGSERVICE_ENV === 'test' ? 8088 : 80),
+            path: apiPath,
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(postData)
+            }
+        };
+
+        const result = await new Promise((resolve, reject) => {
+            const req = http.request(options, (res) => {
+                let data = '';
+                res.on('data', chunk => { data += chunk; });
+                res.on('end', () => {
+                    try {
+                        resolve(JSON.parse(data));
+                    } catch (e) {
+                        reject(new Error(`解析响应失败: ${data}`));
+                    }
+                });
+            });
+
+            req.on('error', reject);
+            req.write(postData);
+            req.end();
+        });
+
+        const finishedAt = TimeUtil.nowDB();
+
+        if (result.success) {
+            if (isClear) {
+                await logCron(
+                    taskName, taskType, 'success', 0,
+                    '午夜清空门迎排序完成',
+                    null, startedAt, finishedAt
+                );
+            } else {
+                const rankedCount = result.data?.ranked_count || 0;
+                await logCron(
+                    taskName, taskType, 'success', rankedCount,
+                    `${shift} 门迎排序完成，分配 ${rankedCount} 人`,
+                    null, startedAt, finishedAt
+                );
+            }
+
+            const cronExpr = taskName === 'guest_ranking_morning' ? '0 14 * * *'
+                : taskName === 'guest_ranking_evening' ? '0 18 * * *'
+                : '0 0 * * *';
+
+            await updateTaskStatus(taskName, {
+                lastRun: finishedAt,
+                nextRun: calcNextRun(cronExpr),
+                lastStatus: 'success',
+                lastError: null
+            });
+
+            console.log(`[CronScheduler] ${taskName} 完成`);
+        } else {
+            const errorMsg = result.error || '未知错误';
+            const cronExpr = taskName === 'guest_ranking_morning' ? '0 14 * * *'
+                : taskName === 'guest_ranking_evening' ? '0 18 * * *'
+                : '0 0 * * *';
+
+            await logCron(
+                taskName, taskType, 'failed', 0,
+                errorMsg,
+                errorMsg, startedAt, finishedAt
+            );
+
+            await updateTaskStatus(taskName, {
+                lastRun: finishedAt,
+                nextRun: calcNextRun(cronExpr),
+                lastStatus: 'failed',
+                lastError: errorMsg
+            });
+
+            console.log(`[CronScheduler] ${taskName} 执行失败: ${errorMsg}`);
+        }
+    } catch (err) {
+        const finishedAt = TimeUtil.nowDB();
+        console.error(`[CronScheduler] ${taskName} 失败:`, err);
+
+        const cronExpr = taskName === 'guest_ranking_morning' ? '0 14 * * *'
+            : taskName === 'guest_ranking_evening' ? '0 18 * * *'
+            : '0 0 * * *';
+
+        await logCron(
+            taskName, taskType, 'failed', 0, null,
+            err.message, startedAt, finishedAt
+        );
+
+        await updateTaskStatus(taskName, {
+            lastRun: finishedAt,
+            nextRun: calcNextRun(cronExpr),
+            lastStatus: 'failed',
+            lastError: err.message
+        });
+    }
+}
+
+/**
  * 检查并执行到期任务
  */
 async function checkAndRunTasks() {
@@ -741,18 +898,24 @@ async function checkAndRunTasks() {
             console.log(`[CronScheduler] 触发任务: ${task.task_name} (计划: ${task.next_run})`);
 
             if (task.task_type === 'end_lejuan') {
-                // 根据任务名判断班次
                 const shiftType = task.task_name === 'end_lejuan_morning' ? '早班' : '晚班';
                 await taskEndLejuan(shiftType);
             } else if (task.task_type === 'sync_reward_penalty') {
                 await taskSyncRewardPenalty();
             } else if (task.task_type === 'lock_guest_invitation') {
-                // 根据任务名判断班次
                 const shiftType = task.task_name === 'lock_guest_invitation_morning' ? '早班' : '晚班';
                 await taskLockGuestInvitation(shiftType);
+            } else if (task.task_type === 'guest_ranking') {
+                if (task.task_name === 'guest_ranking_midnight') {
+                    await taskGuestRanking('全部', 0, 0);
+                } else {
+                    const shiftType = task.task_name === 'guest_ranking_morning' ? '早班' : '晚班';
+                    const startRank = shiftType === '早班' ? 1 : 51;
+                    const maxRank = shiftType === '早班' ? 50 : 100;
+                    await taskGuestRanking(shiftType, startRank, maxRank);
+                }
             }
 
-            // 更新下次运行时间
             const nextRun = calcNextRun(task.cron_expression);
             await updateTaskStatus(task.task_name, { nextRun });
         }

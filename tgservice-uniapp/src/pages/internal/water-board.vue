@@ -47,7 +47,10 @@
           <view class="coach-card" v-for="coach in group.coaches.filter(c => !c._offDuty && !c._overtime && !c._free)" :key="coach.coach_no" @longpress="showStatusChange(coach)">
             <image class="coach-avatar" :src="getCoachPhoto(coach)" mode="aspectFill" />
             <text class="coach-id">{{ formatCoachId(coach) }}</text>
-            <text class="coach-name">{{ coach.stage_name }}</text>
+            <view class="name-row">
+              <text class="coach-name">{{ coach.stage_name }}</text>
+              <text class="rank-badge" v-if="getRankBadge(coach)" :class="{ 'late-shift': getRankBadge(coach) > 50 }">{{ getRankBadge(coach) }}</text>
+            </view>
           </view>
         </view>
         <!-- 休息/公休/请假助教（下班样式，保留长按修改） -->
@@ -98,7 +101,10 @@
             <view class="expand-card" v-for="coach in expandCoaches.filter(c => !c._offDuty && !c._overtime && !c._free)" :key="coach.coach_no" @longpress="showStatusChange(coach)">
               <image class="expand-avatar" :src="getCoachPhoto(coach)" mode="aspectFill" />
               <text class="expand-id">{{ formatCoachId({ ...coach, status: expandStatus }) }}</text>
-              <text class="expand-name">{{ coach.stage_name }}</text>
+              <view class="expand-name-row">
+                <text class="expand-name">{{ coach.stage_name }}</text>
+                <text class="rank-badge" v-if="getRankBadge(coach)" :class="{ 'late-shift': getRankBadge(coach) > 50 }">{{ getRankBadge(coach) }}</text>
+              </view>
             </view>
           </view>
           <!-- 休息/公休/请假助教（下班样式） -->
@@ -147,6 +153,9 @@
                 @click="changeStatus(s)">
             <text>{{ s }}</text>
           </view>
+        </view>
+        <view class="modal-exempt" @click="setExempt(selectedCoach)">
+          <text class="exempt-text">免门迎</text>
         </view>
         <view class="modal-cancel" @click="closeModal"><text>取消</text></view>
       </view>
@@ -246,6 +255,20 @@ const expandColor = ref('#d4af37')
 // 非工作状态筛选按钮折叠
 const offStatusVisible = ref(false)
 
+// 门迎排序数据
+const guestRankingData = ref({ ranking: {}, exempt: [] })
+
+const loadGuestRanking = async () => {
+  try {
+    const res = await api.guestRankings.getToday()
+    if (res.success) {
+      guestRankingData.value = res.data
+    }
+  } catch (e) {
+    // 静默失败
+  }
+}
+
 const workStatusList = ['早班上桌', '早班空闲', '晚班上桌', '晚班空闲', '乐捐']
 const offStatusList = ['休息', '公休', '请假']
 const statusList = [...workStatusList, ...offStatusList]
@@ -283,8 +306,34 @@ const loadData = async () => {
     waterBoards.value = res.data || []
     // 同时刷新加班小时数
     await loadOvertimeHours()
+    // 加载门迎排序数据
+    await loadGuestRanking()
   } catch (e) {
     uni.showToast({ title: '加载失败', icon: 'none' })
+  }
+}
+
+/**
+ * 获取助教的门迎序号徽章
+ */
+const getRankBadge = (coach) => {
+  if (!coach || !guestRankingData.value.ranking) return null
+  const ranking = guestRankingData.value.ranking
+  return ranking[String(coach.coach_no)] || null
+}
+
+/**
+ * 设置免门迎
+ */
+const setExempt = async (coach) => {
+  if (!coach) return
+  try {
+    await api.guestRankings.setExempt(coach.coach_no)
+    uni.showToast({ title: `${coach.stage_name}: 已设免门迎`, icon: 'success' })
+    closeModal()
+    loadData()
+  } catch (e) {
+    uni.showToast({ title: e.error || '设置失败', icon: 'none' })
   }
 }
 
@@ -844,4 +893,54 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
   color: #000;
 }
 /* #endif */
+
+/* 门迎序号徽章 */
+.rank-badge {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ff6b35;
+  color: #fff;
+  font-size: 10px;
+  font-weight: bold;
+  line-height: 18px;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.free-section .rank-badge {
+  background: #e74c3c;
+}
+
+.rank-badge.late-shift {
+  background: #9b59b6;
+}
+
+/* 名称行容器 */
+.name-row,
+.expand-name-row {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* 免门迎按钮 */
+.modal-exempt {
+  text-align: center;
+  padding: 10px;
+  margin-top: 8px;
+  background: rgba(52,152,219,0.15);
+  border: 1px solid rgba(52,152,219,0.4);
+  border-radius: 6px;
+}
+
+.exempt-text {
+  font-size: 13px;
+  font-weight: bold;
+  color: #3498db;
+}
 </style>
