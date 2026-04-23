@@ -102,8 +102,8 @@ const PERMISSION_MATRIX = {
     cashierDashboard: false,
     productManagement: false,
     vipRoomManagement: false,
-    coachManagement: false,
-    waterBoardManagement: false,
+    coachManagement: true,
+    waterBoardManagement: true,
     invitationReview: false,
     overtimeApproval: false,
     leaveApproval: false,
@@ -189,7 +189,7 @@ const PERMISSION_MATRIX = {
     cashierDashboard: false,
     productManagement: false,
     vipRoomManagement: false,
-    coachManagement: false,
+    coachManagement: true,
     waterBoardManagement: false,
     invitationReview: false,
     overtimeApproval: false,
@@ -457,11 +457,16 @@ function requireBackendPermission(requiredPermissions, options = {}) {
     const permissions = getUserPermissions(user.role);
     const backendPerms = permissions.backend;
     
-    // 服务员禁止访问后台
+    // 服务员角色：只允许 coachManagement 相关权限
     if (user.role === '服务员') {
-      // QA-20260422-3: 权限拒绝日志
-      logger.warn(`权限拒绝: 服务员尝试访问后台 - ${req.method} ${req.url} - IP: ${req.ip}`);
-      return res.status(403).json({ error: '服务员禁止访问后台管理系统' });
+      // 只允许 pending-count 等特定 API
+      const allowedPerms = ['coachManagement'];
+      const hasPermission = requiredPermissions.some(perm => allowedPerms.includes(perm));
+      if (!hasPermission) {
+        logger.warn(`权限拒绝: 服务员尝试访问后台 - ${user.username || '未知'} 角色 ${user.role} 缺少权限 ${requiredPermissions.join(',')} - ${req.method} ${req.url} - IP: ${req.ip}`);
+        return res.status(403).json({ error: '服务员禁止访问后台管理系统' });
+      }
+      return next();
     }
     
     // 管理员和店长拥有所有权限
