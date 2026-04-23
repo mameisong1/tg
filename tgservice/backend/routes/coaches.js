@@ -152,10 +152,28 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
     // 新增:写入打卡记录（含打卡截图 + 迟到计算）
     const todayStr = TimeUtil.todayStr();
     const isLate = await calculateIsLate(nowDB, coach.shift, coach_no, todayStr, tx);
-    await tx.run(`
-      INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, clock_in_time, clock_out_time, clock_in_photo, is_late, is_reviewed, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 0, ?, ?)
-    `, [todayStr, coach_no, coach.employee_id, coach.stage_name, nowDB, clock_in_photo || null, isLate, nowDB, nowDB]);
+    
+    // 先查询今天是否已有记录（包括只有钉钉时间的）
+    const existingRecord = await tx.get(`
+      SELECT id, clock_in_time FROM attendance_records
+      WHERE coach_no = ? AND date = ?
+      ORDER BY created_at DESC LIMIT 1
+    `, [coach_no, todayStr]);
+    
+    if (existingRecord && !existingRecord.clock_in_time) {
+      // 有记录但没有 clock_in_time → UPDATE（钉钉先打卡，系统后打卡）
+      await tx.run(`
+        UPDATE attendance_records
+        SET clock_in_time = ?, clock_in_photo = ?, is_late = ?, updated_at = ?
+        WHERE id = ?
+      `, [nowDB, clock_in_photo || null, isLate, nowDB, existingRecord.id]);
+    } else if (!existingRecord) {
+      // 没有记录 → INSERT
+      await tx.run(`
+        INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, clock_in_time, clock_out_time, clock_in_photo, is_late, is_reviewed, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 0, ?, ?)
+      `, [todayStr, coach_no, coach.employee_id, coach.stage_name, nowDB, clock_in_photo || null, isLate, nowDB, nowDB]);
+    }
 
     // 记录操作日志
     const user = req.user;
