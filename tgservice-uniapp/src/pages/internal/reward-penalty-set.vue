@@ -488,11 +488,14 @@ onMounted(() => {
 .filter-value.fixed { background: rgba(212,175,55,0.2); }
 
 /* 搜索栏 */
-.search-section { margin-bottom: 16px; }
+.search-section { margin-bottom: 16px; padding: 0 16px; }
 .search-input {
-  width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 8px; padding: 10px 14px; color: #fff; font-size: 14px;
+  width: 100%; height: 44px; line-height: 44px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px; padding: 0 14px; color: #fff; font-size: 14px;
   outline: none; box-sizing: border-box;
+  -webkit-appearance: none; appearance: none;
+  display: block; position: relative; z-index: 10;
 }
 
 /* 自定义日期选择器 */
