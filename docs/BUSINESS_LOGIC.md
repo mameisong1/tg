@@ -1076,3 +1076,39 @@ CREATE UNIQUE INDEX idx_rp_unique ON reward_penalties(confirm_date, type, phone,
 ```
 
 同一日期、同一类型、同一手机号、同一备注只允许一条记录。
+
+## 休息申请与请假申请配额逻辑（2026-04-23 更新）
+
+### 休息申请配额规则
+
+- **每月限制4天**：按休息日所在月份计算配额
+- 不按申请提交月份计算
+- 只统计休息申请，不统计请假申请
+
+### 请假申请配额规则
+
+- **无天数限制**
+- 只校验必填字段：请假类型、请假日期、请假理由
+
+### 相关API
+
+**GET /api/applications/my-month-count**
+
+参数：
+- `applicant_phone`: 申请人手机号
+- `application_type`: 申请类型（休息申请/请假申请）
+- `month`: 目标月份（可选，如2026-05）
+
+返回：
+```json
+{
+  "success": true,
+  "data": {
+    "count": 0,
+    "limit": 4,  // 请假申请返回999表示无限制
+    "remaining": 4,  // 请假申请返回"无限制"
+    "month": "2026-05"
+  }
+}
+```
+
