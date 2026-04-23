@@ -2577,3 +2577,81 @@ errorReporter.report({ type: "custom_error", message: "错误信息" });
 - BASE_URL 已包含 `/api`，最终 URL 为 `https://tiangong.club/api/admin/frontend-error-log`
 - 日志保留 3 天，存储在 `/TG/run/logs/frontend-error.log`（生产环境）
 
+---
+
+## 钉钉打卡回调
+
+### 回调接口
+
+| 项目 | 信息 |
+|------|------|
+| **接口地址** | `POST /api/dingtalk/callback` |
+| **认证** | 无需JWT（钉钉签名验证） |
+| **用途** | 接收钉钉打卡事件推送 |
+
+### 配置信息
+
+| 配置项 | 值 |
+|------|------|
+| **回调 URL** | `https://tiangong.club/api/dingtalk/callback` |
+| **Token** | `tiangong2026` |
+| **EncodingAESKey** | 见 `.config` 文件 |
+
+### 钉钉推送数据格式
+
+```json
+{
+  "encrypt": "AES加密数据..."
+}
+```
+
+解密后数据结构：
+```json
+{
+  "EventType": "check_url",
+  "userId": "014420253120879936",
+  "checkTime": 1776840495000,
+  "deviceId": "xxx",
+  "checkType": "OnDuty"
+}
+```
+
+### 系统响应
+
+| 事件类型 | 处理方式 | 响应内容 |
+|---------|---------|---------|
+| `check_url` | 验证回调URL | 返回加密的 `"success"` |
+| `attendance_check_in` | 写入钉钉打卡时间 | 返回加密的 `"success"` |
+| 其他事件 | 忽略 | 返回加密的 `"success"` |
+
+### 打卡类型判断逻辑
+
+| 水牌当前状态 | 判断逻辑 | 写入字段 |
+|------------|---------|---------|
+| 下班 | 钉钉打卡是上班打卡 | `attendance_records.dingtalk_in_time` |
+| 空闲 | 钉钉打卡是下班打卡 | `attendance_records.dingtalk_out_time` |
+| 乐捐 | 钉钉打卡是乐捐归来 | `lejuan_records.dingtalk_return_time` |
+
+### 数据库字段
+
+| 表 | 字段 | 说明 |
+|------|------|------|
+| `coaches` | `dingtalk_user_id` | 钉钉用户ID（启动时同步） |
+| `attendance_records` | `dingtalk_in_time` | 钉钉上班打卡时间 |
+| `attendance_records` | `dingtalk_out_time` | 钉钉下班打卡时间 |
+| `lejuan_records` | `dingtalk_return_time` | 钉钉乐捐归来时间 |
+
+### 系统打卡后主动查询
+
+助教在系统中打卡时，如果数据库还没有钉钉推送的打卡时间，系统会主动调用钉钉考勤API查询最近5分钟内的打卡记录：
+
+| 系统打卡 | 查询方法 | 写入字段 |
+|---------|---------|---------|
+| 上班（非乐捐状态） | `queryRecentAttendance('in')` | `dingtalk_in_time` |
+| 上班（乐捐状态） | `queryLejuanReturnAttendance` | `dingtalk_return_time` |
+| 下班 | `queryRecentAttendance('out')` | `dingtalk_out_time` |
+
+查询结果：
+- 查到：自动写入对应字段
+- 查不到：仅日志提示，不影响业务逻辑
+
