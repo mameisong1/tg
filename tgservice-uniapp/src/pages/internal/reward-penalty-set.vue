@@ -73,16 +73,16 @@
         <view class="person-card" v-for="(person, idx) in filteredTargets" :key="idx">
           <view class="card-name">{{ person.displayName || person.name }}</view>
           
-          <!-- 当前奖罚金额 -->
+          <!-- 当前奖罚金额（合计显示） -->
           <view class="card-amount">
-            <text class="amount-value" :class="{ hasAmount: person.currentAmount }">
-              {{ person.currentAmount !== null ? '¥' + Math.round(person.currentAmount) : '未设定' }}
+            <text class="amount-value" :class="{ hasAmount: person.records?.length > 0 }">
+              {{ person.records?.length > 0 ? '¥' + Math.round(person.totalAmount || 0) + ' (' + person.records.length + '条)' : '未设定' }}
             </text>
           </view>
           
-          <!-- 备注显示 -->
-          <view class="card-remark" v-if="person.currentRemark">
-            <text class="card-remark-text">{{ person.currentRemark }}</text>
+          <!-- 备注显示（改为多条记录时不显示单条备注） -->
+          <view class="card-remark" v-if="person.records?.length === 1 && person.records[0]?.remark">
+            <text class="card-remark-text">{{ person.records[0].remark }}</text>
           </view>
           
           <!-- 设定按钮 -->
@@ -128,9 +128,22 @@
             </view>
           </view>
           
-          <!-- 备注输入 -->
+          <!-- 备注输入（必填） -->
           <view class="modal-remark-row">
-            <input class="modal-remark-input" type="text" :value="modalTempRemark" @input="onRemarkInput" placeholder="备注（可选）" />
+            <input class="modal-remark-input" type="text" :value="modalTempRemark" @input="onRemarkInput" placeholder="备注（必填）" />
+            <text class="required-mark">*</text>
+          </view>
+          
+          <!-- 奖罚明细列表 -->
+          <view class="modal-records" v-if="modalRecords.length > 0">
+            <view class="modal-records-title">奖罚明细（{{ modalRecords.length }}条）</view>
+            <scroll-view class="modal-records-scroll" scroll-y>
+              <view class="modal-record-item" v-for="r in modalRecords" :key="r.id">
+                <text class="record-amount">¥{{ r.amount }}</text>
+                <text class="record-remark">{{ r.remark }}</text>
+                <view class="record-delete" @click="deleteRecord(r.id)">删除</view>
+              </view>
+            </scroll-view>
           </view>
           
           <!-- 取消 + 确定 -->
@@ -246,6 +259,7 @@ const modalVisible = ref(false)
 const modalPerson = ref(null)
 const modalTempAmount = ref(0)
 const modalTempRemark = ref('')
+const modalRecords = ref([])  // 弹框中的明细列表
 const searchKeyword = ref('')
 
 const filteredTargets = computed(() => {
@@ -260,8 +274,9 @@ const filteredTargets = computed(() => {
 
 function openModal(person) {
   modalPerson.value = person
-  modalTempAmount.value = person.currentAmount !== null ? person.currentAmount : 0
-  modalTempRemark.value = person.currentRemark || ''
+  modalTempAmount.value = 0  // 默认0，让用户输入
+  modalTempRemark.value = currentType.value  // 默认填入奖罚类型
+  modalRecords.value = person.records || []  // 加载明细列表
   modalVisible.value = true
 }
 
@@ -286,47 +301,58 @@ function clearInput() {
 
 async function saveModalPerson() {
   if (!modalPerson.value) return
-  const person = modalPerson.value
-  person.tempAmount = modalTempAmount.value
-  person.tempRemark = modalTempRemark.value
-  person.currentRemark = modalTempRemark.value
-  await savePerson(person)
-  closeModal()
-}
-
-
-
-async function savePerson(person) {
-  const amount = parseFloat(person.tempAmount) || 0
-  const phone = person.phone
   
-  if (!phone) {
-    uni.showToast({ title: '该人员无手机号', icon: 'none' })
+  // 备注必填校验
+  if (!modalTempRemark.value.trim()) {
+    uni.showToast({ title: '请填写备注', icon: 'none' })
     return
   }
+  
+  const person = modalPerson.value
+  const existingRecord = modalRecords.value.find(r => r.remark === modalTempRemark.value.trim())
+  const isUpdate = existingRecord !== undefined
   
   try {
     const res = await api.upsertRewardPenalty({
       type: currentType.value,
       confirmDate: confirmDate.value,
-      phone: phone,
-      name: person.stage_name || person.name || person.displayName,  // QA-20260422: 优先用艺名
-      amount: amount,
-      remark: person.tempRemark || ''
+      phone: person.phone,
+      name: person.stage_name || person.name || person.displayName,
+      amount: modalTempAmount.value,
+      remark: modalTempRemark.value.trim()
     })
     
     if (res.success) {
-      if (amount === 0) {
-        person.currentAmount = null
-        person.saveMsg = '已删除'
-      } else {
-        person.currentAmount = amount
-        person.saveMsg = '保存成功 ✓'
-      }
-      setTimeout(() => { person.saveMsg = '' }, 2000)
+      const msg = isUpdate 
+        ? `已覆盖更新：¥${existingRecord.amount} → ¥${modalTempAmount.value}` 
+        : `已新增：¥${modalTempAmount.value}`
+      uni.showToast({ title: msg, icon: 'none', duration: 2000 })
+      
+      // 刷新明细列表
+      await loadCurrentAmounts()
+      closeModal()
     }
   } catch (e) {
     uni.showToast({ title: '保存失败', icon: 'none' })
+  }
+}
+
+// 删除明细记录
+async function deleteRecord(id) {
+  if (!confirm('确定删除这条奖罚记录？')) return
+  try {
+    const res = await api.deleteRewardPenaltyDetail(id)
+    if (res.success) {
+      // 从列表中移除
+      modalRecords.value = modalRecords.value.filter(r => r.id !== id)
+      // 更新卡片合计
+      modalPerson.value.records = modalRecords.value
+      modalPerson.value.totalAmount = modalRecords.value.reduce((sum, r) => sum + (r.amount || 0), 0)
+      modalPerson.value.currentAmount = modalPerson.value.totalAmount || null
+      uni.showToast({ title: '已删除', icon: 'success' })
+    }
+  } catch (e) {
+    uni.showToast({ title: '删除失败', icon: 'none' })
   }
 }
 
@@ -387,21 +413,26 @@ async function loadCurrentAmounts() {
       confirmDate: confirmDate.value
     })
     if (res.success && res.data) {
-      // 用phone建立映射
-      const amountMap = {}
-      const remarkMap = {}
+      // 用phone建立映射：收集所有记录和合计
+      const recordMap = {}  // phone -> [records]
+      const totalMap = {}   // phone -> totalAmount
+      
       res.data.forEach(r => {
-        amountMap[r.phone] = r.amount
-        remarkMap[r.phone] = r.remark || ''
+        if (!recordMap[r.phone]) {
+          recordMap[r.phone] = []
+          totalMap[r.phone] = 0
+        }
+        recordMap[r.phone].push(r)
+        totalMap[r.phone] += r.amount || 0
       })
+      
       targets.value.forEach(p => {
-        if (amountMap[p.phone] !== undefined) {
-          p.currentAmount = amountMap[p.phone]
-          p.tempAmount = amountMap[p.phone]
-        }
-        if (remarkMap[p.phone]) {
-          p.currentRemark = remarkMap[p.phone]
-        }
+        // 存储所有明细记录
+        p.records = recordMap[p.phone] || []
+        // 合计金额
+        p.totalAmount = p.records.length > 0 ? totalMap[p.phone] : null
+        // 显示：未设定 或 合计金额
+        p.currentAmount = p.totalAmount
       })
     }
   } catch (e) {
@@ -457,11 +488,11 @@ onMounted(() => {
 .filter-value.fixed { background: rgba(212,175,55,0.2); }
 
 /* 搜索栏 */
-.search-section { padding: 12px 16px; }
+.search-section { margin-bottom: 16px; }
 .search-input {
   width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
   border-radius: 8px; padding: 10px 14px; color: #fff; font-size: 14px;
-  outline: none;
+  outline: none; box-sizing: border-box;
 }
 
 /* 自定义日期选择器 */
@@ -555,13 +586,26 @@ onMounted(() => {
   border: 1px solid rgba(255,80,80,0.2); white-space: nowrap;
 }
 .clear-btn-text { font-size: 13px; color: #ff5050; font-weight: 600; }
-.modal-remark-row { margin-bottom: 16px; }
+.modal-remark-row { margin-bottom: 16px; display: flex; align-items: center; }
 .modal-remark-input {
-  width: 100%; min-height: 44px; box-sizing: border-box; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+  flex: 1; min-height: 44px; box-sizing: border-box; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
   border-radius: 8px; padding: 14px; color: #fff; font-size: 16px;
   outline: none; -webkit-appearance: none;
 }
-.modal-actions { display: flex; gap: 12px; }
+.required-mark { color: #ff5050; font-size: 16px; margin-left: 8px; }
+
+/* 奖罚明细列表 */
+.modal-records { margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px; }
+.modal-records-title { font-size: 14px; color: rgba(255,255,255,0.6); margin-bottom: 8px; }
+.modal-records-scroll { max-height: 150px; }
+.modal-record-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.modal-record-item:last-child { border-bottom: none; }
+.record-amount { font-size: 14px; font-weight: 600; color: #d4af37; min-width: 50px; }
+.record-remark { flex: 1; font-size: 13px; color: rgba(255,255,255,0.5); margin-left: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.record-delete { font-size: 12px; color: #ff5050; padding: 4px 8px; background: rgba(255,80,80,0.1); border-radius: 4px; }
+.record-delete:active { background: rgba(255,80,80,0.25); }
+
+.modal-actions { display: flex; gap: 12px; margin-top: 16px; }
 .modal-btn {
   flex: 1; text-align: center; padding: 14px 0; font-size: 15px; font-weight: 600;
   border-radius: 10px; cursor: pointer;
