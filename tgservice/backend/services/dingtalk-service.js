@@ -507,16 +507,36 @@ function isTimeClose(time1, time2, thresholdMinutes = 5) {
 async function handleAttendanceEvent(event, db) {
   const { get, all, enqueueRun } = db;
   
-  // 提取关键信息（钉钉回调数据结构）
-  const userid = event.userid || event.userId;
-  const checkTime = event.checkTime || event.userCheckTime || event.time; // 格式可能是毫秒时间戳或 "YYYY-MM-DD HH:MM:SS"
-  const deviceId = event.deviceId || event.deviceUUID || event.deviceName || 'unknown';
-  const checkType = event.checkType || event.userCheckType; // OnDuty=上班, OffDuty=下班
-  const locationResult = event.locationResult || event.userLocationResult; // Normal=范围内, Outside=范围外
+  // 处理新格式：DataList 数组
+  if (event.DataList && Array.isArray(event.DataList)) {
+    dingtalkLog.write(`收到打卡事件(DataList): ${JSON.stringify(event)}`);
+    
+    // 遍历处理每条打卡记录
+    for (const data of event.DataList) {
+      await handleSingleAttendanceRecord(data, db);
+    }
+    return;
+  }
   
-  // 记录日志（完整记录回调数据）
-  dingtalkLog.write(`收到打卡事件: ${JSON.stringify(event)}`);
-  dingtalkLog.write(`解析: userid=${userid}, checkTime=${checkTime}, deviceId=${deviceId}, checkType=${checkType}, locationResult=${locationResult}`);
+  // 处理旧格式：单条记录
+  await handleSingleAttendanceRecord(event, db);
+}
+
+/**
+ * 处理单条打卡记录
+ */
+async function handleSingleAttendanceRecord(record, db) {
+  const { get, all, enqueueRun } = db;
+  
+  // 提取关键信息（兼容新旧字段名）
+  const userid = record.userid || record.userId;
+  const checkTime = record.checkTime || record.userCheckTime || record.time; // 格式可能是毫秒时间戳或 "YYYY-MM-DD HH:MM:SS"
+  const deviceId = record.deviceId || record.deviceUUID || record.deviceSN || record.deviceName || 'unknown';
+  const checkType = record.checkType || record.userCheckType; // OnDuty=上班, OffDuty=下班
+  const locationResult = record.locationResult || record.userLocationResult; // Normal=范围内, Outside=范围外
+  
+  // 记录日志
+  dingtalkLog.write(`解析单条记录: userid=${userid}, checkTime=${checkTime}, deviceId=${deviceId}, checkType=${checkType}, locationResult=${locationResult}`);
   
   // 查询助教
   const coach = await get(

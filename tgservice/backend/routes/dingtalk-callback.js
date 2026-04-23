@@ -81,8 +81,8 @@ router.post('/', async (req, res) => {
     if (eventType === 'check_url') {
       // 测试回调 URL 的正确性
       dingtalkService.dingtalkLog.write('测试回调 URL 的正确性');
-    } else if (eventType === 'attendance_check_in' || eventType === 'check_in' || eventType === 'user_check_in') {
-      // 打卡事件
+    } else if (eventType === 'attendance_check_in' || eventType === 'check_in' || eventType === 'user_check_in' || eventType === 'attendance_check_record') {
+      // 打卡事件（包括新格式 attendance_check_record）
       await dingtalkService.handleAttendanceEvent(event, { get, all, enqueueRun });
     } else {
       dingtalkService.dingtalkLog.write(`忽略非打卡事件: ${eventType}`);
