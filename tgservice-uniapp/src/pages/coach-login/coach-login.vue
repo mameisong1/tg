@@ -67,11 +67,12 @@ const handleLogin = async () => {
       uni.setStorageSync('coachToken', data.token)
       uni.setStorageSync('coachInfo', data.coach)
       // 如果助教同时是后台用户，保存 adminToken 和 adminInfo
+      // ⚠️ 使用 h5AdminToken 避免与后台管理系统 adminToken 冲突
       if (data.adminInfo) {
-        uni.setStorageSync('adminInfo', data.adminInfo)
+        uni.setStorageSync('h5AdminInfo', data.adminInfo)
       }
       if (data.adminToken) {
-        uni.setStorageSync('adminToken', data.adminToken)
+        uni.setStorageSync('h5AdminToken', data.adminToken)
       }
       uni.showToast({ title: '登录成功', icon: 'success' })
       setTimeout(() => uni.redirectTo({ url: '/pages/coach-profile/coach-profile' }), 1000)

@@ -484,7 +484,7 @@ async function httpRequest(url, method, body = null) {
  * @param {number} thresholdMinutes 阈值分钟数，默认5
  * @returns {boolean}
  */
-function isTimeClose(time1, time2, thresholdMinutes = 5) {
+function isTimeClose(time1, time2, thresholdMinutes = 20) {
   if (!time1 || !time2) return false;
   
   try {
@@ -637,6 +637,10 @@ async function handleSingleAttendanceRecord(record, db) {
     // 服务中状态不处理
     dingtalkLog.write(`${coach.stage_name} 当前服务中，忽略打卡`);
     return;
+  } else if (['早加班', '晚加班', '休息', '请假', '公休'].includes(currentStatus)) {
+    // 加班/休息/请假/公休状态 → 判断为上班打卡
+    punchType = 'in';
+    reason = `状态${currentStatus} → 上班打卡`;
   } else {
     dingtalkLog.write(`${coach.stage_name} 未知状态: ${currentStatus}，忽略打卡`);
     return;
