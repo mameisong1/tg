@@ -898,9 +898,9 @@ const onGetPhoneNumber = async (e) => {
         uni.setStorageSync('adminInfo', data.adminInfo)
         console.log('自动内部登录:', data.adminInfo.role, data.adminInfo.name)
       }
-      // ⚠️ 保存 adminToken（内部页面 api.js 认证必需）
+      // ⚠️ 保存 h5AdminToken（内部页面 api.js 认证必需）
       if (data.adminToken) {
-        uni.setStorageSync('adminToken', data.adminToken)
+        uni.setStorageSync('h5AdminToken', data.adminToken)
       }
       
       // 如果同时是教练，自动登录教练
@@ -945,9 +945,9 @@ const checkAutoLogin = async () => {
       if (profile.adminInfo) {
         uni.setStorageSync('adminInfo', profile.adminInfo)
       }
-      // ⚠️ 保存 adminToken（内部页面 api.js 认证必需）
+      // ⚠️ 保存 h5AdminToken（内部页面 api.js 认证必需）
       if (profile.adminToken) {
-        uni.setStorageSync('adminToken', profile.adminToken)
+        uni.setStorageSync('h5AdminToken', profile.adminToken)
       }
       
       // 如果同时是教练，设置教练信息
@@ -1020,7 +1020,7 @@ const tryAutoLogin = async () => {
         uni.setStorageSync('adminInfo', data.adminInfo)
       }
       if (data.adminToken) {
-        uni.setStorageSync('adminToken', data.adminToken)
+        uni.setStorageSync('h5AdminToken', data.adminToken)
       }
       
       // 如果同时是教练，自动登录教练
