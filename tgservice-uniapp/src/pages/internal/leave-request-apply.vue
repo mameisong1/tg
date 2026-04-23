@@ -235,7 +235,6 @@ const submitApply = async () => {
     form.value.leaveDate = ''
     form.value.remark = ''
     imageUrls.value = []
-    await loadMonthCount()
     await loadMyApplications()
     showSuccess.value = true
   } catch (e) {
@@ -254,7 +253,6 @@ const cancelApplication = async (id) => {
           const phone = coachInfo.value.phone || coachInfo.value.employeeId
           await api.applications.delete(id, phone)
           uni.showToast({ title: '申请已取消', icon: 'success' })
-          await loadMonthCount()
           await loadMyApplications()
         } catch (e) {
           uni.showToast({ title: e.error || '取消失败', icon: 'none' })
