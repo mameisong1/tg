@@ -389,10 +389,28 @@ router.post('/:id/return', requireBackendPermission(['coachManagement']), async 
             if (waterBoard && waterBoard.status === '乐捐') {
                 await tx.run(
                     `UPDATE water_boards 
-                     SET status = ?, updated_at = ?
+                     SET status = ?, table_no = NULL, clock_in_time = NULL, updated_at = ?
                      WHERE coach_no = ?`,
                     [waterStatus, now, record.coach_no]
                 );
+
+                // 如果水牌设为下班，同步更新打卡表（凌晨下班时上班记录可能在昨天）
+                if (waterStatus === '下班') {
+                    const todayStr = TimeUtil.todayStr();
+                    const yesterdayStr = TimeUtil.offsetDateStr(-1);
+                    const attendanceRecord = await tx.get(
+                        `SELECT id FROM attendance_records
+                         WHERE coach_no = ? AND date IN (?, ?) AND clock_out_time IS NULL
+                         ORDER BY clock_in_time DESC LIMIT 1`,
+                        [record.coach_no, todayStr, yesterdayStr]
+                    );
+                    if (attendanceRecord) {
+                        await tx.run(
+                            `UPDATE attendance_records SET clock_out_time = ?, updated_at = ? WHERE id = ?`,
+                            [now, now, attendanceRecord.id]
+                        );
+                    }
+                }
 
                 // 操作日志
                 await operationLogService.create(tx, {
