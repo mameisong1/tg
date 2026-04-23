@@ -2513,3 +2513,67 @@ MQTT 发送失败时返回 HTTP 502：
 
 *文档更新时间：2026年4月23日 07:15*
 
+
+## 前端错误上报系统 (2026-04-23 更新)
+
+### 系统架构
+
+天宫国际前端错误上报系统分为两部分：
+- **H5 前端（UniApp Vue）**: 使用统一的 `errorReporter` 框架（`/utils/error-reporter.js`）
+- **后台 Admin HTML**: 使用独立的 `reportFrontendError` 函数（各页面内嵌）
+
+### H5 前端错误上报
+
+**位置**: `/TG/tgservice-uniapp/src/utils/error-reporter.js`
+
+**特性**:
+- 全局自动捕获：Vue错误、JS错误、Promise未捕获
+- 去重：1分钟内同类型错误只上报一次
+- 日志文件：写入 `/logs/frontend-error.log`
+- API endpoint: `/admin/frontend-error-log`
+
+**使用方式**:
+```javascript
+import errorReporter from "@/utils/error-reporter.js";
+
+// 业务追踪
+errorReporter.track("action_name", { detail1: "value1" });
+
+// 错误上报
+errorReporter.report({ type: "custom_error", message: "错误信息" });
+```
+
+### 后台 Admin HTML 错误上报（2026-04-23 改进）
+
+**改进内容**:
+- 添加去重逻辑（60秒内同类型错误只上报一次）
+- 补充完整信息：
+  - `apiUrl`: 调用的具体 API URL
+  - `apiMethod`: GET/POST 等
+  - `userRole`: 从 JWT token 解析的用户角色
+  - `username`: 从 JWT token 解析的用户名
+- 添加 `parseUserInfo()` 函数解析 JWT token
+
+**日志格式**:
+```json
+{
+  "type": "admin_frontend_error",
+  "action": "API Error",
+  "apiUrl": "/api/admin/orders",
+  "apiMethod": "GET",
+  "status": 403,
+  "userRole": "收银",
+  "username": "tgcashier",
+  "timestamp": "2026-04-23 09:10:00",
+  "url": "https://tiangong.club/admin/cashier-dashboard.html",
+  "userAgent": "Mozilla/5.0...",
+  "state": { "filters": {...}, "soundEnabled": true }
+}
+```
+
+### 注意事项
+
+- API endpoint 路径为 `/admin/frontend-error-log`（不带 `/api` 前缀）
+- BASE_URL 已包含 `/api`，最终 URL 为 `https://tiangong.club/api/admin/frontend-error-log`
+- 日志保留 3 天，存储在 `/TG/run/logs/frontend-error.log`（生产环境）
+
