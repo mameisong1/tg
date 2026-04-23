@@ -288,11 +288,29 @@ async function taskEndLejuan(shiftType) {
                 // 如果水牌当前状态是"乐捐"，设为下班
                 if (record.water_status === '乐捐') {
                     await tx.run(
-                        'UPDATE water_boards SET status = ?, updated_at = ? WHERE coach_no = ?',
+                        'UPDATE water_boards SET status = ?, table_no = NULL, clock_in_time = NULL, updated_at = ? WHERE coach_no = ?',
                         ['下班', now, record.coach_no]
                     );
 
-                    console.log(`[CronScheduler] ${taskName}: ${record.stage_name || record.coach_no} 水牌设为下班`);
+                    // 同步更新打卡表的下班时间（凌晨下班时上班记录可能在昨天）
+                    const todayStr = TimeUtil.todayStr();
+                    const yesterdayStr = TimeUtil.offsetDateStr(-1);
+                    const attendanceRecord = await tx.get(
+                        `SELECT id FROM attendance_records
+                         WHERE coach_no = ? AND date IN (?, ?) AND clock_out_time IS NULL
+                         ORDER BY clock_in_time DESC LIMIT 1`,
+                        [record.coach_no, todayStr, yesterdayStr]
+                    );
+
+                    if (attendanceRecord) {
+                        await tx.run(
+                            `UPDATE attendance_records SET clock_out_time = ?, updated_at = ? WHERE id = ?`,
+                            [now, now, attendanceRecord.id]
+                        );
+                        console.log(`[CronScheduler] ${taskName}: ${record.stage_name || record.coach_no} 水牌设为下班，打卡表同步更新`);
+                    } else {
+                        console.log(`[CronScheduler] ${taskName}: ${record.stage_name || record.coach_no} 水牌设为下班（无上班记录，打卡表跳过）`);
+                    }
                 }
 
                 affected++;
