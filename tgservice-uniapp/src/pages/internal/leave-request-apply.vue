@@ -17,12 +17,6 @@
     </view>
 
     <view class="form-section">
-      <!-- 本月次数提示 -->
-      <view class="form-item">
-        <text class="form-label">本月已休息/请假天数</text>
-        <text class="count-text">{{ monthCount.count }}/{{ monthCount.limit }}</text>
-      </view>
-      
       <!-- 请假类型 -->
       <view class="form-item">
         <text class="form-label">请假类型</text>
@@ -129,7 +123,7 @@ const coachInfo = ref({})
 const showSuccess = ref(false)
 const showDatePicker = ref(false)
 const myApplications = ref([])
-const monthCount = ref({ count: 0, limit: 4, remaining: 4 })
+
 
 const form = ref({ leaveType: '', leaveDate: '', remark: '' })
 const serverHour = ref(null)
@@ -177,7 +171,6 @@ onMounted(async () => {
   statusBarHeight.value = systemInfo.statusBarHeight || 20
   coachInfo.value = uni.getStorageSync('coachInfo') || {}
   await fetchServerHour()
-  await loadMonthCount()
   await loadMyApplications()
 })
 
@@ -204,14 +197,7 @@ const previewImage = (idx) => {
   uni.previewImage({ urls: imageUrls.value, current: idx })
 }
 
-const loadMonthCount = async () => {
-  try {
-    const phone = coachInfo.value.phone || coachInfo.value.employeeId
-    if (!phone) return
-    const res = await api.applications.getMyMonthCount(phone, '请假申请')
-    monthCount.value = res.data || { count: 0, limit: 4, remaining: 4 }
-  } catch (e) {}
-}
+
 
 const loadMyApplications = async () => {
   try {

@@ -107,7 +107,7 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
       }
     }
 
-    // 休息申请:校验每月4天限制 + 日期范围
+    // 休息申请:校验每月4天限制（按休息日所在月份）+ 日期范围
     if (application_type === '休息申请') {
       if (!extra_data || !extra_data.rest_date) {
         throw { status: 400, error: '请选择休息日期' };
@@ -978,20 +978,21 @@ router.delete('/:id', requireBackendPermission(['all']), async (req, res) => {
  */
 router.get('/my-month-count', requireBackendPermission(['all']), async (req, res) => {
   try {
-    const { applicant_phone, application_type } = req.query;
+    const { applicant_phone, application_type, month } = req.query;
 
     if (!applicant_phone || !application_type) {
       throw { status: 400, error: '缺少必要参数' };
     }
 
     const todayStr = TimeUtil.todayStr();
-    const monthStart = todayStr.substring(0, 7) + '-01 00:00:00';
-    const monthEnd = todayStr.substring(0, 7) + '-31 23:59:59';
-
     let count = 0;
     let limit = 0;
+    let targetMonth = '';
 
     if (application_type === '班次切换申请') {
+      // 班次切换：按申请提交月份计算，每月2次
+      const monthStart = todayStr.substring(0, 7) + '-01 00:00:00';
+      const monthEnd = todayStr.substring(0, 7) + '-31 23:59:59';
       const result = await db.get(
         `SELECT COUNT(*) as cnt FROM applications
          WHERE applicant_phone = ? AND application_type = ? AND status = 1
@@ -1000,23 +1001,37 @@ router.get('/my-month-count', requireBackendPermission(['all']), async (req, res
       );
       count = result.cnt;
       limit = 2;
-    } else if (application_type === '休息申请' || application_type === '请假申请') {
+      targetMonth = todayStr.substring(0, 7);
+    } else if (application_type === '休息申请') {
+      // 休息申请：按休息日所在月份计算，每月4天
+      targetMonth = month || todayStr.substring(0, 7);
+      const monthStart = targetMonth + '-01 00:00:00';
+      const monthEnd = targetMonth + '-31 23:59:59';
+      
+      // 只统计休息申请，不统计请假申请
       const records = await db.all(
         `SELECT extra_data FROM applications
-         WHERE applicant_phone = ? AND application_type IN ('休息申请', '请假申请')
+         WHERE applicant_phone = ? AND application_type = '休息申请'
          AND status = 1 AND created_at >= ? AND created_at <= ?`,
         [applicant_phone, monthStart, monthEnd]
       );
+      
       const restDays = new Set();
       for (const r of records) {
         try {
           const ed = JSON.parse(r.extra_data);
-          if (ed.rest_date) restDays.add(ed.rest_date);
-          if (ed.leave_date) restDays.add(ed.leave_date);
+          if (ed.rest_date && ed.rest_date.startsWith(targetMonth)) {
+            restDays.add(ed.rest_date);
+          }
         } catch(e) {}
       }
       count = restDays.size;
       limit = 4;
+    } else if (application_type === '请假申请') {
+      // 请假申请：没有每月天数限制
+      count = 0;
+      limit = 999; // 表示无限制
+      targetMonth = month || todayStr.substring(0, 7);
     }
 
     res.json({
@@ -1024,7 +1039,8 @@ router.get('/my-month-count', requireBackendPermission(['all']), async (req, res
       data: {
         count,
         limit,
-        remaining: Math.max(0, limit - count)
+        remaining: limit === 999 ? '无限制' : Math.max(0, limit - count),
+        month: targetMonth
       }
     });
   } catch (error) {

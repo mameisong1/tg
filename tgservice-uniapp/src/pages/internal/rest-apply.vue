@@ -17,9 +17,9 @@
     </view>
 
     <view class="form-section">
-      <!-- 本月次数提示 -->
+      <!-- 月份次数提示 -->
       <view class="form-item">
-        <text class="form-label">本月已休息天数</text>
+        <text class="form-label">{{ selectedMonthLabel }}</text>
         <text class="count-text">{{ monthCount.count }}/{{ monthCount.limit }}</text>
       </view>
       
@@ -91,6 +91,7 @@ const showSuccess = ref(false)
 const showDatePicker = ref(false)
 const myApplications = ref([])
 const monthCount = ref({ count: 0, limit: 4, remaining: 4 })
+const selectedMonthLabel = ref('本月已休息天数')
 
 const form = ref({ restDate: '', remark: '' })
 const serverHour = ref(null)
@@ -156,14 +157,19 @@ async function fetchServerHour() {
 function selectDate(value) {
   form.value.restDate = value
   showDatePicker.value = false
+  // 根据所选日期的月份重新获取配额
+  const targetMonth = value.substring(0, 7)
+  loadMonthCount(targetMonth)
 }
 
-const loadMonthCount = async () => {
+const loadMonthCount = async (month = '') => {
   try {
     const phone = coachInfo.value.phone || coachInfo.value.employeeId
     if (!phone) return
-    const res = await api.applications.getMyMonthCount(phone, '休息申请')
+    const targetMonth = month || new Date().toISOString().substring(0, 7).replace(/-/g, '').replace(/(\d{4})(\d{2})/, '$1-$2')
+    const res = await api.applications.getMyMonthCount(phone, '休息申请', targetMonth)
     monthCount.value = res.data || { count: 0, limit: 4, remaining: 4 }
+    selectedMonthLabel.value = `${targetMonth}月份已休息天数`
   } catch (e) {}
 }
 
