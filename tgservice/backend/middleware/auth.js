@@ -12,6 +12,13 @@ const db = require('../db');
  */
 async function required(req, res, next) {
   try {
+    // ✅ 检查鉴权开关（从 global 获取，与 server.js 同步）
+    const getAuthEnabledCache = global.getAuthEnabledCache;
+    if (getAuthEnabledCache && getAuthEnabledCache() === false) {
+      req.user = { username: 'bypass', role: '管理员', userType: 'system' };  
+      return next();
+    }
+    
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

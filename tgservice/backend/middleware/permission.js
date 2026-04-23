@@ -12,21 +12,8 @@ const logger = {
   error: (msg) => console.error('[ERROR] ' + new Date().toISOString() + ' ' + msg)
 };
 
-// 鉴权开关缓存（默认开启）
-let authEnabledCache = true;
-
-// 启动时加载鉴权配置
-async function loadAuthConfig() {
-  try {
-    const row = await db.get('SELECT value FROM system_config WHERE key = ?', ['auth_enabled']);
-    if (row && row.value === 'false') {
-      authEnabledCache = false;
-    }
-    logger.warn(`[权限中间件] 鉴权配置加载: ${authEnabledCache ? '启用' : '关闭'}`);
-  } catch (e) {
-    logger.error(`[权限中间件] 加载鉴权配置失败: ${e.message}`);
-  }
-}
+// ✅ 鉴权开关从 global 获取（server.js 统一管理，热更新自动同步）
+// 不再维护独立的 authEnabledCache 变量
 
 // 立即加载（同步方式，用 then）
 loadAuthConfig().then(() => {}).catch(() => {});

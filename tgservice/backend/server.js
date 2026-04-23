@@ -124,7 +124,13 @@ const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
 console.log(`[环境] 加载配置文件: ${configFileName}, 环境名称: ${config.env?.name || 'production'}`);
 
 // ========== 鉴权开关缓存（启动时加载，动态更新）==========
+// ✅ 统一管理 authEnabledCache，挂载到 global 供 auth.js 和 permission.js 使用
 let authEnabledCache = true;  // 默认开启
+
+// 获取 authEnabledCache（供其他文件调用）
+function getAuthEnabledCache() {
+  return authEnabledCache;
+}
 
 // 启动时从数据库加载鉴权配置
 async function loadAuthConfig() {
@@ -138,17 +144,23 @@ async function loadAuthConfig() {
         ['auth_enabled', 'true', 'API鉴权开关: true=启用, false=关闭']);
       authEnabledCache = true;
     }
-    logger.info(`[鉴权配置] 已加载: ${authEnabledCache ? '启用' : '关闭'}`);
+    // ✅ 挂载到 global，供 auth.js 和 permission.js 使用
+    global.authEnabledCache = authEnabledCache;
+    global.getAuthEnabledCache = getAuthEnabledCache;
+    logger.info(`[鉴权配置] 已加载并挂载到 global: ${authEnabledCache ? '启用' : '关闭'}`);
   } catch (err) {
     logger.error(`[鉴权配置] 加载失败: ${err.message}, 默认启用`);
     authEnabledCache = true;
+    global.authEnabledCache = authEnabledCache;
+    global.getAuthEnabledCache = getAuthEnabledCache;
   }
 }
 
-// 更新鉴权缓存（供 API 调用）
+// 更新鉴权缓存（供 API 调用，热更新时同步所有文件）
 function updateAuthCache(enabled) {
   authEnabledCache = enabled;
-  logger.info(`[鉴权配置] 已更新: ${enabled ? '启用' : '关闭'}`);
+  global.authEnabledCache = enabled;  // ✅ 同步更新 global
+  logger.info(`[鉴权配置] 已更新并同步 global: ${enabled ? '启用' : '关闭'}`);
 }
 
 // OSS配置
