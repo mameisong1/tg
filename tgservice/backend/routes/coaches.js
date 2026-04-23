@@ -170,7 +170,7 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
       remark: `上班:${oldStatus} → ${newStatus}`
     });
 
-    return { coach_no, stage_name: coach.stage_name, status: newStatus, shift: coach.shift };
+    return { coach_no, stage_name: coach.stage_name, status: newStatus, shift: coach.shift, oldStatus };
     });
 
     res.json({
@@ -186,13 +186,36 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
     const { get } = require('../db');
     const coachInfo = await get('SELECT dingtalk_user_id FROM coaches WHERE coach_no = ?', [result.coach_no]);
     if (coachInfo && coachInfo.dingtalk_user_id) {
-      dingtalkService.queryRecentAttendance(coachInfo.dingtalk_user_id, result.coach_no, { get })
-        .then(tip => {
-          if (tip) {
-            dingtalkService.dingtalkLog.write(`上班 ${result.coach_no}: ${tip}`);
-          }
-        })
-        .catch(err => dingtalkService.dingtalkLog.write(`上班钉钉查询异常: ${err.message}`));
+      // 判断打卡类型：乐捐归来 vs 上班打卡
+      const isLejuanReturn = result.oldStatus === '乐捐';
+      const clockType = 'in';
+      const dbCtx = { get };
+      const queryFn = isLejuanReturn
+        ? dingtalkService.queryLejuanReturnAttendance.bind(dingtalkService)
+        : dingtalkService.queryRecentAttendance.bind(dingtalkService);
+      
+      if (isLejuanReturn) {
+        // 乐捐归来：需要查乐捐记录ID
+        const lejuanRecord = await get(
+          `SELECT id FROM lejuan_records WHERE coach_no = ? AND lejuan_status = 'returned'
+           ORDER BY updated_at DESC LIMIT 1`,
+          [result.coach_no]
+        );
+        if (lejuanRecord) {
+          queryFn(coachInfo.dingtalk_user_id, result.coach_no, lejuanRecord.id, dbCtx)
+            .then(tip => {
+              if (tip) dingtalkService.dingtalkLog.write(`乐捐归来 ${result.coach_no}: ${tip}`);
+            })
+            .catch(err => dingtalkService.dingtalkLog.write(`乐捐归来钉钉查询异常: ${err.message}`));
+        }
+      } else {
+        // 上班打卡
+        queryFn(coachInfo.dingtalk_user_id, result.coach_no, clockType, dbCtx)
+          .then(tip => {
+            if (tip) dingtalkService.dingtalkLog.write(`上班 ${result.coach_no}: ${tip}`);
+          })
+          .catch(err => dingtalkService.dingtalkLog.write(`上班钉钉查询异常: ${err.message}`));
+      }
     }
 
     // 触发门迎排序（非阻塞，不等待结果）
@@ -321,11 +344,9 @@ router.post('/:coach_no/clock-out', auth.required, requireBackendPermission(['co
     const { get } = require('../db');
     const coachInfo = await get('SELECT dingtalk_user_id FROM coaches WHERE coach_no = ?', [result.coach_no]);
     if (coachInfo && coachInfo.dingtalk_user_id) {
-      dingtalkService.queryRecentAttendance(coachInfo.dingtalk_user_id, result.coach_no, { get })
+      dingtalkService.queryRecentAttendance(coachInfo.dingtalk_user_id, result.coach_no, 'out', { get })
         .then(tip => {
-          if (tip) {
-            dingtalkService.dingtalkLog.write(`下班 ${result.coach_no}: ${tip}`);
-          }
+          if (tip) dingtalkService.dingtalkLog.write(`下班 ${result.coach_no}: ${tip}`);
         })
         .catch(err => dingtalkService.dingtalkLog.write(`下班钉钉查询异常: ${err.message}`));
     }

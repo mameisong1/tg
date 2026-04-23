@@ -264,22 +264,39 @@ async function getAttendanceList(userid, dateFrom, dateTo) {
 }
 
 /**
- * 查询助教最近5分钟内的打卡记录并写入数据库
+ * 上班/下班打卡后：查询最近5分钟内的钉钉打卡记录并写入数据库
  * @param {string} dingtalkUserId 钉钉用户ID
  * @param {string} coachNo 助教工号
+ * @param {string} clockType 'in' 或 'out'
  * @param {object} db 数据库连接
  * @returns {Promise<string|null>} 提示信息（如果未查到）
  */
-async function queryRecentAttendance(dingtalkUserId, coachNo, db) {
+async function queryRecentAttendance(dingtalkUserId, coachNo, clockType, db) {
   const { get, all, enqueueRun } = db;
   
   if (!dingtalkUserId) return null;
   
+  // 检查是否已有推送的钉钉打卡时间
+  const todayStr = TimeUtil.todayStr();
+  const yesterdayStr = TimeUtil.offsetDateStr(-1);
+  
+  if (clockType === 'in') {
+    const attendance = await get(
+      'SELECT id, dingtalk_in_time FROM attendance_records WHERE coach_no = ? AND date = ?',
+      [coachNo, todayStr]
+    );
+    if (attendance && attendance.dingtalk_in_time) return null; // 已有推送数据，跳过
+  } else if (clockType === 'out') {
+    const attendance = await get(
+      `SELECT id, dingtalk_out_time FROM attendance_records
+       WHERE coach_no = ? AND date IN (?, ?) AND clock_out_time IS NOT NULL
+       ORDER BY clock_in_time DESC LIMIT 1`,
+      [coachNo, todayStr, yesterdayStr]
+    );
+    if (attendance && attendance.dingtalk_out_time) return null; // 已有推送数据，跳过
+  }
+  
   try {
-    // 查询今天和昨天的考勤数据
-    const todayStr = TimeUtil.todayStr();
-    const yesterdayStr = TimeUtil.offsetDateStr(-1);
-    
     const records = await getAttendanceList(dingtalkUserId, yesterdayStr, todayStr);
     
     if (!records || records.length === 0) {
@@ -306,11 +323,9 @@ async function queryRecentAttendance(dingtalkUserId, coachNo, db) {
     // 处理每条最近的打卡记录
     for (const record of recentRecords) {
       const checkTime = record.userCheckTime || record.checkTime;
-      const checkType = record.checkType; // OnDuty=上班, OffDuty=下班
       const checkTimeStr = TimeUtil.formatTimestamp(checkTime);
       
-      if (checkType === 'OnDuty') {
-        // 上班打卡 → 写入 dingtalk_in_time
+      if (clockType === 'in') {
         const attendance = await get(
           'SELECT id FROM attendance_records WHERE coach_no = ? AND date = ?',
           [coachNo, todayStr]
@@ -330,8 +345,7 @@ async function queryRecentAttendance(dingtalkUserId, coachNo, db) {
           );
           dingtalkLog.write(`${coachNo} 更新 dingtalk_in_time = ${checkTimeStr}`);
         }
-      } else if (checkType === 'OffDuty') {
-        // 下班打卡 → 写入 dingtalk_out_time
+      } else if (clockType === 'out') {
         const attendance = await get(
           `SELECT id FROM attendance_records
            WHERE coach_no = ? AND date IN (?, ?) AND clock_out_time IS NOT NULL
@@ -349,16 +363,16 @@ async function queryRecentAttendance(dingtalkUserId, coachNo, db) {
       }
     }
     
-    return null; // 成功查到，无提示
+    return null; // 成功查到并写入，无提示
     
   } catch (err) {
     dingtalkLog.write(`${coachNo} 查询钉钉考勤异常: ${err.message}`);
-    return null; // 异常不提示用户，不影响业务
+    return null; // 异常不提示用户
   }
 }
 
 /**
- * 查询乐捐归来打卡时间
+ * 乐捐归来打卡后：查询最近5分钟内的钉钉打卡记录并写入 dingtalk_return_time
  * @param {string} dingtalkUserId 钉钉用户ID
  * @param {string} coachNo 助教工号
  * @param {number} lejuanId 乐捐记录ID
@@ -369,6 +383,10 @@ async function queryLejuanReturnAttendance(dingtalkUserId, coachNo, lejuanId, db
   const { get, all, enqueueRun } = db;
   
   if (!dingtalkUserId) return null;
+  
+  // 检查乐捐表是否已有推送的 dingtalk_return_time
+  const lejuan = await get('SELECT id, dingtalk_return_time FROM lejuan_records WHERE id = ?', [lejuanId]);
+  if (lejuan && lejuan.dingtalk_return_time) return null; // 已有推送数据，跳过
   
   try {
     const todayStr = TimeUtil.todayStr();
