@@ -80,6 +80,10 @@
             <text class="lj-info-label">归来时间</text>
             <text class="lj-info-value">{{ formatTimeShort(item.return_time) }}</text>
           </view>
+          <view class="lj-info-item dingtalk-item" v-if="item.dingtalk_return_time">
+            <text class="lj-info-label dingtalk-label">钉钉归来</text>
+            <text class="lj-info-value dingtalk-value">{{ formatTimeShort(item.dingtalk_return_time) }}</text>
+          </view>
           <view class="lj-info-item" v-if="item.lejuan_hours !== null && item.lejuan_hours !== undefined">
             <text class="lj-info-label">乐捐小时</text>
             <text class="lj-info-value highlight">{{ item.lejuan_hours }}小时</text>
@@ -291,6 +295,11 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .lj-info-label { font-size: 10px; color: rgba(255,255,255,0.4); margin-bottom: 2px; }
 .lj-info-value { font-size: 12px; color: rgba(255,255,255,0.7); }
 .lj-info-value.highlight { color: #2ecc71; font-weight: 600; }
+
+/* 钉钉时间样式 */
+.dingtalk-item { background: rgba(255,165,0,0.08); border-radius: 4px; padding: 2px 4px; }
+.dingtalk-label { color: rgba(255,165,0,0.8); }
+.dingtalk-value { color: #FFA500; font-weight: 500; }
 
 /* 备注 */
 .lj-remark { font-size: 12px; color: rgba(255,255,255,0.5); display: block; margin-bottom: 8px; line-height: 1.4; }

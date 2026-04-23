@@ -40,6 +40,8 @@ router.get('/', auth.required, requireBackendPermission(['店长', '助教管理
         ar.coach_no,
         ar.is_late,
         ar.is_reviewed,
+        ar.dingtalk_in_time,
+        ar.dingtalk_out_time,
         c.phone,
         -- 查询当天加班申请的小时数
         (
@@ -81,6 +83,8 @@ router.get('/', auth.required, requireBackendPermission(['店长', '助教管理
         shift: r.shift || '未知',
         clock_in_time: r.clock_in_time,
         clock_out_time: r.clock_out_time,
+        dingtalk_in_time: r.dingtalk_in_time,
+        dingtalk_out_time: r.dingtalk_out_time,
         clock_in_photo: photoList.length > 0 ? photoList[0] : null,
         overtime_hours: r.overtime_hours || 0,
         is_late: r.is_late || 0,

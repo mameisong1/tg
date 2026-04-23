@@ -70,6 +70,14 @@
               <text class="label">下班时间:</text>
               <text class="value">{{ formatTime(record.clock_out_time) || '-' }}</text>
             </view>
+            <view class="record-row dingtalk-row">
+              <text class="label dingtalk-label">钉钉上班:</text>
+              <text class="value dingtalk-value">{{ formatTime(record.dingtalk_in_time) || '-' }}</text>
+            </view>
+            <view class="record-row dingtalk-row">
+              <text class="label dingtalk-label">钉钉下班:</text>
+              <text class="value dingtalk-value">{{ formatTime(record.dingtalk_out_time) || '-' }}</text>
+            </view>
             <view class="record-row">
               <text class="label">加班小时:</text>
               <text class="value">{{ record.overtime_hours }}小时</text>
@@ -235,6 +243,11 @@ onMounted(() => {
 .record-row { display: flex; align-items: center; }
 .label { color: rgba(255,255,255,0.5); width: 70px; font-size: 12px; }
 .value { color: #fff; font-size: 13px; }
+
+/* 钉钉时间样式 */
+.dingtalk-row { background: rgba(255,165,0,0.05); border-radius: 4px; padding: 2px 4px; }
+.dingtalk-label { color: rgba(255,165,0,0.7); }
+.dingtalk-value { color: #FFA500; font-weight: 500; }
 
 /* 打卡照片 */
 .record-photo { flex-shrink: 0; }
