@@ -12,10 +12,10 @@ const logger = {
   error: (msg) => console.error('[ERROR] ' + new Date().toISOString() + ' ' + msg)
 };
 
-// ✅ 鉴权开关从 global 获取（server.js 统一管理，热更新自动同步）
+// ✅ 鉴权开关从 global 获取(server.js 统一管理,热更新自动同步)
 // 不再维护独立的 authEnabledCache 变量
 
-// 立即加载（同步方式，用 then）
+// 立即加载(同步方式,用 then)
 loadAuthConfig().then(() => {}).catch(() => {});
 
 // 角色权限矩阵
@@ -61,7 +61,7 @@ const PERMISSION_MATRIX = {
     switchDevices: false,
     tableDevices: false,
     switchScenes: false,
-    userManagement: true  // 可以管理用户，但不能授权管理员角色
+    userManagement: true  // 可以管理用户,但不能授权管理员角色
   },
   '助教管理': {
     menu: ['index', 'coaches', 'reward-penalty-stats', 'cashier-dashboard'],
@@ -148,7 +148,7 @@ const PERMISSION_MATRIX = {
     userManagement: false,
     serviceOrder: true      // ✅ 收银员可查看服务单
   },
-  // 英文角色名映射（兼容数据库中的英文角色）
+  // 英文角色名映射(兼容数据库中的英文角色)
   'cashier': {
     menu: ['cashier-dashboard'],
     cashierDashboard: true,
@@ -304,7 +304,7 @@ const FRONTEND_PERMISSION_MATRIX = {
 function getUserPermissions(role) {
   const backendPerms = PERMISSION_MATRIX[role] || PERMISSION_MATRIX['服务员'];
   const frontendPerms = FRONTEND_PERMISSION_MATRIX[role] || FRONTEND_PERMISSION_MATRIX['服务员'];
-  
+
   return {
     role,
     backend: backendPerms,
@@ -359,21 +359,21 @@ const PAGE_PERMISSION_MAP = {
 function hasPagePermission(role, page) {
   const perms = PERMISSION_MATRIX[role];
   if (!perms) return false;
-  
+
   // 管理员/店长/助教管理拥有全部权限
   if (perms.menu && perms.menu.includes('all')) return true;
-  
+
   // 服务员禁止访问后台
   if (role === '服务员') return false;
-  
+
   // 检查页面是否在菜单权限中
   if (perms.menu && perms.menu.includes(page)) return true;
   if (perms.menu && perms.menu.includes(page + '.html')) return true;
-  
+
   // 通过映射检查后端权限
   const permKey = PAGE_PERMISSION_MAP[page];
   if (permKey && perms[permKey] === true) return true;
-  
+
   return false;
 }
 
@@ -381,30 +381,27 @@ function hasPagePermission(role, page) {
 const COACH_ALLOWED_PERMISSIONS = [
   'cashierDashboard',    // 上下桌单、服务单
   'serviceOrder',        // 服务单查看
-  'coachManagement',     // 打卡（需配合 coachSelfOnly 检查）
+  'coachManagement',     // 打卡(需配合 coachSelfOnly 检查)
   'waterBoardManagement', // 水牌状态查看
   'invitationReview',    // 约客提交
-  'all'                  // 申请（加班、请假、乐捐）
+  'all'                  // 申请(加班、请假、乐捐)
 ];
 
 /**
  * 权限校验中间件 - 后台
  * @param {string|string[]} requiredPermissions - 需要的权限列表
  * @param {object} options - 附加选项
- *   - coachSelfOnly: boolean - 助教只能操作自己的数据（如打卡）
+ *   - coachSelfOnly: boolean - 助教只能操作自己的数据(如打卡)
  * @returns {function} - Express 中间件
  */
 function requireBackendPermission(requiredPermissions, options = {}) {
   return async (req, res, next) => {
-    // 🔴 关闭鉴权时跳过权限检查
-    try {
-      const row = await db.get('SELECT value FROM system_config WHERE key = ?', ['auth_enabled']);
-      if (row && row.value === 'false') {
-        logger.warn(`[权限跳过] 鉴权已关闭 - ${req.method} ${req.url}`);
-        req.user = req.user || { username: 'bypass', role: '管理员', userType: 'system' };
-        return next();
-      }
-    } catch (e) {}
+    // ✅ 关闭鉴权时跳过权限检查（从 global 获取，不查数据库）
+    const getAuthEnabledCache = global.getAuthEnabledCache;
+    if (getAuthEnabledCache && getAuthEnabledCache() === false) {
+      req.user = req.user || { username: 'bypass', role: '管理员', userType: 'system' };  
+      return next();
+    }
 
     const user = req.user;
     if (!user || !user.role) {
@@ -412,39 +409,39 @@ function requireBackendPermission(requiredPermissions, options = {}) {
       logger.warn(`权限拒绝: 用户信息缺失 - ${req.method} ${req.url} - IP: ${req.ip}`);
       return res.status(403).json({ error: '未授权' });
     }
-    
-    // 助教用户：检查是否有权限访问
+
+    // 助教用户:检查是否有权限访问
     if (user.userType === 'coach') {
       // 检查请求的权限是否在助教允许列表中
-      const hasCoachPermission = requiredPermissions.some(perm => 
+      const hasCoachPermission = requiredPermissions.some(perm =>
         COACH_ALLOWED_PERMISSIONS.includes(perm)
       );
-      
+
       if (!hasCoachPermission) {
         // QA-20260422-3: 权限拒绝日志
         logger.warn(`权限拒绝: 助教无权限 - ${user.coachNo} 访问 ${requiredPermissions.join(',')} - ${req.method} ${req.url}`);
         return res.status(403).json({ error: '权限不足' });
       }
-      
-      // 如果设置了 coachSelfOnly，检查是否操作自己的数据
+
+      // 如果设置了 coachSelfOnly,检查是否操作自己的数据
       if (options.coachSelfOnly) {
         // 从 params 或 body 获取 coach_no
         const targetCoachNo = req.params.coach_no || req.body.coach_no;
-        // 类型转换后再比较（SQLite 返回数字，params 是字符串）
+        // 类型转换后再比较(SQLite 返回数字,params 是字符串)
         if (targetCoachNo && String(targetCoachNo) !== String(user.coachNo)) {
           // QA-20260422-3: 权限拒绝日志
           logger.warn(`权限拒绝: 助教跨账号操作 - ${user.coachNo} 尝试操作 ${targetCoachNo} - ${req.method} ${req.url}`);
           return res.status(403).json({ error: '只能操作自己的数据' });
         }
       }
-      
+
       return next();
     }
-    
+
     const permissions = getUserPermissions(user.role);
     const backendPerms = permissions.backend;
-    
-    // 服务员角色：只允许 coachManagement 相关权限
+
+    // 服务员角色:只允许 coachManagement 相关权限
     if (user.role === '服务员') {
       // 只允许 pending-count 等特定 API
       const allowedPerms = ['coachManagement'];
@@ -455,19 +452,19 @@ function requireBackendPermission(requiredPermissions, options = {}) {
       }
       return next();
     }
-    
+
     // 管理员和店长拥有所有权限
     if (['管理员', '店长'].includes(user.role)) {
       return next();
     }
-    
-    // 如果传入的是角色名，直接判断角色是否匹配
+
+    // 如果传入的是角色名,直接判断角色是否匹配
     if (Array.isArray(requiredPermissions)) {
-      const isRoleCheck = requiredPermissions.every(perm => 
+      const isRoleCheck = requiredPermissions.every(perm =>
         ['管理员', '店长', '助教管理', '前厅管理', '收银', '教练', '服务员', 'cashier'].includes(perm)
       );
       if (isRoleCheck) {
-        // 角色名检查：用户角色必须在允许的角色列表中
+        // 角色名检查:用户角色必须在允许的角色列表中
         if (!requiredPermissions.includes(user.role)) {
           logger.warn(`权限拒绝: 角色 ${user.role} 不在允许列表 ${requiredPermissions.join(',')} 中 - ${req.method} ${req.url}`);
           return res.status(403).json({ error: '权限不足' });
@@ -475,31 +472,31 @@ function requireBackendPermission(requiredPermissions, options = {}) {
         return next();
       }
     }
-    
+
     // 检查是否有全部菜单权限
     if (backendPerms.menu && backendPerms.menu.includes('all')) {
       return next();
     }
-    
+
     // 检查特定权限
     if (Array.isArray(requiredPermissions)) {
       const hasPermission = requiredPermissions.some(perm => {
         if (perm === 'all') return backendPerms.menu?.includes('all');
-        // 支持页面路径名（如 'cashier-dashboard'）
+        // 支持页面路径名(如 'cashier-dashboard')
         if (backendPerms.menu && backendPerms.menu.includes(perm)) return true;
         if (backendPerms.menu && backendPerms.menu.includes(perm + '.html')) return true;
-        // 支持 readonly 权限（如水牌管理的教练）
+        // 支持 readonly 权限(如水牌管理的教练)
         const val = backendPerms[perm];
         if (val === true || val === 'readonly') return true;
         return false;
       });
-      
+
       if (!hasPermission) {
         logger.warn(`权限拒绝: 用户 ${user.username || '未知'} 角色 ${user.role} 缺少权限 ${requiredPermissions.join(',')} - ${req.method} ${req.url} - IP: ${req.ip}`);
         return res.status(403).json({ error: '权限不足' });
       }
     }
-    
+
     next();
   };
 }
@@ -515,15 +512,15 @@ function requireFrontendFeature(requiredFeature) {
     if (!user || !user.role) {
       return res.status(403).json({ error: '未授权' });
     }
-    
+
     const permissions = getUserPermissions(user.role);
     const frontendPerms = permissions.frontend;
-    
+
     // 检查特定功能权限
     if (frontendPerms[requiredFeature] !== true) {
       return res.status(403).json({ error: '权限不足' });
     }
-    
+
     next();
   };
 }
