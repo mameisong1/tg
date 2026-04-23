@@ -831,10 +831,10 @@ const loginBySms = async () => {
         uni.setStorageSync('adminInfo', data.adminInfo)
         console.log('自动内部登录:', data.adminInfo.role, data.adminInfo.name)
       }
-      // ⚠️ 保存 adminToken（内部页面 api.js 认证必需）
+      // ⚠️ 保存 h5AdminToken（内部页面 api.js 认证必需）
       if (data.adminToken) {
-        uni.setStorageSync('adminToken', data.adminToken)
-        console.log('已保存 adminToken')
+        uni.setStorageSync('h5AdminToken', data.adminToken)
+        console.log('已保存 h5AdminToken')
       }
       
       // 如果同时是教练，自动登录教练

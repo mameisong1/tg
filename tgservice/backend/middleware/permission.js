@@ -136,7 +136,8 @@ const PERMISSION_MATRIX = {
     switchDevices: false,
     tableDevices: false,
     switchScenes: false,
-    userManagement: false
+    userManagement: false,
+    serviceOrder: true      // ✅ 收银员可查看服务单
   },
   // 英文角色名映射（兼容数据库中的英文角色）
   'cashier': {
@@ -158,7 +159,8 @@ const PERMISSION_MATRIX = {
     switchDevices: false,
     tableDevices: false,
     switchScenes: false,
-    userManagement: false
+    userManagement: false,
+    serviceOrder: true      // ✅ 收银员可查看服务单
   },
   '服务员': {
     menu: [],
@@ -433,6 +435,21 @@ function requireBackendPermission(requiredPermissions, options = {}) {
     // 管理员和店长拥有所有权限
     if (['管理员', '店长'].includes(user.role)) {
       return next();
+    }
+    
+    // 如果传入的是角色名，直接判断角色是否匹配
+    if (Array.isArray(requiredPermissions)) {
+      const isRoleCheck = requiredPermissions.every(perm => 
+        ['管理员', '店长', '助教管理', '前厅管理', '收银', '教练', '服务员', 'cashier'].includes(perm)
+      );
+      if (isRoleCheck) {
+        // 角色名检查：用户角色必须在允许的角色列表中
+        if (!requiredPermissions.includes(user.role)) {
+          logger.warn(`权限拒绝: 角色 ${user.role} 不在允许列表 ${requiredPermissions.join(',')} 中 - ${req.method} ${req.url}`);
+          return res.status(403).json({ error: '权限不足' });
+        }
+        return next();
+      }
     }
     
     // 检查是否有全部菜单权限
