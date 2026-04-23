@@ -55,7 +55,7 @@ const PERMISSION_MATRIX = {
     userManagement: true  // 可以管理用户，但不能授权管理员角色
   },
   '助教管理': {
-    menu: ['all'],
+    menu: ['index', 'coaches', 'reward-penalty-stats', 'cashier-dashboard'],
     cashierDashboard: true,
     productManagement: true,
     vipRoomManagement: true,
