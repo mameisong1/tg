@@ -379,16 +379,10 @@ async function handleAttendanceEvent(event, db) {
       reason = `水牌空闲 + 无接近的系统时间`;
     }
   } else if (currentStatus === '乐捐') {
-    // 水牌乐捐状态
-    // 场景一：先系统乐捐归来打卡，后钉钉打卡 → 检查 return_time 是否接近
-    if (lejuan && lejuan.return_time && isTimeClose(checkTimeStr, lejuan.return_time)) {
-      punchType = 'return';
-      reason = `水牌乐捐 + 系统归来时间(${lejuan.return_time})接近`;
-    } else {
-      // 场景二：先钉钉打卡，后系统打卡 → 钉钉打卡是乐捐归来打卡
-      punchType = 'return';
-      reason = `水牌乐捐 + 无接近的系统时间`;
-    }
+    // 水牌乐捐状态：钉钉打卡只能是乐捐归来打卡
+    // （乐捐状态下还没有 return_time，无需判断时间接近）
+    punchType = 'return';
+    reason = `水牌乐捐状态`;
   } else if (currentStatus === '服务中') {
     // 服务中状态不处理
     dingtalkLog.write(`${coach.stage_name} 当前服务中，忽略打卡`);
