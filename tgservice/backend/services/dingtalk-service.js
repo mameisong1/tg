@@ -111,9 +111,18 @@ function verifySignature(timestamp, nonce, signature) {
     return false;
   }
 
-  // 签名算法: sha1(timestamp + token + nonce)
+  // 钉钉签名算法: sha1(sort(timestamp, token, nonce).join(''))
   const arr = [timestamp, token, nonce].sort();
-  const sha1 = crypto.createHash('sha1').update(arr.join('')).digest('hex');
+  const joined = arr.join('');
+  const sha1 = crypto.createHash('sha1').update(joined).digest('hex');
+  
+  // 调试日志：打印签名计算过程
+  dingtalkLog.write(`签名验证调试: timestamp=${timestamp}, token=${token}, nonce=${nonce}`);
+  dingtalkLog.write(`排序后数组: ${JSON.stringify(arr)}`);
+  dingtalkLog.write(`拼接字符串: ${joined}`);
+  dingtalkLog.write(`计算签名: ${sha1}`);
+  dingtalkLog.write(`钉钉签名: ${signature}`);
+  dingtalkLog.write(`签名匹配: ${sha1 === signature}`);
 
   return sha1 === signature;
 }
@@ -210,7 +219,7 @@ function calculateSignature(timestamp, nonce, encrypt) {
 }
 
 /**
- * 获取钉钉打卡记录
+ * 获取钉钉打卡记录（使用旧版API）
  * @param {string} userid 钉钉用户ID
  * @param {string} dateFrom 开始日期 YYYY-MM-DD
  * @param {string} dateTo 结束日期 YYYY-MM-DD
@@ -219,7 +228,8 @@ function calculateSignature(timestamp, nonce, encrypt) {
 async function getAttendanceList(userid, dateFrom, dateTo) {
   const accessToken = await getAccessToken();
   
-  const url = `https://oapi.dingtalk.com/topapi/attendance/list?access_token=${accessToken}`;
+  // 使用旧版API: https://oapi.dingtalk.com/attendance/list
+  const url = `https://oapi.dingtalk.com/attendance/list?access_token=${accessToken}`;
   
   const body = JSON.stringify({
     workDateFrom: `${dateFrom} 00:00:00`,
@@ -229,7 +239,11 @@ async function getAttendanceList(userid, dateFrom, dateTo) {
     limit: 50
   });
   
+  dingtalkLog.write(`请求考勤数据: userid=${userid}, dateFrom=${dateFrom}, dateTo=${dateTo}`);
+  
   const result = await httpRequest(url, 'POST', body);
+  
+  dingtalkLog.write(`考勤API响应: errcode=${result.errcode}, errmsg=${result.errmsg}`);
   
   if (result.errcode !== 0) {
     dingtalkLog.write(`获取打卡记录失败: ${result.errmsg}`);
