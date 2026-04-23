@@ -210,6 +210,36 @@ function calculateSignature(timestamp, nonce, encrypt) {
 }
 
 /**
+ * 获取钉钉打卡记录
+ * @param {string} userid 钉钉用户ID
+ * @param {string} dateFrom 开始日期 YYYY-MM-DD
+ * @param {string} dateTo 结束日期 YYYY-MM-DD
+ * @returns {Promise<object[]>}
+ */
+async function getAttendanceList(userid, dateFrom, dateTo) {
+  const accessToken = await getAccessToken();
+  
+  const url = `https://oapi.dingtalk.com/topapi/attendance/list?access_token=${accessToken}`;
+  
+  const body = JSON.stringify({
+    workDateFrom: `${dateFrom} 00:00:00`,
+    workDateTo: `${dateTo} 23:59:59`,
+    userIdList: [userid],
+    offset: 0,
+    limit: 50
+  });
+  
+  const result = await httpRequest(url, 'POST', body);
+  
+  if (result.errcode !== 0) {
+    dingtalkLog.write(`获取打卡记录失败: ${result.errmsg}`);
+    return []; 
+  }
+  
+  return result.recordresult || [];
+}
+
+/**
  * HTTP 请求封装
  * @param {string} url 请求地址
  * @param {string} method GET 或 POST
@@ -286,13 +316,16 @@ function isTimeClose(time1, time2, thresholdMinutes = 5) {
 async function handleAttendanceEvent(event, db) {
   const { get, all, enqueueRun } = db;
   
-  // 提取关键信息
-  const userid = event.userid;
-  const checkTime = event.checkTime; // 格式: "2026-04-23 10:30:00" 或毫秒时间戳
-  const deviceId = event.deviceId || event.deviceUUID || 'unknown';
+  // 提取关键信息（钉钉回调数据结构）
+  const userid = event.userid || event.userId;
+  const checkTime = event.checkTime || event.userCheckTime || event.time; // 格式可能是毫秒时间戳或 "YYYY-MM-DD HH:MM:SS"
+  const deviceId = event.deviceId || event.deviceUUID || event.deviceName || 'unknown';
+  const checkType = event.checkType || event.userCheckType; // OnDuty=上班, OffDuty=下班
+  const locationResult = event.locationResult || event.userLocationResult; // Normal=范围内, Outside=范围外
   
-  // 记录日志
-  dingtalkLog.write(`收到打卡事件: userid=${userid}, checkTime=${checkTime}, deviceId=${deviceId}`);
+  // 记录日志（完整记录回调数据）
+  dingtalkLog.write(`收到打卡事件: ${JSON.stringify(event)}`);
+  dingtalkLog.write(`解析: userid=${userid}, checkTime=${checkTime}, deviceId=${deviceId}, checkType=${checkType}, locationResult=${locationResult}`);
   
   // 查询助教
   const coach = await get(
@@ -321,6 +354,12 @@ async function handleAttendanceEvent(event, db) {
   }
   
   dingtalkLog.write(`钉钉打卡时间: ${checkTimeStr}`);
+  
+  // 如果有 locationResult 且不在范围内，忽略
+  if (locationResult && locationResult !== 'Normal' && locationResult !== 'Inside') {
+    dingtalkLog.write(`打卡地点超出范围: ${locationResult}，忽略`);
+    return;
+  }
   
   // 查询水牌状态
   const waterBoard = await get(
@@ -448,6 +487,7 @@ async function handleAttendanceEvent(event, db) {
 module.exports = {
   getAccessToken,
   getUserIdByMobile,
+  getAttendanceList,
   verifySignature,
   decryptMessage,
   encryptMessage,

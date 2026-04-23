@@ -141,4 +141,34 @@ router.get('/test-userid', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/dingtalk/callback/test-attendance
+ * 测试获取钉钉打卡记录（调试用）
+ */
+router.get('/test-attendance', async (req, res) => {
+  try {
+    const { userid, date } = req.query;
+    
+    if (!userid) {
+      return res.status(400).json({ error: '缺少 userid 参数' });
+    }
+    
+    const targetDate = date || new Date().toISOString().split('T')[0];
+    
+    const records = await dingtalkService.getAttendanceList(userid, targetDate, targetDate);
+    
+    dingtalkService.dingtalkLog.write(`测试获取打卡记录: userid=${userid}, date=${targetDate}, count=${records.length}`);
+    
+    // 如果有记录，打印第一条的结构
+    if (records.length > 0) {
+      dingtalkService.dingtalkLog.write(`第一条打卡记录结构: ${JSON.stringify(records[0])}`);
+    }
+    
+    res.json({ success: true, userid, date: targetDate, count: records.length, records });
+  } catch (err) {
+    dingtalkService.dingtalkLog.write(`测试获取打卡记录失败: ${err.message}`);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
