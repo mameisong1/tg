@@ -14,15 +14,15 @@ const operationLogService = require('../services/operation-log');
 const TimeUtil = require('../utils/time');
 const errorLogger = require('../utils/error-logger');
 
-// 锁定状态标记(内存变量,重启后丢失)
-const lockFlags = new Set(); // 'YYYY-MM-DD-早班' / 'YYYY-MM-DD-晚班'
+// 引入 Cron 调度器（用于手动触发锁定）
+const cronScheduler = require('../services/cron-scheduler');
 
 /**
- * 执行锁定应约客人员的核心逻辑(可复用)
+ * 执行锁定应约客人员的核心逻辑（统一入口）
  * @param {string} date - 日期 YYYY-MM-DD
  * @param {string} shift - 班次:'早班' 或 '晚班'
  * @param {object} operatorInfo - 操作人信息 { username, name } 或 { system: true }
- * @param {boolean} skipTimeCheck - 是否跳过时间校验(内部调用时跳过)
+ * @param {boolean} skipTimeCheck - 是否跳过时间校验(内部 Cron 调用跳过)
  * @returns {object} - { date, shift, locked_count, total_count, coaches }
  */
 async function executeLockShouldInvite(date, shift, operatorInfo, skipTimeCheck = false) {
@@ -34,7 +34,7 @@ async function executeLockShouldInvite(date, shift, operatorInfo, skipTimeCheck 
     throw { status: 400, error: '无效的班次' };
   }
 
-  // 时间校验(外部调用时检查,内部 Cron 调用跳过)
+  // 时间校验（手动调用时检查，内部 Cron 调用跳过）
   if (!skipTimeCheck) {
     const now = new Date();
     const currentHour = now.getHours();
@@ -50,9 +50,12 @@ async function executeLockShouldInvite(date, shift, operatorInfo, skipTimeCheck 
     }
   }
 
-  const lockKey = `${date}-${shift}`;
-  if (lockFlags.has(lockKey)) {
-    throw { status: 400, error: '今日已开始审查,无需重复锁定' };
+  // 检查 cron_tasks 表，判断当日是否已锁定（防止重复锁定）
+  const taskName = shift === '早班' ? 'lock_guest_invitation_morning' : 'lock_guest_invitation_evening';
+  const today = TimeUtil.todayStr();
+  const existingTask = await db.get('SELECT last_run, last_status FROM cron_tasks WHERE task_name = ?', [taskName]);
+  if (existingTask && existingTask.last_status === 'success' && existingTask.last_run && existingTask.last_run.startsWith(today)) {
+    throw { status: 400, error: '今日该班次已锁定，无需重复操作' };
   }
 
   return await runInTransaction(async (tx) => {
@@ -95,46 +98,45 @@ async function executeLockShouldInvite(date, shift, operatorInfo, skipTimeCheck 
       target_id: null,
       old_value: null,
       new_value: JSON.stringify({ date, shift, locked_count: insertedCount }),
-      remark: `${shift}${date} ${operatorInfo.system ? '系统自动锁定' : '开始审查'},锁定${insertedCount}名应约客助教`
+      remark: `${shift}${date} ${operatorInfo.system ? '系统自动锁定' : '手动锁定'},锁定${insertedCount}名应约客助教`
     });
-
-    lockFlags.add(lockKey);
 
     const { count } = await tx.get(
       'SELECT COUNT(*) as count FROM guest_invitation_results WHERE date = ? AND shift = ? AND result IN (?, ?, ?, ?)',
       [date, shift, '应约客', '待审查', '约客有效', '约客无效']
     );
 
-    return { date, shift, locked_count: insertedCount, total_count: count, coaches: shouldInviteCoaches };
+    return { date, shift, locked_count: insertedCount, total_count: count, coaches: shouldInviteCoaches, taskName };
   });
 }
 
 /**
  * GET /api/guest-invitations/check-lock
- * 检查是否已锁定(从内存变量读取)
+ * 检查是否已锁定（查询 cron_tasks 表，基于批处理结果）
  */
 router.get('/check-lock', auth.required, requireBackendPermission(['invitationReview']), async (req, res) => {
   const { date, shift } = req.query;
   if (!date || !shift) return res.status(400).json({ success: false, error: '缺少参数' });
-  const key = `${date}-${shift}`;
-  const isLocked = lockFlags.has(key);
+
+  const taskName = shift === '早班' ? 'lock_guest_invitation_morning' : 'lock_guest_invitation_evening';
+  const task = await db.get('SELECT last_run, last_status FROM cron_tasks WHERE task_name = ?', [taskName]);
+
+  // 判断是否已锁定：last_status = 'success' 且 last_run 是当日
+  const isLocked = task && task.last_status === 'success' && task.last_run && task.last_run.startsWith(date);
+
   if (isLocked) {
     const { count } = await db.get(
       'SELECT COUNT(*) as count FROM guest_invitation_results WHERE date = ? AND shift = ? AND result IN (?, ?, ?, ?)',
       [date, shift, '应约客', '待审查', '约客有效', '约客无效']
     );
-    return res.json({ success: true, data: { is_locked: true, count: count || 0 } });
+    return res.json({ success: true, data: { is_locked: true, count: count || 0, source: 'cron' } });
   }
-  res.json({ success: true, data: { is_locked: false, count: 0 } });
+  res.json({ success: true, data: { is_locked: false, count: 0, source: 'cron' } });
 });
 
 /**
  * POST /api/guest-invitations/lock-should-invite
- * 锁定应约客人员(开始审查时写入当前空闲助教)
- */
-/**
- * POST /api/guest-invitations/lock-should-invite
- * 锁定应约客人员(开始审查时写入当前空闲助教)
+ * 锁定应约客人员（手动触发 Cron 批处理）
  * 需要登录和权限校验
  */
 router.post('/lock-should-invite', auth.required, requireBackendPermission(['invitationReview']), async (req, res) => {
@@ -142,7 +144,37 @@ router.post('/lock-should-invite', auth.required, requireBackendPermission(['inv
     const { date, shift } = req.body;
     const user = req.user;
 
-    const result = await executeLockShouldInvite(date, shift, { username: user.username, name: user.name }, false);
+    // 时间校验（手动锁定需要检查时间）
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+    const currentTime = currentHour * 60 + currentMinute;
+
+    if (shift === '早班' && currentTime < 16 * 60) {
+      return res.status(400).json({ success: false, error: '早班约客审查需在16:00后开始' });
+    }
+    if (shift === '晚班' && currentTime < 20 * 60) {
+      return res.status(400).json({ success: false, error: '晚班约客审查需在20:00后开始' });
+    }
+
+    // 检查是否已锁定
+    const taskName = shift === '早班' ? 'lock_guest_invitation_morning' : 'lock_guest_invitation_evening';
+    const today = TimeUtil.todayStr();
+    const existingTask = await db.get('SELECT last_run, last_status FROM cron_tasks WHERE task_name = ?', [taskName]);
+    if (existingTask && existingTask.last_status === 'success' && existingTask.last_run && existingTask.last_run.startsWith(today)) {
+      return res.status(400).json({ success: false, error: '今日该班次已锁定，无需重复操作' });
+    }
+
+    // 调用 executeLockShouldInvite（skipTimeCheck=true，因为上面已校验）
+    const result = await executeLockShouldInvite(date, shift, { username: user.username, name: user.name }, true);
+
+    // 手动锁定成功后，更新 cron_tasks 表（保持状态一致性）
+    const finishedAt = TimeUtil.nowDB();
+    const nextRun = cronScheduler.calcNextRun(shift === '早班' ? '0 16 * * *' : '0 20 * * *');
+    await db.enqueueRun(
+      'UPDATE cron_tasks SET last_status = ?, last_run = ?, next_run = ?, last_error = NULL WHERE task_name = ?',
+      ['success', finishedAt, nextRun, result.taskName]
+    );
 
     res.json({
       success: true,
@@ -151,7 +183,8 @@ router.post('/lock-should-invite', auth.required, requireBackendPermission(['inv
         shift: result.shift,
         locked_count: result.locked_count,
         total_count: result.total_count,
-        coaches: result.coaches
+        coaches: result.coaches,
+        source: 'manual_trigger'
       }
     });
   } catch (error) {
@@ -181,6 +214,16 @@ router.post('/internal/lock', async (req, res) => {
     }
 
     const result = await executeLockShouldInvite(date, shift, { system: true }, true);
+
+    // 内部锁定成功后，更新 cron_tasks 表（保持状态一致性）
+    // 注意：cronScheduler.taskLockGuestInvitation 会自己更新 cron_tasks，
+    // 但直接调用 /internal/lock 时需要更新
+    const finishedAt = TimeUtil.nowDB();
+    const nextRun = cronScheduler.calcNextRun(shift === '早班' ? '0 16 * * *' : '0 20 * * *');
+    await db.enqueueRun(
+      'UPDATE cron_tasks SET last_status = ?, last_run = ?, next_run = ?, last_error = NULL WHERE task_name = ?',
+      ['success', finishedAt, nextRun, result.taskName]
+    );
 
     res.json({
       success: true,

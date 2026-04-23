@@ -619,6 +619,18 @@ async function taskLockGuestInvitation(shiftType) {
     try {
         const today = TimeUtil.todayStr();
 
+        // 先检查是否已锁定（防止重复执行）
+        const existingTask = await get('SELECT last_run, last_status FROM cron_tasks WHERE task_name = ?', [taskName]);
+        if (existingTask && existingTask.last_status === 'success' && existingTask.last_run && existingTask.last_run.startsWith(today)) {
+            console.log(`[CronScheduler] ${taskName}: 今日已锁定，跳过`);
+            const finishedAt = TimeUtil.nowDB();
+            const nextRun = calcNextRun(shiftType === '早班' ? '0 16 * * *' : '0 20 * * *');
+            await logCron(taskName, taskType, 'skipped', 0, '今日已锁定', null, startedAt, finishedAt);
+            // 保持 last_status = 'success'，只更新 next_run
+            await updateTaskStatus(taskName, { nextRun });
+            return { skipped: true, reason: 'already_locked' };
+        }
+
         // 内部 HTTP 调用
         const postData = JSON.stringify({ date: today, shift: shiftType });
 
@@ -1022,6 +1034,7 @@ module.exports = {
     getAllTasks,
     getCronLogs,
     toggleTask,
+    calcNextRun,
     // 内部方法（供测试）
     taskEndLejuan,
     taskSyncRewardPenalty,
