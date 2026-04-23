@@ -503,7 +503,7 @@ function requireBackendPermission(requiredPermissions, options = {}) {
       });
       
       if (!hasPermission) {
-        logger.warn(`权限拒绝: 角色 ${user.role} 缺少权限 ${requiredPermissions.join(',')} - ${req.method} ${req.url}`);
+        logger.warn(`权限拒绝: 用户 ${user.username || '未知'} 角色 ${user.role} 缺少权限 ${requiredPermissions.join(',')} - ${req.method} ${req.url} - IP: ${req.ip}`);
         return res.status(403).json({ error: '权限不足' });
       }
     }

@@ -1458,15 +1458,11 @@ app.post('/api/sms/send', async (req, res) => {
       return res.status(400).json({ error: '请输入正确的手机号' });
     }
 
-    // 测试环境:针对测试用户跳过真实短信发送
-    const testUsers = ['18600000001', '18600000002', '18600000003'];
-    const isTestEnv = process.env.TGSERVICE_ENV === 'test';
-    const isTestUser = testUsers.includes(phone);
-
-    if (isTestEnv && isTestUser) {
-      // 不发送真实短信,直接返回成功(验证码固定为 8888)
+    // 🔧 后门: 1860000000 开头的手机号固定验证码 888888（开发和测试环境通用）
+    const isTestUser = /^1860000000\d$/.test(phone);
+    if (isTestUser) {
       smsCodeCache.set(phone, { code: '888888', timestamp: Date.now(), attempts: 0 });
-      operationLog.info(`测试用户短信验证码: ${phone}, 验证码: 888888 (跳过真实发送)`);
+      operationLog.info(`测试账号短信验证码: ${phone}, 验证码: 888888 (固定)`);
       return res.json({ success: true, message: '验证码已发送' });
     }
 
@@ -1528,13 +1524,15 @@ app.post('/api/member/login-sms', async (req, res) => {
       return res.status(400).json({ error: '请输入手机号和验证码' });
     }
 
-    // 测试环境:任何人使用 888888 验证码均可登录
-    const isTestEnv = process.env.TGSERVICE_ENV === 'test';
+    // 🔧 后门: 1860000000 开头的手机号固定验证码 888888
+    const isTestUser = /^1860000000\d$/.test(phone);
 
-    if (isTestEnv && code === '888888') {
-      // 直接允许登录,不验证缓存中的验证码
+    if (isTestUser && code === '888888') {
+      operationLog.info(`测试账号登录: ${phone}, 验证码: 888888`);
+      // 跳过验证码校验，直接进入会员查询/创建流程
+    } else if (process.env.TGSERVICE_ENV === 'test' && code === '888888') {
+      // 测试环境：任何号码都能用 888888 登录
       operationLog.info(`测试环境登录: ${phone}, 验证码: 888888`);
-      // 跳过验证码校验,直接进入会员查询/创建流程
     } else {
       // 正常验证码验证流程
       const codeData = smsCodeCache.get(phone);
