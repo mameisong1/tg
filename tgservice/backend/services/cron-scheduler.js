@@ -55,7 +55,7 @@ async function ensureTables() {
     // 为 lejuan_records 添加 extra_data 字段（用于标记同步状态）
     try {
         // 先检查字段是否存在
-        const tableInfo = await dbAll('PRAGMA table_info(lejuan_records)');
+        const tableInfo = await all('PRAGMA table_info(lejuan_records)');
         const hasColumn = tableInfo.some(col => col.name === 'extra_data');
         if (!hasColumn) {
             await enqueueRun(`ALTER TABLE lejuan_records ADD COLUMN extra_data TEXT`);
