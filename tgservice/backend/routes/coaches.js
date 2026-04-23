@@ -313,14 +313,17 @@ router.post('/:coach_no/clock-out', auth.required, requireBackendPermission(['co
       WHERE coach_no = ?
     `, [newStatus, nowDB, coach_no]);
 
-    // 新增：查找当天或昨天的未下班上班记录（凌晨下班时上班记录在昨天）
+    // 查找上一个12点以后的未下班上班记录（凌晨下班时上班记录可能在昨天）
+    const hour = parseInt(nowDB.substring(11, 13), 10);
     const todayStr = TimeUtil.todayStr();
-    const yesterdayStr = TimeUtil.offsetDateStr(-1);
+    const searchStart = hour >= 12 
+      ? `${todayStr} 12:00:00`
+      : `${TimeUtil.offsetDateStr(-1)} 12:00:00`;
     const attendanceRecord = await tx.get(`
       SELECT id FROM attendance_records
-      WHERE coach_no = ? AND date IN (?, ?) AND clock_out_time IS NULL
+      WHERE coach_no = ? AND clock_in_time >= ? AND clock_out_time IS NULL
       ORDER BY clock_in_time DESC LIMIT 1
-    `, [coach_no, todayStr, yesterdayStr]);
+    `, [coach_no, searchStart]);
 
     if (attendanceRecord) {
       await tx.run(`

@@ -581,10 +581,16 @@ async function handleSingleAttendanceRecord(record, db) {
   const currentStatus = waterBoard?.status || '下班';
   dingtalkLog.write(`当前水牌状态: ${currentStatus}`);
   
-  // 查询今日打卡记录（获取系统已有的打卡时间）
+  // 查询上一个12点以后的未下班上班记录（凌晨下班时上班记录可能在昨天）
+  const checkHour = parseInt(checkTimeStr.substring(11, 13), 10);
+  const searchStart = checkHour >= 12 
+    ? `${todayStr} 12:00:00`
+    : `${TimeUtil.offsetDateStr(-1)} 12:00:00`;
   const attendance = await get(
-    'SELECT id, clock_in_time, clock_out_time FROM attendance_records WHERE date = ? AND coach_no = ?',
-    [todayStr, coach.coach_no]
+    `SELECT id, clock_in_time, clock_out_time FROM attendance_records 
+     WHERE coach_no = ? AND clock_in_time >= ? AND clock_out_time IS NULL
+     ORDER BY clock_in_time DESC LIMIT 1`,
+    [coach.coach_no, searchStart]
   );
   
   // 查询活跃的乐捐记录（获取乐捐归来时间和实际开始时间）
