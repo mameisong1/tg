@@ -547,3 +547,28 @@ node init-db.js
 ---
 
 *文档更新时间：2026年4月15日*
+
+---
+
+## attendance_records 表字段说明（2026-04-23更新）
+
+### 钉钉打卡时间字段
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| dingtalk_in_time | TEXT | 钉钉上班打卡时间（YYYY-MM-DD HH:MM:SS） |
+| dingtalk_out_time | TEXT | 钉钉下班打卡时间（YYYY-MM-DD HH:MM:SS） |
+
+### 数据来源
+
+| 字段 | 来源 |
+|------|------|
+| clock_in_time | 系统打卡（H5/小程序） |
+| dingtalk_in_time | 钉钉推送/主动查询 |
+
+### 合并逻辑
+
+钉钉推送和系统打卡可能产生两条记录，已修复为合并逻辑：
+1. 钉钉推送 → 创建记录（只有 dingtalk_in_time）
+2. 系统打卡 → UPDATE该记录（写入 clock_in_time）
+

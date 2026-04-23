@@ -2655,3 +2655,52 @@ errorReporter.report({ type: "custom_error", message: "错误信息" });
 - 查到：自动写入对应字段
 - 查不到：仅日志提示，不影响业务逻辑
 
+
+---
+
+## 钉钉打卡处理逻辑更新（2026-04-23）
+
+### 上班打卡合并逻辑
+
+**问题**：钉钉先打卡 + 系统后打卡 → 两条独立记录
+
+**修复**：上班打卡接口先查询已有记录，再决定INSERT或UPDATE
+
+**文件**：`backend/routes/coaches.js` clock-in接口
+
+**逻辑**：
+1. 查询今天是否已有记录（包括只有钉钉时间的）
+2. 如果有记录但 clock_in_time 为空 → UPDATE
+3. 如果没有记录 → INSERT
+
+### 钉钉推送处理EventType
+
+**新增处理**：`attendance_check_record` EventType
+
+**文件**：`backend/routes/dingtalk-callback.js`
+
+**数据结构**：
+```json
+{
+  "DataList": [{
+    "userId": "钉钉用户ID",
+    "checkTime": 毫秒时间戳,
+    "deviceSN": "打卡机设备ID",
+    "deviceName": "设备名称"
+  }],
+  "EventType": "attendance_check_record"
+}
+```
+
+### 时间匹配阈值
+
+**修改**：从5分钟改为20分钟
+
+**文件**：`backend/services/dingtalk-service.js`
+
+### 新增状态处理
+
+**新增**：早加班、晚加班、休息、请假、公休 → 上班打卡
+
+**文件**：`backend/services/dingtalk-service.js`
+
