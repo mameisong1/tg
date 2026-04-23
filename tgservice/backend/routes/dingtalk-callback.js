@@ -19,19 +19,27 @@ router.get('/', async (req, res) => {
   try {
     const { signature, timestamp, nonce, echostr } = req.query;
     
-    dingtalkService.dingtalkLog.write(`收到验证请求: signature=${signature}, timestamp=${timestamp}, nonce=${nonce}`);
+    dingtalkService.dingtalkLog.write(`收到验证请求: signature=${signature}, timestamp=${timestamp}, nonce=${nonce}, echostr=${echostr ? '有' : '无'}`);
     
-    // 验证签名
-    if (!dingtalkService.verifySignature(timestamp, nonce, signature)) {
-      dingtalkService.dingtalkLog.write('验证签名失败');
-      return res.status(403).send('Invalid signature');
+    // GET 验证请求：钉钉会发送 echostr，签名算法需要包含 echostr
+    if (echostr) {
+      // 验证签名（包含 echostr）
+      if (!dingtalkService.verifySignature(timestamp, nonce, echostr, signature)) {
+        dingtalkService.dingtalkLog.write('GET 验证签名失败');
+        return res.status(403).send('Invalid signature');
+      }
+      
+      // 解密 echostr 并返回
+      const decrypted = dingtalkService.decryptMessage(echostr);
+      dingtalkService.dingtalkLog.write(`GET 验证成功，返回: ${decrypted}`);
+      
+      res.send(decrypted);
+    } else {
+      // 没有 echostr，简单验证（仅 timestamp + token + nonce）
+      // 这种情况不应该发生
+      dingtalkService.dingtalkLog.write('警告: GET 请求没有 echostr 参数');
+      res.status(403).send('Missing echostr');
     }
-    
-    // 解密 echostr 并返回
-    const decrypted = dingtalkService.decryptMessage(echostr);
-    dingtalkService.dingtalkLog.write(`验证成功，返回: ${decrypted}`);
-    
-    res.send(decrypted);
   } catch (err) {
     dingtalkService.dingtalkLog.write(`验证处理失败: ${err.message}`);
     res.status(500).send('Error');
@@ -54,11 +62,13 @@ router.post('/', async (req, res) => {
     
     dingtalkService.dingtalkLog.write(`收到 POST 回调: signature=${signature}, timestamp=${timestamp}, encrypt=${encrypt ? '有' : '无'}`);
     
-    // 验证签名
-    if (!dingtalkService.verifySignature(timestamp, nonce, signature)) {
-      dingtalkService.dingtalkLog.write('签名验证失败');
+    // 验证签名（必须包含 encrypt）
+    if (!dingtalkService.verifySignature(timestamp, nonce, encrypt, signature)) {
+      dingtalkService.dingtalkLog.write('POST 签名验证失败');
       return res.status(403).json({ error: 'Invalid signature' });
     }
+    
+    dingtalkService.dingtalkLog.write('POST 签名验证成功');
     
     // 解密数据
     const event = dingtalkService.decryptMessage(encrypt);
@@ -68,7 +78,7 @@ router.post('/', async (req, res) => {
     // 判断事件类型
     const eventType = event.EventType || event.eventType || event.type;
     
-    if (eventType === 'attendance_check_in' || eventType === 'check_in') {
+    if (eventType === 'attendance_check_in' || eventType === 'check_in' || eventType === 'user_check_in') {
       // 打卡事件
       await dingtalkService.handleAttendanceEvent(event, { get, all, enqueueRun });
     } else {

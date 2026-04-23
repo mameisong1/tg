@@ -101,28 +101,26 @@ async function getUserIdByMobile(mobile) {
  * 验证钉钉回调签名
  * @param {string} timestamp 时间戳
  * @param {string} nonce 随机字符串
+ * @param {string} encrypt 加密数据
  * @param {string} signature 签名
  * @returns {boolean}
  */
-function verifySignature(timestamp, nonce, signature) {
+function verifySignature(timestamp, nonce, encrypt, signature) {
   const token = dingtalkConfig.callbackToken;
   if (!token) {
     dingtalkLog.write('警告: callbackToken 未配置');
     return false;
   }
 
-  // 钉钉签名算法: sha1(sort(timestamp, token, nonce).join(''))
-  const arr = [timestamp, token, nonce].sort();
+  // 钉钉签名算法: sha1(sort([timestamp, token, nonce, encrypt]))
+  // 注意：POST 请求必须包含 encrypt 参数
+  const arr = [timestamp, token, nonce, encrypt].sort();
   const joined = arr.join('');
   const sha1 = crypto.createHash('sha1').update(joined).digest('hex');
   
-  // 调试日志：打印签名计算过程
-  dingtalkLog.write(`签名验证调试: timestamp=${timestamp}, token=${token}, nonce=${nonce}`);
-  dingtalkLog.write(`排序后数组: ${JSON.stringify(arr)}`);
-  dingtalkLog.write(`拼接字符串: ${joined}`);
-  dingtalkLog.write(`计算签名: ${sha1}`);
-  dingtalkLog.write(`钉钉签名: ${signature}`);
-  dingtalkLog.write(`签名匹配: ${sha1 === signature}`);
+  // 调试日志
+  dingtalkLog.write(`签名验证: timestamp=${timestamp}, nonce=${nonce}, encrypt=${encrypt ? '有' : '无'}`);
+  dingtalkLog.write(`计算签名: ${sha1}, 钉钉签名: ${signature}`);
 
   return sha1 === signature;
 }
