@@ -3,11 +3,33 @@
  * 天宫国际 V2.0
  */
 
+const db = require('../db');
+const TimeUtil = require('../utils/time');
+
 // QA-20260422-3: 添加日志支持
 const logger = {
   warn: (msg) => console.log('[WARN] ' + new Date().toISOString() + ' ' + msg),
   error: (msg) => console.error('[ERROR] ' + new Date().toISOString() + ' ' + msg)
 };
+
+// 鉴权开关缓存（默认开启）
+let authEnabledCache = true;
+
+// 启动时加载鉴权配置
+async function loadAuthConfig() {
+  try {
+    const row = await db.get('SELECT value FROM system_config WHERE key = ?', ['auth_enabled']);
+    if (row && row.value === 'false') {
+      authEnabledCache = false;
+    }
+    logger.warn(`[权限中间件] 鉴权配置加载: ${authEnabledCache ? '启用' : '关闭'}`);
+  } catch (e) {
+    logger.error(`[权限中间件] 加载鉴权配置失败: ${e.message}`);
+  }
+}
+
+// 立即加载（同步方式，用 then）
+loadAuthConfig().then(() => {}).catch(() => {});
 
 // 角色权限矩阵
 const PERMISSION_MATRIX = {
@@ -386,7 +408,17 @@ const COACH_ALLOWED_PERMISSIONS = [
  * @returns {function} - Express 中间件
  */
 function requireBackendPermission(requiredPermissions, options = {}) {
-  return (req, res, next) => {
+  return async (req, res, next) => {
+    // 🔴 关闭鉴权时跳过权限检查
+    try {
+      const row = await db.get('SELECT value FROM system_config WHERE key = ?', ['auth_enabled']);
+      if (row && row.value === 'false') {
+        logger.warn(`[权限跳过] 鉴权已关闭 - ${req.method} ${req.url}`);
+        req.user = req.user || { username: 'bypass', role: '管理员', userType: 'system' };
+        return next();
+      }
+    } catch (e) {}
+
     const user = req.user;
     if (!user || !user.role) {
       // QA-20260422-3: 权限拒绝日志
@@ -471,6 +503,7 @@ function requireBackendPermission(requiredPermissions, options = {}) {
       });
       
       if (!hasPermission) {
+        logger.warn(`权限拒绝: 角色 ${user.role} 缺少权限 ${requiredPermissions.join(',')} - ${req.method} ${req.url}`);
         return res.status(403).json({ error: '权限不足' });
       }
     }
