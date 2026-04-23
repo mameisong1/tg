@@ -10,6 +10,7 @@ const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const TimeUtil = require('../utils/time');
 const operationLogService = require('../services/operation-log');
+const dingtalkService = require('../services/dingtalk-service');
 const errorLogger = require('../utils/error-logger');
 const http = require('http');
 
@@ -181,6 +182,19 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
       }
     });
 
+    // 钉钉打卡时间查询（非阻塞）
+    const { get } = require('../db');
+    const coachInfo = await get('SELECT dingtalk_user_id FROM coaches WHERE coach_no = ?', [result.coach_no]);
+    if (coachInfo && coachInfo.dingtalk_user_id) {
+      dingtalkService.queryRecentAttendance(coachInfo.dingtalk_user_id, result.coach_no, { get })
+        .then(tip => {
+          if (tip) {
+            dingtalkService.dingtalkLog.write(`上班 ${result.coach_no}: ${tip}`);
+          }
+        })
+        .catch(err => dingtalkService.dingtalkLog.write(`上班钉钉查询异常: ${err.message}`));
+    }
+
     // 触发门迎排序（非阻塞，不等待结果）
     try {
       const currentHour = new Date(TimeUtil.nowDB() + '+08:00').getHours();
@@ -302,6 +316,19 @@ router.post('/:coach_no/clock-out', auth.required, requireBackendPermission(['co
         status: result.status
       }
     });
+
+    // 钉钉打卡时间查询（非阻塞）
+    const { get } = require('../db');
+    const coachInfo = await get('SELECT dingtalk_user_id FROM coaches WHERE coach_no = ?', [result.coach_no]);
+    if (coachInfo && coachInfo.dingtalk_user_id) {
+      dingtalkService.queryRecentAttendance(coachInfo.dingtalk_user_id, result.coach_no, { get })
+        .then(tip => {
+          if (tip) {
+            dingtalkService.dingtalkLog.write(`下班 ${result.coach_no}: ${tip}`);
+          }
+        })
+        .catch(err => dingtalkService.dingtalkLog.write(`下班钉钉查询异常: ${err.message}`));
+    }
   } catch (error) {
     errorLogger.logApiRejection(req, error);
     if (error.status) {

@@ -11,6 +11,7 @@ const { requireBackendPermission } = require('../middleware/permission');
 const operationLogService = require('../services/operation-log');
 const TimeUtil = require('../utils/time');
 const timerManager = require('../services/timer-manager');
+const dingtalkService = require('../services/dingtalk-service');
 
 // 所有接口需要认证
 router.use(auth.required);
@@ -420,6 +421,7 @@ router.post('/:id/return', requireBackendPermission(['coachManagement']), async 
 
             return {
                 id: recordId,
+                coach_no: record.coach_no,
                 lejuan_hours: lejuanHours,
                 return_time: returnTimeStr,
                 stage_name: coach.stage_name,
@@ -429,6 +431,20 @@ router.post('/:id/return', requireBackendPermission(['coachManagement']), async 
         });
 
         res.json({ success: true, data: result });
+
+        // 钉钉打卡时间查询（非阻塞）
+        if (result.coach_no) {
+            const coachInfo = await get('SELECT dingtalk_user_id FROM coaches WHERE coach_no = ?', [result.coach_no]);
+            if (coachInfo && coachInfo.dingtalk_user_id) {
+                dingtalkService.queryLejuanReturnAttendance(coachInfo.dingtalk_user_id, result.coach_no, recordId, { get, all, enqueueRun })
+                    .then(tip => {
+                        if (tip) {
+                            dingtalkService.dingtalkLog.write(`乐捐归来 ${result.coach_no}: ${tip}`);
+                        }
+                    })
+                    .catch(err => dingtalkService.dingtalkLog.write(`乐捐归来钉钉查询异常: ${err.message}`));
+            }
+        }
     } catch (err) {
         if (err.status) {
             return res.status(err.status).json({ error: err.error });

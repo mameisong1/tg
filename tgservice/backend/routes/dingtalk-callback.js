@@ -78,17 +78,20 @@ router.post('/', async (req, res) => {
     // 判断事件类型
     const eventType = event.EventType || event.eventType || event.type;
     
-    if (eventType === 'attendance_check_in' || eventType === 'check_in' || eventType === 'user_check_in') {
+    if (eventType === 'check_url') {
+      // 测试回调 URL 的正确性
+      dingtalkService.dingtalkLog.write('测试回调 URL 的正确性');
+    } else if (eventType === 'attendance_check_in' || eventType === 'check_in' || eventType === 'user_check_in') {
       // 打卡事件
       await dingtalkService.handleAttendanceEvent(event, { get, all, enqueueRun });
     } else {
       dingtalkService.dingtalkLog.write(`忽略非打卡事件: ${eventType}`);
     }
     
-    // 返回加密响应给钉钉
+    // ⚠️ 无论什么事件，都必须返回加密后的 "success" 字符串
     const responseTimestamp = Date.now().toString();
     const responseNonce = Math.random().toString(36).substring(2);
-    const successMsg = JSON.stringify({ success: true });
+    const successMsg = 'success';  // 钉钉官方 sample：返回加密的 "success" 字符串
     
     const encryptedResponse = dingtalkService.encryptMessage(successMsg);
     const responseSignature = dingtalkService.calculateSignature(responseTimestamp, responseNonce, encryptedResponse);

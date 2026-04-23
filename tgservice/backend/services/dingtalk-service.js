@@ -139,22 +139,29 @@ function decryptMessage(encrypt) {
   // AESKey 需要 43 位，补齐到 44 位（Base64 解码后 32 字节）
   const aesKeyBase64 = aesKey + '=';
   const key = Buffer.from(aesKeyBase64, 'base64');
-
-  // 钉钉解密：去掉前 16 字节随机 IV，然后去掉补齐
+  
+  // ⚠️ 关键：IV 是密钥的前 16 字节，不是密文的前 16 字节！
+  const iv = key.slice(0, 16);
+  
+  // Base64 解码密文
   const encryptedBuffer = Buffer.from(encrypt, 'base64');
   
-  const iv = encryptedBuffer.slice(0, 16);
-  const encryptedData = encryptedBuffer.slice(16);
-  
+  // ⚠️ 关键：必须用 setAutoPadding(false)，然后手动去 PKCS7 padding
+  // Node.js 的 setAutoPadding(true) 和钉钉的 padding 不兼容
   const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-  decipher.setAutoPadding(true);
+  decipher.setAutoPadding(false);
   
-  let decrypted = decipher.update(encryptedData);
-  decrypted = Buffer.concat([decrypted, decipher.final()]);
+  let decrypted = Buffer.concat([decipher.update(encryptedBuffer), decipher.final()]);
   
-  // 去掉钉钉格式：前 4 字节是长度，然后是内容，最后是 corpid
-  const len = decrypted.readUInt32BE(0);
-  const content = decrypted.slice(4, 4 + len).toString('utf8');
+  // 手动去 PKCS7 padding
+  const padLen = decrypted[decrypted.length - 1];
+  if (padLen > 0 && padLen <= 32) {
+    decrypted = decrypted.slice(0, decrypted.length - padLen);
+  }
+  
+  // 钉钉格式：16 字节随机串 + 4 字节消息长度 + 消息内容 + corpid
+  const msgLen = decrypted.readUInt32BE(16);
+  const content = decrypted.slice(20, 20 + msgLen).toString('utf8');
   
   try {
     return JSON.parse(content);
@@ -179,28 +186,33 @@ function encryptMessage(message) {
 
   const aesKeyBase64 = aesKey + '=';
   const key = Buffer.from(aesKeyBase64, 'base64');
+  
+  // ⚠️ 关键：IV 是密钥的前 16 字节
+  const iv = key.slice(0, 16);
 
-  // 钉钉加密格式：随机 16 字节 + 4 字节长度 + 内容 + corpid
+  // 钉钉加密格式：16 字节随机串 + 4 字节消息长度 + 消息内容 + corpid
   const randomBytes = crypto.randomBytes(16);
   const msgBuffer = Buffer.from(message, 'utf8');
   const lenBuffer = Buffer.alloc(4);
   lenBuffer.writeUInt32BE(msgBuffer.length, 0);
   
-  // 拼接数据（这里 corpid 暂时省略，钉钉可能不强制检查）
-  const dataToEncrypt = Buffer.concat([randomBytes, lenBuffer, msgBuffer]);
+  // corpid（appKey）
+  const corpId = Buffer.from(dingtalkConfig.appKey || '', 'utf8');
+  const plainText = Buffer.concat([randomBytes, lenBuffer, msgBuffer, corpId]);
   
-  // AES-256-CBC 加密
-  const iv = crypto.randomBytes(16);
+  // 手动 PKCS7 padding
+  const blockSize = 32; // AES-256 block size
+  const padLen = blockSize - (plainText.length % blockSize);
+  const padding = Buffer.alloc(padLen, padLen);
+  const paddedText = Buffer.concat([plainText, padding]);
+  
+  // AES-256-CBC 加密（不用 autoPadding，因为我们手动处理了 padding）
   const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-  cipher.setAutoPadding(true);
+  cipher.setAutoPadding(false);
   
-  let encrypted = cipher.update(dataToEncrypt);
-  encrypted = Buffer.concat([encrypted, cipher.final()]);
+  const encrypted = Buffer.concat([cipher.update(paddedText), cipher.final()]);
   
-  // 最终格式：iv + encrypted
-  const finalBuffer = Buffer.concat([iv, encrypted]);
-  
-  return finalBuffer.toString('base64');
+  return encrypted.toString('base64');
 }
 
 /**
@@ -249,6 +261,155 @@ async function getAttendanceList(userid, dateFrom, dateTo) {
   }
   
   return result.recordresult || [];
+}
+
+/**
+ * 查询助教最近5分钟内的打卡记录并写入数据库
+ * @param {string} dingtalkUserId 钉钉用户ID
+ * @param {string} coachNo 助教工号
+ * @param {object} db 数据库连接
+ * @returns {Promise<string|null>} 提示信息（如果未查到）
+ */
+async function queryRecentAttendance(dingtalkUserId, coachNo, db) {
+  const { get, all, enqueueRun } = db;
+  
+  if (!dingtalkUserId) return null;
+  
+  try {
+    // 查询今天和昨天的考勤数据
+    const todayStr = TimeUtil.todayStr();
+    const yesterdayStr = TimeUtil.offsetDateStr(-1);
+    
+    const records = await getAttendanceList(dingtalkUserId, yesterdayStr, todayStr);
+    
+    if (!records || records.length === 0) {
+      dingtalkLog.write(`${coachNo} 钉钉考勤API无记录`);
+      return '尚未获取到钉钉打卡时间，请尽快打卡';
+    }
+    
+    // 筛选5分钟内的打卡记录
+    const now = Date.now();
+    const fiveMinutesAgo = now - 5 * 60 * 1000;
+    
+    const recentRecords = records.filter(r => {
+      const checkTime = r.userCheckTime || r.checkTime;
+      return checkTime && checkTime >= fiveMinutesAgo;
+    });
+    
+    if (recentRecords.length === 0) {
+      dingtalkLog.write(`${coachNo} 5分钟内无钉钉打卡记录`);
+      return '尚未获取到钉钉打卡时间，请尽快打卡';
+    }
+    
+    dingtalkLog.write(`${coachNo} 查到 ${recentRecords.length} 条5分钟内钉钉打卡记录`);
+    
+    // 处理每条最近的打卡记录
+    for (const record of recentRecords) {
+      const checkTime = record.userCheckTime || record.checkTime;
+      const checkType = record.checkType; // OnDuty=上班, OffDuty=下班
+      const checkTimeStr = TimeUtil.formatTimestamp(checkTime);
+      
+      if (checkType === 'OnDuty') {
+        // 上班打卡 → 写入 dingtalk_in_time
+        const attendance = await get(
+          'SELECT id FROM attendance_records WHERE coach_no = ? AND date = ?',
+          [coachNo, todayStr]
+        );
+        
+        if (!attendance) {
+          await enqueueRun(
+            `INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, dingtalk_in_time, created_at, updated_at)
+             VALUES (?, ?, '', '', ?, ?, ?)`,
+            [todayStr, coachNo, checkTimeStr, TimeUtil.nowDB(), TimeUtil.nowDB()]
+          );
+          dingtalkLog.write(`${coachNo} 创建打卡记录 dingtalk_in_time = ${checkTimeStr}`);
+        } else {
+          await enqueueRun(
+            `UPDATE attendance_records SET dingtalk_in_time = ?, updated_at = ? WHERE id = ?`,
+            [checkTimeStr, TimeUtil.nowDB(), attendance.id]
+          );
+          dingtalkLog.write(`${coachNo} 更新 dingtalk_in_time = ${checkTimeStr}`);
+        }
+      } else if (checkType === 'OffDuty') {
+        // 下班打卡 → 写入 dingtalk_out_time
+        const attendance = await get(
+          `SELECT id FROM attendance_records
+           WHERE coach_no = ? AND date IN (?, ?) AND clock_out_time IS NOT NULL
+           ORDER BY clock_in_time DESC LIMIT 1`,
+          [coachNo, todayStr, yesterdayStr]
+        );
+        
+        if (attendance) {
+          await enqueueRun(
+            `UPDATE attendance_records SET dingtalk_out_time = ?, updated_at = ? WHERE id = ?`,
+            [checkTimeStr, TimeUtil.nowDB(), attendance.id]
+          );
+          dingtalkLog.write(`${coachNo} 更新 dingtalk_out_time = ${checkTimeStr}`);
+        }
+      }
+    }
+    
+    return null; // 成功查到，无提示
+    
+  } catch (err) {
+    dingtalkLog.write(`${coachNo} 查询钉钉考勤异常: ${err.message}`);
+    return null; // 异常不提示用户，不影响业务
+  }
+}
+
+/**
+ * 查询乐捐归来打卡时间
+ * @param {string} dingtalkUserId 钉钉用户ID
+ * @param {string} coachNo 助教工号
+ * @param {number} lejuanId 乐捐记录ID
+ * @param {object} db 数据库连接
+ * @returns {Promise<string|null>}
+ */
+async function queryLejuanReturnAttendance(dingtalkUserId, coachNo, lejuanId, db) {
+  const { get, all, enqueueRun } = db;
+  
+  if (!dingtalkUserId) return null;
+  
+  try {
+    const todayStr = TimeUtil.todayStr();
+    const yesterdayStr = TimeUtil.offsetDateStr(-1);
+    
+    const records = await getAttendanceList(dingtalkUserId, yesterdayStr, todayStr);
+    
+    if (!records || records.length === 0) {
+      return '尚未获取到钉钉打卡时间，请尽快打卡';
+    }
+    
+    // 筛选5分钟内的打卡记录
+    const now = Date.now();
+    const fiveMinutesAgo = now - 5 * 60 * 1000;
+    
+    const recentRecords = records.filter(r => {
+      const checkTime = r.userCheckTime || r.checkTime;
+      return checkTime && checkTime >= fiveMinutesAgo;
+    });
+    
+    if (recentRecords.length === 0) {
+      return '尚未获取到钉钉打卡时间，请尽快打卡';
+    }
+    
+    // 取第一条打卡时间写入乐捐归来时间
+    const record = recentRecords[0];
+    const checkTime = record.userCheckTime || record.checkTime;
+    const checkTimeStr = TimeUtil.formatTimestamp(checkTime);
+    
+    await enqueueRun(
+      `UPDATE lejuan_records SET dingtalk_return_time = ?, updated_at = ? WHERE id = ?`,
+      [checkTimeStr, TimeUtil.nowDB(), lejuanId]
+    );
+    
+    dingtalkLog.write(`${coachNo} 乐捐归来 dingtalk_return_time = ${checkTimeStr}`);
+    
+    return null;
+  } catch (err) {
+    dingtalkLog.write(`${coachNo} 查询乐捐归来打卡异常: ${err.message}`);
+    return null;
+  }
 }
 
 /**
@@ -500,6 +661,8 @@ module.exports = {
   getAccessToken,
   getUserIdByMobile,
   getAttendanceList,
+  queryRecentAttendance,
+  queryLejuanReturnAttendance,
   verifySignature,
   decryptMessage,
   encryptMessage,
