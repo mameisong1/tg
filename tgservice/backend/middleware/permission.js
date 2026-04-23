@@ -15,9 +15,6 @@ const logger = {
 // ✅ 鉴权开关从 global 获取(server.js 统一管理,热更新自动同步)
 // 不再维护独立的 authEnabledCache 变量
 
-// 立即加载(同步方式,用 then)
-loadAuthConfig().then(() => {}).catch(() => {});
-
 // 角色权限矩阵
 const PERMISSION_MATRIX = {
   // 后台权限

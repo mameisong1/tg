@@ -5,6 +5,12 @@
 
 const db = require('../db');
 
+// ✅ 添加日志支持
+const logger = {
+  warn: (msg) => console.log('[WARN] ' + new Date().toISOString() + ' ' + msg),
+  error: (msg) => console.error('[ERROR] ' + new Date().toISOString() + ' ' + msg)
+};
+
 /**
  * 验证用户是否已登录
  * 从请求头获取 Authorization，验证用户是否存在
@@ -22,6 +28,7 @@ async function required(req, res, next) {
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      logger.warn(`认证失败: 未提供token - ${req.method} ${req.url} - IP: ${req.ip}`);
       return res.status(401).json({
         success: false,
         error: '未授权访问'
@@ -46,6 +53,7 @@ async function required(req, res, next) {
       decoded = jwt.verify(token, config.jwt.secret);
       isJwtToken = true;
     } catch (jwtError) {
+      logger.warn(`认证失败: JWT验证失败 - ${req.method} ${req.url} - IP: ${req.ip} - 错误: ${jwtError.message}`);
       // JWT 验证失败，可能是助教的 Base64 token
     }
     
@@ -59,6 +67,7 @@ async function required(req, res, next) {
       );
       
       if (!user) {
+        logger.warn(`认证失败: 用户不存在 - ${username} - ${req.method} ${req.url} - IP: ${req.ip}`);
         return res.status(401).json({
           success: false,
           error: '用户不存在'
@@ -81,6 +90,7 @@ async function required(req, res, next) {
       const [coachNo, timestamp] = decodedStr.split(':');
       
       if (!coachNo) {
+        logger.warn(`认证失败: token格式无效 - ${req.method} ${req.url} - IP: ${req.ip}`);
         return res.status(401).json({
           success: false,
           error: '无效的令牌'
@@ -93,6 +103,7 @@ async function required(req, res, next) {
       );
       
       if (!coach) {
+        logger.warn(`认证失败: 助教不存在 - ${coachNo} - ${req.method} ${req.url} - IP: ${req.ip}`);
         return res.status(401).json({
           success: false,
           error: '助教不存在'
@@ -100,6 +111,7 @@ async function required(req, res, next) {
       }
       
       if (coach.status === '离职') {
+        logger.warn(`认证失败: 账号已离职 - ${coachNo} ${coach.stage_name} - ${req.method} ${req.url} - IP: ${req.ip}`);
         return res.status(403).json({
           success: false,
           error: '该账号已离职'
@@ -124,7 +136,7 @@ async function required(req, res, next) {
       });
     }
   } catch (error) {
-    console.error('认证中间件错误:', error);
+    logger.error(`认证中间件异常 - ${req.method} ${req.url} - IP: ${req.ip} - 错误: ${error.message}`);
     res.status(500).json({
       success: false,
       error: '认证失败'

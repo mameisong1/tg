@@ -587,9 +587,9 @@ async function handleSingleAttendanceRecord(record, db) {
     [todayStr, coach.coach_no]
   );
   
-  // 查询活跃的乐捐记录（获取乐捐归来时间）
+  // 查询活跃的乐捐记录（获取乐捐归来时间和实际开始时间）
   const lejuan = await get(
-    `SELECT id, return_time FROM lejuan_records WHERE coach_no = ? AND lejuan_status = 'active'`,
+    `SELECT id, return_time, actual_start_time FROM lejuan_records WHERE coach_no = ? AND lejuan_status = 'active'`,
     [coach.coach_no]
   );
   
@@ -629,8 +629,17 @@ async function handleSingleAttendanceRecord(record, db) {
       reason = `水牌空闲 + 无接近的系统时间`;
     }
   } else if (currentStatus === '乐捐') {
-    // 水牌乐捐状态：钉钉打卡只能是乐捐归来打卡
-    // （乐捐状态下还没有 return_time，无需判断时间接近）
+    // 检查钉钉打卡是否在乐捐开始后15分钟内（可能是外出打卡）
+    if (lejuan && lejuan.actual_start_time) {
+      const startTime = new Date(lejuan.actual_start_time + '+08:00');
+      const checkTime = new Date(checkTimeStr + '+08:00');
+      const diffMinutes = (checkTime - startTime) / (1000 * 60);
+      
+      if (diffMinutes <= 15) {
+        dingtalkLog.write(`${coach.stage_name} 钉钉打卡在乐捐开始后15分钟内，跳过`);
+        return;
+      }
+    }
     punchType = 'return';
     reason = `水牌乐捐状态`;
   } else if (currentStatus === '服务中') {
