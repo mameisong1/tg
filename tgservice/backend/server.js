@@ -1962,7 +1962,7 @@ app.post('/api/admin/login', async (req, res) => {
       return res.status(403).json({ error: '服务员不允许登录后台管理系统,请使用前台系统' });
     }
 
-    const token = jwt.sign({ username: user.username, role: role }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
+    const token = jwt.sign({ username: user.username, name: user.name || '', role: role }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
 
     // 获取用户权限
     const { getUserPermissions } = require('./middleware/permission');
@@ -2019,7 +2019,7 @@ app.post('/api/admin/login/sms', async (req, res) => {
     }
 
     // 生成 token
-    const token = jwt.sign({ username: user.username, role: role }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
+    const token = jwt.sign({ username: user.username, name: user.name || '', role: role }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
 
     // 删除验证码缓存（一次性使用）
     smsCodeCache.delete(phone);

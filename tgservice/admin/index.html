@@ -262,7 +262,8 @@
     
     const payload = parseJwtPayload(token);
     if (payload) {
-      document.getElementById('userName').textContent = payload.username || '-';
+      // 优先显示姓名，没有姓名才显示用户名
+      document.getElementById('userName').textContent = payload.name || payload.username || '-';
       document.getElementById('userRole').textContent = payload.role || '-';
     }
     
