@@ -360,7 +360,7 @@ router.get('/approved-recent', requireBackendPermission(['coachManagement']), as
  * GET /api/applications
  * 获取申请列表(支持 since 参数和 status 多值)
  */
-router.get('/', requireBackendPermission(['all']), async (req, res) => {
+router.get('/', requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
     const {
       application_type,
