@@ -5730,7 +5730,7 @@ app.post('/api/reward-penalty/detail/:id', authMiddleware, requireBackendPermiss
   }
 });
 
-// DELETE /api/reward-penalty/detail/:id — 删除奖罚明细（仅管理员）
+// DELETE /api/reward-penalty/detail/:id — 删除奖罚明细
 app.delete('/api/reward-penalty/detail/:id', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
     const id = parseInt(req.params.id);
@@ -5738,12 +5738,8 @@ app.delete('/api/reward-penalty/detail/:id', authMiddleware, requireBackendPermi
       return res.status(400).json({ error: 'id必须是数字' });
     }
 
-    // 检查是否是管理员（只有管理员可以删除）
-    const userRole = req.user?.role || '';
-    const isAdmin = ['管理员', '超级管理员'].includes(userRole);
-    if (!isAdmin) {
-      return res.status(403).json({ error: '只有管理员才能删除奖罚记录' });
-    }
+    // 权限已由 requireBackendPermission(['coachManagement']) 控制
+    // 店长、助教管理、管理员都可删除
 
     // 检查记录是否存在
     const record = await dbGet('SELECT id, exec_status, type, confirm_date, phone, name, amount FROM reward_penalties WHERE id = ?', [id]);
