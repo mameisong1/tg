@@ -257,6 +257,27 @@ async function httpRequest(url, method, body = null) {
 }
 
 /**
+ * 检查两个时间是否接近（相差5分钟以内）
+ * @param {string} time1 "YYYY-MM-DD HH:MM:SS"
+ * @param {string} time2 "YYYY-MM-DD HH:MM:SS"
+ * @param {number} thresholdMinutes 阈值分钟数，默认5
+ * @returns {boolean}
+ */
+function isTimeClose(time1, time2, thresholdMinutes = 5) {
+  if (!time1 || !time2) return false;
+  
+  try {
+    const d1 = new Date(time1 + '+08:00');
+    const d2 = new Date(time2 + '+08:00');
+    const diffMs = Math.abs(d1 - d2);
+    const diffMinutes = diffMs / (60 * 1000);
+    return diffMinutes <= thresholdMinutes;
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
  * 处理打卡事件
  * @param {object} event 打卡事件数据
  * @param {object} db 数据库连接
@@ -299,6 +320,8 @@ async function handleAttendanceEvent(event, db) {
     checkTimeStr = checkTime;
   }
   
+  dingtalkLog.write(`钉钉打卡时间: ${checkTimeStr}`);
+  
   // 查询水牌状态
   const waterBoard = await get(
     'SELECT status FROM water_boards WHERE coach_no = ?',
@@ -306,19 +329,82 @@ async function handleAttendanceEvent(event, db) {
   );
   
   const currentStatus = waterBoard?.status || '下班';
+  dingtalkLog.write(`当前水牌状态: ${currentStatus}`);
   
-  dingtalkLog.write(`助教 ${coach.stage_name} 当前水牌状态: ${currentStatus}`);
+  // 查询今日打卡记录（获取系统已有的打卡时间）
+  const attendance = await get(
+    'SELECT id, clock_in_time, clock_out_time FROM attendance_records WHERE date = ? AND coach_no = ?',
+    [todayStr, coach.coach_no]
+  );
   
-  // 根据状态选择写入字段
+  // 查询活跃的乐捐记录（获取乐捐归来时间）
+  const lejuan = await get(
+    `SELECT id, return_time FROM lejuan_records WHERE coach_no = ? AND lejuan_status = 'active'`,
+    [coach.coach_no]
+  );
+  
+  // ========== 打卡类型判断逻辑（场景一 + 场景二）==========
+  
+  let punchType = null; // 'in', 'out', 'return'
+  let reason = ''; // 判断原因，用于日志
+  
   if (currentStatus === '下班') {
-    // 上班打卡 → 写入 dingtalk_in_time
-    dingtalkLog.write(`${coach.stage_name} 上班打卡: ${checkTimeStr}`);
+    // 水牌下班状态
+    // 场景一：先系统下班打卡，后钉钉打卡 → 检查 clock_out_time 是否接近
+    if (attendance && attendance.clock_out_time && isTimeClose(checkTimeStr, attendance.clock_out_time)) {
+      punchType = 'out';
+      reason = `水牌下班 + 系统下班时间(${attendance.clock_out_time})接近`;
+    } else {
+      // 场景二：先钉钉打卡，后系统打卡 → 钉钉打卡是上班打卡
+      punchType = 'in';
+      reason = `水牌下班 + 无接近的系统时间`; 
+    }
+  } else if (currentStatus === '空闲' || currentStatus.includes('空闲')) {
+    // 水牌空闲状态
+    // 场景一：先系统打卡，后钉钉打卡 → 需要对比时间
     
-    // 查找或创建今日打卡记录
-    let attendance = await get(
-      'SELECT id FROM attendance_records WHERE date = ? AND coach_no = ?',
-      [todayStr, coach.coach_no]
-    );
+    // 1. 检查是否是上班打卡（系统上班时间接近）
+    if (attendance && attendance.clock_in_time && isTimeClose(checkTimeStr, attendance.clock_in_time)) {
+      punchType = 'in';
+      reason = `水牌空闲 + 系统上班时间(${attendance.clock_in_time})接近`;
+    }
+    // 2. 检查是否是乐捐归来打卡（乐捐归来时间接近）
+    else if (lejuan && lejuan.return_time && isTimeClose(checkTimeStr, lejuan.return_time)) {
+      punchType = 'return';
+      reason = `水牌空闲 + 乐捐归来时间(${lejuan.return_time})接近`;
+    }
+    // 3. 否则是下班打卡（场景二：先钉钉打卡，后系统打卡）
+    else {
+      punchType = 'out';
+      reason = `水牌空闲 + 无接近的系统时间`;
+    }
+  } else if (currentStatus === '乐捐') {
+    // 水牌乐捐状态
+    // 场景一：先系统乐捐归来打卡，后钉钉打卡 → 检查 return_time 是否接近
+    if (lejuan && lejuan.return_time && isTimeClose(checkTimeStr, lejuan.return_time)) {
+      punchType = 'return';
+      reason = `水牌乐捐 + 系统归来时间(${lejuan.return_time})接近`;
+    } else {
+      // 场景二：先钉钉打卡，后系统打卡 → 钉钉打卡是乐捐归来打卡
+      punchType = 'return';
+      reason = `水牌乐捐 + 无接近的系统时间`;
+    }
+  } else if (currentStatus === '服务中') {
+    // 服务中状态不处理
+    dingtalkLog.write(`${coach.stage_name} 当前服务中，忽略打卡`);
+    return;
+  } else {
+    dingtalkLog.write(`${coach.stage_name} 未知状态: ${currentStatus}，忽略打卡`);
+    return;
+  }
+  
+  dingtalkLog.write(`${coach.stage_name} 打卡类型: ${punchType}, 原因: ${reason}`);
+  
+  // ========== 写入钉钉打卡时间 ==========
+  
+  if (punchType === 'in') {
+    // 上班打卡 → 写入 dingtalk_in_time
+    dingtalkLog.write(`${coach.stage_name} 钉钉上班打卡: ${checkTimeStr}`);
     
     if (!attendance) {
       // 创建新记录
@@ -336,16 +422,9 @@ async function handleAttendanceEvent(event, db) {
       );
       dingtalkLog.write(`更新打卡记录: ${coach.stage_name} dingtalk_in_time = ${checkTimeStr}`);
     }
-    
-  } else if (currentStatus === '空闲' || currentStatus.includes('空闲')) {
+  } else if (punchType === 'out') {
     // 下班打卡 → 写入 dingtalk_out_time
-    dingtalkLog.write(`${coach.stage_name} 下班打卡: ${checkTimeStr}`);
-    
-    // 查找今日打卡记录
-    let attendance = await get(
-      'SELECT id FROM attendance_records WHERE date = ? AND coach_no = ?',
-      [todayStr, coach.coach_no]
-    );
+    dingtalkLog.write(`${coach.stage_name} 钉钉下班打卡: ${checkTimeStr}`);
     
     if (attendance) {
       await enqueueRun(
@@ -356,16 +435,9 @@ async function handleAttendanceEvent(event, db) {
     } else {
       dingtalkLog.write(`警告: ${coach.stage_name} 下班打卡但无今日打卡记录`);
     }
-    
-  } else if (currentStatus === '乐捐') {
+  } else if (punchType === 'return') {
     // 乐捐归来打卡 → 写入 dingtalk_return_time
-    dingtalkLog.write(`${coach.stage_name} 乐捐归来打卡: ${checkTimeStr}`);
-    
-    // 查找当前 active 的乐捐记录
-    const lejuan = await get(
-      `SELECT id FROM lejuan_records WHERE coach_no = ? AND lejuan_status = 'active'`,
-      [coach.coach_no]
-    );
+    dingtalkLog.write(`${coach.stage_name} 钉钉乐捐归来打卡: ${checkTimeStr}`);
     
     if (lejuan) {
       await enqueueRun(
@@ -376,12 +448,6 @@ async function handleAttendanceEvent(event, db) {
     } else {
       dingtalkLog.write(`警告: ${coach.stage_name} 乐捐打卡但无 active 乐捐记录`);
     }
-    
-  } else if (currentStatus === '服务中') {
-    // 服务中不处理
-    dingtalkLog.write(`${coach.stage_name} 当前服务中，忽略打卡`);
-  } else {
-    dingtalkLog.write(`${coach.stage_name} 未知状态: ${currentStatus}，忽略打卡`);
   }
 }
 
