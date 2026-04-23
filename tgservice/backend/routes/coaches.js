@@ -297,12 +297,8 @@ router.post('/:coach_no/clock-out', auth.required, requireBackendPermission(['co
 
     const oldStatus = waterBoard.status;
 
-    const canClockOut = [
-      '早班空闲', '晚班空闲',
-      '早班上桌', '晚班上桌',
-      '早加班', '晚加班',
-      '乐捐'
-    ].includes(waterBoard.status);
+    // 只允许从空闲状态下班，其他状态需先回到空闲
+    const canClockOut = ['早班空闲', '晚班空闲'].includes(waterBoard.status);
 
     if (!canClockOut) {
       throw { status: 400, error: `当前状态(${waterBoard.status})不允许下班` };
