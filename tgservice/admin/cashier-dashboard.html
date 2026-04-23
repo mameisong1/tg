@@ -373,6 +373,10 @@
           response: (details.response || '').substring(0, 200),
           userAgent: navigator.userAgent.substring(0, 100),
           userToken: token ? 'present' : 'missing',
+          user: {
+            type: 'admin',
+            username: userInfo.username || 'unknown'
+          },
           userRole: userInfo.role || 'unknown',
           username: userInfo.username || 'unknown',
           state: {
