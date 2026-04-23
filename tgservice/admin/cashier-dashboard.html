@@ -321,6 +321,13 @@
     
     // 通用确认弹窗相关
     let confirmCallback = null;
+    
+    // 前端错误去重缓存
+    const lastErrors = new Map();
+    const DEBOUNCE_TIME = 60000; // 60秒去重
+    
+    // 解析 token 获取用户信息
+    let userInfo = { username: 'unknown', role: 'unknown' };
 
     async function api(url, options = {}) {
       try {
@@ -329,7 +336,7 @@
         if (res.status === 401) { localStorage.removeItem('adminToken'); window.location.href = 'login.html'; }
         if (!res.ok) {
           const errText = await res.text();
-          reportFrontendError('API Error', { url, status: res.status, response: errText });
+          reportFrontendError('API Error', { apiUrl: url, method: options.method || 'GET', status: res.status, response: errText });
           try {
             return JSON.parse(errText);
           } catch {
@@ -338,21 +345,36 @@
         }
         return res.json();
       } catch (e) {
-        reportFrontendError('API Fetch Error', { url, error: e.message, stack: e.stack });
+        reportFrontendError('API Fetch Error', { apiUrl: url, method: options.method || 'GET', error: e.message, stack: e.stack });
         throw e;
       }
     }
 
-    // ===== 前端错误上报系统 =====
+    // ===== 前端错误上报系统（改进版） =====
     async function reportFrontendError(action, details = {}) {
       try {
+        // 去重检查
+        const errorKey = `${action}:${details.apiUrl || ''}:${details.status || 0}`;
+        const lastTime = lastErrors.get(errorKey);
+        if (lastTime && (Date.now() - lastTime) < DEBOUNCE_TIME) {
+          console.log('[ErrorReporter] 60秒内重复错误，跳过:', errorKey);
+          return;
+        }
+        lastErrors.set(errorKey, Date.now());
+        
         const errorData = {
+          type: 'admin_frontend_error',
           action,
-          ...details,
           timestamp: TimeUtil.nowDB(),
           url: window.location.href,
-          userAgent: navigator.userAgent,
+          apiUrl: details.apiUrl || '',
+          apiMethod: details.apiMethod || details.method || '',
+          status: details.status || 0,
+          response: (details.response || '').substring(0, 200),
+          userAgent: navigator.userAgent.substring(0, 100),
           userToken: token ? 'present' : 'missing',
+          userRole: userInfo.role || 'unknown',
+          username: userInfo.username || 'unknown',
           state: {
             filters,
             soundEnabled,
@@ -373,6 +395,18 @@
       } catch (e) {
         console.error('❌ 无法上报错误:', e.message);
       }
+    }
+    
+    // 解析 JWT token 获取用户信息
+    function parseUserInfo() {
+      try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));        const payload = JSON.parse(jsonPayload);
+        userInfo.username = payload.username || 'unknown';
+        userInfo.role = payload.role || 'unknown';
+      } catch (e) {
+        userInfo = { username: 'unknown', role: 'unknown' };      }
     }
 
     // 全局错误捕获
@@ -1048,6 +1082,7 @@
 
     
     // ===== 初始化 =====
+    parseUserInfo();
     fullRefresh();
     // 显示开启声音覆盖层
     setTimeout(showSoundOverlay, 500);

@@ -1562,12 +1562,18 @@ app.post('/api/member/login-sms', async (req, res) => {
     let member = await dbGet('SELECT * FROM members WHERE phone = ?', [phone]);
 
     if (!member) {
-      // 新用户注册
-      const result = await enqueueRun(
-        'INSERT INTO members (phone, created_at, updated_at) VALUES (?, ?, ?)',
-        [phone, TimeUtil.nowDB(), TimeUtil.nowDB()]
-      );
-      member = await dbGet('SELECT * FROM members WHERE member_no = ?', [result.lastID]);
+      // 新用户注册（使用事务保证原子性，避免 INSERT/SELECT 竞态）
+      member = await runInTransaction(async (tx) => {
+        const result = await tx.run(
+          'INSERT INTO members (phone, created_at, updated_at) VALUES (?, ?, ?)',
+          [phone, TimeUtil.nowDB(), TimeUtil.nowDB()]
+        );
+        const newMember = await tx.get(
+          'SELECT * FROM members WHERE member_no = ?',
+          [result.lastID]
+        );
+        return newMember;
+      });
       operationLog.info(`新会员注册(H5): ${phone}`);
     }
 
