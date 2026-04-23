@@ -73,6 +73,22 @@ function toDate(dbTime) {
 }
 
 /**
+ * 将毫秒时间戳转为北京时间字符串
+ * @param {number} timestamp - 毫秒时间戳
+ * 返回: "2026-04-14 07:23:00"
+ */
+function formatTimestamp(timestamp) {
+  const d = new Date(timestamp);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const h = String(d.getHours()).padStart(2, '0');
+  const min = String(d.getMinutes()).padStart(2, '0');
+  const s = String(d.getSeconds()).padStart(2, '0');
+  return `${y}-${m}-${day} ${h}:${min}:${s}`;
+}
+
+/**
  * 格式化时间字符串，用于 API 返回或日志
  * @param {string} dbTime - "2026-04-14 07:23:00"
  * @param {object} options - toLocaleString 选项
@@ -142,6 +158,7 @@ module.exports = {
   todayStr,
   offsetDateStr,
   toDate,
+  formatTimestamp,
   format,
   formatDate,
   formatTime,

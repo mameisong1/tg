@@ -66,6 +66,9 @@ const { router: switchRouter, triggerAutoOffIfEligible } = require('./routes/swi
 // 系统报告路由
 const systemReportRouter = require('./routes/system-report');
 
+// 钉钉回调路由
+const dingtalkCallbackRouter = require('./routes/dingtalk-callback');
+
 // 设备指纹访问记录(内存存储,每日过期)
 // 结构: Map<fingerprint_coachNo, timestamp>
 const popularityCache = new Map();
@@ -394,6 +397,9 @@ app.use('/api/missing-table-out-orders', missingTableOutOrdersRouter);
 
 // 系统报告
 app.use('/api/system-report', systemReportRouter);
+
+// 钉钉回调（不需要鉴权，钉钉签名验证）
+app.use('/api/dingtalk/callback', dingtalkCallbackRouter);
 
 // 智能开关路由（在 authMiddleware 之后注册）
 
@@ -6264,6 +6270,12 @@ app.listen(PORT, async () => {
   const guestRankingService = require('./services/guest-ranking-service');
   guestRankingService.loadTodayData().catch(err => {
     console.error('[GuestRanking] 启动时加载数据失败:', err.message);
+  });
+  
+  // 同步助教钉钉用户ID
+  const syncDingtalkUserid = require('./services/sync-dingtalk-userid');
+  syncDingtalkUserid.syncDingtalkUserIds().catch(err => {
+    console.error('[Dingtalk] 启动时同步用户ID失败:', err.message);
   });
   
   // 初始化 Cron 批处理调度器
