@@ -12,7 +12,7 @@ class ErrorReporter {
   constructor() {
     this.lastErrors = new Map()     // 去重缓存：{ errorKey: timestamp }
     this.debounceTime = 60000       // 去重时间窗口：60秒
-    this.apiEndpoint = '/api/admin/frontend-error-log'
+    this.apiEndpoint = '/admin/frontend-error-log'
     this.isInitialized = false
   }
 

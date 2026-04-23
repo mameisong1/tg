@@ -3808,10 +3808,15 @@ initRewardPenaltyTable();
 
 const initAdminUserEmploymentStatus = async () => {
   try {
-    await enqueueRun(`ALTER TABLE admin_users ADD COLUMN employment_status TEXT DEFAULT '在职'`);
-    console.log('✅ admin_users.employment_status 字段添加完成');
+    // 先检查字段是否存在
+    const tableInfo = await dbAll("PRAGMA table_info(admin_users)");
+    const hasColumn = tableInfo.some(col => col.name === 'employment_status');
+    if (!hasColumn) {
+      await enqueueRun(`ALTER TABLE admin_users ADD COLUMN employment_status TEXT DEFAULT '在职'`);
+      console.log('✅ admin_users.employment_status 字段添加完成');
+    }
   } catch (err) {
-    // 字段已存在,忽略
+    // 字段已存在或添加失败，静默忽略
   }
 };
 initAdminUserEmploymentStatus();

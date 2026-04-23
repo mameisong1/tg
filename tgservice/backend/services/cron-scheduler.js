@@ -54,8 +54,13 @@ async function ensureTables() {
 
     // 为 lejuan_records 添加 extra_data 字段（用于标记同步状态）
     try {
-        await enqueueRun(`ALTER TABLE lejuan_records ADD COLUMN extra_data TEXT`);
-        console.log('[CronScheduler] lejuan_records.extra_data 列已添加');
+        // 先检查字段是否存在
+        const tableInfo = await dbAll('PRAGMA table_info(lejuan_records)');
+        const hasColumn = tableInfo.some(col => col.name === 'extra_data');
+        if (!hasColumn) {
+            await enqueueRun(`ALTER TABLE lejuan_records ADD COLUMN extra_data TEXT`);
+            console.log('[CronScheduler] lejuan_records.extra_data 列已添加');
+        }
     } catch (err) {
         if (!err.message.includes('duplicate column') && !err.message.includes('already exists')) {
             console.error('[CronScheduler] 添加 lejuan_records.extra_data 失败:', err.message);
