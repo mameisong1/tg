@@ -300,6 +300,7 @@ router.post('/:coach_no/clock-out', auth.required, requireBackendPermission(['co
     const canClockOut = [
       '早班空闲', '晚班空闲',
       '早班上桌', '晚班上桌',
+      '早加班', '晚加班',
       '乐捐'
     ].includes(waterBoard.status);
 

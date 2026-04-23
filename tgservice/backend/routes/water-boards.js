@@ -159,6 +159,23 @@ router.put('/:coach_no/status', auth.required, requireBackendPermission(['waterB
     }
     if (status === '下班') {
       updateFields.push('clock_in_time = NULL');
+      // 同步更新打卡表下班时间（凌晨下班时上班记录可能在昨天）
+      const todayStr = TimeUtil.todayStr();
+      const yesterdayStr = TimeUtil.offsetDateStr(-1);
+      const attendanceRecord = await tx.get(
+        `SELECT id FROM attendance_records
+         WHERE coach_no = ? AND date IN (?, ?) AND clock_out_time IS NULL
+         ORDER BY clock_in_time DESC LIMIT 1`,
+        [coach_no, todayStr, yesterdayStr]
+      );
+      if (attendanceRecord) {
+        const nowDB = TimeUtil.nowDB();
+        await tx.run(
+          `UPDATE attendance_records SET clock_out_time = ?, updated_at = ? WHERE id = ?`,
+          [nowDB, nowDB, attendanceRecord.id]
+        );
+        console.log(`[水牌状态变更] 同步更新打卡表下班时间 ${coach_no}`);
+      }
     }
     // 状态变为非工作状态且未显式设置台桌号时，清除台桌号
     if (status && offStatuses.includes(status) && table_no === undefined) {

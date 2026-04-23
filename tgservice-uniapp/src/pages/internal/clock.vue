@@ -124,7 +124,8 @@ const canClockIn = computed(() => {
 const canClockOut = computed(() => {
   if (!waterBoard.value) return false
   const status = waterBoard.value.status
-  return ['早班空闲', '晚班空闲', '早班上桌', '晚班上桌', '早加班', '晚加班'].includes(status)
+  // 与后端 coaches.js clock-out 接口保持一致
+  return ['早班空闲', '晚班空闲', '早班上桌', '晚班上桌', '乐捐'].includes(status)
 })
 
 const statusClass = (status) => {
