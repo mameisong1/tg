@@ -747,6 +747,8 @@
       "nickname": "会员昵称"
     },
     "isNew": false,
+    "roles": ["member", "coach", "admin"],
+    "needSelectRole": true,
     "adminInfo": { "username": "13800138000", "role": "admin" },
     "adminToken": "jwt-token",
     "coachInfo": {
@@ -764,7 +766,9 @@
 - **说明**: 使用手机号和验证码登录，新用户自动注册。
   如果手机号匹配后台用户表（admin_users.username），返回 adminInfo 和 adminToken。
   如果手机号匹配助教表（coaches.phone），返回 coachInfo 和 coachToken。
-  前端通过 adminToken 或 coachToken 判断是否为登录员工。
+  **roles** 数组表示用户拥有的身份列表：['member'] 表示纯会员，['member', 'coach'] 表示会员+助教等。
+  **needSelectRole** 表示是否需要弹出身份选择框：true 表示用户有多重身份需要选择。
+  前端通过 needSelectRole 判断是否需要弹出身份选择弹框。
 
 ### 微信登录（获取手机号）
 
@@ -793,7 +797,8 @@
 - **参数**: 
   ```json
   {
-    "code": "微信登录code"
+    "code": "微信登录code",
+    "preferredRole": "coach"  // 可选：用户偏好身份，值为 member/coach/admin
   }
   ```
 - **返回**: 
@@ -801,10 +806,21 @@
   {
     "success": true,
     "token": "jwt-token",
-    "member": { ... }
+    "member": { ... },
+    "roles": ["member", "coach", "admin"],
+    "needSelectRole": true,
+    "selectedRole": "coach",  // 如果传入 preferredRole 参数
+    "adminInfo": null,  // preferredRole='coach'时不返回
+    "adminToken": null,
+    "coachInfo": { "coachNo": 10073, "employeeId": "26", "stageName": "安娜" },
+    "coachToken": "base64-token"
   }
   ```
-- **说明**: 已绑定手机号的用户可通过openid自动登录
+- **说明**: 已绑定手机号的用户可通过openid自动登录。
+  **preferredRole** 参数用于指定用户偏好身份，只返回对应身份的token。
+  如果传入 invalid_role，返回 400 错误。
+  **roles** 数组表示用户拥有的所有身份。
+  **needSelectRole** 表示是否需要弹出身份选择框。
 
 ### 获取会员信息
 
