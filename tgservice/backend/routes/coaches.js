@@ -253,10 +253,10 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
           }
         };
         const triggerReq = http.request(options, (resp) => {
-          console.log(`[GuestRanking] 打卡后排序触发成功: coach_no=${coach_no}, shift=${result.shift}`);
+          console.log(`[GuestRanking] 打卡后排序触发成功: coach_no=${result.coach_no}, shift=${result.shift}`);
         });
         triggerReq.on('error', (err) => {
-          console.error(`[GuestRanking] 打卡后排序触发失败: coach_no=${coach_no}, error=${err.message}`);
+          console.error(`[GuestRanking] 打卡后排序触发失败: coach_no=${result.coach_no}, error=${err.message}`);
         });
         triggerReq.write(postData);
         triggerReq.end();

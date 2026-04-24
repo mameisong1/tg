@@ -182,8 +182,7 @@ async function initDefaultTasks() {
              VALUES (?, ?, ?, ?, ?)
              ON CONFLICT(task_name) DO UPDATE SET
                  description = excluded.description,
-                 cron_expression = excluded.cron_expression,
-                 next_run = excluded.next_run`,
+                 cron_expression = excluded.cron_expression`,
             [task.task_name, task.task_type, task.description, task.cron_expression, task.next_run]
         );
     }
