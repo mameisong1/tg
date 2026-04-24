@@ -502,13 +502,16 @@ async function taskSyncRewardPenalty() {
             // 查找昨天和前天的漏卡记录
             // 漏卡定义：上班打卡后，次日12点前无下班打卡
             // 确定日期 = 上班卡日期（attendance_records.date）
+            // 新增：只对水牌状态为「空闲」或「上桌」的助教计算漏卡罚金
             const missingClockRecords = await tx.all(`
-                SELECT ar.*, c.phone, c.stage_name, c.employee_id
+                SELECT ar.*, c.phone, c.stage_name, c.employee_id, wb.status as water_status
                 FROM attendance_records ar
-                LEFT JOIN coaches c ON ar.coach_no = c.coach_no
+                INNER JOIN coaches c ON ar.coach_no = c.coach_no
+                INNER JOIN water_boards wb ON ar.coach_no = wb.coach_no
                 WHERE ar.date IN (?, ?)
                     AND ar.clock_in_time IS NOT NULL
                     AND c.phone IS NOT NULL
+                    AND wb.status IN ('早班空闲', '晚班空闲', '早班上桌', '晚班上桌')
                     AND (
                         ar.clock_out_time IS NULL
                         OR (
