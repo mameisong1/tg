@@ -1157,16 +1157,16 @@ const saveLoginData = (data) => {
 
 // 🔴 新增：处理多重身份选择
 const handleRoleSelection = (roles, loginData) => {
-  // 🟡 审计修复：使用 extraRoles.length <= 1 判断
+  // 🟡 审计修复：使用 extraRoles.length 判断
   const extraRoles = roles.filter(r => r !== 'member')
   
-  if (extraRoles.length <= 1) {
-    // 单身份或无额外身份 → 直接保存
+  if (extraRoles.length === 0) {
+    // 纯会员 → 直接保存
     saveLoginData(loginData)
     return true  // ⚠️ 返回 true 表示需要刷新页面
   }
   
-  // 多重身份 → 弹框选择
+  // 有额外身份（admin或coach）→ 弹框选择
   pendingRoles.value = extraRoles
   tempLoginData.value = loginData
   showRoleSelectModal.value = true
