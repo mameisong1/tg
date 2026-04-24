@@ -20,7 +20,7 @@
     <!-- 开始审查按钮 -->
     <view class="start-section">
       <view v-if="!isLocked" class="start-btn" @click="startReview">
-        <text class="start-text">🔓 开始审查（锁定应约课空闲助教）</text>
+        <text class="start-text">🔓 开始审查（锁定应约客空闲助教）</text>
       </view>
       <view v-else class="locked-tip">
         <text>✅ 已锁定 {{ lockedCount }} 名应约客人员</text>

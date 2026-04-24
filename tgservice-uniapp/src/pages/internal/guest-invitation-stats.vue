@@ -45,22 +45,22 @@
       <view class="stats-row">
         <view class="stat-card stat-not-invited">
           <text class="stat-value">{{ summary.not_invited }}</text>
-          <text class="stat-label">未约课</text>
+          <text class="stat-label">未约客</text>
         </view>
         <view class="stat-card stat-valid">
           <text class="stat-value">{{ summary.valid }}</text>
-          <text class="stat-label">有效约课</text>
+          <text class="stat-label">有效约客</text>
         </view>
         <view class="stat-card stat-invalid">
           <text class="stat-value">{{ summary.invalid }}</text>
-          <text class="stat-label">无效约课</text>
+          <text class="stat-label">无效约客</text>
         </view>
       </view>
 
-      <!-- 约课率卡片 -->
+      <!-- 约客率卡片 -->
       <view class="rate-card">
         <view class="rate-header">
-          <text class="rate-label">约课率</text>
+          <text class="rate-label">约客率</text>
           <text class="rate-hint">有效 / (未约 + 无效 + 有效)</text>
         </view>
         <text class="rate-value" :class="rateColorClass">{{ summary.invite_rate }}</text>
@@ -140,7 +140,7 @@ const periodTabs = [
   { label: '上月', value: 'last-month' }
 ]
 
-// 约课率颜色
+// 约客率颜色
 const ratePercent = computed(() => {
   if (!summary.value) return 0
   const rate = parseFloat(summary.value.invite_rate)
@@ -366,7 +366,7 @@ onShow(() => {
   color: rgba(255, 255, 255, 0.5);
 }
 
-/* 约课率卡片 */
+/* 约客率卡片 */
 .rate-card {
   background: rgba(20, 20, 30, 0.6);
   border-radius: 12px;
