@@ -986,6 +986,15 @@ async function triggerTask(taskName) {
         // 根据任务名判断班次
         const shiftType = task.task_name === 'lock_guest_invitation_morning' ? '早班' : '晚班';
         await taskLockGuestInvitation(shiftType);
+    } else if (task.task_type === 'guest_ranking') {
+        // 根据任务名判断班次
+        if (task.task_name.includes('midnight')) {
+            await taskGuestRanking('全部', 1, 100);
+        } else if (task.task_name.includes('morning')) {
+            await taskGuestRanking('早班', 1, 50);
+        } else {
+            await taskGuestRanking('晚班', 51, 100);
+        }
     }
 
     const nextRun = calcNextRun(task.cron_expression);
