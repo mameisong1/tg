@@ -1023,21 +1023,36 @@ const checkAutoLogin = async () => {
       // ✅ 自动登录成功才设置冷却时间
       lastCheckTime = Date.now()
       
-      // 如果匹配后台用户，自动实现内部员工登录
-      if (profile.adminInfo) {
-        uni.setStorageSync('adminInfo', profile.adminInfo)
-      }
-      // ⚠️ 保存 adminToken（内部页面 api.js 认证必需）
-      if (profile.adminToken) {
-        uni.setStorageSync('adminToken', profile.adminToken)
+      // ⚠️ 修复：根据preferredRole只保存选中的身份，刷新页面后不会恢复所有身份
+      const preferredRole = uni.getStorageSync('preferredRole')
+      
+      // 如果没有偏好身份（首次登录或纯会员），保存所有身份
+      // 如果有偏好身份，只保存对应的身份信息
+      if (!preferredRole || preferredRole === 'admin') {
+        // 保存后台身份
+        if (profile.adminInfo) {
+          uni.setStorageSync('adminInfo', profile.adminInfo)
+        }
+        if (profile.adminToken) {
+          uni.setStorageSync('adminToken', profile.adminToken)
+        }
       }
       
-      // 如果同时是教练，设置教练信息
-      if (profile.coachInfo) {
-        uni.setStorageSync('coachInfo', profile.coachInfo)
-        coachInfo.value = profile.coachInfo
-      } else {
-        // 不是教练，清空教练信息
+      if (!preferredRole || preferredRole === 'coach') {
+        // 保存教练身份
+        if (profile.coachInfo) {
+          uni.setStorageSync('coachInfo', profile.coachInfo)
+          coachInfo.value = profile.coachInfo
+        }
+      }
+      
+      // 如果有偏好身份，删除其他身份的token（确保状态一致）
+      if (preferredRole) {
+        api.setPreferredRole(preferredRole)
+      }
+      
+      // 如果没有教练信息，清空教练状态
+      if (!profile.coachInfo) {
         coachInfo.value = {}
         uni.removeStorageSync('coachInfo')
       }
@@ -1156,10 +1171,8 @@ const handleRoleSelection = (roles, loginData) => {
 const selectRole = async (role) => {
   showRoleSelectModal.value = false
   
-  // 保存偏好身份
-  api.setPreferredRole(role)
-  
-  // 根据选择保存对应 token
+  // ⚠️ 修复：先保存选中身份的token，再删除其他身份的token
+  // 步骤1：保存选中身份的token
   if (role === 'admin' && tempLoginData.value) {
     if (tempLoginData.value.adminToken) {
       uni.setStorageSync('adminToken', tempLoginData.value.adminToken)
@@ -1174,6 +1187,14 @@ const selectRole = async (role) => {
       uni.setStorageSync('coachInfo', tempLoginData.value.coachInfo)
       coachInfo.value = tempLoginData.value.coachInfo
     }
+  }
+  
+  // 步骤2：保存偏好身份并删除其他身份的token
+  api.setPreferredRole(role)
+  
+  // 步骤3：更新会员信息触发页面刷新
+  if (tempLoginData.value && tempLoginData.value.member) {
+    memberInfo.value = { ...tempLoginData.value.member, [role]: true }
   }
   
   uni.showToast({ title: `已选择${role === 'coach' ? '助教' : '后台'}身份`, icon: 'success' })
