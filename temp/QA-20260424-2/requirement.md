@@ -1,0 +1,1 @@
+单身份登录方案：当多重身份用户登录时，弹框让用户选择一个身份，删除其他token；自动登录时带preferredRole参数；Storage保存preferredRole；用户退出登录清除所有token和偏好。改动范围：App.vue自动登录+身份选择弹框、server.js auto-login API新增preferredRole参数、pages/member/member.vue登录成功后身份选择逻辑。
