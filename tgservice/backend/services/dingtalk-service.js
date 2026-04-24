@@ -654,8 +654,22 @@ async function handleSingleAttendanceRecord(record, db) {
         return;
       }
     }
-    punchType = 'return';
-    reason = `水牌乐捐状态`;
+    
+    // ========== 新增：双重场景判断 ==========
+    // 检查是否为双重场景：乐捐归来 + 还没有上班打卡记录
+    const hasDingtalkInTime = attendance && attendance.dingtalk_in_time;
+    const hasClockInTime = attendance && attendance.clock_in_time;
+    
+    if (!hasDingtalkInTime && !hasClockInTime) {
+      // 双重场景：乐捐归来 + 上班打卡
+      punchType = 'return_and_in';
+      reason = `水牌乐捐状态 + 无上班打卡记录（双重场景）`;
+      dingtalkLog.write(`${coach.stage_name} 双重场景: 乐捐归来 + 上班打卡`);
+    } else {
+      // 单一场景：乐捐归来
+      punchType = 'return';
+      reason = `水牌乐捐状态`;
+    }
   } else if (currentStatus === '服务中') {
     // 服务中状态不处理
     dingtalkLog.write(`${coach.stage_name} 当前服务中，忽略打卡`);
@@ -707,7 +721,7 @@ async function handleSingleAttendanceRecord(record, db) {
       dingtalkLog.write(`警告: ${coach.stage_name} 下班打卡但无今日打卡记录`);
     }
   } else if (punchType === 'return') {
-    // 乐捐归来打卡 → 写入 dingtalk_return_time
+    // 乐捐归来打卡 → 只写入 dingtalk_return_time
     dingtalkLog.write(`${coach.stage_name} 钉钉乐捐归来打卡: ${checkTimeStr}`);
     
     if (lejuan) {
@@ -718,6 +732,38 @@ async function handleSingleAttendanceRecord(record, db) {
       dingtalkLog.write(`更新乐捐记录: ${coach.stage_name} dingtalk_return_time = ${checkTimeStr}`);
     } else {
       dingtalkLog.write(`警告: ${coach.stage_name} 乐捐打卡但无 active 乐捐记录`);
+    }
+  } else if (punchType === 'return_and_in') {
+    // 双重场景：乐捐归来 + 上班打卡 → 写入两个表
+    dingtalkLog.write(`${coach.stage_name} 钉钉乐捐归来+上班打卡: ${checkTimeStr}`);
+    
+    // 1. 写入乐捐表
+    if (lejuan) {
+      await enqueueRun(
+        `UPDATE lejuan_records SET dingtalk_return_time = ?, updated_at = ? WHERE id = ?`,
+        [checkTimeStr, TimeUtil.nowDB(), lejuan.id]
+      );
+      dingtalkLog.write(`更新乐捐记录: ${coach.stage_name} dingtalk_return_time = ${checkTimeStr}`);
+    } else {
+      dingtalkLog.write(`警告: ${coach.stage_name} 乐捐打卡但无 active 乐捐记录`);
+    }
+    
+    // 2. 写入打卡表
+    if (!attendance) {
+      // 创建新记录
+      await enqueueRun(
+        `INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, dingtalk_in_time, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [todayStr, coach.coach_no, coach.employee_id, coach.stage_name, checkTimeStr, TimeUtil.nowDB(), TimeUtil.nowDB()]
+      );
+      dingtalkLog.write(`创建打卡记录: ${coach.stage_name} dingtalk_in_time = ${checkTimeStr}`);
+    } else {
+      // 更新钉钉上班时间
+      await enqueueRun(
+        `UPDATE attendance_records SET dingtalk_in_time = ?, updated_at = ? WHERE id = ?`,
+        [checkTimeStr, TimeUtil.nowDB(), attendance.id]
+      );
+      dingtalkLog.write(`更新打卡记录: ${coach.stage_name} dingtalk_in_time = ${checkTimeStr}`);
     }
   } else if (punchType === 'lejuan_out') {
     // 预约乐捐外出打卡 → 写入 dingtalk_out_time
