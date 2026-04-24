@@ -542,7 +542,8 @@
       </view>
     </view>
   </view>
-</template>
+
+    <!-- 编辑姓名弹窗 -->
     <view class="edit-modal" v-if="showEditName" @click="showEditName = false">
       <view class="edit-content" @click.stop>
         <text class="edit-title">编辑姓名</text>
