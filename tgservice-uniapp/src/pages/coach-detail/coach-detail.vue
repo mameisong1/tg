@@ -113,7 +113,7 @@
         <text class="price-label">陪练价格</text>
         <text class="price-value">¥{{ pricePerMin }}<text class="price-unit">/分钟</text></text>
       </view>
-      <view class="book-btn" @click="showBookModal = true">预约教练</view>
+      <view class="book-btn" @click="handleInvite">邀请上桌</view>
     </view>
     
     <!-- 预约教练弹框 -->
@@ -128,6 +128,41 @@
         <view class="modal-content">
           <text class="modal-text">请联系附近的教练，也可加前台微信点教练。</text>
           <image class="qrcode-img" src="/static/front_wechat_qrcode.png" mode="widthFix"></image>
+        </view>
+      </template>
+    </BeautyModal>
+    
+    <!-- 台桌号失效对话框 -->
+    <BeautyModal 
+      v-model:visible="showExpiredModal" 
+      title="请先扫码"
+      :showCancel="false"
+      confirmText="去扫码"
+      @confirm="goToScan"
+    >
+      <template #default>
+        <view class="modal-content">
+          <text class="modal-text">台桌号已失效或未设置</text>
+          <text class="modal-text">请扫描台桌二维码获取授权</text>
+        </view>
+      </template>
+    </BeautyModal>
+    
+    <!-- 确认邀请对话框 -->
+    <BeautyModal 
+      v-model:visible="showConfirmModal" 
+      title="确认邀请"
+      :showCancel="true"
+      cancelText="取消"
+      confirmText="确认邀请"
+      @confirm="confirmInvite"
+      @cancel="showConfirmModal = false"
+    >
+      <template #default>
+        <view class="modal-content">
+          <text class="modal-text">台桌号：{{ tableName }}</text>
+          <text class="modal-text">助教：{{ coach.employee_id || '-' }} {{ coach.stage_name || '' }}</text>
+          <text class="modal-subtext">确认后将通知服务台安排上桌</text>
         </view>
       </template>
     </BeautyModal>
@@ -154,15 +189,58 @@ const videos = ref([])
 const showBookModal = ref(false)
 const floatPosition = ref('left')
 
+// ===== 邀请上桌功能 =====
+const isCoachIdle = ref(false) // 水牌空闲状态
+const showExpiredModal = ref(false) // 台桌号失效对话框
+const showConfirmModal = ref(false) // 确认邀请对话框
+const tableName = ref('') // 当前台桌号
+const tableAuthExpireMinutes = ref(30) // 台桌授权有效期（分钟）
+
 const mainPhoto = computed(() => photos.value.length > 0 ? photos.value[0] : '/static/avatar-default.png')
 const pricePerMin = computed(() => coach.value.price ? (coach.value.price / 60).toFixed(2) : '-')
 const priceDisplay = computed(() => coach.value.price ? '¥' + pricePerMin.value + '/分钟' : '-')
+
+// ===== 台桌授权检查 =====
+// 检查台桌号是否有效
+const checkTableAuth = () => {
+  const authStr = uni.getStorageSync('tableAuth')
+  if (!authStr) return false
+  
+  try {
+    const auth = JSON.parse(authStr)
+    const isExpired = (Date.now() - auth.time) > tableAuthExpireMinutes.value * 60 * 1000
+    if (isExpired) {
+      // 过期则清除
+      uni.removeStorageSync('tablePinyin')
+      uni.removeStorageSync('tableName')
+      uni.removeStorageSync('tableAuth')
+      return false
+    }
+    return true
+  } catch (e) {
+    return false
+  }
+}
+
+// 加载前端配置（获取授权过期时间）
+const loadFrontConfig = async () => {
+  try {
+    const data = await api.getFrontConfig()
+    if (data.tableAuthExpireMinutes) {
+      tableAuthExpireMinutes.value = data.tableAuthExpireMinutes
+    }
+  } catch (e) {
+    // 默认30分钟
+  }
+}
 
 const loadCoach = async () => {
   if (!coachNo.value) return
   try {
     const data = await api.getCoach(coachNo.value)
     coach.value = data
+    // 检查水牌状态
+    isCoachIdle.value = (data.display_status === '空闲')
     // 转换照片URL：相对路径转为完整URL
     photos.value = (data.photos || []).map(p => {
       if (p.startsWith('http')) return p
@@ -221,6 +299,60 @@ const goBack = () => {
   uni.navigateBack()
 }
 
+// ===== 邀请上桌逻辑 =====
+// 点击"邀请上桌"按钮
+const handleInvite = () => {
+  // 1. 检查水牌状态
+  if (!isCoachIdle.value) {
+    uni.showToast({ title: '助教当前不在空闲状态', icon: 'none' })
+    return
+  }
+  
+  // 2. 获取台桌号
+  tableName.value = uni.getStorageSync('tableName') || ''
+  
+  // 3. 检查台桌号有效性
+  if (!tableName.value || !checkTableAuth()) {
+    showExpiredModal.value = true
+    return
+  }
+  
+  // 4. 有效，显示确认对话框
+  showConfirmModal.value = true
+}
+
+// 确认邀请
+const confirmInvite = async () => {
+  showConfirmModal.value = false
+  
+  try {
+    // 调用游客创建服务单API
+    const result = await uni.request({
+      url: (import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api') + '/service-orders/guest',
+      method: 'POST',
+      data: {
+        table_no: tableName.value,
+        requirement: `邀请 ${coach.value.employee_id || coach.value.stage_name} 上桌`,
+        coach_no: coachNo.value
+      }
+    })
+    
+    if (result.statusCode === 200 && result.data.success) {
+      uni.showToast({ title: '邀请成功！', icon: 'success' })
+    } else {
+      uni.showToast({ title: result.data?.error || '邀请失败', icon: 'none' })
+    }
+  } catch (e) {
+    uni.showToast({ title: '网络错误', icon: 'none' })
+  }
+}
+
+// 失效对话框：跳转到扫码页
+const goToScan = () => {
+  showExpiredModal.value = false
+  uni.navigateTo({ url: '/pages/scan/scan' })
+}
+
 onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 20
@@ -228,6 +360,15 @@ onMounted(() => {
   const pages = getCurrentPages()
   const currentPage = pages[pages.length - 1]
   coachNo.value = currentPage.options?.no
+  
+  // 加载前端配置和教练信息
+  loadFrontConfig().then(() => {
+    // 检查台桌授权是否失效
+    tableName.value = uni.getStorageSync('tableName') || ''
+    if (tableName.value && !checkTableAuth()) {
+      tableName.value = ''
+    }
+  })
   loadCoach()
   
   // 读取悬浮按钮位置设置
@@ -463,6 +604,12 @@ const updateFullscreenClass = () => {
   text-align: center;
   line-height: 1.6;
   margin-bottom: 16px;
+}
+.modal-subtext {
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  text-align: center;
+  margin-top: 8px;
 }
 .qrcode-img {
   width: 180px;
