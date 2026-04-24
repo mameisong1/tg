@@ -501,6 +501,36 @@ app.get('/api/server-time', (req, res) => {
 
 // ------------------- 前台 API -------------------
 
+// 游客创建服务单（无需登录，用于"邀请助教上桌"功能）
+app.post('/api/service-orders/guest', async (req, res) => {
+  try {
+    const { table_no, requirement, coach_no } = req.body;
+    
+    // 验证必填字段
+    if (!table_no || !table_no.toString().trim()) {
+      return res.status(400).json({ success: false, error: '缺少必填字段：台桌号' });
+    }
+    if (!requirement || !requirement.toString().trim()) {
+      return res.status(400).json({ success: false, error: '缺少必填字段：需求内容不能为空' });
+    }
+    
+    // 游客默认requester_name和requester_type
+    const requester_name = '顾客';
+    const requester_type = '顾客';
+    
+    // 使用 enqueueRun 写入（遵守编码规范）
+    const result = await enqueueRun(`
+      INSERT INTO service_orders (table_no, requirement, requester_name, requester_type, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, '待处理', ?, ?)
+    `, [table_no, requirement, requester_name, requester_type, TimeUtil.nowDB(), TimeUtil.nowDB()]);
+    
+    res.json({ success: true, data: { id: result.lastID, status: '待处理' } });
+  } catch (error) {
+    console.error('游客创建服务单失败:', error);
+    res.status(500).json({ success: false, error: '创建服务单失败' });
+  }
+});
+
 // 获取首页配置
 app.get('/api/home', async (req, res) => {
   try {
