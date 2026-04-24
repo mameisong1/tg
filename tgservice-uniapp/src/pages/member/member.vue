@@ -677,7 +677,7 @@
           <view class="role-option" v-if="pendingRoles.includes('admin')" @click="selectRole('admin')">
             <text class="role-icon">🔧</text>
             <text class="role-name">后台身份</text>
-            <text class="role-desc">用于审批管理、后台操作</text>
+            <text class="role-desc">管理和服务</text>
           </view>
         </view>
       </view>
