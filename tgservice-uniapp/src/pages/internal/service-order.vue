@@ -43,12 +43,6 @@
         <input class="input" v-model="form.requirement" placeholder="请输入需求内容" maxlength="200" />
       </view>
 
-      <!-- 下单人 -->
-      <view class="form-item">
-        <text class="form-label">下单人</text>
-        <text class="requester-name">{{ requesterName }}</text>
-      </view>
-
       <view class="submit-btn" @click="submitOrder"><text>提交服务单</text></view>
     </view>
 
