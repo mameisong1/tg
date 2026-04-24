@@ -117,21 +117,16 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
     if (waterBoard.status === '乐捐') {
       // 自动结束乐捐,然后进入空闲
       const activeLejuan = await tx.get(
-        `SELECT id, actual_start_time FROM lejuan_records
+        `SELECT id, scheduled_start_time FROM lejuan_records
          WHERE coach_no = ? AND lejuan_status = 'active'
-         ORDER BY actual_start_time DESC LIMIT 1`,
+         ORDER BY scheduled_start_time DESC LIMIT 1`,
         [coach_no]
       );
 
       if (activeLejuan) {
         const nowDB = TimeUtil.nowDB();
-        const actualStart = new Date(activeLejuan.actual_start_time + '+08:00');
-        const nowTime = new Date(nowDB + '+08:00');
-        const diffMs = nowTime.getTime() - actualStart.getTime();
-        const baseHours = Math.floor(diffMs / (60 * 60 * 1000));
-        const endMinute = nowTime.getMinutes();
-        const extraHour = endMinute > 10 ? 1 : 0;
-        const lejuanHours = Math.max(1, baseHours + extraHour);
+        const { calculateLejuanHours } = require('./utils/lejuan-hours');
+        const lejuanHours = calculateLejuanHours(activeLejuan.scheduled_start_time, nowDB);
 
         await tx.run(
           `UPDATE lejuan_records

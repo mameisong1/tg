@@ -357,13 +357,9 @@ router.post('/:id/return', requireBackendPermission(['coachManagement']), async 
                 waterStatus = coach.shift === '早班' ? '早班空闲' : '晚班空闲';
             }
 
-            // 计算乐捐时长（分钟>10算一小时）
-            const actualStart = new Date(record.actual_start_time + '+08:00');
-            const diffMs = calculateTime.getTime() - actualStart.getTime();
-            const baseHours = Math.floor(diffMs / (60 * 60 * 1000));
-            const endMinute = calculateTime.getMinutes();
-            const extraHour = endMinute > 10 ? 1 : 0;
-            const lejuanHours = Math.max(1, baseHours + extraHour);
+            // 计算乐捐时长（使用统一函数）
+            const { calculateLejuanHours } = require('../utils/lejuan-hours');
+            const lejuanHours = calculateLejuanHours(record.scheduled_start_time, calculateTime);
 
             // 格式化归来时间（用于存储）
             const returnTimeStr = TimeUtil.format(calculateTime).replace(/\//g, '-').replace(' ', ' ') + ':00';
