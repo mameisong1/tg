@@ -932,10 +932,15 @@ const loginBySms = async () => {
       
       // 🔴 新增：处理多重身份
       if (data.roles && data.roles.length > 0) {
-        handleRoleSelection(data.roles, data)
+        const needRefresh = handleRoleSelection(data.roles, data)
+        // ⚠️ 单身份用户登录后刷新页面，让computed重新计算
+        if (needRefresh) {
+          uni.reLaunch({ url: '/pages/member/member' })
+        }
       } else {
         // 单身份或无 roles 返回，直接保存
         saveLoginData(data)
+        uni.reLaunch({ url: '/pages/member/member' })
       }
       
       // 清空验证码
@@ -1158,13 +1163,14 @@ const handleRoleSelection = (roles, loginData) => {
   if (extraRoles.length <= 1) {
     // 单身份或无额外身份 → 直接保存
     saveLoginData(loginData)
-    return
+    return true  // ⚠️ 返回 true 表示需要刷新页面
   }
   
   // 多重身份 → 弹框选择
   pendingRoles.value = extraRoles
   tempLoginData.value = loginData
   showRoleSelectModal.value = true
+  return false  // ⚠️ 返回 false 表示不需要刷新（等 selectRole 时刷新）
 }
 
 // 🔴 新增：用户选择身份
@@ -1199,6 +1205,9 @@ const selectRole = async (role) => {
   
   uni.showToast({ title: `已选择${role === 'coach' ? '助教' : '后台'}身份`, icon: 'success' })
   tempLoginData.value = null
+  
+  // ⚠️ 方案A：选择身份后刷新页面，让computed重新计算
+  uni.reLaunch({ url: '/pages/member/member' })
 }
 
 // 编辑姓名
