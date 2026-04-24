@@ -910,16 +910,20 @@ router.get('/pending-count', requireBackendPermission(['coachManagement']), asyn
  */
 router.get('/shift-stats', requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
-    const [early, late] = await Promise.all([
-      db.get("SELECT COUNT(*) as cnt FROM coaches WHERE shift = '早班'"),
-      db.get("SELECT COUNT(*) as cnt FROM coaches WHERE shift = '晚班'")
+    // 分别统计早班全职、晚班全职、兼职（避免重复计算）
+    const [earlyFullTime, lateFullTime, partTime] = await Promise.all([
+      db.get("SELECT COUNT(*) as cnt FROM coaches WHERE shift = '早班' AND status = '全职'"),
+      db.get("SELECT COUNT(*) as cnt FROM coaches WHERE shift = '晚班' AND status = '全职'"),
+      db.get("SELECT COUNT(*) as cnt FROM coaches WHERE status = '兼职'")
     ]);
+    
     res.json({
       success: true,
       data: {
-        early_shift: early.cnt,
-        late_shift: late.cnt,
-        total: early.cnt + late.cnt
+        early_shift: earlyFullTime.cnt,
+        late_shift: lateFullTime.cnt,
+        part_time: partTime.cnt,
+        total: earlyFullTime.cnt + lateFullTime.cnt + partTime.cnt
       }
     });
   } catch (error) {

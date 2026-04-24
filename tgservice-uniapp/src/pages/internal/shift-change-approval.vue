@@ -29,6 +29,11 @@
       </view>
       <view class="stat-divider"></view>
       <view class="stat-item">
+        <text class="stat-label">兼职</text>
+        <text class="stat-value">{{ shiftStats.part_time }}人</text>
+      </view>
+      <view class="stat-divider"></view>
+      <view class="stat-item">
         <text class="stat-label">总计</text>
         <text class="stat-value">{{ shiftStats.total }}人</text>
       </view>
@@ -122,7 +127,7 @@ const serverHour = ref(null)
 
 const pendingList = ref([])
 const approvedList = ref([])
-const shiftStats = ref({ early_shift: 0, late_shift: 0, total: 0 })
+const shiftStats = ref({ early_shift: 0, late_shift: 0, part_time: 0, total: 0 })
 const pendingCount = ref(0)
 
 // QA-20260421-3: 时间段提示栏 computed
@@ -171,7 +176,7 @@ const switchTab = (tab) => {
 const loadShiftStats = async () => {
   try {
     const res = await api.applications.getShiftStats()
-    shiftStats.value = res.data || { early_shift: 0, late_shift: 0, total: 0 }
+    shiftStats.value = res.data || { early_shift: 0, late_shift: 0, part_time: 0, total: 0 }
   } catch (e) {}
 }
 
