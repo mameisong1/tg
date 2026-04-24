@@ -587,7 +587,7 @@ async function handleSingleAttendanceRecord(record, db) {
     ? `${todayStr} 12:00:00`
     : `${TimeUtil.offsetDateStr(-1)} 12:00:00`;
   const attendance = await get(
-    `SELECT id, clock_in_time, clock_out_time FROM attendance_records 
+    `SELECT id, clock_in_time, clock_out_time, dingtalk_in_time FROM attendance_records 
      WHERE coach_no = ? AND clock_in_time >= ? AND clock_out_time IS NULL
      ORDER BY clock_in_time DESC LIMIT 1`,
     [coach.coach_no, searchStart]
@@ -655,15 +655,22 @@ async function handleSingleAttendanceRecord(record, db) {
       }
     }
     
-    // ========== 新增：双重场景判断 ==========
-    // 检查是否为双重场景：乐捐归来 + 还没有上班打卡记录
-    const hasDingtalkInTime = attendance && attendance.dingtalk_in_time;
-    const hasClockInTime = attendance && attendance.clock_in_time;
+    // ========== 新增：双重场景判断（修复后）==========
+    // 场景一：没有打卡记录
+    const noAttendance = !attendance;
     
-    if (!hasDingtalkInTime && !hasClockInTime) {
+    // 场景二：有打卡记录 + clock_in_time 与钉钉打卡时间相差 <= 15分钟
+    const clockInTimeClose = attendance && attendance.clock_in_time && 
+      isTimeClose(checkTimeStr, attendance.clock_in_time, 15);
+    
+    if (noAttendance || clockInTimeClose) {
       // 双重场景：乐捐归来 + 上班打卡
       punchType = 'return_and_in';
-      reason = `水牌乐捐状态 + 无上班打卡记录（双重场景）`;
+      if (noAttendance) {
+        reason = `水牌乐捐状态 + 无打卡记录（双重场景）`;
+      } else {
+        reason = `水牌乐捐状态 + 系统打卡时间(${attendance.clock_in_time})接近（双重场景）`;
+      }
       dingtalkLog.write(`${coach.stage_name} 双重场景: 乐捐归来 + 上班打卡`);
     } else {
       // 单一场景：乐捐归来
