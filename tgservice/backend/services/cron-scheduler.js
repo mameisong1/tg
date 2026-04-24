@@ -262,16 +262,28 @@ async function taskEndLejuan(shiftType) {
 
             for (const record of activeRecords) {
                 // 更新乐捐记录状态
-                // 计算外出时长（结束分钟>10算一小时，否则不算）
+                // 计算乐捐时长（基于预约开始时间，遵守编码规范使用 TimeUtil）
                 let hours = 1;
-                if (record.actual_start_time) {
-                    const startTime = new Date(record.actual_start_time + '+08:00');
-                    const endTime = new Date(now + '+08:00');
-                    const diffMs = endTime.getTime() - startTime.getTime();
-                    const baseHours = Math.floor(diffMs / (60 * 60 * 1000));
-                    const endMinute = endTime.getMinutes();
-                    const extraHour = endMinute > 10 ? 1 : 0;
-                    hours = Math.max(1, baseHours + extraHour);
+                if (record.scheduled_start_time) {
+                    // 使用 TimeUtil.toDate 解析时间（数据库存北京时间，+08:00 时区）
+                    const startTime = TimeUtil.toDate(record.scheduled_start_time);
+                    const endTime = TimeUtil.toDate(now);
+                    
+                    if (startTime && endTime) {
+                        // 计算总时长（分钟）
+                        const diffMs = endTime.getTime() - startTime.getTime();
+                        const totalMinutes = Math.floor(diffMs / (60 * 1000));
+                        
+                        // 计算完整小时数 + 剩余分钟数
+                        const baseHours = Math.floor(totalMinutes / 60);
+                        const remainingMinutes = totalMinutes % 60;
+                        
+                        // 剩余分钟 > 10 时额外算一小时
+                        const extraHour = remainingMinutes > 10 ? 1 : 0;
+                        
+                        // 最少算 1 小时
+                        hours = Math.max(1, baseHours + extraHour);
+                    }
                 }
 
                 await tx.run(
