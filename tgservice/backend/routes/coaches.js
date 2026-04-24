@@ -56,6 +56,22 @@ async function calculateIsLate(clockInTime, shift, coachNo, date, tx) {
     return 0;
   }
 
+  const baseHourStr = `${String(baseHour).padStart(2, '0')}:00:00`;
+  const expectedBaseTime = `${date} ${baseHourStr}`;
+
+  // 查询上班时间立刻乐捐记录
+  // 如果在上班时间点（14:00/18:00）立刻预约乐捐 → 不迟到
+  const lejuanRecord = await tx.get(`
+    SELECT id FROM lejuan_records
+    WHERE coach_no = ?
+      AND scheduled_start_time = ?
+    LIMIT 1
+  `, [coachNo, expectedBaseTime]);
+
+  if (lejuanRecord) {
+    return 0;  // 上班时间立刻乐捐 → 不迟到
+  }
+
   // 加班 = 可以晚到，应上班时间延后
   // 早加班/晚加班 → 应上班时间 = 正常时间 + 加班小时数
   const expectedHour = Math.min(24, baseHour + overtimeHours);
