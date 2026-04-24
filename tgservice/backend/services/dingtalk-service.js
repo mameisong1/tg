@@ -593,9 +593,12 @@ async function handleSingleAttendanceRecord(record, db) {
     [coach.coach_no, searchStart]
   );
   
-  // 查询活跃的乐捐记录（获取乐捐归来时间和实际开始时间）
+  // 查询活跃或预约的乐捐记录（获取乐捐归来时间、实际开始时间、预约开始时间）
   const lejuan = await get(
-    `SELECT id, return_time, actual_start_time FROM lejuan_records WHERE coach_no = ? AND lejuan_status = 'active'`,
+    `SELECT id, return_time, actual_start_time, scheduled_start_time, lejuan_status 
+     FROM lejuan_records 
+     WHERE coach_no = ? AND lejuan_status IN ('active', 'pending')
+     ORDER BY scheduled_start_time DESC LIMIT 1`,
     [coach.coach_no]
   );
   
@@ -629,7 +632,12 @@ async function handleSingleAttendanceRecord(record, db) {
       punchType = 'return';
       reason = `水牌空闲 + 乐捐归来时间(${lejuan.return_time})接近`;
     }
-    // 3. 否则是下班打卡（场景二：先钉钉打卡，后系统打卡）
+    // 3. 检查是否是预约乐捐外出打卡（预约开始时间接近 + pending状态）
+    else if (lejuan && lejuan.lejuan_status === 'pending' && lejuan.scheduled_start_time && isTimeClose(checkTimeStr, lejuan.scheduled_start_time)) {
+      punchType = 'lejuan_out';
+      reason = `水牌空闲 + 预约乐捐开始时间(${lejuan.scheduled_start_time})接近`;
+    }
+    // 4. 否则是下班打卡（场景二：先钉钉打卡，后系统打卡）
     else {
       punchType = 'out';
       reason = `水牌空闲 + 无接近的系统时间`;
@@ -710,6 +718,19 @@ async function handleSingleAttendanceRecord(record, db) {
       dingtalkLog.write(`更新乐捐记录: ${coach.stage_name} dingtalk_return_time = ${checkTimeStr}`);
     } else {
       dingtalkLog.write(`警告: ${coach.stage_name} 乐捐打卡但无 active 乐捐记录`);
+    }
+  } else if (punchType === 'lejuan_out') {
+    // 预约乐捐外出打卡 → 写入 dingtalk_out_time
+    dingtalkLog.write(`${coach.stage_name} 钉钉乐捐外出打卡: ${checkTimeStr}`);
+    
+    if (lejuan) {
+      await enqueueRun(
+        `UPDATE lejuan_records SET dingtalk_out_time = ?, updated_at = ? WHERE id = ?`,
+        [checkTimeStr, TimeUtil.nowDB(), lejuan.id]
+      );
+      dingtalkLog.write(`更新乐捐记录: ${coach.stage_name} dingtalk_out_time = ${checkTimeStr}`);
+    } else {
+      dingtalkLog.write(`警告: ${coach.stage_name} 乐捐外出打卡但无预约乐捐记录`);
     }
   }
 }

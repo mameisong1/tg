@@ -80,6 +80,10 @@
             <text class="lj-info-label">归来时间</text>
             <text class="lj-info-value">{{ formatTimeShort(item.return_time) }}</text>
           </view>
+          <view class="lj-info-item dingtalk-item" v-if="item.dingtalk_out_time">
+            <text class="lj-info-label dingtalk-label">钉钉外出</text>
+            <text class="lj-info-value dingtalk-value">{{ formatTimeShort(item.dingtalk_out_time) }}</text>
+          </view>
           <view class="lj-info-item dingtalk-item" v-if="item.dingtalk_return_time">
             <text class="lj-info-label dingtalk-label">钉钉归来</text>
             <text class="lj-info-value dingtalk-value">{{ formatTimeShort(item.dingtalk_return_time) }}</text>
