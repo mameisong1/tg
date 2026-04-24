@@ -761,29 +761,25 @@ async function taskLockGuestInvitation(shiftType) {
  * cron 格式: minute hour day-of-month month day-of-week
  * 例如: '0 12 * * *' 表示每天中午12点
  */
-function calcNextRun(cronExpression) {
-    const now = new Date(TimeUtil.nowDB() + '+08:00');
+const cronParser = require('cron-parser');
 
-    // 精确解析 cron 表达式的小时字段
-    const parts = cronExpression.split(' ');
-    if (parts.length < 2) {
-        // 无效的 cron 表达式，默认下一个整点
+function calcNextRun(cronExpression) {
+    try {
+        // 使用 cron-parser 正确解析 cron 表达式
+        const interval = cronParser.parseExpression(cronExpression, {
+            currentDate: new Date(TimeUtil.nowDB() + '+08:00'),
+            tz: 'Asia/Shanghai'  // 明确指定北京时间
+        });
+        const next = interval.next().toDate();
+        return formatBeijing(next);
+    } catch (err) {
+        // 解析失败，默认下一小时
+        console.error('[CronScheduler] calcNextRun 解析失败:', err.message);
+        const now = new Date(TimeUtil.nowDB() + '+08:00');
         const next = new Date(now);
         next.setHours(next.getHours() + 1, 0, 0, 0);
         return formatBeijing(next);
     }
-
-    const hour = parseInt(parts[1], 10); // 小时字段
-
-    // 根据小时计算下次运行时间
-    const next = new Date(now);
-    if (now.getHours() >= hour) {
-        // 已过或正在执行，设置到明天
-        next.setDate(next.getDate() + 1);
-    }
-    next.setHours(hour, 0, 0, 0);
-
-    return formatBeijing(next);
 }
 
 function formatBeijing(date) {
