@@ -109,13 +109,47 @@ const loadFrontConfig = async () => {
   checkAuthExpiration()
 }
 
-const quickTagGroups = [
-  { label: '账务', color: '#e74c3c', tags: ['看账单'] },
-  { label: '挂烟', color: '#e67e22', tags: ['挂烟1包', '挂烟2包'] },
-  { label: '配件', color: '#f39c12', tags: ['打火机', '换电池'] },
-  { label: '酒具', color: '#3498db', tags: ['啤酒杯', '样酒杯'] },
-  { label: '其它', color: '#9b59b6', tags: ['零食推车', '换垃圾袋', '搞卫生', '音响连接', '加水'] }
-]
+const quickTagGroups = ref([])
+
+// 配置缓存（1小时有效期）
+const STORAGE_KEY = 'serviceCategoriesCache'
+const CACHE_DURATION = 60 * 60 * 1000 // 1小时
+
+// 加载服务分类配置
+const loadServiceCategories = async () => {
+  const now = Date.now()
+  
+  // 检查本地存储缓存
+  const storageStr = uni.getStorageSync(STORAGE_KEY)
+  if (storageStr) {
+    try {
+      const storage = JSON.parse(storageStr)
+      if (storage.data && (now - storage.time) < CACHE_DURATION) {
+        quickTagGroups.value = storage.data
+        return
+      }
+    } catch (e) {}
+  }
+  
+  // 从 API 读取
+  try {
+    const data = await api.systemConfig.getServiceCategories()
+    quickTagGroups.value = data.data || []
+    
+    // 更新本地存储缓存
+    uni.setStorageSync(STORAGE_KEY, JSON.stringify({
+      data: data.data,
+      time: now
+    }))
+  } catch (e) {
+    // 读取失败使用默认配置
+    quickTagGroups.value = [
+      { label: '酒水冰块', color: '#3498db', tags: ['啤酒杯', '加冰块', '食用冰桶', '温水', '冰杯'] },
+      { label: '器具用品', color: '#e67e22', tags: ['换垃圾袋', '筷子/碗', '纸巾', '毛毯', '打火机', '吸管', '烟灰缸', '骰子'] },
+      { label: '人工服务', color: '#e74c3c', tags: ['音响连接', '看账单', '拿外卖', '搞卫生', '挂烟1包', '挂烟2包'] }
+    ]
+  }
+}
 
 const getTagStyle = (color) => {
   return {
@@ -142,6 +176,7 @@ onMounted(() => {
   adminInfo.value = uni.getStorageSync('adminInfo') || {}
   coachInfo.value = uni.getStorageSync('coachInfo') || {}
   loadFrontConfig()
+  loadServiceCategories()
 })
 
 const loadDefaultTable = async () => {

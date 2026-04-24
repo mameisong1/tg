@@ -106,6 +106,12 @@ export const serviceOrders = {
   updateStatus: (id, data) => request({ url: `/service-orders/${id}/status`, method: 'PUT', data })
 }
 
+// ========== 系统配置 ==========
+export const systemConfig = {
+  // 获取服务分类配置
+  getServiceCategories: () => request({ url: '/system-config/service-categories' })
+}
+
 // ========== 上下桌单 ==========
 export const tableActionOrders = {
   // 提交上桌/下桌/取消单
@@ -424,6 +430,7 @@ export default {
   // ========== 内部模块（从 api-v2.js 迁移）==========
   waterBoards,
   serviceOrders,
+  systemConfig,
   tableActionOrders,
   applications,
   guestInvitations,

@@ -196,7 +196,7 @@ const targetTypeLabel = computed(() => {
 const isDayType = computed(() => {
   // 固定类型（通过URL传入的）默认使用3天日期选择器
   if (fixedType.value) return true
-  return currentType.value === '服务日奖'
+  return currentType.value === '服务奖罚'
 })
 
 // 日期范围（使用时间工具类，符合铁律1）

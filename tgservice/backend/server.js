@@ -60,6 +60,9 @@ const guestRankingsRouter = require('./routes/guest-rankings');
 // 下桌单缺失统计路由
 const missingTableOutOrdersRouter = require('./routes/missing-table-out-orders');
 
+// 系统配置路由
+const systemConfigRouter = require('./routes/system-config');
+
 // 智能开关路由模块
 const { router: switchRouter, triggerAutoOffIfEligible } = require('./routes/switch-routes');
 
@@ -406,6 +409,9 @@ app.use('/api/guest-rankings', guestRankingsRouter);
 
 // 下桌单缺失统计路由
 app.use('/api/missing-table-out-orders', missingTableOutOrdersRouter);
+
+// 系统配置路由
+app.use('/api/system-config', systemConfigRouter);
 
 // 系统报告
 app.use('/api/system-report', systemReportRouter);
