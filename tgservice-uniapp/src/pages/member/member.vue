@@ -521,27 +521,6 @@
       </view>
     </view>
     <!-- #endif -->
-    
-    
-    <!-- 🔴 新增：身份选择弹框 -->
-    <view class="edit-modal" v-if="showRoleSelectModal" @click="showRoleSelectModal = false">
-      <view class="role-select-content" @click.stop>
-        <text class="role-select-title">请选择您的身份</text>
-        <view class="role-select-options">
-          <view class="role-option" v-if="pendingRoles.includes('coach')" @click="selectRole('coach')">
-            <text class="role-icon">🎱</text>
-            <text class="role-name">助教身份</text>
-            <text class="role-desc">用于提交上桌单、服务下单</text>
-          </view>
-          <view class="role-option" v-if="pendingRoles.includes('admin')" @click="selectRole('admin')">
-            <text class="role-icon">🔧</text>
-            <text class="role-name">后台身份</text>
-            <text class="role-desc">用于审批管理、后台操作</text>
-          </view>
-        </view>
-      </view>
-    </view>
-  </view>
 
     <!-- 编辑姓名弹窗 -->
     <view class="edit-modal" v-if="showEditName" @click="showEditName = false">

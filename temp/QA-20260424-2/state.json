@@ -2,8 +2,11 @@
   "qaRequirement": "单身份登录方案：当多重身份用户登录时，弹框让用户选择一个身份，删除其他token；自动登录时带preferredRole参数；Storage保存preferredRole；用户退出登录清除所有token和偏好。改动范围：App.vue自动登录+身份选择弹框、server.js auto-login API新增preferredRole参数、pages/member/member.vue登录成功后身份选择逻辑。",
   "acceptanceFocus": "安娜（coach_no=10073，后台角色=教练）登录后选择助教身份能成功提交上桌单；选择后台身份能成功审批；单身份用户登录无弹框；刷新页面能保持选择的身份；退出登录清除所有token",
   "workDir": "/TG/temp/QA-20260424-2",
-  "designAuditRound": 0,
-  "testCasesAuditRound": 0,
+  "designAuditRound": 1,
+  "testCasesAuditRound": 1,
   "fixRound": 0,
-  "currentStep": "audit-design"
+  "currentStep": "testing",
+  "designSummary": "单身份登录方案：修改server.js(auto-login新增preferredRole参数)、App.vue(身份选择弹框)、member.vue(登录触发选择)、profile.vue(退出清除)、api.js(setPreferredRole方法)；Storage新增preferredRole字段；需修复preferredRole参数白名单验证和前端判断逻辑",
+  "userConfirmedAt": "2026-04-24T10:05:55.745Z",
+  "userConfirmedBy": "马哥"
 }

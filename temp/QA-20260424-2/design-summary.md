@@ -1,0 +1,1 @@
+单身份登录方案：修改server.js(auto-login新增preferredRole参数)、App.vue(身份选择弹框)、member.vue(登录触发选择)、profile.vue(退出清除)、api.js(setPreferredRole方法)；Storage新增preferredRole字段；需修复preferredRole参数白名单验证和前端判断逻辑
