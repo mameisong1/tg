@@ -1793,10 +1793,15 @@ app.post('/api/member/login', async (req, res) => {
 // 通过openid自动登录
 app.post('/api/member/auto-login', async (req, res) => {
   try {
-    const { code } = req.body;
+    const { code, preferredRole } = req.body;
 
     if (!code) {
       return res.status(400).json({ error: '缺少code' });
+    }
+
+    // 🔴 审计修复：白名单验证 preferredRole
+    if (preferredRole && !['member', 'coach', 'admin'].includes(preferredRole)) {
+      return res.status(400).json({ error: 'preferredRole 参数无效' });
     }
 
     // 用code换取openid
@@ -1835,16 +1840,59 @@ app.post('/api/member/auto-login', async (req, res) => {
     const memberToken = jwt.sign({ memberNo: member.member_no, phone: member.phone }, config.jwt.secret, { expiresIn: '30d' });
 
     // 检查是否同时是助教
-    const coach = await dbGet('SELECT coach_no, stage_name, level FROM coaches WHERE phone = ? AND status != ?', [member.phone, '离职']);
+    const coach = await dbGet('SELECT coach_no, employee_id, stage_name, level, status FROM coaches WHERE phone = ? AND status != ?', [member.phone, '离职']);
 
     // 检查是否匹配后台用户
     const adminUser = await dbGet('SELECT username, role, name FROM admin_users WHERE username = ?', [member.phone]);
 
-    // 如果是后台用户,生成 adminToken
+    // 构建 roles 数组（用户拥有的所有身份）
+    const roles = ['member'];
+    if (coach && coach.status !== '离职') roles.push('coach');
+    if (adminUser) roles.push('admin');
+
+    // 根据 preferredRole 返回对应信息
     let adminToken = null;
-    if (adminUser) {
+    let adminInfo = null;
+    let coachInfo = null;
+
+    if (preferredRole === 'admin' && adminUser) {
+      // 只返回后台身份
       adminToken = jwt.sign({ username: adminUser.username, role: adminUser.role }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
+      adminInfo = {
+        username: adminUser.username,
+        name: adminUser.name || '',
+        role: adminUser.role
+      };
+    } else if (preferredRole === 'coach' && coach) {
+      // 只返回助教身份
+      coachInfo = {
+        coachNo: coach.coach_no,
+        employeeId: coach.employee_id,
+        stageName: coach.stage_name,
+        level: coach.level,
+        status: coach.status
+      };
+    } else if (!preferredRole) {
+      // 无偏好参数：返回所有身份（前端弹框选择）
+      if (adminUser) {
+        adminToken = jwt.sign({ username: adminUser.username, role: adminUser.role }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
+        adminInfo = {
+          username: adminUser.username,
+          name: adminUser.name || '',
+          role: adminUser.role
+        };
+      }
+      if (coach) {
+        coachInfo = {
+          coachNo: coach.coach_no,
+          employeeId: coach.employee_id,
+          stageName: coach.stage_name,
+          level: coach.level,
+          status: coach.status
+        };
+      }
     }
+    // preferredRole === 'member' 时，不返回任何额外身份信息
 
     res.json({
       success: true,
@@ -1856,18 +1904,10 @@ app.post('/api/member/auto-login', async (req, res) => {
         name: member.name,
         gender: member.gender
       },
-      adminInfo: adminUser ? {
-        username: adminUser.username,
-        name: adminUser.name || '',
-        role: adminUser.role
-      } : null,
-      adminToken: adminToken,
-      coachInfo: coach ? {
-        coachNo: coach.coach_no,
-        stageName: coach.stage_name,
-        level: coach.level,
-        status: coach.status
-      } : null
+      roles,  // 🔴 新增：返回所有身份列表
+      adminInfo,
+      adminToken,
+      coachInfo
     });
   } catch (err) {
     logger.error(`自动登录失败: ${err.message}`);

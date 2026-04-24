@@ -390,7 +390,35 @@ export default {
   memberLogin: (data) => request({ url: '/member/login', method: 'POST', data }),
   
   // 通过openid自动登录
-  memberAutoLogin: (code) => request({ url: '/member/auto-login', method: 'POST', data: { code } }),
+  memberAutoLogin: (code, preferredRole = null) => request({ 
+    url: '/member/auto-login', 
+    method: 'POST', 
+    data: { code, preferredRole } 
+  }),
+  
+  // 🔴 新增：设置用户偏好身份
+  setPreferredRole: (role) => {
+    if (!['member', 'coach', 'admin'].includes(role)) {
+      console.error('setPreferredRole: 无效的角色值', role);
+      return;
+    }
+    uni.setStorageSync('preferredRole', role);
+    
+    // 删除其他身份的 token
+    if (role === 'coach') {
+      uni.removeStorageSync('adminToken');
+      uni.removeStorageSync('adminInfo');
+    } else if (role === 'admin') {
+      uni.removeStorageSync('coachToken');
+      uni.removeStorageSync('coachInfo');
+    } else if (role === 'member') {
+      uni.removeStorageSync('adminToken');
+      uni.removeStorageSync('adminInfo');
+      uni.removeStorageSync('coachToken');
+      uni.removeStorageSync('coachInfo');
+    }
+    console.log('已设置偏好身份:', role);
+  },
   
   // 获取会员信息
   getMemberProfile: () => request({ url: '/member/profile', authType: 'member' }),

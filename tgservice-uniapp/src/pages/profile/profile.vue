@@ -164,12 +164,13 @@ const logout = async () => {
         } catch (err) {
           // 即使失败也继续退出
         }
-        // 删除所有登录相关数据
+        // 🔴 删除所有登录相关数据（包括 preferredRole）
         uni.removeStorageSync('memberToken')
         uni.removeStorageSync('coachToken')
         uni.removeStorageSync('coachInfo')
         uni.removeStorageSync('adminToken')
         uni.removeStorageSync('adminInfo')
+        uni.removeStorageSync('preferredRole')  // 🔴 新增
         
         // 使用 reLaunch 强制刷新会员中心页面，让用户立即看到退出状态
         uni.reLaunch({ url: '/pages/member/member' })

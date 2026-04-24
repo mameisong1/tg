@@ -439,9 +439,110 @@
     </view>
     
     <!-- #ifdef H5 -->
+    <!-- 华为手机添加到桌面操作指引弹窗 -->
+    <view class="edit-modal" v-if="showHuaweiGuide" @click="showHuaweiGuide = false">
+      <view class="ios-guide-content" @click.stop>
+        <text class="ios-guide-title">📱 添加到桌面</text>
+        <view class="ios-guide-steps">
+          <view class="ios-step">
+            <text class="ios-step-num">1</text>
+            <text class="ios-step-text">点击浏览器右下角</text>
+            <text class="ios-step-icon">⋮</text>
+            <text class="ios-step-text">菜单按钮</text>
+          </view>
+          <view class="ios-step">
+            <text class="ios-step-num">2</text>
+            <text class="ios-step-text">找到并点击</text>
+            <text class="ios-step-highlight">"添加到桌面"</text>
+            <text class="ios-step-text">或</text>
+            <text class="ios-step-highlight">"发送到桌面"</text>
+          </view>
+          <view class="ios-step">
+            <text class="ios-step-num">3</text>
+            <text class="ios-step-text">确认后即可在桌面找到应用</text>
+          </view>
+        </view>
+        <view class="ios-guide-close" @click="showHuaweiGuide = false">
+          <text>我知道了</text>
+        </view>
+      </view>
+    </view>
+    <!-- 微信/QQ内置浏览器引导弹窗 -->
+    <view class="edit-modal" v-if="showWechatGuide" @click="showWechatGuide = false">
+      <view class="ios-guide-content" @click.stop>
+        <text class="ios-guide-title">📱 在浏览器中打开</text>
+        <view class="ios-guide-steps">
+          <view class="ios-step">
+            <text class="ios-step-num">1</text>
+            <text class="ios-step-text">点击右上角</text>
+            <text class="ios-step-icon">⋯</text>
+            <text class="ios-step-text">菜单按钮</text>
+          </view>
+          <view class="ios-step">
+            <text class="ios-step-num">2</text>
+            <text class="ios-step-text">选择</text>
+            <text class="ios-step-highlight">"在浏览器中打开"</text>
+          </view>
+          <view class="ios-step">
+            <text class="ios-step-num">3</text>
+            <text class="ios-step-text">打开后再点击"添加到桌面"</text>
+          </view>
+        </view>
+        <view class="ios-guide-close" @click="showWechatGuide = false">
+          <text>我知道了</text>
+        </view>
+      </view>
+    </view>
+    <!-- Android通用引导弹窗 -->
+    <view class="edit-modal" v-if="showAndroidGuide" @click="showAndroidGuide = false">
+      <view class="ios-guide-content" @click.stop>
+        <text class="ios-guide-title">📱 添加到桌面</text>
+        <view class="ios-guide-steps">
+          <view class="ios-step">
+            <text class="ios-step-num">1</text>
+            <text class="ios-step-text">点击浏览器菜单按钮</text>
+            <text class="ios-step-icon">⋮</text>
+          </view>
+          <view class="ios-step">
+            <text class="ios-step-num">2</text>
+            <text class="ios-step-text">找到</text>
+            <text class="ios-step-highlight">"添加到主屏幕"</text>
+            <text class="ios-step-text">或</text>
+            <text class="ios-step-highlight">"添加到桌面"</text>
+          </view>
+          <view class="ios-step">
+            <text class="ios-step-num">3</text>
+            <text class="ios-step-text">确认后即可在桌面找到应用</text>
+          </view>
+        </view>
+        <view class="ios-guide-close" @click="showAndroidGuide = false">
+          <text>我知道了</text>
+        </view>
+      </view>
+    </view>
     <!-- #endif -->
     
-    <!-- 编辑姓名弹窗 -->
+    
+    <!-- 🔴 新增：身份选择弹框 -->
+    <view class="edit-modal" v-if="showRoleSelectModal" @click="showRoleSelectModal = false">
+      <view class="role-select-content" @click.stop>
+        <text class="role-select-title">请选择您的身份</text>
+        <view class="role-select-options">
+          <view class="role-option" v-if="pendingRoles.includes('coach')" @click="selectRole('coach')">
+            <text class="role-icon">🎱</text>
+            <text class="role-name">助教身份</text>
+            <text class="role-desc">用于提交上桌单、服务下单</text>
+          </view>
+          <view class="role-option" v-if="pendingRoles.includes('admin')" @click="selectRole('admin')">
+            <text class="role-icon">🔧</text>
+            <text class="role-name">后台身份</text>
+            <text class="role-desc">用于审批管理、后台操作</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+</template>
     <view class="edit-modal" v-if="showEditName" @click="showEditName = false">
       <view class="edit-content" @click.stop>
         <text class="edit-title">编辑姓名</text>
@@ -583,6 +684,24 @@
     <!-- #endif -->
     
     
+    <!-- 🔴 新增：身份选择弹框 -->
+    <view class="edit-modal" v-if="showRoleSelectModal" @click="showRoleSelectModal = false">
+      <view class="role-select-content" @click.stop>
+        <text class="role-select-title">请选择您的身份</text>
+        <view class="role-select-options">
+          <view class="role-option" v-if="pendingRoles.includes('coach')" @click="selectRole('coach')">
+            <text class="role-icon">🎱</text>
+            <text class="role-name">助教身份</text>
+            <text class="role-desc">用于提交上桌单、服务下单</text>
+          </view>
+          <view class="role-option" v-if="pendingRoles.includes('admin')" @click="selectRole('admin')">
+            <text class="role-icon">🔧</text>
+            <text class="role-name">后台身份</text>
+            <text class="role-desc">用于审批管理、后台操作</text>
+          </view>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -629,6 +748,11 @@ const showEditName = ref(false)
 const editNameValue = ref('')
 const showEditGender = ref(false)
 const editGenderValue = ref('')
+
+// 🔴 新增：身份选择弹框
+const showRoleSelectModal = ref(false)
+const pendingRoles = ref([])
+const tempLoginData = ref(null)
 
 // H5全屏状态
 // #ifdef H5
@@ -826,23 +950,12 @@ const loginBySms = async () => {
       uni.setStorageSync('agreed', true)
       memberInfo.value = data.member
       
-      // 如果匹配后台用户，自动实现内部员工登录
-      if (data.adminInfo) {
-        uni.setStorageSync('adminInfo', data.adminInfo)
-        console.log('自动内部登录:', data.adminInfo.role, data.adminInfo.name)
-      }
-      // ⚠️ 保存 adminToken（内部页面 api.js 认证必需）
-      if (data.adminToken) {
-        uni.setStorageSync('adminToken', data.adminToken)
-        console.log('已保存 adminToken')
-      }
-      
-      // 如果同时是教练，自动登录教练
-      if (data.coachInfo) {
-        const coachToken = btoa(`${data.coachInfo.coachNo}:${Date.now()}`)
-        uni.setStorageSync('coachToken', coachToken)
-        uni.setStorageSync('coachInfo', data.coachInfo)
-        coachInfo.value = data.coachInfo
+      // 🔴 新增：处理多重身份
+      if (data.roles && data.roles.length > 0) {
+        handleRoleSelection(data.roles, data)
+      } else {
+        // 单身份或无 roles 返回，直接保存
+        saveLoginData(data)
       }
       
       // 清空验证码
@@ -893,22 +1006,11 @@ const onGetPhoneNumber = async (e) => {
       uni.setStorageSync('memberToken', data.token)
       memberInfo.value = data.member
       
-      // 如果匹配后台用户，自动实现内部员工登录
-      if (data.adminInfo) {
-        uni.setStorageSync('adminInfo', data.adminInfo)
-        console.log('自动内部登录:', data.adminInfo.role, data.adminInfo.name)
-      }
-      // ⚠️ 保存 adminToken（内部页面 api.js 认证必需）
-      if (data.adminToken) {
-        uni.setStorageSync('adminToken', data.adminToken)
-      }
-      
-      // 如果同时是教练，自动登录教练
-      if (data.coachInfo) {
-        const coachToken = Buffer.from(`${data.coachInfo.coachNo}:${Date.now()}`).toString('base64')
-        uni.setStorageSync('coachToken', coachToken)
-        uni.setStorageSync('coachInfo', data.coachInfo)
-        coachInfo.value = data.coachInfo
+      // 🔴 新增：处理多重身份
+      if (data.roles && data.roles.length > 0) {
+        handleRoleSelection(data.roles, data)
+      } else {
+        saveLoginData(data)
       }
       
       uni.showToast({ title: '登录成功', icon: 'success' })
@@ -1015,20 +1117,11 @@ const tryAutoLogin = async () => {
       uni.setStorageSync('memberToken', data.token)
       memberInfo.value = data.member
       
-      // 如果匹配后台用户，自动实现内部员工登录
-      if (data.adminInfo) {
-        uni.setStorageSync('adminInfo', data.adminInfo)
-      }
-      if (data.adminToken) {
-        uni.setStorageSync('adminToken', data.adminToken)
-      }
-      
-      // 如果同时是教练，自动登录教练
-      if (data.coachInfo) {
-        const coachToken = Buffer.from(`${data.coachInfo.coachNo}:${Date.now()}`).toString('base64')
-        uni.setStorageSync('coachToken', coachToken)
-        uni.setStorageSync('coachInfo', data.coachInfo)
-        coachInfo.value = data.coachInfo
+      // 🔴 新增：处理多重身份
+      if (data.roles && data.roles.length > 0) {
+        handleRoleSelection(data.roles, data)
+      } else {
+        saveLoginData(data)
       }
     } else {
       // 未注册，确保信息为空
@@ -1041,6 +1134,70 @@ const tryAutoLogin = async () => {
     memberInfo.value = {}
     coachInfo.value = {}
   }
+}
+
+// 🔴 新增：保存登录数据（单身份）
+const saveLoginData = (data) => {
+  if (data.adminInfo) {
+    uni.setStorageSync('adminInfo', data.adminInfo)
+    console.log('自动内部登录:', data.adminInfo.role, data.adminInfo.name)
+  }
+  if (data.adminToken) {
+    uni.setStorageSync('adminToken', data.adminToken)
+    console.log('已保存 adminToken')
+  }
+  
+  if (data.coachInfo) {
+    const coachToken = btoa(`${data.coachInfo.coachNo}:${Date.now()}`)
+    uni.setStorageSync('coachToken', coachToken)
+    uni.setStorageSync('coachInfo', data.coachInfo)
+    coachInfo.value = data.coachInfo
+  }
+}
+
+// 🔴 新增：处理多重身份选择
+const handleRoleSelection = (roles, loginData) => {
+  // 🟡 审计修复：使用 extraRoles.length <= 1 判断
+  const extraRoles = roles.filter(r => r !== 'member')
+  
+  if (extraRoles.length <= 1) {
+    // 单身份或无额外身份 → 直接保存
+    saveLoginData(loginData)
+    return
+  }
+  
+  // 多重身份 → 弹框选择
+  pendingRoles.value = extraRoles
+  tempLoginData.value = loginData
+  showRoleSelectModal.value = true
+}
+
+// 🔴 新增：用户选择身份
+const selectRole = async (role) => {
+  showRoleSelectModal.value = false
+  
+  // 保存偏好身份
+  api.setPreferredRole(role)
+  
+  // 根据选择保存对应 token
+  if (role === 'admin' && tempLoginData.value) {
+    if (tempLoginData.value.adminToken) {
+      uni.setStorageSync('adminToken', tempLoginData.value.adminToken)
+    }
+    if (tempLoginData.value.adminInfo) {
+      uni.setStorageSync('adminInfo', tempLoginData.value.adminInfo)
+    }
+  } else if (role === 'coach' && tempLoginData.value) {
+    if (tempLoginData.value.coachInfo) {
+      const coachToken = btoa(`${tempLoginData.value.coachInfo.coachNo}:${Date.now()}`)
+      uni.setStorageSync('coachToken', coachToken)
+      uni.setStorageSync('coachInfo', tempLoginData.value.coachInfo)
+      coachInfo.value = tempLoginData.value.coachInfo
+    }
+  }
+  
+  uni.showToast({ title: `已选择${role === 'coach' ? '助教' : '后台'}身份`, icon: 'success' })
+  tempLoginData.value = null
 }
 
 // 编辑姓名
@@ -2047,6 +2204,56 @@ onShow(() => {
 .loading-text {
   font-size: 16px;
   color: rgba(255, 255, 255, 0.5);
+}
+
+/* 🔴 新增：身份选择弹框样式 */
+.role-select-content {
+  width: 90%;
+  max-width: 340px;
+  background: #1a1a24;
+  border-radius: 16px;
+  padding: 24px 20px;
+}
+.role-select-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #d4af37;
+  display: block;
+  text-align: center;
+  margin-bottom: 24px;
+}
+.role-select-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.role-option {
+  padding: 16px;
+  background: rgba(30,30,40,0.6);
+  border: 1px solid rgba(218,165,32,0.2);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.role-option:active {
+  transform: scale(0.98);
+  background: rgba(212,175,55,0.2);
+}
+.role-icon {
+  font-size: 32px;
+}
+.role-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+}
+.role-desc {
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
 }
 
 </style>
