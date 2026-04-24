@@ -317,23 +317,24 @@ const handleTableFieldClick = async () => {
 .form-value .placeholder { color: rgba(255,255,255,0.3); }
 .arrow { font-size: 18px; color: rgba(255,255,255,0.3); }
 
-/* 左右排列列表布局 */
+/* 分类按钮列表布局（竖向排列） */
 .quick-list {
   margin-bottom: 16px;
 }
 .quick-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.quick-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
 }
 .group-label {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
-  min-width: 42px;
-  text-align: center;
+  margin-bottom: 8px;
   letter-spacing: 1px;
-  flex-shrink: 0;
 }
 .quick-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .quick-tag { padding: 8px 12px; border: 1px solid; border-radius: 20px; font-size: 13px; white-space: nowrap; }
