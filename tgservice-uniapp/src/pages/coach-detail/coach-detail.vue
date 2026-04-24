@@ -332,7 +332,7 @@ const confirmInvite = async () => {
       method: 'POST',
       data: {
         table_no: tableName.value,
-        requirement: `助教上桌邀请函（${coach.value.employee_id || '未知'} ${coach.value.stage_name || '未命名'}）`
+        requirement: `助教上桌邀请函（${coach.value.employee_id || '未知'} ${coach.value.stage_name || '未命名'}）`,
         coach_no: coachNo.value
       }
     })
