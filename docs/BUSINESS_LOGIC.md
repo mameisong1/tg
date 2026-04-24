@@ -938,10 +938,15 @@ pending(待出发) → active(乐捐中) → returned(已归来)
 1. 助教在乐捐状态下，直接点击“上班”按钮（clock-in）
 2. 后端 `POST /api/coaches/v2/:coach_no/clock-in` 检测到水牌状态为“乐捐”
 3. 自动查询该助教是否有 `active` 状态的乐捐记录
-4. 如果有，自动计算乐捐时长：
+4. 如果有，自动计算乐捐时长（使用统一函数 `calculateLejuanHours`）：
    ```javascript
-   const diffMs = nowTime.getTime() - actualStartTime.getTime();
-   const lejuanHours = Math.max(1, Math.ceil(diffMs / (60 * 60 * 1000)));
+   // utils/lejuan-hours.js 统一计算函数
+   // 算法：基于预约开始时间（scheduled_start_time）
+   const totalMinutes = (endTime - scheduledStartTime) / 60000;
+   const baseHours = Math.floor(totalMinutes / 60);
+   const remainingMinutes = totalMinutes % 60;
+   const extraHour = remainingMinutes > 10 ? 1 : 0;
+   const lejuanHours = Math.max(1, baseHours + extraHour);
    ```
 5. 更新乐捐记录：
    - `lejuan_status = 'returned'`
@@ -949,6 +954,11 @@ pending(待出发) → active(乐捐中) → returned(已归来)
    - `lejuan_hours = 计算结果`
    - `returned_by = 'system'`
 6. 水牌状态自动恢复为对应班次的空闲状态
+
+**注意**：乐捐时长计算统一使用 `utils/lejuan-hours.js` 的 `calculateLejuanHours` 函数，被以下三处调用：
+- `services/cron-scheduler.js`（自动结束乐捐）
+- `routes/coaches.js`（上班打卡乐捐归来）
+- `routes/lejuan-records.js`（助教管理点归来按钮）
 
 ### 9.4 乐捐一览页面(管理)
 

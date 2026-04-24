@@ -2452,10 +2452,18 @@ MQTT 发送失败时返回 HTTP 502：
    - 当前时间 >= 下班时间: 按下班时间计算时长，水牌设为"下班"
    - 当前时间 < 下班时间: 按当前时间计算时长，水牌设为"空闲"
 
-3. **乐捐时长计算**:
-   - baseHours = 时间差小时数（向下取整）
-   - extraHour = 结束分钟 > 10 ? 1 : 0
+3. **乐捐时长计算**（使用统一函数 `calculateLejuanHours`）：
+   - 基于 scheduled_start_time（预约开始时间）计算
+   - totalMinutes = (endTime - scheduledStartTime) / 60000
+   - baseHours = Math.floor(totalMinutes / 60)
+   - remainingMinutes = totalMinutes % 60
+   - extraHour = remainingMinutes > 10 ? 1 : 0
    - lejuan_hours = Math.max(1, baseHours + extraHour)
+
+   **统一函数位置**：`utils/lejuan-hours.js`，被三处调用：
+   - `cron-scheduler.js`（自动结束乐捐）
+   - `coaches.js`（上班打卡乐捐归来）
+   - `lejuan-records.js`（归来按钮）
 
 4. **水牌状态检查**:
    - 只有水牌当前状态为"乐捐"时才更新水牌
