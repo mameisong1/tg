@@ -13,7 +13,6 @@
     <view class="form-section">
       <!-- 台桌号 -->
       <view class="form-item" @click="handleTableFieldClick">
-        <text class="form-label">台桌号</text>
         <view class="form-value">
           <text :class="{ placeholder: !form.table_no }">{{ form.table_no || '请选择台桌' }}</text>
           <text class="arrow">›</text>
