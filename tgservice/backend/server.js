@@ -1769,6 +1769,11 @@ app.post('/api/member/login', async (req, res) => {
       adminToken = jwt.sign({ username: adminUser.username, role: adminUser.role }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
     }
 
+    // 🔴 新增：构建身份列表
+    const roles = ['member'];
+    if (coach) roles.push('coach');
+    if (adminUser) roles.push('admin');
+
     res.json({
       success: true,
       token: memberToken,
@@ -1778,6 +1783,8 @@ app.post('/api/member/login', async (req, res) => {
         name: member.name,
         gender: member.gender
       },
+      roles,  // 🔴 新增：返回所有身份列表
+      needSelectRole: roles.length > 1,
       adminInfo: adminUser ? {
         username: adminUser.username,
         name: adminUser.name || '',

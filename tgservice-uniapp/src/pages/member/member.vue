@@ -1107,7 +1107,7 @@ const tryAutoLogin = async () => {
       })
     })
     
-    const data = await api.memberAutoLogin(loginRes.code)
+    const data = await api.memberAutoLogin(loginRes.code, uni.getStorageSync('preferredRole'))
     if (data.success && data.registered) {
       uni.setStorageSync('memberToken', data.token)
       memberInfo.value = data.member
