@@ -1776,6 +1776,97 @@ MQTT 发送失败时返回 HTTP 502：
 
 ---
 
+## 智能空调接口（2026-04-25新增）
+
+所有智能空调接口需要权限验证（店长/助教管理/管理员）。
+
+### 空调场景列表
+
+- **路径**: `GET /api/ac/scenes`
+- **说明**: 获取空调场景列表（device_type="空调"）
+
+### 空调标签列表
+
+- **路径**: `GET /api/ac/labels`
+- **返回**: 空调标签数组
+
+### 空调台桌列表
+
+- **路径**: `GET /api/ac/tables`
+- **返回**: 关联空调设备的台桌数组
+
+### 自动关空调状态
+
+- **路径**: `GET /api/ac/auto-status`
+- **返回**: `{ "auto_off_enabled": true }`
+
+### 切换自动关空调
+
+- **路径**: `POST /api/ac/auto-off-toggle`
+
+### 手动执行智能省电（空调）
+
+- **路径**: `POST /api/ac/auto-off-manual`
+
+### 空调场景执行
+
+- **路径**: `POST /api/ac/scene/:id`
+- **请求体**: 无
+- **返回**: `{ "success": true, "count": 10 }`
+
+### 空调标签控制
+
+- **路径**: `POST /api/ac/label-control`
+- **请求体**: `{ "label": "P19", "action": "ON" }`
+- **返回**: `{ "success": true, "count": 1 }`
+
+### 空调台桌控制
+
+- **路径**: `POST /api/ac/table-control`
+- **请求体**: `{ "table_name_en": "BOSS1", "action": "OFF" }
+- **返回**: `{ "success": true, "count": 1, "table_name_en": "BOSS1" }
+
+### 空调设定配置（后台）
+
+- **路径**: `GET /api/admin/ac-control`
+- **返回**: `{ "success": true, "config": { "temp_set": 23, "fan_speed_enum": "middle" } }\`
+- **说明**: 获取空调开机时的温度和风速设定
+
+### 更新空调设定
+
+- **路径**: `PUT /api/admin/ac-control`
+- **请求体**: `{ "temp_set": 26 }` 或 `{ "fan_speed_enum": "high" }
+- **返回**: `{ "success": true, "config": { "temp_set": 26, "fan_speed_enum": "middle" } }\`
+- **说明**: 更新空调设定，支持热更新（立即生效，无需重启）
+- **温度范围**: 16-30℃
+- **风速选项**: auto, low, middle, high
+
+### 空调设备管理（后台）
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/admin/ac-devices` | GET | 获取空调设备列表 |
+| `/api/admin/ac-devices` | POST | 新增空调设备 |
+| `/api/admin/ac-devices/:id` | PUT | 更新空调设备 |
+| `/api/admin/ac-devices/:id` | DELETE | 删除空调设备 |
+
+### 空调场景管理（后台）
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/api/admin/ac-scenes` | GET | 获取空调场景列表 |
+| `/api/admin/ac-scenes` | POST | 新增空调场景 |
+| `/api/admin/ac-scenes/:id` | PUT | 更新空调场景 |
+| `/api/admin/ac-scenes/:id` | DELETE | 删除空调场景 |
+
+### 空调MQTT指令格式
+
+- **Topic**: `tiangongguojikongtiao`
+- **开空调**: `{ "dev_id": "xxx", "node_id": "1", "switch": true, "temp_set": 23, "mode": "cold", "fan_speed_enum": "middle" }
+- **关空调**: `{ "dev_id": "xxx", "node_id": "1", "switch": false }
+
+---
+
 ## 约客管理接口（2026-04-20更新）
 
 ### 锁定应约客人员
