@@ -40,7 +40,7 @@
       <!-- 自定义需求（必填） -->
       <view class="form-item">
         <text class="form-label">需求内容 <text class="required">*</text></text>
-        <input class="input" type="text" :value="form.requirement" @input="onRequirementInput" placeholder="请输入需求内容" maxlength="200" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off" />
+        <textarea class="input" :value="form.requirement" @input="onRequirementInput" placeholder="请输入需求内容" maxlength="200" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off"></textarea>
       </view>
 
       <view class="submit-btn" @click="submitOrder"><text>提交服务单</text></view>
@@ -345,7 +345,7 @@ const handleTableFieldClick = async () => {
 .quick-tag { padding: 8px 12px; border: 1px solid rgba(255,255,255,0.2); border-radius: 20px; font-size: 13px; white-space: nowrap; background: rgba(255,255,255,0.05); }
 .quick-tag:active { opacity: 0.7; }
 
-.input { width: 100%; height: 48px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 0 12px; font-size: 14px; color: #fff; box-sizing: border-box; }
+.input { width: 100%; height: 48px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 12px; font-size: 14px; color: #fff; box-sizing: border-box; line-height: 24px; }
 
 .requester-name { font-size: 15px; color: #d4af37; }
 

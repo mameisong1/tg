@@ -560,7 +560,7 @@ async function taskSyncRewardPenalty() {
                     await tx.run(
                         `INSERT INTO reward_penalties (type, confirm_date, phone, name, amount, remark, exec_status, updated_at)
                          VALUES (?, ?, ?, ?, ?, ?, '未执行', ?)
-                         ON CONFLICT(confirm_date, type, phone) DO NOTHING`,
+                         ON CONFLICT(confirm_date, type, phone, remark) DO NOTHING`,
                         [type, confirmDate, record.phone, name, amount,
                          `请假: ${leaveType} (${leaveDate})`, now]
                     );

@@ -125,7 +125,7 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
 
       if (activeLejuan) {
         const nowDB = TimeUtil.nowDB();
-        const { calculateLejuanHours } = require('./utils/lejuan-hours');
+        const { calculateLejuanHours } = require('../utils/lejuan-hours');
         const lejuanHours = calculateLejuanHours(activeLejuan.scheduled_start_time, nowDB);
 
         await tx.run(
