@@ -189,7 +189,7 @@ async function controlByLabel(label, action) {
 
   // 查询该标签下的所有开关
   const devices = await all(
-    'SELECT DISTINCT switch_id, switch_seq FROM switch_device WHERE switch_label = ?',
+    'SELECT DISTINCT switch_id, switch_seq FROM switch_device WHERE switch_label = ? AND device_type = "灯"',
     [label]
   );
 
@@ -215,7 +215,7 @@ async function controlByTable(tableNameEn, action) {
     'SELECT DISTINCT sd.switch_id, sd.switch_seq ' +
     'FROM table_device td ' +
     'JOIN switch_device sd ON td.switch_seq = sd.switch_seq AND td.switch_label = sd.switch_label ' +
-    'WHERE td.table_name_en = ?',
+    'WHERE td.table_name_en = ? AND sd.device_type = "灯"',
     [tableNameEn]
   );
 

@@ -1,38 +1,38 @@
 /**
- * 自动关灯服务
+ * 自动关空调服务
  * 
  * 由台桌状态同步接口触发，当更新>=40条台桌数据时执行。
- * 逻辑：可能要关的灯 - 不能关的灯 = 要关的灯
+ * 逻辑：可能要关的空调 - 不能关的空调 = 要关的空调
  * 
  * 支持跨午夜时间判断（如 22:00~06:00）
  */
 
 const TimeUtil = require('../utils/time');
 const { all, get } = require('../db/index');
-const { sendBatchCommand } = require('./mqtt-switch');
+const { sendACOffBatch } = require('./mqtt-ac');
 
 /**
- * 执行自动关灯
+ * 执行自动关空调（台桌相关）
  * @returns {Object} { status, maybeOffCount, cannotOffCount, turnedOffCount }
  */
-async function executeAutoOffLighting() {
-  // 1. 检查自动关灯功能是否开启
-  const setting = await get("SELECT value FROM system_settings WHERE key = 'switch_auto_off_enabled'");
+async function executeAutoOffAC() {
+  // 1. 检查自动关空调功能是否开启
+  const setting = await get("SELECT value FROM system_settings WHERE key = 'ac_auto_off_enabled'");
   if (!setting || setting.value !== '1') {
-    console.log('[自动关灯] 功能未开启，跳过');
+    console.log('[自动关空调] 功能未开启，跳过');
     return { status: 'disabled' };
   }
 
   const now = TimeUtil.nowDB();
 
-  // 2. 查询"可能要关的灯"：空闲台桌 + 在自动关灯时段内 + device_type=灯
+  // 2. 查询"可能要关的空调"：空闲台桌 + 在自动关空调时段内
   const maybeOff = await all(`
     SELECT DISTINCT sd.switch_id, sd.switch_seq
     FROM tables t
     JOIN table_device td ON LOWER(td.table_name_en) = LOWER(t.name_pinyin)
     JOIN switch_device sd ON sd.switch_seq = td.switch_seq AND sd.switch_label = td.switch_label
     WHERE t.status = '空闲'
-      AND sd.device_type = '灯'
+      AND sd.device_type = '空调'
       AND sd.auto_off_start != ''
       AND sd.auto_off_end != ''
       AND (
@@ -46,18 +46,18 @@ async function executeAutoOffLighting() {
   `, [now, now, now, now]);
 
   if (maybeOff.length === 0) {
-    console.log('[自动关灯] 无需要关的灯');
+    console.log('[自动关空调] 无需要关的空调');
     return { status: 'ok', maybeOffCount: 0, cannotOffCount: 0, turnedOffCount: 0 };
   }
 
-  // 3. 查询"不能关的灯"：非空闲台桌 + 在自动关灯时段内 + device_type=灯
+  // 3. 查询"不能关的空调"：非空闲台桌 + 在自动关空调时段内
   const cannotOff = await all(`
     SELECT DISTINCT sd.switch_id, sd.switch_seq
     FROM tables t
     JOIN table_device td ON LOWER(td.table_name_en) = LOWER(t.name_pinyin)
     JOIN switch_device sd ON sd.switch_seq = td.switch_seq AND sd.switch_label = td.switch_label
     WHERE t.status != '空闲'
-      AND sd.device_type = '灯'
+      AND sd.device_type = '空调'
       AND sd.auto_off_start != ''
       AND sd.auto_off_end != ''
       AND (
@@ -81,14 +81,14 @@ async function executeAutoOffLighting() {
       return { switch_id, switch_seq };
     });
 
-  console.log(`[自动关灯] 可能要关 ${maybeOff.length} 个, 不能关 ${cannotOff.length} 个, 实际要关 ${toTurnOff.length} 个`);
+  console.log(`[自动关空调] 可能要关 ${maybeOff.length} 个, 不能关 ${cannotOff.length} 个, 实际要关 ${toTurnOff.length} 个`);
 
   if (toTurnOff.length === 0) {
     return { status: 'ok', maybeOffCount: maybeOff.length, cannotOffCount: cannotOff.length, turnedOffCount: 0 };
   }
 
-  // 5. 发送 MQTT 关灯指令
-  const sendResult = await sendBatchCommand(toTurnOff, 'OFF');
+  // 5. 发送 MQTT 关空调指令（测试环境只写日志，不执行真实指令）
+  const sendResult = await sendACOffBatch(toTurnOff);
   const turnedOffCount = sendResult?.successCount ?? sendResult ?? 0;
 
   return {
@@ -100,20 +100,20 @@ async function executeAutoOffLighting() {
 }
 
 /**
- * 执行台桌无关自动关灯
+ * 执行台桌无关自动关空调
  * @returns {Object} { status, turnedOffCount }
  */
-async function executeAutoOffTableIndependent() {
-  // 1. 检查自动关灯功能是否开启
-  const setting = await get("SELECT value FROM system_settings WHERE key = 'switch_auto_off_enabled'");
+async function executeAutoOffACTableIndependent() {
+  // 1. 检查自动关空调功能是否开启
+  const setting = await get("SELECT value FROM system_settings WHERE key = 'ac_auto_off_enabled'");
   if (!setting || setting.value !== '1') {
-    console.log('[自动关灯-台桌无关] 功能未开启，跳过');
+    console.log('[自动关空调-台桌无关] 功能未开启，跳过');
     return { status: 'disabled', turnedOffCount: 0 };
   }
 
   const now = TimeUtil.nowDB();
 
-  // 2. 查询台桌无关的关灯对象（device_type=灯）
+  // 2. 查询台桌无关的空调设备
   const switches = await all(`
     SELECT DISTINCT sd.switch_id, sd.switch_seq
     FROM switch_device sd
@@ -121,7 +121,7 @@ async function executeAutoOffTableIndependent() {
       ON LOWER(sd.switch_label) = LOWER(td.switch_label) 
       AND LOWER(sd.switch_seq) = LOWER(td.switch_seq)
     WHERE td.table_name_en IS NULL
-      AND sd.device_type = '灯'
+      AND sd.device_type = '空调'
       AND sd.auto_off_start != ''
       AND sd.auto_off_end != ''
       AND (
@@ -135,19 +135,17 @@ async function executeAutoOffTableIndependent() {
   `, [now, now, now, now]);
 
   if (switches.length === 0) {
-    console.log('[自动关灯-台桌无关] 无需要关的灯');
+    console.log('[自动关空调-台桌无关] 无需要关的空调');
     return { status: 'ok', turnedOffCount: 0 };
   }
 
-  console.log(`[自动关灯-台桌无关] 查询到 ${switches.length} 个台桌无关开关`);
+  console.log(`[自动关空调-台桌无关] 查询到 ${switches.length} 个台桌无关空调`);
 
-  // 3. 发送 MQTT 关灯指令
-  const sendResult = await sendBatchCommand(switches, 'OFF');
+  // 3. 发送 MQTT 关空调指令
+  const sendResult = await sendACOffBatch(switches);
   const turnedOffCount = sendResult?.successCount ?? sendResult ?? 0;
-
-  console.log(`[自动关灯-台桌无关] 已关闭 ${turnedOffCount} 个台桌无关开关`);
 
   return { status: 'ok', turnedOffCount };
 }
 
-module.exports = { executeAutoOffLighting, executeAutoOffTableIndependent };
+module.exports = { executeAutoOffAC, executeAutoOffACTableIndependent };

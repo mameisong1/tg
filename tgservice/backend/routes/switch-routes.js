@@ -565,7 +565,7 @@ router.post('/api/switch/label-control', requireSwitchPermission, async (req, re
 // 获取所有开关标签列表
 router.get('/api/switch/labels', requireSwitchPermission, async (req, res) => {
   try {
-    const rows = await all('SELECT DISTINCT switch_label FROM switch_device WHERE switch_label != \'\' ORDER BY switch_label');
+    const rows = await all('SELECT DISTINCT switch_label FROM switch_device WHERE device_type = "灯" AND switch_label != \'\' ORDER BY switch_label');
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
@@ -575,7 +575,7 @@ router.get('/api/switch/labels', requireSwitchPermission, async (req, res) => {
 // 获取场景列表（前台用）
 router.get('/api/switch/scenes', requireSwitchPermission, async (req, res) => {
   try {
-    const rows = await all('SELECT * FROM switch_scene ORDER BY sort_order, id');
+    const rows = await all('SELECT * FROM switch_scene WHERE device_type = "灯" ORDER BY sort_order, id');
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
@@ -587,7 +587,7 @@ router.get('/api/switch/tables', requireSwitchPermission, async (req, res) => {
   try {
     const tableDevices = await all(
       'SELECT td.table_name_en, td.switch_seq, td.switch_label, sd.switch_id, sd.switch_label AS device_label ' +
-      'FROM table_device td LEFT JOIN switch_device sd ON td.switch_seq = sd.switch_seq AND td.switch_label = sd.switch_label ' +
+      'FROM table_device td LEFT JOIN switch_device sd ON td.switch_seq = sd.switch_seq AND td.switch_label = sd.switch_label AND sd.device_type = "灯" ' +
       'ORDER BY td.table_name_en'
     );
 

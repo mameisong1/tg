@@ -66,6 +66,9 @@ const systemConfigRouter = require('./routes/system-config');
 // 智能开关路由模块
 const { router: switchRouter, triggerAutoOffIfEligible } = require('./routes/switch-routes');
 
+// 智能空调路由模块（新增）
+const { router: acRouter, triggerAutoOffACIfEligible } = require('./routes/ac-routes');
+
 // 系统报告路由
 const systemReportRouter = require('./routes/system-report');
 
@@ -2225,6 +2228,9 @@ app.post('/api/device/visit', async (req, res) => {
 
 // 智能开关路由（必须在 authMiddleware 之后注册）
 app.use(authMiddleware, switchRouter);
+
+// 智能空调路由（新增，必须在 authMiddleware 之后注册）
+app.use(authMiddleware, acRouter);
 
 // V2.0: 免扫码权限检查
 app.get('/api/auth/check-scan-permission', authMiddleware, async (req, res) => {
