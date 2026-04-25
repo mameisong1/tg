@@ -393,7 +393,7 @@ sqlite3 /TG/tgservice/db/tgservice.db "SELECT DISTINCT switch_label FROM switch_
 
 **优先级**: P0  
 **测试目标**: 验证空调标签批量控制API  
-**API**: `POST /api/switch/label-control`
+**API**: `POST /api/ac/label-control`
 
 #### 测试步骤
 
@@ -402,7 +402,7 @@ sqlite3 /TG/tgservice/db/tgservice.db "SELECT DISTINCT switch_label FROM switch_
 AC_LABEL=$(sqlite3 /TG/tgservice/db/tgservice.db "SELECT switch_label FROM switch_device WHERE device_type='空调' LIMIT 1;")
 
 # 步骤2: 按标签开空调
-curl -X POST "http://127.0.0.1:8088/api/switch/label-control" \
+curl -X POST "http://127.0.0.1:8088/api/ac/label-control" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d "{\"label\":\"$AC_LABEL\",\"action\":\"ON\"}"
@@ -422,7 +422,7 @@ pm2 logs tgservice-dev --lines 30 | grep -E "MQTT|标签控制"
 
 **优先级**: P0  
 **测试目标**: 验证空调标签批量关闭API  
-**API**: `POST /api/switch/label-control`
+**API**: `POST /api/ac/label-control`
 
 #### 测试步骤
 
@@ -431,7 +431,7 @@ pm2 logs tgservice-dev --lines 30 | grep -E "MQTT|标签控制"
 AC_LABEL=$(sqlite3 /TG/tgservice/db/tgservice.db "SELECT switch_label FROM switch_device WHERE device_type='空调' LIMIT 1;")
 
 # 步骤2: 按标签关空调
-curl -X POST "http://127.0.0.1:8088/api/switch/label-control" \
+curl -X POST "http://127.0.0.1:8088/api/ac/label-control" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d "{\"label\":\"$AC_LABEL\",\"action\":\"OFF\"}"
@@ -448,7 +448,7 @@ pm2 logs tgservice-dev --lines 30 | grep -E "MQTT|标签控制"
 
 ```bash
 # 测试无效动作
-curl -X POST "http://127.0.0.1:8088/api/switch/label-control" \
+curl -X POST "http://127.0.0.1:8088/api/ac/label-control" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"label":"VIP区","action":"INVALID"}'
@@ -491,7 +491,7 @@ sqlite3 /TG/tgservice/db/tgservice.db \
 
 **优先级**: P0  
 **测试目标**: 验证台桌空调控制API  
-**API**: `POST /api/switch/table-control`
+**API**: `POST /api/ac/table-control`
 
 #### 测试步骤
 
@@ -503,7 +503,7 @@ TABLE_NAME=$(sqlite3 /TG/tgservice/db/tgservice.db \
    WHERE sd.device_type='空调' LIMIT 1;")
 
 # 步骤2: 按台桌开空调
-curl -X POST "http://127.0.0.1:8088/api/switch/table-control" \
+curl -X POST "http://127.0.0.1:8088/api/ac/table-control" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d "{\"table_name_en\":\"$TABLE_NAME\",\"action\":\"ON\"}"
@@ -522,7 +522,7 @@ pm2 logs tgservice-dev --lines 30 | grep -E "MQTT|台桌控制"
 
 **优先级**: P0  
 **测试目标**: 验证台桌空调关闭API  
-**API**: `POST /api/switch/table-control`
+**API**: `POST /api/ac/table-control`
 
 #### 测试步骤
 
@@ -534,7 +534,7 @@ TABLE_NAME=$(sqlite3 /TG/tgservice/db/tgservice.db \
    WHERE sd.device_type='空调' LIMIT 1;")
 
 # 步骤2: 按台桌关空调
-curl -X POST "http://127.0.0.1:8088/api/switch/table-control" \
+curl -X POST "http://127.0.0.1:8088/api/ac/table-control" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d "{\"table_name_en\":\"$TABLE_NAME\",\"action\":\"OFF\"}"
@@ -551,7 +551,7 @@ pm2 logs tgservice-dev --lines 30 | grep -E "MQTT|台桌控制"
 
 ```bash
 # 测试不存在台桌
-curl -X POST "http://127.0.0.1:8088/api/switch/table-control" \
+curl -X POST "http://127.0.0.1:8088/api/ac/table-control" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"table_name_en":"invalid_table","action":"OFF"}'
@@ -567,14 +567,14 @@ curl -X POST "http://127.0.0.1:8088/api/switch/table-control" \
 
 **优先级**: P0  
 **测试目标**: 验证空调MQTT指令格式正确  
-**API**: `POST /api/switch/label-control`  
+**API**: `POST /api/ac/label-control`  
 **验证方式**: 日志输出
 
 #### 测试步骤
 
 ```bash
 # 步骤1: 触发空调开指令
-curl -X POST "http://127.0.0.1:8088/api/switch/label-control" \
+curl -X POST "http://127.0.0.1:8088/api/ac/label-control" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"label":"VIP1","action":"ON"}'
@@ -597,14 +597,14 @@ pm2 logs tgservice-dev --lines 50 | grep -E "switch_id|switch_seq|ON"
 
 **优先级**: P0  
 **测试目标**: 验证空调MQTT关指令格式  
-**API**: `POST /api/switch/label-control`  
+**API**: `POST /api/ac/label-control`  
 **验证方式**: 日志输出
 
 #### 测试步骤
 
 ```bash
 # 步骤1: 触发空调关指令
-curl -X POST "http://127.0.0.1:8088/api/switch/label-control" \
+curl -X POST "http://127.0.0.1:8088/api/ac/label-control" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"label":"VIP1","action":"OFF"}'
@@ -626,25 +626,25 @@ pm2 logs tgservice-dev --lines 50 | grep -E "switch_id|switch_seq|OFF"
 
 **优先级**: P1  
 **测试目标**: 验证MQTT指令缺少参数时的错误处理  
-**API**: `POST /api/switch/label-control`
+**API**: `POST /api/ac/label-control`
 
 #### 测试步骤
 
 ```bash
 # 步骤1: 测试缺少action参数
-curl -X POST "http://127.0.0.1:8088/api/switch/label-control" \
+curl -X POST "http://127.0.0.1:8088/api/ac/label-control" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"label":"VIP1"}'
 
 # 步骤2: 测试缺少label参数
-curl -X POST "http://127.0.0.1:8088/api/switch/label-control" \
+curl -X POST "http://127.0.0.1:8088/api/ac/label-control" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"action":"ON"}'
 
 # 步骤3: 测试空请求体
-curl -X POST "http://127.0.0.1:8088/api/switch/label-control" \
+curl -X POST "http://127.0.0.1:8088/api/ac/label-control" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{}'
@@ -1031,14 +1031,14 @@ grep -rn "vipRoomManagement" /TG/tgservice/backend/routes/switch-routes.js
 | TC-03-02 | 执行开空调场景 | P0 | POST /api/switch/scene/:id | curl + logs |
 | TC-03-03 | 执行关空调场景 | P0 | POST /api/switch/scene/:id | curl + logs |
 | TC-04-01 | 空调标签列表 | P0 | /api/switch/labels | curl + sqlite3 |
-| TC-04-02 | 按标签开空调 | P0 | POST /api/switch/label-control | curl + logs |
-| TC-04-03 | 按标签关空调 | P0 | POST /api/switch/label-control | curl + logs |
+| TC-04-02 | 按标签开空调 | P0 | POST /api/ac/label-control | curl + logs |
+| TC-04-03 | 按标签关空调 | P0 | POST /api/ac/label-control | curl + logs |
 | TC-05-01 | 台桌空调关联 | P0 | /api/switch/tables | curl + sqlite3 |
-| TC-05-02 | 按台桌开空调 | P0 | POST /api/switch/table-control | curl + logs |
-| TC-05-03 | 按台桌关空调 | P0 | POST /api/switch/table-control | curl + logs |
-| TC-06-01 | 开指令格式 | P0 | POST /api/switch/label-control | logs |
-| TC-06-02 | 关指令格式 | P0 | POST /api/switch/label-control | logs |
-| TC-06-03 | 缺少参数验证 | P1 | POST /api/switch/label-control | curl |
+| TC-05-02 | 按台桌开空调 | P0 | POST /api/ac/table-control | curl + logs |
+| TC-05-03 | 按台桌关空调 | P0 | POST /api/ac/table-control | curl + logs |
+| TC-06-01 | 开指令格式 | P0 | POST /api/ac/label-control | logs |
+| TC-06-02 | 关指令格式 | P0 | POST /api/ac/label-control | logs |
+| TC-06-03 | 缺少参数验证 | P1 | POST /api/ac/label-control | curl |
 | TC-06-04 | 测试环境验证 | P0 | logs + config | logs + grep |
 | TC-07-01 | 读取空调配置 | P0 | GET /api/admin/ac-control | curl + sqlite3 |
 | TC-07-02 | 更新温度设定 | P0 | PUT /api/admin/ac-control | curl + sqlite3 |

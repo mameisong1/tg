@@ -4432,6 +4432,12 @@ app.post('/api/admin/sync/tables', authMiddleware, requireBackendPermission(['vi
       logger.info(`[自动关灯触发] ${JSON.stringify(autoOffResult)}`);
     }
 
+    // 触发自动关空调（当更新>=40条台桌数据时）
+    const autoOffACResult = await triggerAutoOffACIfEligible(result.tablesUpdated, result.vipRoomsUpdated);
+    if (autoOffACResult.triggered) {
+      logger.info(`[自动关空调触发] ${JSON.stringify(autoOffACResult)}`);
+    }
+
     res.json({
       success: true,
       data: {
