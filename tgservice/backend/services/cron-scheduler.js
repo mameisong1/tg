@@ -11,6 +11,7 @@
 const { all, get, enqueueRun, runInTransaction } = require('../db');
 const TimeUtil = require('../utils/time');
 const http = require('http');
+const dingtalkService = require('./dingtalk-service');
 
 // Cron 任务执行间隔（毫秒）
 const CRON_CHECK_INTERVAL = 60 * 1000; // 每分钟检查一次
@@ -284,14 +285,7 @@ async function taskEndLejuan(shiftType) {
                     );
 
                     // 同步更新打卡表的下班时间（凌晨下班时上班记录可能在昨天）
-                    const todayStr = TimeUtil.todayStr();
-                    const yesterdayStr = TimeUtil.offsetDateStr(-1);
-                    const attendanceRecord = await tx.get(
-                        `SELECT id FROM attendance_records
-                         WHERE coach_no = ? AND date IN (?, ?) AND clock_out_time IS NULL
-                         ORDER BY clock_in_time DESC LIMIT 1`,
-                        [record.coach_no, todayStr, yesterdayStr]
-                    );
+                    const attendanceRecord = await dingtalkService.findActiveAttendanceRecord(tx.get, record.coach_no, now);
 
                     if (attendanceRecord) {
                         await tx.run(

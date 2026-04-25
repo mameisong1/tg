@@ -22,7 +22,7 @@
         <view class="date-row" v-for="(row, ri) in currentMonthDays" :key="ri">
           <view class="date-cell" v-for="(cell, ci) in row" :key="ci" :class="{ empty: !cell.day, today: cell.isToday }">
             <text class="date-number" v-if="cell.day">{{ cell.day }}</text>
-            <view class="date-badge" v-if="cell.day && cell.count > 0">
+            <view class="date-badge" v-if="cell.day && cell.count > 0" :class="{ past: cell.isPast }">
               <text class="badge-number">{{ cell.count }}</text>
             </view>
           </view>
@@ -42,7 +42,7 @@
         <view class="date-row" v-for="(row, ri) in nextMonthDays" :key="ri">
           <view class="date-cell" v-for="(cell, ci) in row" :key="ci" :class="{ empty: !cell.day }">
             <text class="date-number" v-if="cell.day">{{ cell.day }}</text>
-            <view class="date-badge" v-if="cell.day && cell.count > 0">
+            <view class="date-badge" v-if="cell.day && cell.count > 0" :class="{ past: cell.isPast }">
               <text class="badge-number">{{ cell.count }}</text>
             </view>
           </view>
@@ -89,6 +89,9 @@ function generateCalendarGrid(yearMonth, daysData, today) {
   const daysInMonth = lastDay.getDate()
   const startWeekday = firstDay.getDay()
   
+  // 计算今天（用于判断过去日期）
+  const todayDate = today ? new Date(today) : null
+  
   const grid = []
   let day = 1
   
@@ -97,14 +100,17 @@ function generateCalendarGrid(yearMonth, daysData, today) {
     const rowCells = []
     for (let col = 0; col < 7; col++) {
       if (row === 0 && col < startWeekday) {
-        rowCells.push({ day: null, count: 0, isToday: false })
+        rowCells.push({ day: null, count: 0, isToday: false, isPast: false })
       } else if (day > daysInMonth) {
-        rowCells.push({ day: null, count: 0, isToday: false })
+        rowCells.push({ day: null, count: 0, isToday: false, isPast: false })
       } else {
         const dateStr = `${yearMonth}-${String(day).padStart(2, '0')}`
         const count = daysData[dateStr] || 0
         const isToday = dateStr === today
-        rowCells.push({ day, count, isToday })
+        // 判断是否为过去日期
+        const cellDate = new Date(dateStr)
+        const isPast = todayDate && cellDate < todayDate && !isToday
+        rowCells.push({ day, count, isToday, isPast })
         day++
       }
     }
@@ -185,6 +191,7 @@ onMounted(() => {
 .date-cell.today .date-number { color: #d4af37; font-weight: 600; }
 
 .date-badge { position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; background: #e74c3c; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0 4px; }
+.date-badge.past { background: rgba(255,255,255,0.3); }
 .badge-number { font-size: 10px; color: #fff; font-weight: 600; }
 
 .notice-section { margin: 16px; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; }

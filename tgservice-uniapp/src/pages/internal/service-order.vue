@@ -40,7 +40,7 @@
       <!-- 自定义需求（必填） -->
       <view class="form-item">
         <text class="form-label">需求内容 <text class="required">*</text></text>
-        <input class="input" v-model="form.requirement" placeholder="请输入需求内容" maxlength="200" />
+        <input class="input" type="text" :value="form.requirement" @input="onRequirementInput" placeholder="请输入需求内容" maxlength="200" />
       </view>
 
       <view class="submit-btn" @click="submitOrder"><text>提交服务单</text></view>
@@ -198,6 +198,11 @@ const onTableSelected = (table) => {
 // 点击快捷需求，直接填入需求内容
 const selectQuickTag = (tag) => {
   form.value.requirement = tag
+}
+
+// 2026-04-25 fix: iOS Safari 中文输入法兼容性，改为 :value + @input
+const onRequirementInput = (e) => {
+  form.value.requirement = e.detail.value
 }
 
 const submitOrder = async () => {

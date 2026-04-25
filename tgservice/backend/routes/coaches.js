@@ -325,16 +325,7 @@ router.post('/:coach_no/clock-out', auth.required, requireBackendPermission(['co
     `, [newStatus, nowDB, coach_no]);
 
     // 查找上一个12点以后的未下班上班记录（凌晨下班时上班记录可能在昨天）
-    const hour = parseInt(nowDB.substring(11, 13), 10);
-    const todayStr = TimeUtil.todayStr();
-    const searchStart = hour >= 12 
-      ? `${todayStr} 12:00:00`
-      : `${TimeUtil.offsetDateStr(-1)} 12:00:00`;
-    const attendanceRecord = await tx.get(`
-      SELECT id FROM attendance_records
-      WHERE coach_no = ? AND clock_in_time >= ? AND clock_out_time IS NULL
-      ORDER BY clock_in_time DESC LIMIT 1
-    `, [coach_no, searchStart]);
+    const attendanceRecord = await dingtalkService.findActiveAttendanceRecord(tx.get, coach_no, nowDB);
 
     if (attendanceRecord) {
       await tx.run(`
