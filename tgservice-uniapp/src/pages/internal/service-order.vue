@@ -230,9 +230,9 @@ const handleSuccessConfirm = () => {
 const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { uni.navigateBack() } else { uni.switchTab({ url: '/pages/member/member' }) } }
 
 // 每次显示页面时检查台桌授权是否过期
-// 2026-04-20 fix: 先加载配置再检查过期
+// 2026-04-25 fix: 移除 loadFrontConfig()，改为本地检查（iOS H5 键盘弹出触发 onShow 导致输入卡顿）
 onShow(() => {
-  loadFrontConfig()
+  checkAuthExpiration()  // 本地检查过期，不发 API
   form.value.table_no = ''
 })
 
