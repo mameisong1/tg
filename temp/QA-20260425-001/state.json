@@ -1,0 +1,12 @@
+{
+  "qaRequirement": "空调控制功能适配：1.现有灯控制功能加设备类型=灯筛选 2.复制生成空调控制3大功能 3.空调MQTT指令适配",
+  "acceptanceFocus": "设备类型筛选、空调MQTT指令格式、系统配置加载",
+  "currentStep": "coding",
+  "designAuditRound": 1,
+  "designSummary": "空调控制功能V2方案：18个空调API（设备管理4+场景4+前台10），新增ac-routes.js/auto-off-ac.js/mqtt-ac.js/ac-control.vue 4个新文件，修改server.js/switch-routes.js/auto-off-lighting.js/pages.json/member.vue/.config 6个文件，32个测试用例覆盖9大模块。测试环境禁止发送真实MQTT指令，只写日志。",
+  "userConfirmedAt": "2026-04-25T14:28:29.820Z",
+  "userConfirmedBy": "马哥",
+  "testCasesAuditRound": 1,
+  "fixRound": 1,
+  "lastFailItems": []
+}

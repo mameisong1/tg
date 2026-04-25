@@ -1,0 +1,1 @@
+空调控制功能V2方案：18个空调API（设备管理4+场景4+前台10），新增ac-routes.js/auto-off-ac.js/mqtt-ac.js/ac-control.vue 4个新文件，修改server.js/switch-routes.js/auto-off-lighting.js/pages.json/member.vue/.config 6个文件，32个测试用例覆盖9大模块。测试环境禁止发送真实MQTT指令，只写日志。
