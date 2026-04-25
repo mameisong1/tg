@@ -26,7 +26,7 @@
           <view class="quick-tags">
             <view
               class="quick-tag"
-              :style="getTagStyle(group.color)"
+              :style="getTagStyle(tag)"
               v-for="tag in group.tags"
               :key="tag"
               @click="selectQuickTag(tag)"
@@ -40,7 +40,7 @@
       <!-- 自定义需求（必填） -->
       <view class="form-item">
         <text class="form-label">需求内容 <text class="required">*</text></text>
-        <input class="input" type="text" :value="form.requirement" @input="onRequirementInput" placeholder="请输入需求内容" maxlength="200" />
+        <input class="input" type="text" :value="form.requirement" @input="onRequirementInput" placeholder="请输入需求内容" maxlength="200" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off" />
       </view>
 
       <view class="submit-btn" @click="submitOrder"><text>提交服务单</text></view>
@@ -144,12 +144,19 @@ const loadServiceCategories = async () => {
   }
 }
 
-const getTagStyle = (color) => {
-  return {
-    background: color + '18',
-    borderColor: color + '66',
-    color: color
-  }
+// 2026-04-25 fix: 预计算快捷标签样式，只保留字体颜色（优化 iOS Safari 性能）
+const computedTagStyles = computed(() => {
+  const styles = {}
+  quickTagGroups.value.forEach(group => {
+    group.tags.forEach(tag => {
+      styles[tag] = { color: group.color }
+    })
+  })
+  return styles
+})
+
+const getTagStyle = (tag) => {
+  return computedTagStyles.value[tag] || { color: '#fff' }
 }
 
 const form = ref({ table_no: '', requirement: '' })
@@ -335,13 +342,14 @@ const handleTableFieldClick = async () => {
   letter-spacing: 1px;
 }
 .quick-tags { display: flex; flex-wrap: wrap; gap: 6px; }
-.quick-tag { padding: 8px 12px; border: 1px solid; border-radius: 20px; font-size: 13px; white-space: nowrap; }
-.quick-tag:active { filter: brightness(1.3); }
+.quick-tag { padding: 8px 12px; border: 1px solid rgba(255,255,255,0.2); border-radius: 20px; font-size: 13px; white-space: nowrap; background: rgba(255,255,255,0.05); }
+.quick-tag:active { opacity: 0.7; }
 
 .input { width: 100%; height: 48px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 0 12px; font-size: 14px; color: #fff; box-sizing: border-box; }
 
 .requester-name { font-size: 15px; color: #d4af37; }
 
-.submit-btn { height: 50px; background: linear-gradient(135deg, #d4af37, #ffd700); border-radius: 25px; display: flex; align-items: center; justify-content: center; margin-top: 30px; }
+.submit-btn { height: 50px; background: #d4af37; border-radius: 25px; display: flex; align-items: center; justify-content: center; margin-top: 30px; }
+.submit-btn:active { opacity: 0.8; }
 .submit-btn text { font-size: 16px; font-weight: 600; color: #000; }
 </style>
