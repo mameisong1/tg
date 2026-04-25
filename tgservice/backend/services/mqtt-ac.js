@@ -32,6 +32,9 @@ const isTestEnv = (config.env?.name === 'test') || (env === 'test');
 let client = null;
 let connecting = false;
 
+// 空调配置内存缓存
+let cachedACConfig = null;
+
 /**
  * 获取空调MQTT客户端（惰性初始化）
  */
@@ -102,16 +105,30 @@ async function getClient() {
  * @returns {Object} { temp_set, fan_speed_enum }
  */
 async function getACConfig() {
+  // 优先使用内存缓存
+  if (cachedACConfig) return cachedACConfig;
+  
   const { get } = require('../db/index');
   const row = await get('SELECT value FROM system_config WHERE key = "ac_control"');
   if (!row) {
-    return { temp_set: 23, fan_speed_enum: 'auto' };
+    cachedACConfig = { temp_set: 23, fan_speed_enum: 'auto' };
+    return cachedACConfig;
   }
   try {
-    return JSON.parse(row.value);
+    cachedACConfig = JSON.parse(row.value);
+    return cachedACConfig;
   } catch (e) {
-    return { temp_set: 23, fan_speed_enum: 'auto' };
+    cachedACConfig = { temp_set: 23, fan_speed_enum: 'auto' };
+    return cachedACConfig;
   }
+}
+
+/**
+ * 刷新空调配置缓存（配置更新时调用）
+ */
+function refreshACConfig() {
+  cachedACConfig = null;
+  console.log('[MQTT-AC] 空调配置缓存已刷新');
 }
 
 /**
@@ -306,6 +323,7 @@ async function controlACByTable(tableNameEn, action) {
 module.exports = {
   getClient,
   getACConfig,
+  refreshACConfig,
   sendACOnCommand,
   sendACOffCommand,
   sendACOffBatch,

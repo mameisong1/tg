@@ -744,6 +744,10 @@ router.put('/api/admin/ac-control', requireBackendPermission(['vipRoomManagement
       await run('INSERT INTO system_config (key, value, description, updated_at) VALUES (?, ?, "空调设定配置", ?)', ['ac_control', valueStr, now]);
     }
     
+    // 刷新空调配置缓存（热更新）
+    const { refreshACConfig } = require('../services/mqtt-ac');
+    refreshACConfig();
+    
     // 记录日志
     const user = req.user;
     operationLogService.logToFile({
