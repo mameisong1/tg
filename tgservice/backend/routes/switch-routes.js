@@ -35,13 +35,21 @@ const requireSwitchPermission = (req, res, next) => {
 // 获取开关列表
 router.get('/api/admin/switches', requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
-    const { label } = req.query;
+    const { label, device_type } = req.query;
     let sql = 'SELECT * FROM switch_device ORDER BY switch_label, switch_id, switch_seq';
     const params = [];
-    if (label) {
+    
+    if (label && device_type) {
+      sql = 'SELECT * FROM switch_device WHERE switch_label = ? AND device_type = ? ORDER BY switch_id, switch_seq';
+      params.push(label, device_type);
+    } else if (label) {
       sql = 'SELECT * FROM switch_device WHERE switch_label = ? ORDER BY switch_id, switch_seq';
       params.push(label);
+    } else if (device_type) {
+      sql = 'SELECT * FROM switch_device WHERE device_type = ? ORDER BY switch_label, switch_id, switch_seq';
+      params.push(device_type);
     }
+    
     const rows = await all(sql, params);
     res.json(rows);
   } catch (err) {
@@ -52,16 +60,16 @@ router.get('/api/admin/switches', requireBackendPermission(['vipRoomManagement']
 // 新增开关
 router.post('/api/admin/switches', requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
-    const { switch_id, switch_seq, switch_label, auto_off_start, auto_off_end, auto_on_start, auto_on_end } = req.body;
+    const { switch_id, switch_seq, switch_label, auto_off_start, auto_off_end, auto_on_start, auto_on_end, device_type, remark } = req.body;
     if (!switch_id || !switch_seq || !switch_label) {
       return res.status(400).json({ error: '缺少必填字段' });
     }
     const now = TimeUtil.nowDB();
     await runInTransaction(async (tx) => {
       await tx.run(
-        `INSERT INTO switch_device (switch_id, switch_seq, switch_label, auto_off_start, auto_off_end, auto_on_start, auto_on_end, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [switch_id, switch_seq, switch_label, auto_off_start || '', auto_off_end || '', auto_on_start || '', auto_on_end || '', now, now]
+        `INSERT INTO switch_device (switch_id, switch_seq, switch_label, auto_off_start, auto_off_end, auto_on_start, auto_on_end, device_type, remark, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [switch_id, switch_seq, switch_label, auto_off_start || '', auto_off_end || '', auto_on_start || '', auto_on_end || '', device_type || '灯', remark || '', now, now]
       );
     });
     // 记录日志
@@ -71,8 +79,8 @@ router.post('/api/admin/switches', requireBackendPermission(['vipRoomManagement'
       operator_name: user.name,
       operation_type: '创建设备开关',
       target_type: 'switch_device',
-      new_value: JSON.stringify({ switch_id, switch_seq, switch_label }),
-      remark: `新增开关: ${switch_label}#${switch_seq}`
+      new_value: JSON.stringify({ switch_id, switch_seq, switch_label, device_type }),
+      remark: `新增开关: ${switch_label}#${switch_seq} (${device_type || '灯'})`
     });
     res.json({ success: true });
   } catch (err) {
@@ -86,7 +94,7 @@ router.post('/api/admin/switches', requireBackendPermission(['vipRoomManagement'
 // 更新开关（支持部分更新：只传要改的字段）
 router.put('/api/admin/switches/:id', requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
-    const { switch_id, switch_seq, switch_label, auto_off_start, auto_off_end, auto_on_start, auto_on_end } = req.body;
+    const { switch_id, switch_seq, switch_label, auto_off_start, auto_off_end, auto_on_start, auto_on_end, device_type, remark } = req.body;
 
     // 动态构建 SET 子句：只更新传入的字段
     const allowedFields = {
@@ -96,7 +104,9 @@ router.put('/api/admin/switches/:id', requireBackendPermission(['vipRoomManageme
       auto_off_start,
       auto_off_end,
       auto_on_start,
-      auto_on_end
+      auto_on_end,
+      device_type,
+      remark
     };
     const updates = [];
     const params = [];
@@ -674,7 +684,85 @@ router.post('/api/switch/table-control', requireSwitchPermission, async (req, re
 });
 
 // ============================================================
-// 5. 自动关灯触发函数（供 sync/tables 调用）
+// 5. 空调设定 API
+// ============================================================
+
+// 获取空调设定配置
+router.get('/api/admin/ac-control', requireBackendPermission(['vipRoomManagement']), async (req, res) => {
+  try {
+    const config = await get('SELECT value FROM system_config WHERE key = "ac_control"');
+    if (!config) {
+      // 默认配置
+      return res.json({ success: true, config: { temp_set: 23, fan_speed_enum: 'middle' } });
+    }
+    const parsed = JSON.parse(config.value);
+    res.json({ success: true, config: parsed });
+  } catch (err) {
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 更新空调设定配置
+router.put('/api/admin/ac-control', requireBackendPermission(['vipRoomManagement']), async (req, res) => {
+  try {
+    const { temp_set, fan_speed_enum } = req.body;
+    
+    // 验证温度范围
+    if (temp_set !== undefined) {
+      if (!Number.isInteger(temp_set) || temp_set < 16 || temp_set > 30) {
+        return res.status(400).json({ error: '温度范围: 16-30℃' });
+      }
+    }
+    
+    // 验证风速
+    if (fan_speed_enum !== undefined) {
+      const validSpeeds = ['auto', 'low', 'middle', 'high'];
+      if (!validSpeeds.includes(fan_speed_enum)) {
+        return res.status(400).json({ error: `风速可选: ${validSpeeds.join(', ')}` });
+      }
+    }
+    
+    // 获取现有配置
+    const existing = await get('SELECT value FROM system_config WHERE key = "ac_control"');
+    let newConfig;
+    if (existing) {
+      newConfig = JSON.parse(existing.value);
+      if (temp_set !== undefined) newConfig.temp_set = temp_set;
+      if (fan_speed_enum !== undefined) newConfig.fan_speed_enum = fan_speed_enum;
+    } else {
+      newConfig = { temp_set: 23, fan_speed_enum: 'middle' };
+      if (temp_set !== undefined) newConfig.temp_set = temp_set;
+      if (fan_speed_enum !== undefined) newConfig.fan_speed_enum = fan_speed_enum;
+    }
+    
+    const now = TimeUtil.nowDB();
+    const valueStr = JSON.stringify(newConfig);
+    
+    if (existing) {
+      await run('UPDATE system_config SET value = ?, updated_at = ? WHERE key = "ac_control"', [valueStr, now]);
+    } else {
+      await run('INSERT INTO system_config (key, value, description, updated_at) VALUES (?, ?, "空调设定配置", ?)', ['ac_control', valueStr, now]);
+    }
+    
+    // 记录日志
+    const user = req.user;
+    operationLogService.logToFile({
+      operator_phone: user.username,
+      operator_name: user.name,
+      operation_type: '更新空调设定',
+      target_type: 'system_config',
+      new_value: valueStr,
+      remark: `空调设定: 温度=${newConfig.temp_set}℃, 风速=${newConfig.fan_speed_enum}`
+    });
+    
+    res.json({ success: true, config: newConfig });
+  } catch (err) {
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// ============================================================
+// 6. 自动关灯触发函数（供 sync/tables 调用）
 // ============================================================
 
 /**

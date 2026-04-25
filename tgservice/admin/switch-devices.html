@@ -66,6 +66,11 @@
     <!-- 筛选 -->
     <div class="filter-bar">
       <input type="text" id="filterLabel" placeholder="按开关标签筛选" oninput="loadData()">
+      <select id="filterDeviceType" onchange="loadData()">
+        <option value="">全部设备类型</option>
+        <option value="灯">灯</option>
+        <option value="空调">空调</option>
+      </select>
     </div>
 
     <!-- 数据表格 -->
@@ -76,6 +81,8 @@
           <th>开关ID</th>
           <th>开关序号</th>
           <th>开关标签</th>
+          <th>设备类型</th>
+          <th>备注</th>
           <th>自动关灯开始</th>
           <th>自动关灯结束</th>
           <th>自动开灯开始</th>
@@ -84,7 +91,7 @@
         </tr>
       </thead>
       <tbody id="tableBody">
-        <tr><td colspan="9" style="text-align:center;color:rgba(255,255,255,0.4);">加载中...</td></tr>
+        <tr><td colspan="11" style="text-align:center;color:rgba(255,255,255,0.4);">加载中...</td></tr>
       </tbody>
     </table>
   </div>
@@ -106,6 +113,17 @@
         <div class="form-row">
           <label>开关标签 *</label>
           <input type="text" id="f_switch_label" placeholder="如 1, 2, tv">
+        </div>
+        <div class="form-row">
+          <label>设备类型</label>
+          <select id="f_device_type">
+            <option value="灯">灯</option>
+            <option value="空调">空调</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>备注</label>
+          <input type="text" id="f_remark" placeholder="如 水吧区、办公室">
         </div>
         <div class="form-row">
           <label>自动关灯开始时间 (HH:MM，留空=不启用)</label>
@@ -145,11 +163,15 @@
         allData = await res.json();
 
         const filter = document.getElementById('filterLabel').value.trim();
-        const filtered = filter ? allData.filter(d => d.switch_label === filter) : allData;
+        const deviceType = document.getElementById('filterDeviceType').value;
+        
+        let filtered = allData;
+        if (filter) filtered = filtered.filter(d => d.switch_label === filter);
+        if (deviceType) filtered = filtered.filter(d => d.device_type === deviceType);
 
         const tbody = document.getElementById('tableBody');
         if (filtered.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:rgba(255,255,255,0.4);">暂无数据</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;color:rgba(255,255,255,0.4);">暂无数据</td></tr>';
           return;
         }
 
@@ -159,6 +181,8 @@
             <td style="font-family:monospace;font-size:12px;">${d.switch_id}</td>
             <td style="font-family:monospace;">${d.switch_seq}</td>
             <td>${d.switch_label}</td>
+            <td>${d.device_type || '灯'}</td>
+            <td>${d.remark || '-'}</td>
             <td>${d.auto_off_start || '-'}</td>
             <td>${d.auto_off_end || '-'}</td>
             <td>${d.auto_on_start || '-'}</td>
@@ -170,14 +194,15 @@
           </tr>
         `).join('');
       } catch (err) {
-        document.getElementById('tableBody').innerHTML = `<tr><td colspan="9" style="text-align:center;color:#e74c3c;">加载失败: ${err.message}</td></tr>`;
+        document.getElementById('tableBody').innerHTML = `<tr><td colspan="11" style="text-align:center;color:#e74c3c;">加载失败: ${err.message}</td></tr>`;
       }
     }
 
     function openAddModal() {
       document.getElementById('modalTitle').textContent = '新增设备开关';
       document.getElementById('editId').value = '';
-      ['f_switch_id','f_switch_seq','f_switch_label','f_auto_off_start','f_auto_off_end','f_auto_on_start','f_auto_on_end'].forEach(id => document.getElementById(id).value = '');
+      ['f_switch_id','f_switch_seq','f_switch_label','f_auto_off_start','f_auto_off_end','f_auto_on_start','f_auto_on_end','f_remark'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('f_device_type').selectedIndex = 0;
       document.getElementById('formModal').classList.add('show');
     }
 
@@ -193,6 +218,8 @@
       document.getElementById('f_auto_off_end').value = d.auto_off_end || '';
       document.getElementById('f_auto_on_start').value = d.auto_on_start || '';
       document.getElementById('f_auto_on_end').value = d.auto_on_end || '';
+      document.getElementById('f_device_type').value = d.device_type || '灯';
+      document.getElementById('f_remark').value = d.remark || '';
       document.getElementById('formModal').classList.add('show');
     }
 
@@ -206,6 +233,8 @@
         switch_id: document.getElementById('f_switch_id').value.trim(),
         switch_seq: document.getElementById('f_switch_seq').value.trim(),
         switch_label: document.getElementById('f_switch_label').value.trim(),
+        device_type: document.getElementById('f_device_type').value,
+        remark: document.getElementById('f_remark').value.trim(),
         auto_off_start: document.getElementById('f_auto_off_start').value.trim(),
         auto_off_end: document.getElementById('f_auto_off_end').value.trim(),
         auto_on_start: document.getElementById('f_auto_on_start').value.trim(),

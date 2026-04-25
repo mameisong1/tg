@@ -88,6 +88,7 @@
       <button class="filter-tab active" data-section="all" onclick="switchSection('all')">全部</button>
       <button class="filter-tab" data-section="auth" onclick="switchSection('auth')">API鉴权</button>
       <button class="filter-tab" data-section="sms" onclick="switchSection('sms')">短信服务</button>
+      <button class="filter-tab" data-section="ac" onclick="switchSection('ac')">空调设定</button>
       <button class="filter-tab" data-section="blacklist" onclick="switchSection('blacklist')">黑名单</button>
       <button class="filter-tab" data-section="reward" onclick="switchSection('reward')">奖罚类型</button>
       <button class="filter-tab" data-section="overview" onclick="switchSection('overview')">配置总览</button>
@@ -176,7 +177,43 @@
       </div>
     </div>
 
-    <!-- 设备指纹黑名单 -->
+    <!-- 空调设定配置 -->
+    <div class="card" data-card="ac">
+      <div class="card-header">
+        <div class="card-title">❄️ 空调设定配置</div>
+      </div>
+      <div class="card-body">
+        <div class="info-box">
+          <p><strong>功能说明:</strong>配置空调默认温度和风速，用于空调控制指令。</p>
+          <p><strong>温度范围:</strong>16-30℃，风速可选：auto（自动）、low（低速）、middle（中速）、high（高速）。</p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+          <div class="form-row">
+            <label>设定温度 (℃)</label>
+            <input type="number" id="acTempSet" min="16" max="30" value="23" style="width:100%;">
+          </div>
+          <div class="form-row">
+            <label>风速模式</label>
+            <select id="acFanSpeed" style="width:100%;">
+              <option value="auto">auto - 自动</option>
+              <option value="low">low - 低速</option>
+              <option value="middle">middle - 中速</option>
+              <option value="high">high - 高速</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 12px;">
+          <button class="btn btn-primary" onclick="saveAcConfig()">保存配置</button>
+          <button class="btn" style="background:rgba(255,255,255,0.1);color:#fff;" onclick="resetAcConfig()">重置</button>
+        </div>
+
+        <div id="acConfigStatus" style="margin-top: 12px; font-size: 13px; display: none;"></div>
+      </div>
+    </div>
+
+<!-- 设备指纹黑名单 -->
     <div class="card" data-card="blacklist">
       <div class="card-header">
         <div class="card-title">🛡️ 设备指纹黑名单</div>
@@ -611,7 +648,61 @@
       document.getElementById('rewardPenaltyStatus').style.display = 'none';
     }
 
-    // =============== 过滤标签切换 ===============
+    // =============== 空调设定配置相关 ===============
+    let initialAcConfig = { temp_set: 23, fan_speed_enum: 'middle' };
+
+    async function loadAcConfig() {
+      try {
+        const result = await api('/api/admin/ac-control');
+        if (result.success && result.config) {
+          document.getElementById('acTempSet').value = result.config.temp_set;
+          document.getElementById('acFanSpeed').value = result.config.fan_speed_enum;
+          initialAcConfig = result.config;
+        }
+      } catch (err) {
+        // 使用默认值
+      }
+    }
+
+    async function saveAcConfig() {
+      const temp_set = parseInt(document.getElementById('acTempSet').value);
+      const fan_speed_enum = document.getElementById('acFanSpeed').value;
+      const statusEl = document.getElementById('acConfigStatus');
+
+      try {
+        const result = await api('/api/admin/ac-control', {
+          method: 'PUT',
+          body: JSON.stringify({ temp_set, fan_speed_enum })
+        });
+
+        if (result.success) {
+          initialAcConfig = result.config;
+          statusEl.textContent = '✅ 保存成功: 温度=' + temp_set + '℃, 风速=' + fan_speed_enum;
+          statusEl.style.color = '#2ecc71';
+          statusEl.style.display = 'block';
+          showToast('空调设定已保存');
+        } else {
+          statusEl.textContent = '❌ ' + (result.error || '保存失败');
+          statusEl.style.color = '#e74c3c';
+          statusEl.style.display = 'block';
+        }
+      } catch (err) {
+        statusEl.textContent = '❌ 保存失败';
+        statusEl.style.color = '#e74c3c';
+        statusEl.style.display = 'block';
+      }
+      setTimeout(() => { statusEl.style.display = 'none'; }, 5000);
+    }
+
+    function resetAcConfig() {
+      document.getElementById('acTempSet').value = initialAcConfig.temp_set;
+      document.getElementById('acFanSpeed').value = initialAcConfig.fan_speed_enum;
+      document.getElementById('acConfigStatus').style.display = 'none';
+    }
+
+    // =============== 空调设定配置相关结束 ===============
+
+// =============== 过滤标签切换 ===============
     function switchSection(section) {
       // 更新标签状态
       document.querySelectorAll('.filter-tab').forEach(btn => {
@@ -673,6 +764,7 @@
     // 初始化
     loadAuthConfig();  // QA-20260422-3: 鉴权配置
     loadSmsConfig();
+    loadAcConfig();  // 空调设定配置
     loadBlacklist();
     loadRewardPenaltyTypes();
     loadConfigOverview();  // 配置总览
