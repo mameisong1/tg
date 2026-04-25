@@ -12,6 +12,8 @@ const { all, get, enqueueRun, runInTransaction } = require('../db');
 const TimeUtil = require('../utils/time');
 const http = require('http');
 const dingtalkService = require('./dingtalk-service');
+const { executeAutoOffTableIndependent } = require('./auto-off-lighting');
+const { executeAutoOffACTableIndependent } = require('./auto-off-ac');
 
 // Cron 任务执行间隔（毫秒）
 const CRON_CHECK_INTERVAL = 60 * 1000; // 每分钟检查一次
@@ -174,6 +176,20 @@ async function initDefaultTasks() {
             description: '午夜0点清空门迎排序',
             cron_expression: '0 0 * * *',
             next_run: calcNextRun('0 0 * * *')
+        },
+        {
+            task_name: 'auto_off_table_independent_light',
+            task_type: 'auto_off_table_independent',
+            description: '每隔5分钟自动关台桌无关灯',
+            cron_expression: '*/5 * * * *',
+            next_run: calcNextRun('*/5 * * * *')
+        },
+        {
+            task_name: 'auto_off_table_independent_ac',
+            task_type: 'auto_off_table_independent',
+            description: '每隔5分钟自动关台桌无关空调',
+            cron_expression: '*/5 * * * *',
+            next_run: calcNextRun('*/5 * * * *')
         }
     ];
 
@@ -902,6 +918,62 @@ async function taskGuestRanking(shift, startRank, maxRank) {
 }
 
 /**
+ * 任务：台桌无关自动关灯/关空调
+ * 每隔5分钟执行一次
+ */
+async function taskAutoOffTableIndependent(taskName) {
+    const startedAt = TimeUtil.nowDB();
+    const isLight = taskName.includes('light');
+    const deviceType = isLight ? '灯' : '空调';
+    
+    console.log(`[CronScheduler] 开始执行: ${taskName} (台桌无关${deviceType})`);
+    
+    try {
+        let result;
+        if (isLight) {
+            result = await executeAutoOffTableIndependent();
+        } else {
+            result = await executeAutoOffACTableIndependent();
+        }
+        
+        const finishedAt = TimeUtil.nowDB();
+        const nextRun = calcNextRun('*/5 * * * *');
+        
+        await logCron(
+            taskName, 'auto_off_table_independent', 'success',
+            result?.turnedOffCount || 0,
+            `关闭 ${result?.turnedOffCount || 0} 个台桌无关${deviceType}`,
+            null, startedAt, finishedAt
+        );
+        
+        await updateTaskStatus(taskName, {
+            lastRun: finishedAt,
+            nextRun: nextRun,
+            lastStatus: 'success',
+            lastError: null
+        });
+        
+        console.log(`[CronScheduler] ${taskName} 完成: 关闭 ${result?.turnedOffCount || 0} 个台桌无关${deviceType}`);
+        
+    } catch (err) {
+        const finishedAt = TimeUtil.nowDB();
+        console.error(`[CronScheduler] ${taskName} 失败:`, err);
+        
+        await logCron(
+            taskName, 'auto_off_table_independent', 'failed', 0, null,
+            err.message, startedAt, finishedAt
+        );
+        
+        await updateTaskStatus(taskName, {
+            lastRun: finishedAt,
+            nextRun: calcNextRun('*/5 * * * *'),
+            lastStatus: 'failed',
+            lastError: err.message
+        });
+    }
+}
+
+/**
  * 检查并执行到期任务
  */
 async function checkAndRunTasks() {
@@ -933,6 +1005,8 @@ async function checkAndRunTasks() {
                     const maxRank = shiftType === '早班' ? 50 : 100;
                     await taskGuestRanking(shiftType, startRank, maxRank);
                 }
+            } else if (task.task_type === 'auto_off_table_independent') {
+                await taskAutoOffTableIndependent(task.task_name);
             }
 
             const nextRun = calcNextRun(task.cron_expression);

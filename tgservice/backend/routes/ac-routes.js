@@ -594,11 +594,11 @@ async function triggerAutoOffACIfEligible(tablesUpdated, vipRoomsUpdated) {
 
   try {
     const result = await executeAutoOffAC();
-    const independentResult = await executeAutoOffACTableIndependent();
+    // 台桌无关关空调已移到 Cron 定时任务，不再在此触发
     return {
       triggered: true,
       ...result,
-      independentTurnedOffCount: independentResult?.turnedOffCount || 0
+      independentTurnedOffCount: 0
     };
   } catch (err) {
     console.error(`[自动关空调触发] 执行失败: ${err.message}`);
