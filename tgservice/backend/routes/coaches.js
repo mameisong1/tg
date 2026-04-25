@@ -212,13 +212,13 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
     });
 
     // 钉钉打卡时间查询（非阻塞）
-    const { get } = require('../db');
+    const { get, all, enqueueRun } = require('../db');
     const coachInfo = await get('SELECT dingtalk_user_id FROM coaches WHERE coach_no = ?', [result.coach_no]);
     if (coachInfo && coachInfo.dingtalk_user_id) {
       // 判断打卡类型：乐捐归来 vs 上班打卡
       const isLejuanReturn = result.oldStatus === '乐捐';
       const clockType = 'in';
-      const dbCtx = { get };
+      const dbCtx = { get, all, enqueueRun };
       const queryFn = isLejuanReturn
         ? dingtalkService.queryLejuanReturnAttendance.bind(dingtalkService)
         : dingtalkService.queryRecentAttendance.bind(dingtalkService);
@@ -370,10 +370,10 @@ router.post('/:coach_no/clock-out', auth.required, requireBackendPermission(['co
     });
 
     // 钉钉打卡时间查询（非阻塞）
-    const { get } = require('../db');
+    const { get, all, enqueueRun } = require('../db');
     const coachInfo = await get('SELECT dingtalk_user_id FROM coaches WHERE coach_no = ?', [result.coach_no]);
     if (coachInfo && coachInfo.dingtalk_user_id) {
-      dingtalkService.queryRecentAttendance(coachInfo.dingtalk_user_id, result.coach_no, 'out', { get })
+      dingtalkService.queryRecentAttendance(coachInfo.dingtalk_user_id, result.coach_no, 'out', { get, all, enqueueRun })
         .then(tip => {
           if (tip) dingtalkService.dingtalkLog.write(`下班 ${result.coach_no}: ${tip}`);
         })

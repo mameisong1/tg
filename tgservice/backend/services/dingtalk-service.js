@@ -549,7 +549,7 @@ async function handleSingleAttendanceRecord(record, db) {
     return;
   }
   
-  dingtalkLog.write(`找到助教: ${coach.stage_name} (${coach.employee_id})`);
+  dingtalkLog.write(`找到助教: ${coach.stage_name} (${coach.employee_id}), coach_no=${coach.coach_no}`);
   
   // 获取今天日期
   const todayStr = TimeUtil.todayStr();
@@ -586,12 +586,31 @@ async function handleSingleAttendanceRecord(record, db) {
   const searchStart = checkHour >= 12 
     ? `${todayStr} 12:00:00`
     : `${TimeUtil.offsetDateStr(-1)} 12:00:00`;
+  
+  // 调试日志：显示查询参数
+  dingtalkLog.write(`查询上班记录: coach_no=${coach.coach_no}, searchStart=${searchStart}, checkHour=${checkHour}`);
+  
   const attendance = await get(
     `SELECT id, clock_in_time, clock_out_time, dingtalk_in_time FROM attendance_records 
      WHERE coach_no = ? AND clock_in_time >= ? AND clock_out_time IS NULL
      ORDER BY clock_in_time DESC LIMIT 1`,
     [coach.coach_no, searchStart]
   );
+  
+  // 调试日志：显示查询结果
+  if (attendance) {
+    dingtalkLog.write(`查到上班记录: id=${attendance.id}, clock_in_time=${attendance.clock_in_time}`);
+  } else {
+    dingtalkLog.write(`未查到上班记录，执行原 SQL 验证...`);
+    // 执行调试查询，找出问题
+    const allRecords = await all(
+      `SELECT id, coach_no, clock_in_time, clock_out_time FROM attendance_records 
+       WHERE coach_no = ? AND clock_in_time >= ? 
+       ORDER BY clock_in_time DESC LIMIT 5`,
+      [coach.coach_no, searchStart]
+    );
+    dingtalkLog.write(`调试查询结果: ${JSON.stringify(allRecords)}`);
+  }
   
   // 查询活跃或预约的乐捐记录（获取乐捐归来时间、实际开始时间、预约开始时间）
   const lejuan = await get(

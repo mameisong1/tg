@@ -148,7 +148,7 @@ class GuestRankingService {
       SELECT wb.coach_no, wb.clock_in_time
       FROM water_boards wb
       WHERE wb.status IN (${placeholders})
-      ORDER BY wb.clock_in_time DESC
+      ORDER BY wb.clock_in_time ASC
     `, [...statusList]);
 
     // JS 过滤免门迎 + 分配序号
