@@ -112,7 +112,7 @@
         if (!res.ok) return;
         const tables = await res.json();
         const sel = document.getElementById('f_table_name_en');
-        sel.innerHTML = '<option value="">请选择台桌</option>' + tables.map(t => `<option value="${t.name}">${t.name}</option>`).join('');
+        sel.innerHTML = '<option value="">请选择台桌</option>' + tables.map(t => `<option value="${t.name_pinyin}">${t.name}</option>`).join('');
       } catch (err) { /* ignore */ }
     }
 
