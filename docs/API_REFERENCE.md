@@ -2082,6 +2082,22 @@ MQTT 发送失败时返回 HTTP 502：
 - **since**: 时间过滤，如 `?since=2026-04-13 00:00:00`
 - **status**: 支持多值（逗号分隔），如 `?status=1,2`
 
+### 待审批角标（2026-04-27 优化）
+
+- **路径**: `GET /api/applications/pending-count`
+- **认证**: 需要后台权限（店长、助教管理、管理员）
+- **返回**: `{ "success": true, "data": { "overtime": 2, "public_leave": 1, "shift_change": 0, "leave": 3, "rest": 1, "lejuan": 5, "total": 7 } }`
+- **用途**: 用于管理功能板块的审批角标显示
+- **调用时机**: 仅 `isManager`（店长/助教管理/管理员）身份时调用
+
+### 打卡审查角标
+
+- **路径**: `GET /api/attendance-review/pending-count`
+- **认证**: 需要后台权限（店长、助教管理、管理员）
+- **返回**: `{ "success": true, "count": 3 }`
+- **用途**: 用于管理功能板块的打卡审查角标显示
+- **调用时机**: 仅 `isManager` 身份时调用
+
 ### 近期已审批记录
 
 - **路径**: `GET /api/applications/approved-recent`

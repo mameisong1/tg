@@ -91,6 +91,23 @@
 - 点击按钮自动填入需求内容，仍需手动提交
 - 详见 `BUSINESS_LOGIC.md` 服务下单流程章节
 
+### 会员中心角标加载逻辑（2026-04-27 优化）
+
+会员中心（`member.vue`）有两类角标，按板块渲染条件按需加载：
+
+| 板块 | 渲染条件 | 加载函数 | 角标内容 |
+|------|----------|----------|----------|
+| 常用功能 | `showCommonFeatures` | `loadRewardPenaltyCount()` | 我的奖罚 |
+| 管理功能 | `isManager` | `loadApprovalCounts()` | 审批、打卡审查 |
+
+**优化效果**：纯助教/服务员不再发起无权限的审批角标 API 请求，减少权限拒绝日志。
+
+**判断逻辑**：
+- `showCommonFeatures`：有 `adminInfo` 或 `coachInfo`（非离职）
+- `isManager`：`adminInfo.role` 为 `店长/助教管理/管理员`
+
+---
+
 ---
 
 ## 条件编译
