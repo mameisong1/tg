@@ -370,7 +370,7 @@ function formatBeijingDate(date) {
  *   - 未约客罚金：确定日期=约客数据生成日，罚金20元/条
  *   - 漏单罚金：确定日期=上桌单发出日，罚金10元/条
  *   - 漏卡罚金：确定日期=上班卡日期，罚金10元/条
- *   - 助教日常（请假罚金）：确定日期=请假日期，病假-200，事假-300
+ *   - 助教奖罚（请假罚金）：确定日期=请假日期，病假-200，事假-300
  * 去重规则：如果已存在（确定日期+奖罚类型+手机号）则跳过
  */
 async function taskSyncRewardPenalty() {
@@ -535,7 +535,7 @@ async function taskSyncRewardPenalty() {
             }
             console.log(`[CronScheduler] 漏卡罚金: ${stats.missingClock} 条`);
 
-            // === 4. 请假罚金（助教日常）===
+            // === 4. 请假罚金（助教奖罚）===
             // 查找请假日期在昨天和前天的已审批请假申请
             // 确定日期 = 请假日期（不是申请日期），在 extra_data.leave_date 中
             // 病假-200，事假-300
@@ -564,11 +564,11 @@ async function taskSyncRewardPenalty() {
                     // 检查是否已存在（去重）
                     const existing = await tx.get(
                         'SELECT id FROM reward_penalties WHERE confirm_date = ? AND type = ? AND phone = ?',
-                        [leaveDate, '助教日常', record.phone]
+                        [leaveDate, '助教奖罚', record.phone]
                     );
                     if (existing) continue;
 
-                    const type = '助教日常';
+                    const type = '助教奖罚';
                     const confirmDate = leaveDate;
                     const amount = leaveType === '病假' ? -200 : -300;
                     const name = record.stage_name || '';
