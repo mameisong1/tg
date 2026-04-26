@@ -9,7 +9,7 @@
 
 const TimeUtil = require('../utils/time');
 const { all, get } = require('../db/index');
-const { sendACOffBatch } = require('./mqtt-ac');
+const { sendACOffBatch, sendACResetBatch } = require('./mqtt-ac');
 
 /**
  * 执行自动关空调（台桌相关）
@@ -144,6 +144,22 @@ async function executeAutoOffACTableIndependent() {
   // 3. 发送 MQTT 关空调指令
   const sendResult = await sendACOffBatch(switches);
   const turnedOffCount = sendResult?.successCount ?? sendResult ?? 0;
+
+  // 4. 新增：重置大厅区空调温度风速
+  const hallACs = await all(`
+    SELECT DISTINCT sd.switch_id, sd.switch_seq
+    FROM switch_device sd
+    JOIN table_device td ON sd.switch_seq = td.switch_seq AND sd.switch_label = td.switch_label
+    JOIN tables t ON LOWER(td.table_name_en) = LOWER(t.name_pinyin)
+    WHERE t.area = '大厅区'
+      AND sd.device_type = '空调'
+  `);
+
+  if (hallACs.length > 0) {
+    console.log(`[自动关空调-台桌无关] 大厅区空调 ${hallACs.length} 个，重置温度风速`);
+    const resetResult = await sendACResetBatch(hallACs);
+    console.log(`[自动关空调-台桌无关] 大厅区空调重置完成: ${resetResult.successCount}/${hallACs.length}`);
+  }
 
   return { status: 'ok', turnedOffCount };
 }

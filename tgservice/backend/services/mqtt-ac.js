@@ -9,6 +9,7 @@
  * 空调MQTT指令格式：
  * 关空调: {dev_id, node_id, switch: false}
  * 开空调: {dev_id, node_id, switch: true, temp_set, mode: "cold", fan_speed_enum}
+ * 重置温度风速: {dev_id, node_id, temp_set, mode: "cold", fan_speed_enum}（不含 switch 参数）
  * Topic: tiangongguojikongtiao
  */
 
@@ -174,6 +175,47 @@ async function sendACOnCommand(dev_id, node_id, acConfig) {
 }
 
 /**
+ * 发送空调重置温度风速指令（不改变开关状态）
+ * @param {string} dev_id - 设备ID
+ * @param {string} node_id - 节点ID
+ * @param {Object} acConfig - 空调设定 { temp_set, fan_speed_enum }
+ * @returns {Object} { ok: boolean, error?: string }
+ */
+async function sendACResetCommand(dev_id, node_id, acConfig) {
+  const mqttConfig = config.mqtt_ac;
+  if (!mqttConfig) {
+    console.warn(`[MQTT-AC] 未配置 MQTT 空调，跳过指令: ${dev_id} ${node_id} RESET`);
+    return { ok: true, error: null };
+  }
+
+  // ⚠️ 测试环境只写日志，不发送真实指令
+  if (isTestEnv) {
+    console.log(`[MQTT-AC][测试环境] 跳过真实发送: ${dev_id} ${node_id} RESET, temp=${acConfig.temp_set}, fan=${acConfig.fan_speed_enum}`);
+    return { ok: true, error: null };
+  }
+
+  const payload = JSON.stringify({
+    dev_id,
+    node_id,
+    temp_set: acConfig.temp_set,
+    mode: "cold",
+    fan_speed_enum: acConfig.fan_speed_enum
+  });
+
+  try {
+    const mqttClient = await getClient();
+    if (!mqttClient) {
+      return { ok: false, error: 'MQTT-AC 客户端不可用' };
+    }
+    mqttClient.publish(mqttConfig.topic, payload, { qos: 1 });
+    console.log(`[MQTT-AC] 重置温度风速指令已发送: ${dev_id} ${node_id} RESET`);
+    return { ok: true, error: null };
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+/**
  * 发送单个空调关闭指令
  * @param {string} dev_id - 设备ID
  * @param {string} node_id - 节点ID
@@ -234,6 +276,30 @@ async function sendACOffBatch(switches) {
   if (failures.length > 0) {
     console.error(`[MQTT-AC] 失败 ${failures.length} 个:`, failures.map(f => f.error).join('; '));
   }
+  return { successCount, totalCount: switches.length, failures };
+}
+
+/**
+ * 批量发送空调重置温度风速指令
+ * @param {Array} switches - [{switch_id, switch_seq}]
+ * @returns {Object} { successCount, totalCount, failures }
+ */
+async function sendACResetBatch(switches) {
+  const acConfig = await getACConfig();
+  const failures = [];
+  let successCount = 0;
+  
+  for (const sw of switches) {
+    const result = await sendACResetCommand(sw.switch_id, sw.switch_seq, acConfig);
+    if (result.ok) {
+      successCount++;
+    } else {
+      failures.push({ switch_id: sw.switch_id, switch_seq: sw.switch_seq, error: result.error });
+    }
+    await new Promise(r => setTimeout(r, 100));
+  }
+  
+  console.log(`[MQTT-AC] 大厅区空调重置完成: ${successCount}/${switches.length} 成功`);
   return { successCount, totalCount: switches.length, failures };
 }
 
@@ -325,8 +391,10 @@ module.exports = {
   getACConfig,
   refreshACConfig,
   sendACOnCommand,
+  sendACResetCommand,
   sendACOffCommand,
   sendACOffBatch,
+  sendACResetBatch,
   controlACByLabel,
   controlACByTable,
   isTestEnv
