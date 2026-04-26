@@ -1,67 +1,41 @@
 /**
  * SQL 预处理器：统一处理字符串常量
  * 
- * 目的：将 SQL 中的字符串常量转换为参数化查询
- * - 本地 SQLite：支持字符串常量，预处理后也能正常工作
- * - Turso 云端：不支持字符串常量，预处理后转为参数化查询
+ * 核心修复：正确处理字符串常量和原有参数占位符的混合顺序
  * 
- * 支持：
- * - 中文字符串（"灯"、"空调"、"早班空闲"）
- * - 空字符串（""、''）
- * - 转义引号（'O''Brien'、"he said ""hello"""）
- * 
- * 排除：
- * - DEFAULT 值（DEFAULT 'xxx'）
- * - AS 别名（SELECT col AS '别名'）
- * - CREATE TABLE 中的默认值定义
+ * 方法：使用临时标记代替字符串常量，替换后识别标记位置
  */
 
-/**
- * 预处理 SQL：将字符串常量转换为参数化查询
- * 
- * @param {string} sql - 原始 SQL
- * @param {Array} params - 原有参数
- * @returns {Object} { sql, args } - 处理后的 SQL 和参数
- */
 function preprocessSQL(sql, params = []) {
   // 正则表达式：匹配单引号或双引号包裹的字符串，支持转义引号
-  // SQLite 转义规则：单引号转义为两个单引号 'O''Brien'
-  // 使用非捕获组 (?:...) 避免 replace 回调参数混乱
   const stringRegex = /(?:'(''|[^'])*')|(?:"(""|[^"])*")/g;
   
+  // ========== 第一步：用临时标记替换字符串常量 ==========
   const extractedStrings = [];
+  const MARKER_PREFIX = '__STR_';
   
-  // 替换字符串常量为 ?
-  const processedSQL = sql.replace(stringRegex, (match, quote, content, offset) => {
-    // 检查前面的内容，排除 DEFAULT 值和 AS 别名
-    // 使用正则检测更健壮，支持换行符和多空格
+  const markedSQL = sql.replace(stringRegex, (match, group1, group2, offset) => {
     const prefix = sql.substring(0, offset);
     
-    // 检测 DEFAULT 值：DEFAULT 后面可能有空格，然后是引号
-    // 例如: DEFAULT '值' 或 DEFAULT  "值"
+    // 排除 DEFAULT 值
     if (/\bDEFAULT\s*$/i.test(prefix)) {
-      return match; // 保持原样
+      return match;
     }
     
-    // 检测 AS 别名：AS 后面可能有空格，然后是引号
-    // 例如: SELECT col AS '别名' 或 AS "别名"
+    // 排除 AS 别名
     if (/\bAS\s*$/i.test(prefix)) {
-      return match; // 保持原样
+      return match;
     }
     
-    // 检测 CREATE TABLE 中的默认值定义
+    // 排除 CREATE TABLE 默认值
     if (prefix.includes('CREATE TABLE')) {
-      // 提取 CREATE TABLE 之后的部分
       const lastPart = prefix.substring(prefix.lastIndexOf('CREATE TABLE'));
-      // 检测是否是类型定义后的 DEFAULT 值
-      // 支持 TEXT、INTEGER、DATETIME、REAL 类型
       if (/\b(TEXT|INTEGER|DATETIME|REAL)\s+(DEFAULT|NOT\s+NULL)\b/i.test(lastPart)) {
-        return match; // 保持原样
+        return match;
       }
     }
     
-    // 提取字符串内容（去除引号）
-    // 对于转义引号，需要还原：'' → '，"" → "
+    // 提取字符串内容
     let actualContent = match;
     if (match.startsWith("'") && match.endsWith("'")) {
       actualContent = match.slice(1, -1).replace(/''/g, "'");
@@ -69,25 +43,75 @@ function preprocessSQL(sql, params = []) {
       actualContent = match.slice(1, -1).replace(/""/g, '"');
     }
     
+    // 用临时标记替换
     extractedStrings.push(actualContent);
-    return '?';
+    return MARKER_PREFIX + (extractedStrings.length - 1) + '__';
   });
   
-  // 如果没有提取到字符串，直接返回原 SQL
-  if (extractedStrings.length === 0) {
-    return { sql, args: params };
+  // ========== 第二步：找出所有占位符的位置和类型 ==========
+  const placeholderInfo = [];
+  
+  // 找原有参数占位符 ?
+  let searchPos = 0;
+  while (true) {
+    const idx = markedSQL.indexOf('?', searchPos);
+    if (idx === -1) break;
+    placeholderInfo.push({
+      position: idx,
+      type: 'original',
+      paramIndex: placeholderInfo.filter(p => p.type === 'original').length
+    });
+    searchPos = idx + 1;
   }
   
-  // 合并参数：原有参数 + 提取的字符串
-  const finalArgs = [...params, ...extractedStrings];
-  
-  // 验证参数数量（可选警告）
-  const originalPlaceholderCount = (processedSQL.match(/\?/g) || []).length;
-  if (originalPlaceholderCount !== finalArgs.length) {
-    console.warn('[preprocessSQL] 参数数量不匹配: SQL 需要 ' + originalPlaceholderCount + ' 个，实际 ' + finalArgs.length + ' 个');
+  // 找字符串标记
+  for (let i = 0; i < extractedStrings.length; i++) {
+    const marker = MARKER_PREFIX + i + '__';
+    searchPos = 0;
+    while (true) {
+      const idx = markedSQL.indexOf(marker, searchPos);
+      if (idx === -1) break;
+      placeholderInfo.push({
+        position: idx,
+        type: 'string',
+        stringIndex: i
+      });
+      searchPos = idx + marker.length;
+      break; // 每个标记只出现一次
+    }
   }
   
-  return { sql: processedSQL, args: finalArgs };
+  // ========== 第三步：按位置排序，构建参数数组 ==========
+  placeholderInfo.sort((a, b) => a.position - b.position);
+  
+  const finalArgs = [];
+  for (const info of placeholderInfo) {
+    if (info.type === 'original') {
+      if (info.paramIndex < params.length) {
+        finalArgs.push(params[info.paramIndex]);
+      } else {
+        console.warn('[preprocessSQL] 原有参数数量不足');
+        finalArgs.push(null);
+      }
+    } else {
+      finalArgs.push(extractedStrings[info.stringIndex]);
+    }
+  }
+  
+  // ========== 第四步：替换标记为 ? ==========
+  let finalSQL = markedSQL;
+  for (let i = 0; i < extractedStrings.length; i++) {
+    const marker = MARKER_PREFIX + i + '__';
+    finalSQL = finalSQL.replace(marker, '?');
+  }
+  
+  // 验证
+  const finalPlaceholderCount = (finalSQL.match(/\?/g) || []).length;
+  if (finalPlaceholderCount !== finalArgs.length) {
+    console.warn('[preprocessSQL] 参数数量不匹配: SQL 需要 ' + finalPlaceholderCount + ' 个，实际 ' + finalArgs.length + ' 个');
+  }
+  
+  return { sql: finalSQL, args: finalArgs };
 }
 
 module.exports = { preprocessSQL };
