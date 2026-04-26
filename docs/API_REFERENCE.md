@@ -2880,3 +2880,62 @@ errorReporter.report({ type: "custom_error", message: "错误信息" });
 
 **文件**：`backend/services/dingtalk-service.js`
 
+
+---
+
+## 钉钉打卡识别逻辑（2026-04-26 更新）
+
+### findActiveAttendanceRecord 查询条件
+
+```sql
+SELECT * FROM attendance_records 
+WHERE coach_no = ? AND clock_in_time >= ? 
+AND (clock_out_time IS NULL OR dingtalk_out_time IS NULL)
+ORDER BY clock_in_time DESC LIMIT 1
+```
+
+**说明**：查询"未下班"的记录（系统未下班或钉钉未下班）
+
+### 打卡类型判断逻辑
+
+| 水牌状态 | 条件 | 打卡类型 |
+|----------|------|----------|
+| **下班** | attendance.clock_out_time 存在且时间接近(≤20分钟) | out |
+| **下班** | 否则 | in |
+| **空闲** | attendance.clock_in_time 存在且时间接近 | in |
+| **空闲** | lejuan.return_time 存在且时间接近 | return |
+| **空闲** | pending lejuan.scheduled_start_time 存在且时间接近 | lejuan_out |
+| **空闲** | 否则 | out |
+| **乐捐** | 无 attendance 或 clock_in_time 时间接近(≤15分钟) | **return_and_in**（双重场景） |
+| **乐捐** | 否则 | return |
+| **早班上桌** | 打卡时间在23点-次日11点 | out |
+| **晚班上桌** | 打卡时间在次日2点-11点 | out |
+| **上桌状态非下班时间段** | 其他时间 | 忽略 |
+| **服务中** | 直接忽略 | - |
+| **早加班/晚加班/休息/请假/公休** | 直接判定 | in |
+
+### return_and_in 双重场景
+
+乐捐归来+上班打卡时，同时写入：
+- `clock_in_time` = 钉钉打卡时间
+- `dingtalk_in_time` = 钉钉打卡时间
+
+**不覆盖已有的 clock_in_time**
+
+---
+
+## 打卡审查 API 时间定义（2026-04-26 更新）
+
+### 今日/昨日定义
+
+| 时间段 | 定义 |
+|--------|------|
+| **今日** | 今天 12:00:00 到 明天 11:59:59 |
+| **昨日** | 昨天 12:00:00 到 今天 11:59:59 |
+
+**查询 SQL**：
+```sql
+WHERE COALESCE(clock_in_time, dingtalk_in_time) >= timeStart
+AND COALESCE(clock_in_time, dingtalk_in_time) <= timeEnd
+```
+

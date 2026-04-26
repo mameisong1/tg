@@ -1163,3 +1163,40 @@ CREATE UNIQUE INDEX idx_rp_unique ON reward_penalties(confirm_date, type, phone,
 3. 水牌状态变为空闲
 4. 写入打卡记录
 
+
+---
+
+## 钉钉打卡时间处理（2026-04-26 更新）
+
+### 核心修改
+
+#### 1. findActiveAttendanceRecord 查询条件
+
+**问题**：先系统下班打卡，后钉钉推送时，原查询 `clock_out_time IS NULL` 无法找到已下班记录。
+
+**修复**：改为 `(clock_out_time IS NULL OR dingtalk_out_time IS NULL)`，找到"系统已下班但钉钉未下班"的记录。
+
+#### 2. return_and_in 双重场景
+
+**问题**：乐捐归来+上班打卡时，只写 dingtalk_in_time，不写 clock_in_time。
+
+**修复**：同时写入 clock_in_time + dingtalk_in_time（不覆盖已有的 clock_in_time）。
+
+#### 3. 上桌状态下班时间段
+
+**新增**：上桌状态在下班时间段收到钉钉推送，判定为下班打卡。
+
+| 班次 | 下班时间段 |
+|------|-----------|
+| 早班 | 23点 到 次日11点 |
+| 晚班 | 次日2点 到 11点 |
+
+#### 4. 打卡审查今日/昨日定义
+
+**修改**：按工作时间段划分，而非自然日。
+
+| 时间段 | 定义 |
+|--------|------|
+| 今日 | 今天12:00:00 到 明天11:59:59 |
+| 昨日 | 昨天12:00:00 到 今天11:59:59 |
+
