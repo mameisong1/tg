@@ -146,7 +146,24 @@ async function executeAutoOffACTableIndependent() {
   const sendResult = await sendACOffBatch(switches);
   const turnedOffCount = sendResult?.successCount ?? sendResult ?? 0;
 
-  // 4. 新增：重置大厅区空调温度风速
+  // 4. 新增：重置台桌无关空调温度风速
+  const tableIndependentACs = await all(`
+    SELECT DISTINCT sd.switch_id, sd.switch_seq
+    FROM switch_device sd
+    LEFT JOIN table_device td 
+      ON LOWER(sd.switch_label) = LOWER(td.switch_label) 
+      AND LOWER(sd.switch_seq) = LOWER(td.switch_seq)
+    WHERE td.table_name_en IS NULL
+      AND sd.device_type = '空调'
+  `);
+
+  if (tableIndependentACs.length > 0) {
+    console.log(`[自动关空调-台桌无关] 台桌无关空调 ${tableIndependentACs.length} 个，重置温度风速`);
+    const resetResult = await sendACResetBatch(tableIndependentACs);
+    console.log(`[自动关空调-台桌无关] 台桌无关空调重置完成: ${resetResult.successCount}/${tableIndependentACs.length}`);
+  }
+
+  // 5. 重置大厅区空调温度风速
   const hallACs = await all(`
     SELECT DISTINCT sd.switch_id, sd.switch_seq
     FROM switch_device sd
