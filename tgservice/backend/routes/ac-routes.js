@@ -13,6 +13,8 @@ const router = express.Router();
 const TimeUtil = require('../utils/time');
 const { all, get, run, enqueueRun, runInTransaction } = require('../db/index');
 const { requireBackendPermission } = require('../middleware/permission');
+const { executeAutoOffAC, executeAutoOffACTableIndependent } = require('../services/auto-off-ac');
+const { getAutoOffSettings, setAutoOffSettings } = require('../utils/config-helper');
 const operationLogService = require('../services/operation-log');
 const { executeAutoOffAC, executeAutoOffACTableIndependent } = require('../services/auto-off-ac');
 const { controlACByLabel, controlACByTable } = require('../services/mqtt-ac');
@@ -322,9 +324,9 @@ router.delete('/api/admin/ac-scenes/:id', requireBackendPermission(['vipRoomMana
 // 获取自动关空调状态
 router.get('/api/ac/auto-status', requireSwitchPermission, async (req, res) => {
   try {
-    const setting = await get("SELECT value FROM system_settings WHERE key = 'ac_auto_off_enabled'");
+    const settings = await getAutoOffSettings();
     res.json({
-      auto_off_enabled: setting?.value === '1'
+      auto_off_enabled: settings.ac_auto_off
     });
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
@@ -334,24 +336,20 @@ router.get('/api/ac/auto-status', requireSwitchPermission, async (req, res) => {
 // 切换自动关空调启停
 router.post('/api/ac/auto-off-toggle', requireSwitchPermission, async (req, res) => {
   try {
-    const current = await get("SELECT value FROM system_settings WHERE key = 'ac_auto_off_enabled'");
-    const newValue = current?.value === '1' ? '0' : '1';
-    const now = TimeUtil.nowDB();
-    await enqueueRun(
-      `INSERT OR REPLACE INTO system_settings (key, value, updated_at) VALUES ('ac_auto_off_enabled', ?, ?)`,
-      [newValue, now]
-    );
+    const settings = await getAutoOffSettings();
+    const newValue = !settings.ac_auto_off;
+    await setAutoOffSettings({ ...settings, ac_auto_off: newValue });
     const user = req.user;
     operationLogService.logToFile({
       operator_phone: user.username,
       operator_name: user.name,
       operation_type: '切换自动关空调',
-      target_type: 'system_settings',
-      old_value: current?.value || '0',
-      new_value: newValue,
-      remark: `自动关空调: ${newValue === '1' ? '开启' : '关闭'}`
+      target_type: 'system_config',
+      old_value: String(settings.ac_auto_off),
+      new_value: String(newValue),
+      remark: `自动关空调: ${newValue ? '开启' : '关闭'}`
     });
-    res.json({ success: true, enabled: newValue === '1' });
+    res.json({ success: true, enabled: newValue });
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
   }

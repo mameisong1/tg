@@ -10,6 +10,7 @@
 const TimeUtil = require('../utils/time');
 const { all, get } = require('../db/index');
 const { sendACOffBatch, sendACResetBatch } = require('./mqtt-ac');
+const { getAutoOffSettings } = require('../utils/config-helper');
 
 /**
  * 执行自动关空调（台桌相关）
@@ -17,8 +18,8 @@ const { sendACOffBatch, sendACResetBatch } = require('./mqtt-ac');
  */
 async function executeAutoOffAC() {
   // 1. 检查自动关空调功能是否开启
-  const setting = await get("SELECT value FROM system_settings WHERE key = 'ac_auto_off_enabled'");
-  if (!setting || setting.value !== '1') {
+  const settings = await getAutoOffSettings();
+  if (!settings.ac_auto_off) {
     console.log('[自动关空调] 功能未开启，跳过');
     return { status: 'disabled' };
   }
@@ -105,8 +106,8 @@ async function executeAutoOffAC() {
  */
 async function executeAutoOffACTableIndependent() {
   // 1. 检查自动关空调功能是否开启
-  const setting = await get("SELECT value FROM system_settings WHERE key = 'ac_auto_off_enabled'");
-  if (!setting || setting.value !== '1') {
+  const settings = await getAutoOffSettings();
+  if (!settings.ac_auto_off) {
     console.log('[自动关空调-台桌无关] 功能未开启，跳过');
     return { status: 'disabled', turnedOffCount: 0 };
   }
