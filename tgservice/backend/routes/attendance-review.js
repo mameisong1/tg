@@ -15,32 +15,56 @@ const errorLogger = require('../utils/error-logger');
  * GET /api/attendance-review
  * 获取打卡审查列表
  *
- * 【修改4】今日/昨日定义调整:
+ * 【兼容两种参数格式】
+ * - date 参数（旧）：按日期查询，如 date=2026-04-25
+ * - period 参数（新）：按时间段查询，如 period=today 或 period=yesterday
+ *
+ * 今日/昨日定义:
  * - 今日 = 今天12:00:00 到 明天11:59:59
  * - 昨日 = 昨天12:00:00 到 今天11:59:59
  *
  * Query params:
- * - period: 时间段(today/yesterday),默认today
+ * - date: 日期(YYYY-MM-DD),旧参数格式
+ * - period: 时间段(today/yesterday),新参数格式
  * - shift: 班次(早班/晚班),可选
  */
 router.get('/', auth.required, requireBackendPermission(['店长', '助教管理', '管理员']), async (req, res) => {
   try {
-    const { period, shift } = req.query;
+    const { date, period, shift } = req.query;
 
     // 计算时间范围
     const todayStr = TimeUtil.todayStr();
     const tomorrowStr = TimeUtil.offsetDateStr(1);
     const yesterdayStr = TimeUtil.offsetDateStr(-1);
 
-    // 今日：今天12:00:00 到 明天11:59:59
-    // 昨日：昨天12:00:00 到 今天11:59:59
-    const targetPeriod = period || 'today';
-    const timeStart = targetPeriod === 'today' 
-      ? `${todayStr} 12:00:00` 
-      : `${yesterdayStr} 12:00:00`;
-    const timeEnd = targetPeriod === 'today' 
-      ? `${tomorrowStr} 11:59:59` 
-      : `${todayStr} 11:59:59`;
+    let timeStart, timeEnd, targetDate;
+
+    // 【兼容】优先使用 period 参数（新格式），如果没有则用 date 参数（旧格式）
+    if (period) {
+      // 新格式：period=today 或 period=yesterday
+      timeStart = period === 'today' 
+        ? `${todayStr} 12:00:00` 
+        : `${yesterdayStr} 12:00:00`;
+      timeEnd = period === 'today' 
+        ? `${tomorrowStr} 11:59:59` 
+        : `${todayStr} 11:59:59`;
+      targetDate = period === 'today' ? todayStr : yesterdayStr;
+    } else if (date) {
+      // 旧格式：date=2026-04-25
+      // 将日期转换为时间范围（兼容前端传递 date 参数）
+      // date='2026-04-25' → timeStart = 2026-04-25 12:00:00, timeEnd = 2026-04-26 11:59:59
+      const nextDate = new Date(date + 'T00:00:00');
+      nextDate.setDate(nextDate.getDate() + 1);
+      const nextDateStr = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`;
+      timeStart = `${date} 12:00:00`;  // 指定日期12点开始
+      timeEnd = `${nextDateStr} 11:59:59`;  // 下一天11:59结束
+      targetDate = date;
+    } else {
+      // 默认：今日
+      timeStart = `${todayStr} 12:00:00`;
+      timeEnd = `${tomorrowStr} 11:59:59`;
+      targetDate = todayStr;
+    }
 
     // 查询指定时间范围和班次的打卡记录
     // 使用 COALESCE(clock_in_time, dingtalk_in_time) 作为时间判断依据
