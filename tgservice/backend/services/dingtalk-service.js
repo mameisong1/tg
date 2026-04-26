@@ -524,7 +524,7 @@ async function findActiveAttendanceRecord(get, coachNo, checkTimeStr) {
   const attendance = await get(
     `SELECT id, clock_in_time, clock_out_time, dingtalk_in_time, dingtalk_out_time 
      FROM attendance_records 
-     WHERE coach_no = ? AND clock_in_time >= ? AND clock_out_time IS NULL
+     WHERE coach_no = ? AND clock_in_time >= ? AND (clock_out_time IS NULL OR dingtalk_out_time IS NULL)
      ORDER BY clock_in_time DESC LIMIT 1`,
     [coachNo, searchStart]
   );
@@ -716,6 +716,27 @@ async function handleSingleAttendanceRecord(record, db) {
     // 加班/休息/请假/公休状态 → 判断为上班打卡
     punchType = 'in';
     reason = `状态${currentStatus} → 上班打卡`;
+  } else if (currentStatus === '早班上桌' || currentStatus === '晚班上桌') {
+    // 【修改3】上桌状态：下班时间段钉钉推送判定为下班打卡
+    // 早班下班时间段：23点到次日11点
+    // 晚班下班时间段：次日2点到11点
+    const checkHour = parseInt(checkTimeStr.substring(11, 13), 10);
+    const isEarlyShift = currentStatus === '早班上桌';
+    const isLateShift = currentStatus === '晚班上桌';
+    
+    // 判断是否在下班时间段
+    const isClockOutTime = isEarlyShift
+      ? (checkHour >= 23 || checkHour < 11)  // 早班：23点后或次日11点前
+      : (isLateShift && checkHour >= 2 && checkHour < 11);  // 晚班：次日2点-11点
+    
+    if (isClockOutTime && attendance) {
+      punchType = 'out';
+      reason = `上桌状态(${currentStatus}) + 下班时间段(${checkHour}点) → 下班打卡`;
+      dingtalkLog.write(`${coach.stage_name} 上桌状态下班时间段打卡: checkHour=${checkHour}, attendance.id=${attendance.id}`);
+    } else {
+      dingtalkLog.write(`${coach.stage_name} 上桌状态非下班时间段打卡: checkHour=${checkHour}, 忽略`);
+      return;
+    }
   } else {
     dingtalkLog.write(`${coach.stage_name} 未知状态: ${currentStatus}，忽略打卡`);
     return;
@@ -786,22 +807,32 @@ async function handleSingleAttendanceRecord(record, db) {
       dingtalkLog.write(`警告: ${coach.stage_name} 乐捐打卡但无 active 乐捐记录`);
     }
     
-    // 2. 写入打卡表
+    // 2. 写入打卡表（方案B1：同时写入 clock_in_time，但不覆盖已有的系统打卡时间）
     if (!attendance) {
-      // 创建新记录
+      // 创建新记录（同时写入 clock_in_time + dingtalk_in_time）
       await enqueueRun(
-        `INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, dingtalk_in_time, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [todayStr, coach.coach_no, coach.employee_id, coach.stage_name, checkTimeStr, TimeUtil.nowDB(), TimeUtil.nowDB()]
+        `INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, clock_in_time, dingtalk_in_time, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [todayStr, coach.coach_no, coach.employee_id, coach.stage_name, checkTimeStr, checkTimeStr, TimeUtil.nowDB(), TimeUtil.nowDB()]
       );
-      dingtalkLog.write(`创建打卡记录: ${coach.stage_name} dingtalk_in_time = ${checkTimeStr}`);
+      dingtalkLog.write(`创建打卡记录: ${coach.stage_name} clock_in_time + dingtalk_in_time = ${checkTimeStr}`);
     } else {
-      // 更新钉钉上班时间
-      await enqueueRun(
-        `UPDATE attendance_records SET dingtalk_in_time = ?, updated_at = ? WHERE id = ?`,
-        [checkTimeStr, TimeUtil.nowDB(), attendance.id]
-      );
-      dingtalkLog.write(`更新打卡记录: ${coach.stage_name} dingtalk_in_time = ${checkTimeStr}`);
+      // 更新：不覆盖已有的 clock_in_time
+      if (attendance.clock_in_time) {
+        // 已有系统打卡时间，只更新 dingtalk_in_time
+        await enqueueRun(
+          `UPDATE attendance_records SET dingtalk_in_time = ?, updated_at = ? WHERE id = ?`,
+          [checkTimeStr, TimeUtil.nowDB(), attendance.id]
+        );
+        dingtalkLog.write(`更新打卡记录: ${coach.stage_name} dingtalk_in_time = ${checkTimeStr}（保留已有 clock_in_time: ${attendance.clock_in_time})`);
+      } else {
+        // 无系统打卡时间，同时写入 clock_in_time + dingtalk_in_time
+        await enqueueRun(
+          `UPDATE attendance_records SET clock_in_time = ?, dingtalk_in_time = ?, updated_at = ? WHERE id = ?`,
+          [checkTimeStr, checkTimeStr, TimeUtil.nowDB(), attendance.id]
+        );
+        dingtalkLog.write(`更新打卡记录: ${coach.stage_name} clock_in_time + dingtalk_in_time = ${checkTimeStr}`);
+      }
     }
   } else if (punchType === 'lejuan_out') {
     // 预约乐捐外出打卡 → 写入 dingtalk_out_time

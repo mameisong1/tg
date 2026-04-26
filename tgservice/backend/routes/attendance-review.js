@@ -15,18 +15,35 @@ const errorLogger = require('../utils/error-logger');
  * GET /api/attendance-review
  * 获取打卡审查列表
  *
+ * 【修改4】今日/昨日定义调整:
+ * - 今日 = 今天12:00:00 到 明天11:59:59
+ * - 昨日 = 昨天12:00:00 到 今天11:59:59
+ *
  * Query params:
- * - date: 日期(YYYY-MM-DD),默认今天
+ * - period: 时间段(today/yesterday),默认today
  * - shift: 班次(早班/晚班),可选
  */
 router.get('/', auth.required, requireBackendPermission(['店长', '助教管理', '管理员']), async (req, res) => {
   try {
-    const { date, shift } = req.query;
+    const { period, shift } = req.query;
 
-    // 使用请求日期或今天
-    const targetDate = date || TimeUtil.todayStr();
+    // 计算时间范围
+    const todayStr = TimeUtil.todayStr();
+    const tomorrowStr = TimeUtil.offsetDateStr(1);
+    const yesterdayStr = TimeUtil.offsetDateStr(-1);
 
-    // 查询指定日期和班次的打卡记录
+    // 今日：今天12:00:00 到 明天11:59:59
+    // 昨日：昨天12:00:00 到 今天11:59:59
+    const targetPeriod = period || 'today';
+    const timeStart = targetPeriod === 'today' 
+      ? `${todayStr} 12:00:00` 
+      : `${yesterdayStr} 12:00:00`;
+    const timeEnd = targetPeriod === 'today' 
+      ? `${tomorrowStr} 11:59:59` 
+      : `${todayStr} 11:59:59`;
+
+    // 查询指定时间范围和班次的打卡记录
+    // 使用 COALESCE(clock_in_time, dingtalk_in_time) 作为时间判断依据
     const sql = `
       SELECT
         ar.id,
@@ -43,7 +60,7 @@ router.get('/', auth.required, requireBackendPermission(['店长', '助教管理
         ar.dingtalk_in_time,
         ar.dingtalk_out_time,
         c.phone,
-        -- 查询当天加班申请的小时数
+        -- 查询对应日期的加班申请小时数
         (
           SELECT COALESCE(
             CAST(JSON_EXTRACT(extra_data, '$.hours') AS INTEGER), 0
@@ -56,12 +73,13 @@ router.get('/', auth.required, requireBackendPermission(['店长', '助教管理
         ) as overtime_hours
       FROM attendance_records ar
       LEFT JOIN coaches c ON ar.coach_no = c.coach_no
-      WHERE ar.date = ?
+      WHERE COALESCE(ar.clock_in_time, ar.dingtalk_in_time) >= ?
+        AND COALESCE(ar.clock_in_time, ar.dingtalk_in_time) <= ?
         AND (? IS NULL OR c.shift = ?)
-      ORDER BY ar.clock_in_time DESC
+      ORDER BY COALESCE(ar.clock_in_time, ar.dingtalk_in_time) DESC
     `;
 
-    const records = await all(sql, [targetDate, shift, shift]);
+    const records = await all(sql, [timeStart, timeEnd, shift, shift]);
 
     // 处理返回数据
     const parsedRecords = records.map(r => {
@@ -110,14 +128,23 @@ router.get('/', auth.required, requireBackendPermission(['店长', '助教管理
 
 /**
  * GET /api/attendance-review/pending-count
- * 获取当天迟到且未审查的人数（用于角标）
+ * 获取今日迟到且未审查的人数（用于角标）
+ *
+ * 【修改4】今日定义：今天12:00:00 到 明天11:59:59
  */
 router.get('/pending-count', auth.required, requireBackendPermission(['店长', '助教管理', '管理员']), async (req, res) => {
   try {
     const todayStr = TimeUtil.todayStr();
+    const tomorrowStr = TimeUtil.offsetDateStr(1);
+    const timeStart = `${todayStr} 12:00:00`;
+    const timeEnd = `${tomorrowStr} 11:59:59`;
+    
     const result = await get(
-      'SELECT COUNT(*) as cnt FROM attendance_records WHERE date = ? AND is_late = 1 AND is_reviewed = 0',
-      [todayStr]
+      `SELECT COUNT(*) as cnt FROM attendance_records 
+       WHERE COALESCE(clock_in_time, dingtalk_in_time) >= ? 
+       AND COALESCE(clock_in_time, dingtalk_in_time) <= ? 
+       AND is_late = 1 AND is_reviewed = 0`,
+      [timeStart, timeEnd]
     );
     res.json({
       success: true,
