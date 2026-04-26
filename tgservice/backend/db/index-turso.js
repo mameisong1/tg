@@ -119,10 +119,10 @@ const _executeGet = async (sql, args) => {
 
 const _executeRun = async (sql, args) => {
   const result = await client.execute({ sql, args });
-  return {
-    lastID: result.lastInsertRowid || 0,
-    changes: result.rowsAffected || 0
-  };
+  // BigInt 转 Number（lastInsertRowid 可能是 BigInt）
+  const lastID = result.lastInsertRowid ? Number(result.lastInsertRowid) : 0;
+  const changes = result.rowsAffected ? Number(result.rowsAffected) : 0;
+  return { lastID, changes };
 };
 
 // ========== 基础查询方法（对外，带预处理）==========
@@ -152,7 +152,9 @@ const dbTx = (fn) => {
           const processed = preprocessSQL(sql, params);
           client.execute({ sql: processed.sql, args: processed.args })
             .then(result => {
-              if (callback) callback(null, { lastID: result.lastInsertRowid || 0, changes: result.rowsAffected || 0 });
+              const lastID = result.lastInsertRowid ? Number(result.lastInsertRowid) : 0;
+              const changes = result.rowsAffected ? Number(result.rowsAffected) : 0;
+              if (callback) callback(null, { lastID, changes });
             })
             .catch(err => {
               if (callback) callback(err);
@@ -304,7 +306,9 @@ const db = {
     const processed = preprocessSQL(sql, params);
     client.execute({ sql: processed.sql, args: processed.args })
       .then(result => {
-        if (callback) callback(null, { lastID: result.lastInsertRowid || 0, changes: result.rowsAffected || 0 });
+        const lastID = result.lastInsertRowid ? Number(result.lastInsertRowid) : 0;
+        const changes = result.rowsAffected ? Number(result.rowsAffected) : 0;
+        if (callback) callback(null, { lastID, changes });
       })
       .catch(err => {
         if (callback) callback(err);
