@@ -389,7 +389,7 @@ async function recoverApplicationTimers() {
             LEFT JOIN coaches c ON a.applicant_phone = c.employee_id OR a.applicant_phone = c.phone
             WHERE a.application_type IN ('休息申请', '请假申请')
                 AND a.status = 1
-                AND a.extra_data LIKE '%"timer_set":true%'
+                AND a.extra_data LIKE '%timer_set%' AND a.extra_data LIKE '%true%'
         `, []);
 
         console.log(`[TimerManager] 恢复申请定时器: 找到 ${pendingRecords.length} 条 timer_set=true 记录`);
@@ -508,7 +508,7 @@ async function pollCheck() {
             LEFT JOIN water_boards w ON c.coach_no = w.coach_no
             WHERE a.application_type IN ('休息申请', '请假申请')
                 AND a.status = 1
-                AND a.extra_data LIKE '%"timer_set":true%'
+                AND a.extra_data LIKE '%timer_set%' AND a.extra_data LIKE '%true%'
         `, []);
 
         for (const record of records) {
