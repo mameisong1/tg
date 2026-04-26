@@ -876,7 +876,7 @@ router.get('/today-approved-overtime', auth.required, requireBackendPermission([
  * GET /api/applications/pending-count
  * 获取待审批数字指示器
  */
-router.get('/pending-count', requireBackendPermission(['coachManagement']), async (req, res) => {
+router.get('/pending-count', auth.required, requireBackendPermission(['店长', '助教管理', '管理员']), async (req, res) => {
   try {
     const [shiftChange, leaveReq, restReq, overtime, publicLeave, lejuan] = await Promise.all([
       db.get('SELECT COUNT(*) as cnt FROM applications WHERE application_type = ? AND status = 0', ['班次切换申请']),

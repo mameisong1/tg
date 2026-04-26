@@ -1390,7 +1390,8 @@ import errorReporter from '@/utils/error-reporter.js'
 // 注意：全局错误监听已移至 error-reporter.js + main.js + App.vue
 // 这里只保留页面特定的业务追踪调用
 
-const loadPendingCounts = async () => {
+// 加载审批角标（管理功能板块专用 - 店长/助教管理/管理员）
+const loadApprovalCounts = async () => {
   try {
     const res = await api.applications.getPendingCount()
     const d = res.data || {}
@@ -1408,25 +1409,27 @@ const loadPendingCounts = async () => {
     } catch (e) {
       // 忽略
     }
-    
-    // 加载奖罚计数（传入用户phone）
-    const adminInfo = uni.getStorageSync('adminInfo') || {}
-    const coachInfo = uni.getStorageSync('coachInfo') || {}
-    const userPhone = adminInfo.username || coachInfo.phone || ''
-    
-    if (userPhone) {
-      try {
-        const rpRes = await api.rewardPenalty.getRecentCount({ phone: userPhone })
-        rewardPenaltyCount.value = rpRes.count || 0
-      } catch (e) {
-        console.error('加载奖罚计数失败:', e)
-      }
-    }
   } catch (e) {
-    errorReporter.track('loadPendingCounts_failed', {
+    errorReporter.track('loadApprovalCounts_failed', {
       message: e.message,
       error: e.error
     })
+  }
+}
+
+// 加载奖罚角标（常用功能板块专用 - 所有后台用户）
+const loadRewardPenaltyCount = async () => {
+  const adminInfo = uni.getStorageSync('adminInfo') || {}
+  const coachInfo = uni.getStorageSync('coachInfo') || {}
+  const userPhone = adminInfo.username || coachInfo.phone || ''
+  
+  if (userPhone) {
+    try {
+      const rpRes = await api.rewardPenalty.getRecentCount({ phone: userPhone })
+      rewardPenaltyCount.value = rpRes.count || 0
+    } catch (e) {
+      console.error('加载奖罚计数失败:', e)
+    }
   }
 }
 
@@ -1456,7 +1459,17 @@ onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 20
   loadPendingOrders()
-  loadPendingCounts()
+  
+  // 常用功能板块渲染时，加载奖罚角标
+  if (showCommonFeatures.value) {
+    loadRewardPenaltyCount()
+  }
+  
+  // 管理功能板块渲染时，加载审批角标
+  if (isManager.value) {
+    loadApprovalCounts()
+  }
+  
   checkCoachLogin()
   checkAutoLogin()
   
@@ -1495,7 +1508,17 @@ onMounted(() => {
 
 onShow(() => {
   loadPendingOrders()
-  loadPendingCounts()
+  
+  // 常用功能板块渲染时，加载奖罚角标
+  if (showCommonFeatures.value) {
+    loadRewardPenaltyCount()
+  }
+  
+  // 管理功能板块渲染时，加载审批角标
+  if (isManager.value) {
+    loadApprovalCounts()
+  }
+  
   checkCoachLogin()
   loadPopularity()
   checkAutoLogin()  // 每次显示时检查自动登录
