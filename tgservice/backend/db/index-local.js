@@ -5,6 +5,7 @@
 
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const { preprocessSQL } = require('./preprocess-sql');
 
 const dbPath = path.join(__dirname, '../../db/tgservice.db');
 const db = new sqlite3.Database(dbPath, (err) => {
@@ -16,6 +17,8 @@ const db = new sqlite3.Database(dbPath, (err) => {
   db.run('PRAGMA synchronous = NORMAL');
   db.run('PRAGMA busy_timeout = 3000');
 });
+
+console.log('[SQLite] 连接本地数据库:', dbPath);
 
 // ========== Write Queue: 所有写操作串行化 ==========
 
@@ -93,8 +96,9 @@ const runWriteQueue = () => {
 // ========== 基础查询方法 ==========
 
 const all = (sql, params = []) => {
+  const processed = preprocessSQL(sql, params);
   return new Promise((resolve, reject) => {
-    db.all(sql, params, (err, rows) => {
+    db.all(processed.sql, processed.args, (err, rows) => {
       if (err) reject(err);
       else resolve(rows);
     });
@@ -102,8 +106,9 @@ const all = (sql, params = []) => {
 };
 
 const get = (sql, params = []) => {
+  const processed = preprocessSQL(sql, params);
   return new Promise((resolve, reject) => {
-    db.get(sql, params, (err, row) => {
+    db.get(processed.sql, processed.args, (err, row) => {
       if (err) reject(err);
       else resolve(row);
     });
@@ -111,8 +116,9 @@ const get = (sql, params = []) => {
 };
 
 const run = (sql, params = []) => {
+  const processed = preprocessSQL(sql, params);
   return new Promise((resolve, reject) => {
-    db.run(sql, params, function(err) {
+    db.run(processed.sql, processed.args, function(err) {
       if (err) reject(err);
       else resolve({ lastID: this.lastID, changes: this.changes });
     });
@@ -192,26 +198,30 @@ const beginTransaction = async () => {
     }
   }
 
+  // 🔴 修复：transaction 方法使用预处理
   const transaction = {
     run: (sql, params = []) => {
+      const processed = preprocessSQL(sql, params);
       return new Promise((resolve, reject) => {
-        db.run(sql, params, function(err) {
+        db.run(processed.sql, processed.args, function(err) {
           if (err) reject(err);
           else resolve({ lastID: this.lastID, changes: this.changes });
         });
       });
     },
     get: (sql, params = []) => {
+      const processed = preprocessSQL(sql, params);
       return new Promise((resolve, reject) => {
-        db.get(sql, params, (err, row) => {
+        db.get(processed.sql, processed.args, (err, row) => {
           if (err) reject(err);
           else resolve(row);
         });
       });
     },
     all: (sql, params = []) => {
+      const processed = preprocessSQL(sql, params);
       return new Promise((resolve, reject) => {
-        db.all(sql, params, (err, rows) => {
+        db.all(processed.sql, processed.args, (err, rows) => {
           if (err) reject(err);
           else resolve(rows);
         });
@@ -227,45 +237,26 @@ const beginTransaction = async () => {
   return transaction;
 };
 
-const runInTransaction = async (callback) => {
-  return new Promise((resolve, reject) => {
-    enqueueWrite((done) => {
-      db.run('BEGIN IMMEDIATE', (err) => {
-        if (err) {
-          if (err.message && err.message.includes('cannot start a transaction')) {
-            db.run('ROLLBACK', () => {
-              db.run('BEGIN IMMEDIATE', (err2) => {
-                if (err2) return done(err2);
-                runTxInnerLocal(done, callback, resolve, reject);
-              });
-            });
-          } else {
-            return done(err);
-          }
-        } else {
-          runTxInnerLocal(done, callback, resolve, reject);
-        }
-      });
-    }).then(resolve).catch(reject);
-  });
-};
-
+// 🔴 修复：runInTransaction 的 tx 方法使用预处理
 function runTxInnerLocal(done, callback, resolve, reject) {
   const tx = {
     run: (sql, params = []) => new Promise((res, rej) => {
-      db.run(sql, params, function(e) {
+      const processed = preprocessSQL(sql, params);
+      db.run(processed.sql, processed.args, function(e) {
         if (e) rej(e);
         else res({ lastID: this.lastID, changes: this.changes });
       });
     }),
     get: (sql, params = []) => new Promise((res, rej) => {
-      db.get(sql, params, (e, row) => {
+      const processed = preprocessSQL(sql, params);
+      db.get(processed.sql, processed.args, (e, row) => {
         if (e) rej(e);
         else res(row);
       });
     }),
     all: (sql, params = []) => new Promise((res, rej) => {
-      db.all(sql, params, (e, rows) => {
+      const processed = preprocessSQL(sql, params);
+      db.all(processed.sql, processed.args, (e, rows) => {
         if (e) rej(e);
         else res(rows);
       });
@@ -297,10 +288,35 @@ function runTxInnerLocal(done, callback, resolve, reject) {
     });
 }
 
+const runInTransaction = async (callback) => {
+  return new Promise((resolve, reject) => {
+    enqueueWrite((done) => {
+      db.run('BEGIN IMMEDIATE', (err) => {
+        if (err) {
+          if (err.message && err.message.includes('cannot start a transaction')) {
+            db.run('ROLLBACK', () => {
+              db.run('BEGIN IMMEDIATE', (err2) => {
+                if (err2) return done(err2);
+                runTxInnerLocal(done, callback, resolve, reject);
+              });
+            });
+          } else {
+            return done(err);
+          }
+        } else {
+          runTxInnerLocal(done, callback, resolve, reject);
+        }
+      });
+    }).then(resolve).catch(reject);
+  });
+};
+
+// 🔴 修复：使用预处理
 const enqueueRun = (sql, params = []) => {
   return new Promise((resolve, reject) => {
     enqueueWrite((done) => {
-      db.run(sql, params, function(err) {
+      const processed = preprocessSQL(sql, params);
+      db.run(processed.sql, processed.args, function(err) {
         if (err) {
           done(err);
           reject(err);
@@ -350,5 +366,6 @@ module.exports = {
   queueStats,
   writeQueue,
   parseTables,
-  joinTables
+  joinTables,
+  preprocessSQL
 };
