@@ -190,6 +190,13 @@ async function initDefaultTasks() {
             description: '每隔5分钟自动关台桌无关空调',
             cron_expression: '*/5 * * * *',
             next_run: calcNextRun('*/5 * * * *')
+        },
+        {
+            task_name: 'reset_water_board_status',
+            task_type: 'reset_water_board_status',
+            description: '凌晨3点自动将休息/请假/公休状态的水牌设为下班',
+            cron_expression: '0 3 * * *',
+            next_run: calcNextRun('0 3 * * *')
         }
     ];
 
@@ -974,6 +981,92 @@ async function taskAutoOffTableIndependent(taskName) {
 }
 
 /**
+ * 任务：凌晨3点重置水牌状态
+ * 自动将休息/请假/公休状态的水牌设为下班
+ */
+async function taskResetWaterBoardStatus() {
+    const taskName = 'reset_water_board_status';
+    const taskType = 'reset_water_board_status';
+    const startedAt = TimeUtil.nowDB();
+
+    console.log(`[CronScheduler] 开始执行: ${taskName}`);
+
+    try {
+        const now = TimeUtil.nowDB();
+
+        // 查询休息/请假/公休状态的助教
+        const affectedCoaches = await all(
+            `SELECT coach_no, stage_name, status FROM water_boards WHERE status IN ('休息', '请假', '公休')`
+        );
+
+        if (affectedCoaches.length === 0) {
+            const finishedAt = TimeUtil.nowDB();
+            const nextRun = calcNextRun('0 3 * * *');
+
+            await logCron(
+                taskName, taskType, 'success', 0,
+                '无需要重置的水牌',
+                null, startedAt, finishedAt
+            );
+
+            await updateTaskStatus(taskName, {
+                lastRun: finishedAt,
+                nextRun: nextRun,
+                lastStatus: 'success',
+                lastError: null
+            });
+
+            console.log(`[CronScheduler] ${taskName} 完成: 无需要重置的水牌`);
+            return;
+        }
+
+        // 执行批量更新
+        const coachList = affectedCoaches.map(c => `${c.stage_name || c.coach_no}(${c.status})`).join(',');
+        const result = await runInTransaction(async (tx) => {
+            const updateResult = await tx.run(
+                `UPDATE water_boards SET status = '下班', table_no = NULL, clock_in_time = NULL, updated_at = ? WHERE status IN ('休息', '请假', '公休')`,
+                [now]
+            );
+            return { affected: updateResult.changes || affectedCoaches.length };
+        });
+
+        const finishedAt = TimeUtil.nowDB();
+        const nextRun = calcNextRun('0 3 * * *');
+
+        await logCron(
+            taskName, taskType, 'success', result.affected,
+            `重置 ${result.affected} 个水牌: ${coachList}`,
+            null, startedAt, finishedAt
+        );
+
+        await updateTaskStatus(taskName, {
+            lastRun: finishedAt,
+            nextRun: nextRun,
+            lastStatus: 'success',
+            lastError: null
+        });
+
+        console.log(`[CronScheduler] ${taskName} 完成: 重置 ${result.affected} 个水牌`);
+        
+    } catch (err) {
+        const finishedAt = TimeUtil.nowDB();
+        console.error(`[CronScheduler] ${taskName} 失败:`, err);
+
+        await logCron(
+            taskName, taskType, 'failed', 0, null,
+            err.message, startedAt, finishedAt
+        );
+
+        await updateTaskStatus(taskName, {
+            lastRun: finishedAt,
+            nextRun: calcNextRun('0 3 * * *'),
+            lastStatus: 'failed',
+            lastError: err.message
+        });
+    }
+}
+
+/**
  * 检查并执行到期任务
  */
 async function checkAndRunTasks() {
@@ -1007,6 +1100,8 @@ async function checkAndRunTasks() {
                 }
             } else if (task.task_type === 'auto_off_table_independent') {
                 await taskAutoOffTableIndependent(task.task_name);
+            } else if (task.task_type === 'reset_water_board_status') {
+                await taskResetWaterBoardStatus();
             }
 
             const nextRun = calcNextRun(task.cron_expression);
@@ -1063,6 +1158,8 @@ async function triggerTask(taskName) {
         } else {
             await taskGuestRanking('晚班', 51, 100);
         }
+    } else if (task.task_type === 'reset_water_board_status') {
+        await taskResetWaterBoardStatus();
     }
 
     const nextRun = calcNextRun(task.cron_expression);
@@ -1124,6 +1221,7 @@ module.exports = {
     taskEndLejuan,
     taskSyncRewardPenalty,
     taskLockGuestInvitation,
+    taskResetWaterBoardStatus,
     ensureTables,
     initDefaultTasks
 };
