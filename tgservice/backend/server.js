@@ -2324,7 +2324,16 @@ app.get('/api/auth/check-permission', authMiddleware, async (req, res) => {
 
     // 如果指定了具体权限,检查是否有该权限
     if (permission) {
-      const hasPermission = permissions.backend.includes(permission);
+      // 管理员角色有所有权限（menu=['all']）
+      if (permissions.backend.menu && permissions.backend.menu.includes('all')) {
+        const hasPermission = true;
+        return res.json({
+          success: true,
+          data: { has_permission: hasPermission, permission, role: user.role }
+        });
+      }
+      // 其他角色：检查权限对象中是否有该权限且为 true
+      const hasPermission = permissions.backend[permission] === true;
       return res.json({
         success: true,
         data: {
