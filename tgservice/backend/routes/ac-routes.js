@@ -489,7 +489,7 @@ router.get('/api/ac/tables', requireSwitchPermission, async (req, res) => {
   try {
     const tableDevices = await all(
       'SELECT td.table_name_en, td.switch_seq, td.switch_label, sd.switch_id ' +
-      'FROM table_device td LEFT JOIN switch_device sd ON td.switch_seq = sd.switch_seq AND td.switch_label = sd.switch_label AND sd.device_type = "空调" ' +
+      'FROM table_device td INNER JOIN switch_device sd ON td.switch_seq = sd.switch_seq AND td.switch_label = sd.switch_label AND sd.device_type = "空调" ' +
       'ORDER BY td.table_name_en'
     );
 
@@ -532,7 +532,7 @@ router.get('/api/ac/tables', requireSwitchPermission, async (req, res) => {
 
     const result = [];
     for (const [key, table] of Object.entries(tableMap)) {
-      const info = nameMap[key] || { name: key, area: '' };
+      const info = nameMap[key.toLowerCase()] || { name: key, area: '' };
       result.push({
         table_name_en: key,
         table_name_cn: info.name,
