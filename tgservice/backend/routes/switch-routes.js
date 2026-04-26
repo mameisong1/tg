@@ -280,7 +280,7 @@ router.get('/api/admin/switch-scenes', requireBackendPermission(['vipRoomManagem
 // 新增场景
 router.post('/api/admin/switch-scenes', requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
-    const { scene_name, action, switches, sort_order } = req.body;
+    const { scene_name, device_type, action, switches, sort_order } = req.body;
     if (!scene_name || !action || !switches) {
       return res.status(400).json({ error: '缺少必填字段' });
     }
@@ -294,11 +294,12 @@ router.post('/api/admin/switch-scenes', requireBackendPermission(['vipRoomManage
     }
 
     const now = TimeUtil.nowDB();
+    const deviceTypeValue = device_type || '灯';
     await runInTransaction(async (tx) => {
       await tx.run(
-        `INSERT INTO switch_scene (scene_name, action, switches, sort_order, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [scene_name, action, JSON.stringify(switchesArr), sort_order || 0, now, now]
+        `INSERT INTO switch_scene (scene_name, device_type, action, switches, sort_order, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [scene_name, deviceTypeValue, action, JSON.stringify(switchesArr), sort_order || 0, now, now]
       );
     });
     // 记录日志
@@ -323,7 +324,7 @@ router.post('/api/admin/switch-scenes', requireBackendPermission(['vipRoomManage
 // 更新场景
 router.put('/api/admin/switch-scenes/:id', requireBackendPermission(['vipRoomManagement']), async (req, res) => {
   try {
-    const { scene_name, action, switches, sort_order } = req.body;
+    const { scene_name, device_type, action, switches, sort_order } = req.body;
 
     // 先检查记录是否存在
     const existing = await get('SELECT id FROM switch_scene WHERE id = ?', [req.params.id]);
@@ -338,6 +339,10 @@ router.put('/api/admin/switch-scenes/:id', requireBackendPermission(['vipRoomMan
     if (scene_name !== undefined) {
       updates.push('scene_name = ?');
       params.push(scene_name);
+    }
+    if (device_type !== undefined) {
+      updates.push('device_type = ?');
+      params.push(device_type);
     }
     if (action !== undefined) {
       if (!['ON', 'OFF'].includes(action)) {

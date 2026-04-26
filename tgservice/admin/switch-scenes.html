@@ -82,13 +82,14 @@
         <tr>
           <th>排序</th>
           <th>场景名称</th>
+          <th>设备类型</th>
           <th>动作</th>
           <th>开关数量</th>
           <th>操作</th>
         </tr>
       </thead>
       <tbody id="tableBody">
-        <tr><td colspan="5" style="text-align:center;color:rgba(255,255,255,0.4);">加载中...</td></tr>
+        <tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,0.4);">加载中...</td></tr>
       </tbody>
     </table>
   </div>
@@ -104,6 +105,13 @@
           <input type="text" id="f_scene_name" placeholder="如 深夜模式">
         </div>
         <div class="form-row">
+          <label>设备类型 *</label>
+          <div class="radio-group">
+            <label><input type="radio" name="f_device_type" value="灯" checked> 💡 灯</label>
+            <label><input type="radio" name="f_device_type" value="空调"> ❄️ 空调</label>
+          </div>
+        </div>
+        <div class="form-row">
           <label>动作 *</label>
           <div class="radio-group">
             <label><input type="radio" name="f_action" value="ON" checked> 💡 开灯 (ON)</label>
@@ -112,7 +120,7 @@
         </div>
         <div class="form-row">
           <label>开关列表 *</label>
-          <textarea id="f_switches_text" placeholder="每行一个开关，格式：开关ID&lt;TAB&gt;开关序号&#10;例如：&#10;0xa4c1380bbd942cbe	state_l1&#10;0xa4c1380bbd942cbe	state_l2&#10;0xa4c1380bbd942cbe	state_l3"></textarea>
+          <textarea id="f_switches_text" placeholder="每行一个开关，格式：开关ID<TAB>开关序号&#10;例如：&#10;0xa4c1380bbd942cbe	state_l1&#10;0xa4c1380bbd942cbe	state_l2&#10;0xa4c1380bbd942cbe	state_l3"></textarea>
           <div class="form-hint">每行一个开关，格式：开关ID + Tab + 开关序号。支持从 Excel 直接粘贴。</div>
         </div>
         <div class="form-row">
@@ -168,7 +176,7 @@
 
         const tbody = document.getElementById('tableBody');
         if (allData.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:rgba(255,255,255,0.4);">暂无数据</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:rgba(255,255,255,0.4);">暂无数据</td></tr>';
           return;
         }
 
@@ -180,10 +188,13 @@
           } catch (e) {
             switchCount = 0;
           }
+          const deviceType = d.device_type || '灯';
+          const deviceTypeBadge = deviceType === '灯' ? '💡' : '❄️';
           return `
           <tr>
             <td>${d.sort_order}</td>
             <td>${d.scene_name}</td>
+            <td><span class="action-badge" style="background:rgba(255,255,255,0.1);color:#fff;">${deviceTypeBadge} ${deviceType}</span></td>
             <td><span class="action-badge ${d.action === 'ON' ? 'action-on' : 'action-off'}">${d.action === 'ON' ? '💡 开灯' : '🌙 关灯'}</span></td>
             <td class="switch-count">${switchCount} 个</td>
             <td>
@@ -194,7 +205,7 @@
           `;
         }).join('');
       } catch (err) {
-        document.getElementById('tableBody').innerHTML = `<tr><td colspan="5" style="text-align:center;color:#e74c3c;">加载失败: ${err.message}</td></tr>`;
+        document.getElementById('tableBody').innerHTML = `<tr><td colspan="6" style="text-align:center;color:#e74c3c;">加载失败: ${err.message}</td></tr>`;
       }
     }
 
@@ -202,9 +213,11 @@
       document.getElementById('f_id').value = '';
       document.getElementById('f_scene_name').value = '';
       document.getElementById('f_sort_order').value = '0';
-      document.querySelector('input[name="f_action"][value="ON"]').checked = true;
       document.getElementById('modalTitle').textContent = '新增开关场景';
       document.getElementById('f_switches_text').value = '';
+      // 重置 radio
+      document.querySelector('input[name="f_device_type"][value="灯"]').checked = true;
+      document.querySelector('input[name="f_action"][value="ON"]').checked = true;
       document.getElementById('formModal').classList.add('show');
     }
 
@@ -216,6 +229,10 @@
       document.getElementById('f_scene_name').value = record.scene_name;
       document.getElementById('f_sort_order').value = record.sort_order;
       document.getElementById('modalTitle').textContent = '编辑开关场景';
+      
+      // 设置设备类型
+      const deviceType = record.device_type || '灯';
+      document.querySelector(`input[name="f_device_type"][value="${deviceType}"]`).checked = true;
       
       // 设置动作
       document.querySelector(`input[name="f_action"][value="${record.action}"]`).checked = true;
@@ -238,6 +255,7 @@
     async function saveRecord() {
       const id = document.getElementById('f_id').value;
       const scene_name = document.getElementById('f_scene_name').value.trim();
+      const device_type = document.querySelector('input[name="f_device_type"]:checked').value;
       const action = document.querySelector('input[name="f_action"]:checked').value;
       const switchesText = document.getElementById('f_switches_text').value;
       const switches = parseSwitchesText(switchesText);
@@ -259,14 +277,14 @@
           res = await fetch(`${API}/${id}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') },
-            body: JSON.stringify({ scene_name, action, switches, sort_order })
+            body: JSON.stringify({ scene_name, device_type, action, switches, sort_order })
           });
         } else {
           // 新增模式
           res = await fetch(API, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') },
-            body: JSON.stringify({ scene_name, action, switches, sort_order })
+            body: JSON.stringify({ scene_name, device_type, action, switches, sort_order })
           });
         }
         

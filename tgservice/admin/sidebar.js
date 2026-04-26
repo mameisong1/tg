@@ -213,6 +213,11 @@ function renderSidebar() {
     html += '</div></div>';
   }
 
+  // 退出登录按钮（底部）
+  html += '<div style="padding: 20px; margin-top: auto;">';
+  html += '<button onclick="window.logoutAdmin()" style="width: 100%; padding: 10px 16px; background: rgba(231,76,60,0.1); border: 1px solid rgba(231,76,60,0.3); border-radius: 8px; color: #e74c3c; cursor: pointer; font-size: 14px;">🚪 退出登录</button>';
+  html += '</div>';
+
   container.innerHTML = html;
 }
 
@@ -220,6 +225,16 @@ function renderSidebar() {
 
 window.toggleGroup = function(el) {
   el.parentElement.classList.toggle('open');
+};
+
+// ==================== 退出登录 ====================
+
+window.logoutAdmin = function() {
+  if (confirm('确认退出登录？')) {
+    localStorage.removeItem('adminToken');
+    localStorage.removeItem('adminInfo');
+    window.location.href = 'login.html';
+  }
 };
 
 // ==================== 页面重定向（教练禁止访问）====================
