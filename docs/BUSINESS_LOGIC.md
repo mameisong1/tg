@@ -1200,3 +1200,44 @@ CREATE UNIQUE INDEX idx_rp_unique ON reward_penalties(confirm_date, type, phone,
 | 今日 | 今天12:00:00 到 明天11:59:59 |
 | 昨日 | 昨天12:00:00 到 今天11:59:59 |
 
+---
+
+## Cron 批处理任务（2026-04-27 更新）
+
+系统使用统一的 `cron-scheduler.js` 调度器管理定时任务。
+
+### 任务列表
+
+| 任务名 | 执行时间 | 说明 |
+|--------|----------|------|
+| `end_lejuan_morning` | 23:00 | 自动结束早班助教的乐捐，水牌设为下班 |
+| `end_lejuan_evening` | 02:00 | 自动结束晚班助教的乐捐，水牌设为下班 |
+| `sync_reward_penalty` | 12:00 | 奖罚自动同步（去重逻辑） |
+| `lock_guest_invitation_morning` | 16:00 | 自动锁定早班应约客人员 |
+| `lock_guest_invitation_evening` | 20:00 | 自动锁定晚班应约客人员 |
+| `guest_ranking_morning` | 14:00 | 早班门迎排序 |
+| `guest_ranking_evening` | 18:00 | 晚班门迎排序 |
+| `guest_ranking_midnight` | 00:00 | 清空门迎排序 |
+| `auto_off_table_independent_light` | */5 * * * * | 每5分钟自动关台桌无关灯 |
+| `auto_off_table_independent_ac` | */5 * * * * | 每5分钟自动关台桌无关空调 |
+| `reset_water_board_status` | 03:00 | 自动将休息/请假/公休状态的水牌设为下班 |
+
+### reset_water_board_status 任务
+
+**执行时间**：每天凌晨 3:00
+
+**执行逻辑**：
+```sql
+UPDATE water_boards
+SET status = '下班', table_no = NULL, clock_in_time = NULL
+WHERE status IN ('休息', '请假', '公休')
+```
+
+**日志记录**：写入 `cron_log` 表，记录影响的助教数量和名单。
+
+**手动触发**：`POST /api/system-report/cron/reset_water_board_status/trigger`
+
+---
+
+*文档更新时间：2026年4月27日*
+
