@@ -2,13 +2,76 @@
 
 ## 数据库概述
 
+### 开发环境（Turso 云端）
+
+- **数据库类型**: Turso (libSQL/SQLite 云端版)
+- **连接方式**: HTTP API (`@tursodatabase/serverless`)
+- **连接地址**: `libsql://tgservicedev-mameisong.aws-ap-northeast-1.turso.io`
+- **环境变量**: `TGSERVICE_ENV=test`
+- **实现文件**: `/TG/tgservice/backend/db/index-turso.js`
+
+### 生产环境（本地 SQLite）
+
 - **数据库类型**: SQLite
-- **数据库文件**: `/TG/tgservice/db/tgservice.db`
+- **数据库文件**: `/TG/run/db/tgservice.db`
 - **ORM/驱动**: sqlite3 (Node.js)
-- **连接中心**: `/TG/tgservice/backend/db/index.js`（唯一数据库连接）
+- **环境变量**: `TGSERVICE_ENV=production`
+- **实现文件**: `/TG/tgservice/backend/db/index-local.js`
+
+### 公共模块
+
+- **预处理模块**: `/TG/tgservice/backend/db/preprocess-sql.js`（两个实现共用）
+- **入口文件**: `/TG/tgservice/backend/db/index.js`（根据环境变量选择实现）
+
+> **2026-04-26 变更**：开发环境迁移到 Turso 云端数据库，支持未来生产环境迁移。
+> Turso 不支持 SQL 中直接使用字符串常量，需通过预处理函数转换为参数化查询。
 
 > **2026-04-12 变更**：采用单连接架构，所有路由和 server.js 都从 `db/index.js` 获取连接，消除多连接竞争。
 > 配置：WAL 模式 + synchronous=NORMAL + busy_timeout=3000ms + writeQueue 写串行化。
+
+---
+
+## Turso SQL 预处理说明
+
+### Turso 限制
+
+Turso 不支持在 SQL 中直接使用字符串常量：
+
+```javascript
+// ❌ 错误：Turso 会报错 "no such column: 灯"
+WHERE device_type = "灯"
+
+// ✅ 正确：参数化查询
+WHERE device_type = ?  // 参数: ['灯']
+```
+
+### 预处理函数
+
+`preprocess-sql.js` 自动将 SQL 中的字符串常量转换为参数化查询：
+
+```javascript
+// 输入
+const sql = 'WHERE status = "上架" AND category = ?';
+const params = ['奶茶店'];
+
+// 预处理后
+const result = preprocessSQL(sql, params);
+// result.sql = 'WHERE status = ? AND category = ?'
+// result.args = ['上架', '奶茶店']  // 按占位符顺序正确排列
+```
+
+### 支持场景
+
+- 中文字符串（"灯"、"空调"、"早班空闲"）
+- 空字符串（""、''）
+- 转义引号（'O''Brien'）
+- 多字符串+多参数混合
+
+### 排除场景
+
+- DEFAULT 值（`DEFAULT 'xxx'`）
+- AS 别名（`SELECT col AS '别名'`）
+- CREATE TABLE 定义中的默认值
 
 ---
 
