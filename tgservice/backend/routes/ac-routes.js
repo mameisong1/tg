@@ -16,7 +16,6 @@ const { requireBackendPermission } = require('../middleware/permission');
 const { executeAutoOffAC, executeAutoOffACTableIndependent } = require('../services/auto-off-ac');
 const { getAutoOffSettings, setAutoOffSettings } = require('../utils/config-helper');
 const operationLogService = require('../services/operation-log');
-const { executeAutoOffAC, executeAutoOffACTableIndependent } = require('../services/auto-off-ac');
 const { controlACByLabel, controlACByTable } = require('../services/mqtt-ac');
 
 // ============================================================
