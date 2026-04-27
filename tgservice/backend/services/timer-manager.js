@@ -178,13 +178,14 @@ function getActiveTimers() {
 }
 
 // ============================================================
-// 业务方法：申请恢复（从 application-timer.js 迁入）
+// 业务方法：申请生效（休息/请假申请定时生效）
 // ============================================================
 
 /**
- * 执行申请恢复：恢复水牌状态为班次空闲
+ * 执行申请生效：在休息日/请假日12点将水牌状态改为「休息」或「请假」
+ * QA-20260427: 修正逻辑 - Timer用于设置休息/请假状态，而非恢复
  */
-async function executeApplicationRecovery(applicationId) {
+async function executeApplicationStart(applicationId) {
     try {
         await runInTransaction(async (tx) => {
             // 1. 查询申请记录
@@ -217,23 +218,24 @@ async function executeApplicationRecovery(applicationId) {
                 return;
             }
 
-            // QA-20260420-4: 水牌状态校验 - 必须是请假/休息状态才能恢复
+            // QA-20260427: 水牌状态校验 - 必须是离店状态才能设置休息/请假
             const currentStatus = waterBoard.status;
-            if (currentStatus !== '请假' && currentStatus !== '休息') {
-                console.log(`[TimerManager] 申请 ${applicationId} 水牌状态为「${currentStatus}」，不符合恢复条件，跳过`);
+            const validStartStatuses = ['下班', '公休', '请假', '休息'];
+            if (!validStartStatuses.includes(currentStatus)) {
+                console.log(`[TimerManager] 申请 ${applicationId} 水牌状态为「${currentStatus}」，非离店状态，跳过`);
                 // 标记已执行但不改变水牌
                 const extraData = JSON.parse(application.extra_data || '{}');
                 extraData.executed = 1;
-                extraData.skip_reason = `水牌状态为「${currentStatus}」，不符合恢复条件`;
+                extraData.skip_reason = `水牌状态为「${currentStatus}」，非离店状态`;
                 await tx.run(
                     'UPDATE applications SET extra_data = ?, updated_at = ? WHERE id = ?',
                     [JSON.stringify(extraData), TimeUtil.nowDB(), applicationId]
                 );
-                return; // 不执行恢复
+                return; // 不执行
             }
 
-            // 4. 恢复水牌状态
-            const newStatus = coach.shift === '早班' ? '早班空闲' : '晚班空闲';
+            // 4. 根据申请类型设置水牌状态
+            const newStatus = application.application_type === '请假申请' ? '请假' : '休息';
             const now = TimeUtil.nowDB();
             await tx.run(
                 'UPDATE water_boards SET status = ?, updated_at = ? WHERE coach_no = ?',
@@ -253,18 +255,18 @@ async function executeApplicationRecovery(applicationId) {
             await createOpLog(tx, {
                 operator_phone: 'system',
                 operator_name: '系统定时任务',
-                operation_type: '申请定时恢复',
+                operation_type: '申请定时生效',
                 target_type: 'water_board',
                 target_id: waterBoard.id,
                 old_value: JSON.stringify({ status: waterBoard.status }),
                 new_value: JSON.stringify({ status: newStatus }),
-                remark: `${application.application_type}定时结束，${coach.stage_name}恢复为${newStatus}`
+                remark: `${application.application_type}定时生效，${coach.stage_name}水牌改为${newStatus}`
             });
         });
 
-        console.log(`[TimerManager] 申请 ${applicationId} 恢复执行完成`);
+        console.log(`[TimerManager] 申请 ${applicationId} 生效执行完成`);
     } catch (err) {
-        console.error(`[TimerManager] 申请 ${applicationId} 恢复失败:`, err);
+        console.error(`[TimerManager] 申请 ${applicationId} 生效失败:`, err);
     }
 }
 
@@ -345,7 +347,7 @@ async function executeLejuanActivation(recordId) {
  */
 function scheduleApplicationTimer(record, coachInfo) {
     const timerId = `application_${record.id}`;
-    createTimer(timerId, 'application', record.id, record.exec_time, executeApplicationRecovery, coachInfo);
+    createTimer(timerId, 'application', record.id, record.exec_time, executeApplicationStart, coachInfo);
 }
 
 /**
@@ -382,7 +384,7 @@ function cancelLejuanTimer(recordId) {
 async function recoverApplicationTimers() {
     try {
         // 恢复计时器时不查询水牌状态，只看申请记录本身
-        // 执行计时器时才检查水牌状态（executeApplicationRecovery 中已有校验）
+        // 执行计时器时才检查水牌状态（executeApplicationStart 中已有校验）
         const pendingRecords = await all(`
             SELECT a.*, c.coach_no, c.stage_name, c.shift
             FROM applications a
@@ -420,7 +422,7 @@ async function recoverApplicationTimers() {
                 }
 
                 const timerId = `application_${record.id}`;
-                createTimer(timerId, 'application', record.id, extraData.exec_time, executeApplicationRecovery, coachInfo);
+                createTimer(timerId, 'application', record.id, extraData.exec_time, executeApplicationStart, coachInfo);
                 scheduled++;
             } catch (e) {
                 console.error(`[TimerManager] 恢复申请记录 ${record.id} 失败:`, e);
@@ -526,7 +528,7 @@ async function pollCheck() {
 
                 if (delay <= 0) {
                     console.log(`[TimerManager] 轮询: 申请 ${record.id} exec_time 已过，立即执行`);
-                    executeApplicationRecovery(record.id);  // 直接调用，不通过 createTimer
+                    executeApplicationStart(record.id);  // 直接调用，不通过 createTimer
                 } else {
                     const coachInfo = {
                         coach_no: record.coach_no,
@@ -539,7 +541,7 @@ async function pollCheck() {
                             [record.applicant_phone, record.applicant_phone]);
                         if (c) coachInfo.employee_id = c.employee_id || '-';
                     }
-                    createTimer(timerId, 'application', record.id, extraData.exec_time, executeApplicationRecovery, coachInfo);
+                    createTimer(timerId, 'application', record.id, extraData.exec_time, executeApplicationStart, coachInfo);
                     extraData.scheduled = 1;
                     await enqueueRun(
                         'UPDATE applications SET extra_data = ?, updated_at = ? WHERE id = ?',
@@ -690,7 +692,7 @@ module.exports = {
     // 申请定时器（替代 application-timer.js）
     scheduleApplicationTimer,
     cancelApplicationTimer,
-    executeApplicationRecovery,
+    executeApplicationStart,
 
     // 乐捐定时器（替代 lejuan-timer.js）
     scheduleLejuanTimer,
