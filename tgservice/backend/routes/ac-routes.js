@@ -10,6 +10,7 @@
 
 const express = require('express');
 const router = express.Router();
+const auth = require('../middleware/auth');
 const TimeUtil = require('../utils/time');
 const { all, get, run, enqueueRun, runInTransaction } = require('../db/index');
 const { requireBackendPermission } = require('../middleware/permission');
@@ -17,6 +18,16 @@ const { executeAutoOffAC, executeAutoOffACTableIndependent } = require('../servi
 const { getAutoOffSettings, setAutoOffSettings } = require('../utils/config-helper');
 const operationLogService = require('../services/operation-log');
 const { controlACByLabel, controlACByTable } = require('../services/mqtt-ac');
+
+// 路径过滤认证中间件（仅对相关路径应用）
+router.use((req, res, next) => {
+  const path = req.path;
+  // 只对 /api/ac 和 /api/admin/ac 等相关路径应用认证
+  if (path.startsWith('/api/ac') || path.startsWith('/api/admin/ac')) {
+    return auth.required(req, res, next);
+  }
+  next();
+});
 
 // ============================================================
 // 前台权限中间件 - 仅店长/助教管理/管理员

@@ -10,6 +10,7 @@ const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const TimeUtil = require('../utils/time');
 const errorLogger = require('../utils/error-logger');
+const redisCache = require('../utils/redis-cache');
 
 /**
  * GET /api/attendance-review
@@ -152,12 +153,20 @@ router.get('/', auth.required, requireBackendPermission(['店长', '助教管理
 
 /**
  * GET /api/attendance-review/pending-count
- * 获取今日迟到且未审查的人数（用于角标）
+ * 获取今日迟到且未审查的人数（用于角标，带 Redis 缓存）
  *
  * 【修改4】今日定义：今天12:00:00 到 明天11:59:59
  */
 router.get('/pending-count', auth.required, requireBackendPermission(['店长', '助教管理', '管理员']), async (req, res) => {
   try {
+    const cacheKey = 'attendance_pending';
+    
+    // 先查 Redis 缓存（1分钟）
+    const cached = await redisCache.get(cacheKey);
+    if (cached) {
+      return res.json({ success: true, data: { count: cached } });
+    }
+    
     const todayStr = TimeUtil.todayStr();
     const tomorrowStr = TimeUtil.offsetDateStr(1);
     const timeStart = `${todayStr} 12:00:00`;
@@ -170,9 +179,15 @@ router.get('/pending-count', auth.required, requireBackendPermission(['店长', 
        AND is_late = 1 AND is_reviewed = 0`,
       [timeStart, timeEnd]
     );
+    
+    const count = result.cnt || 0;
+    
+    // 写入 Redis 缓存（1分钟 = 60秒）
+    await redisCache.set(cacheKey, count, 60);
+    
     res.json({
       success: true,
-      data: { count: result.cnt || 0 }
+      data: { count }
     });
   } catch (error) {
     console.error('获取打卡审查待审数量失败:', error);

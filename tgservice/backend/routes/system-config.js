@@ -6,23 +6,20 @@
 const express = require('express');
 const router = express.Router();
 const { get } = require('../db');
-
-// 内存缓存（1小时有效期）
-let serviceCategoriesCache = null;
-let serviceCategoriesCacheTime = 0;
-const CACHE_DURATION = 60 * 60 * 1000; // 1小时
+const redisCache = require('../utils/redis-cache');
 
 /**
  * GET /api/system-config/service-categories
- * 获取服务下单分类配置（带缓存）
+ * 获取服务下单分类配置（带 Redis 缓存）
  */
 router.get('/service-categories', async (req, res) => {
   try {
-    const now = Date.now();
+    const cacheKey = 'service_categories';
     
-    // 检查内存缓存是否有效
-    if (serviceCategoriesCache && (now - serviceCategoriesCacheTime) < CACHE_DURATION) {
-      return res.json({ data: serviceCategoriesCache });
+    // 先查 Redis 缓存（1小时 = 3600秒）
+    const cached = await redisCache.get(cacheKey);
+    if (cached) {
+      return res.json({ data: cached });
     }
     
     // 从数据库读取
@@ -37,9 +34,8 @@ router.get('/service-categories', async (req, res) => {
     
     const categories = JSON.parse(config.value);
     
-    // 更新缓存
-    serviceCategoriesCache = categories;
-    serviceCategoriesCacheTime = now;
+    // 写入 Redis 缓存（1小时 = 3600秒）
+    await redisCache.set(cacheKey, categories, 3600);
     
     res.json({ data: categories });
   } catch (e) {

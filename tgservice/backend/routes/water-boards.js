@@ -12,14 +12,22 @@ const { requireBackendPermission } = require('../middleware/permission');
 const TimeUtil = require('../utils/time');
 const operationLogService = require('../services/operation-log');
 const errorLogger = require('../utils/error-logger');
+const redisCache = require('../utils/redis-cache');
 
 /**
  * GET /api/water-boards
- * 获取所有水牌状态
+ * 获取所有水牌状态（带 Redis 缓存）
  */
 router.get('/', auth.required, requireBackendPermission(['waterBoardManagement']), async (req, res) => {
   try {
     const { status, shift } = req.query;
+    const cacheKey = `water_boards:${status || 'all'}:${shift || 'all'}`;
+    
+    // 先查 Redis 缓存（1分钟）
+    const cached = await redisCache.get(cacheKey);
+    if (cached) {
+      return res.json({ success: true, data: cached });
+    }
     
     let sql = `
       SELECT wb.coach_no, wb.stage_name, wb.status, wb.table_no, wb.updated_at, wb.clock_in_time, c.shift, c.photos, c.employee_id, c.level
@@ -50,6 +58,9 @@ router.get('/', auth.required, requireBackendPermission(['waterBoardManagement']
       photos: item.photos ? JSON.parse(item.photos) : [],
       table_no_list: parseTables(item.table_no)
     }));
+    
+    // 写入 Redis 缓存（1分钟 = 60秒）
+    await redisCache.set(cacheKey, parsedData, 60);
     
     res.json({
       success: true,

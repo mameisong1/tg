@@ -36,6 +36,9 @@ const winston = require('winston');
 const crypto = require('crypto');
 const QRCode = require('qrcode');
 
+// Redis 缓存工具
+const redisCache = require('./utils/redis-cache');
+
 // 路由模块
 const applicationsRouter = require('./routes/applications');
 const guestInvitationsRouter = require('./routes/guest-invitations');
@@ -80,22 +83,11 @@ const dingtalkCallbackRouter = require('./routes/dingtalk-callback');
 const popularityCache = new Map();
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
-// 助教列表缓存(内存存储,3分钟TTL)
-const coachesListCache = new Map();
-const COACHES_LIST_TTL = 3 * 60 * 1000;
-
 // 短信验证码缓存(内存存储,5分钟过期)
 // 结构: Map<phone, { code, timestamp, attempts }>
 const smsCodeCache = new Map();
 const SMS_CODE_EXPIRE_MS = 5 * 60 * 1000; // 5分钟过期
 const SMS_SEND_INTERVAL_MS = 60 * 1000; // 发送间隔60秒
-
-// 分类商品数量缓存(内存存储,10分钟过期)
-const categoryCountCache = {
-  data: null,
-  expireAt: 0
-};
-const CATEGORY_COUNT_CACHE_TTL = 10 * 60 * 1000; // 10分钟缓存
 
 // 每分钟清理过期验证码
 setInterval(() => {
@@ -616,14 +608,15 @@ app.get('/api/categories', async (req, res) => {
   }
 });
 
-// 获取分类商品数量(带10分钟内存缓存)
+// 获取分类商品数量(带 Redis 缓存)
 app.get('/api/categories/counts', async (req, res) => {
   try {
-    const now = Date.now();
-
-    // 检查缓存
-    if (categoryCountCache.data && now < categoryCountCache.expireAt) {
-      return res.json(categoryCountCache.data);
+    const cacheKey = 'category_count';
+    
+    // 先查 Redis 缓存（5分钟 = 300秒）
+    const cached = await redisCache.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
     }
 
     // 查询数据库
@@ -640,9 +633,8 @@ app.get('/api/categories/counts', async (req, res) => {
       result[row.category] = row.count;
     });
 
-    // 更新缓存
-    categoryCountCache.data = result;
-    categoryCountCache.expireAt = now + CATEGORY_COUNT_CACHE_TTL;
+    // 写入 Redis 缓存（5分钟 = 300秒）
+    await redisCache.set(cacheKey, result, 300);
 
     res.json(result);
   } catch (err) {
@@ -655,6 +647,15 @@ app.get('/api/categories/counts', async (req, res) => {
 app.get('/api/products', async (req, res) => {
   try {
     const { category } = req.query;
+    const cacheKey = `products:${category || 'all'}`;
+    
+    // 先查 Redis 缓存（10分钟）
+    const cached = await redisCache.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+    
+    // 缓存不存在，查数据库
     let sql = "SELECT name, category, image_url, price, stock_available, status, popularity FROM products WHERE status = '上架'";
     const params = [];
 
@@ -666,6 +667,10 @@ app.get('/api/products', async (req, res) => {
     sql += ' ORDER BY popularity DESC, created_at DESC';
 
     const products = await dbAll(sql, params);
+    
+    // 写入 Redis 缓存（10分钟 = 600秒）
+    await redisCache.set(cacheKey, products, 600);
+    
     res.json(products);
   } catch (err) {
     logger.error(`获取商品失败: ${err.message}`);
@@ -962,26 +967,16 @@ function getWaterStatusIcon(status) {
   return WATER_STATUS_ICON[categorized] || '⚪';
 }
 
-function cleanCoachesCache() {
-  const now = Date.now();
-  for (const [key, entry] of coachesListCache.entries()) {
-    if (now - entry.timestamp > COACHES_LIST_TTL) {
-      coachesListCache.delete(key);
-    }
-  }
-}
-
-// 获取助教列表(带3分钟缓存 + 水牌状态)
+// 获取助教列表(带 Redis 缓存 + 水牌状态)
 app.get('/api/coaches', async (req, res) => {
   try {
     const { level } = req.query;
-    const cacheKey = `coaches_${level || 'all'}`;
+    const cacheKey = `coaches:${level || 'all'}`;
 
-    // 检查缓存
-    cleanCoachesCache();
-    const cached = coachesListCache.get(cacheKey);
-    if (cached && (Date.now() - cached.timestamp) < COACHES_LIST_TTL) {
-      return res.json(cached.data);
+    // 先查 Redis 缓存（1分钟）
+    const cached = await redisCache.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
     }
 
     let sql = `
@@ -1025,8 +1020,8 @@ app.get('/api/coaches', async (req, res) => {
       };
     });
 
-    // 写入缓存
-    coachesListCache.set(cacheKey, { data: coaches, timestamp: Date.now() });
+    // 写入 Redis 缓存（1分钟 = 60秒）
+    await redisCache.set(cacheKey, coaches, 60);
 
     res.json(coaches);
   } catch (err) {
@@ -1159,7 +1154,20 @@ app.get('/api/table/:pinyin', async (req, res) => {
 // 获取台桌列表(前台用,返回区域和台桌名)
 app.get('/api/tables', async (req, res) => {
   try {
+    const cacheKey = 'tables';
+    
+    // 先查 Redis 缓存（3分钟）
+    const cached = await redisCache.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+    
+    // 缓存不存在，查数据库
     const tables = await dbAll('SELECT area, name, name_pinyin, status FROM tables ORDER BY area, name');
+    
+    // 写入 Redis 缓存（3分钟 = 180秒）
+    await redisCache.set(cacheKey, tables, 180);
+    
     res.json(tables);
   } catch (err) {
     logger.error(`获取台桌列表失败: ${err.message}`);
@@ -2226,11 +2234,11 @@ app.post('/api/device/visit', async (req, res) => {
   }
 });
 
-// 智能开关路由（必须在 authMiddleware 之后注册）
-app.use(authMiddleware, switchRouter);
+// 智能开关路由（路由内部自行处理认证）
+app.use(switchRouter);
 
-// 智能空调路由（新增，必须在 authMiddleware 之后注册）
-app.use(authMiddleware, acRouter);
+// 智能空调路由（路由内部自行处理认证）
+app.use(acRouter);
 
 // V2.0: 免扫码权限检查
 app.get('/api/auth/check-scan-permission', authMiddleware, async (req, res) => {
@@ -4468,12 +4476,25 @@ app.post('/api/admin/sync/tables', authMiddleware, requireBackendPermission(['vi
 // 获取包房列表(前台)
 app.get('/api/vip-rooms', async (req, res) => {
   try {
+    const cacheKey = 'vip_rooms';
+    
+    // 先查 Redis 缓存（3分钟）
+    const cached = await redisCache.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+    
+    // 缓存不存在，查数据库
     let rooms = await dbAll('SELECT id, name, status, intro, photos, videos FROM vip_rooms ORDER BY id');
     rooms = rooms.map(r => ({
       ...r,
       photos: r.photos ? JSON.parse(r.photos) : [],
       videos: r.videos ? JSON.parse(r.videos) : []
     }));
+    
+    // 写入 Redis 缓存（3分钟 = 180秒）
+    await redisCache.set(cacheKey, rooms, 180);
+    
     res.json(rooms);
   } catch (err) {
     logger.error(`获取包房列表失败: ${err.message}`);

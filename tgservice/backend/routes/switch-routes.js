@@ -17,7 +17,18 @@ const { getAutoOffSettings, setAutoOffSettings } = require('../utils/config-help
 
 const express = require('express');
 const router = express.Router();
+const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
+
+// 路径过滤认证中间件（仅对相关路径应用）
+router.use((req, res, next) => {
+  const path = req.path;
+  // 只对 /api/switch 和 /api/admin/switches 等相关路径应用认证
+  if (path.startsWith('/api/switch') || path.startsWith('/api/admin/switches') || path.startsWith('/api/admin/table-devices') || path.startsWith('/api/admin/switch-scenes')) {
+    return auth.required(req, res, next);
+  }
+  next();
+});
 const { sendBatchCommand, executeScene, controlByLabel, controlByTable } = require('../services/mqtt-switch');
 
 // ============================================================

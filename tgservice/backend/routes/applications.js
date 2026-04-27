@@ -14,6 +14,7 @@ const operationLogService = require('../services/operation-log');
 const timerManager = require('../services/timer-manager');
 const TimeUtil = require('../utils/time');
 const errorLogger = require('../utils/error-logger');
+const redisCache = require('../utils/redis-cache');
 
 // 权限中间件:需要登录
 router.use(auth.required);
@@ -874,10 +875,18 @@ router.get('/today-approved-overtime', auth.required, requireBackendPermission([
 
 /**
  * GET /api/applications/pending-count
- * 获取待审批数字指示器
+ * 获取待审批数字指示器（带 Redis 缓存）
  */
 router.get('/pending-count', auth.required, requireBackendPermission(['店长', '助教管理', '管理员']), async (req, res) => {
   try {
+    const cacheKey = 'pending_count';
+    
+    // 先查 Redis 缓存（1分钟）
+    const cached = await redisCache.get(cacheKey);
+    if (cached) {
+      return res.json({ success: true, data: cached });
+    }
+    
     const [shiftChange, leaveReq, restReq, overtime, publicLeave, lejuan] = await Promise.all([
       db.get('SELECT COUNT(*) as cnt FROM applications WHERE application_type = ? AND status = 0', ['班次切换申请']),
       db.get('SELECT COUNT(*) as cnt FROM applications WHERE application_type = ? AND status = 0', ['请假申请']),
@@ -886,18 +895,21 @@ router.get('/pending-count', auth.required, requireBackendPermission(['店长', 
       db.get("SELECT COUNT(*) as cnt FROM applications WHERE application_type = '公休申请' AND status = 0", []),
       db.get("SELECT COUNT(*) as cnt FROM lejuan_records WHERE lejuan_status IN ('pending', 'active')", [])
     ]);
-    res.json({
-      success: true,
-      data: {
-        shift_change: shiftChange.cnt,
-        leave: leaveReq.cnt,
-        rest: restReq.cnt,
-        total: shiftChange.cnt + leaveReq.cnt + restReq.cnt,
-        overtime: overtime.cnt,
-        public_leave: publicLeave.cnt,
-        lejuan: lejuan.cnt
-      }
-    });
+    
+    const data = {
+      shift_change: shiftChange.cnt,
+      leave: leaveReq.cnt,
+      rest: restReq.cnt,
+      total: shiftChange.cnt + leaveReq.cnt + restReq.cnt,
+      overtime: overtime.cnt,
+      public_leave: publicLeave.cnt,
+      lejuan: lejuan.cnt
+    };
+    
+    // 写入 Redis 缓存（1分钟 = 60秒）
+    await redisCache.set(cacheKey, data, 60);
+    
+    res.json({ success: true, data });
   } catch (error) {
     console.error('获取待审批数量失败:', error);
     res.status(500).json({ success: false, error: '获取待审批数量失败' });
