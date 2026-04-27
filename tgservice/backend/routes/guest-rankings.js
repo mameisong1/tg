@@ -9,6 +9,7 @@ const guestRankingService = require('../services/guest-ranking-service');
 const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const errorLogger = require('../utils/error-logger');
+const redisCache = require('../utils/redis-cache');
 
 /**
  * 检查是否为内部调用（IP 限制）
@@ -37,6 +38,9 @@ router.post('/internal/batch', async (req, res) => {
     }
 
     const result = await guestRankingService.batchRank(shift, startRank, maxRank);
+    
+    // 清除 Redis 缓存
+    await redisCache.delOne('guest_ranking_today');
 
     res.json({ success: true, data: result });
   } catch (error) {
@@ -58,6 +62,10 @@ router.post('/internal/clear', async (req, res) => {
     }
 
     const result = await guestRankingService.clearAll();
+    
+    // 清除 Redis 缓存
+    await redisCache.delOne('guest_ranking_today');
+
     res.json({ success: true, data: result });
   } catch (error) {
     errorLogger.logApiRejection(req, error);
@@ -83,6 +91,10 @@ router.post('/internal/after-clock', async (req, res) => {
     }
 
     const result = await guestRankingService.afterClockRank(coachNo, shift);
+    
+    // 清除 Redis 缓存（排序数据变化了）
+    await redisCache.delOne('guest_ranking_today');
+
     res.json({ success: true, data: result });
   } catch (error) {
     errorLogger.logApiRejection(req, error);
@@ -101,6 +113,10 @@ router.put('/exempt/:coach_no', auth.required, requireBackendPermission(['waterB
   try {
     const { coach_no } = req.params;
     const result = await guestRankingService.setExempt(coach_no);
+    
+    // 清除 Redis 缓存（免门迎清单变化了）
+    await redisCache.delOne('guest_ranking_today');
+
     res.json({ success: true, data: result });
   } catch (error) {
     errorLogger.logApiRejection(req, error);
@@ -117,6 +133,10 @@ router.delete('/exempt/:coach_no', auth.required, requireBackendPermission(['wat
   try {
     const { coach_no } = req.params;
     const result = await guestRankingService.removeExempt(coach_no);
+    
+    // 清除 Redis 缓存
+    await redisCache.delOne('guest_ranking_today');
+
     res.json({ success: true, data: result });
   } catch (error) {
     errorLogger.logApiRejection(req, error);
@@ -127,11 +147,24 @@ router.delete('/exempt/:coach_no', auth.required, requireBackendPermission(['wat
 
 /**
  * GET /api/guest-rankings/today
- * 获取今日全部排序数据
+ * 获取今日全部排序数据（带 Redis 缓存）
  */
 router.get('/today', auth.required, requireBackendPermission(['waterBoardManagement']), async (req, res) => {
   try {
+    const cacheKey = 'guest_ranking_today';
+    
+    // 先查 Redis 缓存（1分钟）
+    const cached = await redisCache.get(cacheKey);
+    if (cached) {
+      return res.json({ success: true, data: cached });
+    }
+    
+    // 缓存不存在，从服务获取
     const result = await guestRankingService.getTodayRanking();
+    
+    // 写入 Redis 缓存（1分钟 = 60秒）
+    await redisCache.set(cacheKey, result, 60);
+
     res.json({ success: true, data: result });
   } catch (error) {
     errorLogger.logApiRejection(req, error);
