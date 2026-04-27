@@ -28,8 +28,11 @@
 | **阿里云 OSS** | 对象存储（图片/视频） |
 | **阿里云短信服务** | 验证码发送 |
 | **winston** | 日志管理 |
+| **Redis** | 缓存服务（2026-04-27新增） |
 
 > **2026-04-12 变更**：数据库连接统一为单连接架构（`db/index.js` 是唯一连接中心），避免多连接竞争导致的 SQLITE_BUSY 错误。所有路由和 server.js 都从 `db/index.js` 获取连接。
+
+> **2026-04-27 变更**：新增 Redis 缓存服务，用于会话管理、数据缓存等场景。Redis 以独立 Docker 容器运行，端口 8090，数据持久化到 `/TG/run/redis-data`。
 
 ### 前端 (Frontend)
 
@@ -161,6 +164,14 @@
 │   │   └── manifest.json         # 应用配置
 │   └── package.json
 │
+├── run/                          # 生产环境数据目录
+│   ├── db/                       # 生产数据库
+│   ├── logs/                     # 生产日志
+│   ├── images/                   # 生产图片
+│   ├── qrcode/                   # 生产二维码
+│   ├── redis-data/               # Redis 数据持久化（2026-04-27新增）
+│   └── scripts/                  # 同步脚本
+│
 └── data/                         # 初始数据文件
     ├── taikeduo-products.json    # 商品数据
     └── taikeduo-tables.json      # 台桌数据
@@ -214,28 +225,53 @@ npm run build:mp-weixin
 
 ### 环境变量配置
 
-后端配置文件 `/TG/tgservice/backend/.config`：
+后端配置文件 `/TG/tgservice/.config`（生产环境）和 `/TG/tgservice/.config.env`（开发环境）：
 
 ```javascript
 module.exports = {
   server: { port: 8081 },
   jwt: { secret: 'your-jwt-secret', expiresIn: '24h' },
-  aliyun: {
-    oss: {
-      accessKeyId: 'xxx',
-      accessKeySecret: 'xxx',
-      bucket: 'xxx',
-      region: 'xxx'
-    },
-    sms: {
-      accessKeyId: 'xxx',
-      accessKeySecret: 'xxx',
-      signName: 'xxx',
-      templateCode: 'xxx'
-    }
-  }
+  redis: {
+    host: '172.17.0.1',  // 生产环境：Docker网关
+    // host: '127.0.0.1',  // 开发环境：直接连接
+    port: 8090,
+    password: '',
+    db: 0,
+    keyPrefix: 'tg'
+  },
+  aliyun: { ... }
 };
 ```
+
+### Redis 服务部署（2026-04-27新增）
+
+Redis 以独立 Docker 容器运行，与 tgservice 容器分离：
+
+```bash
+# 启动 Redis 容器
+docker run -d \
+  --name redis-tgservice \
+  --restart unless-stopped \
+  -p 8090:6379 \
+  -v /TG/run/redis-data:/data \
+  redis:7-alpine \
+  redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+```
+
+**Redis 配置说明**：
+| 配置项 | 说明 |
+|--------|------|
+| 端口 | 8090（宿主机）→ 6379（容器） |
+| 内存限制 | 256MB |
+| 淘汰策略 | allkeys-lru |
+| 持久化 | AOF模式 |
+| 数据目录 | `/TG/run/redis-data` |
+
+**网络连接**：
+| 环境 | 连接地址 | 说明 |
+|------|----------|------|
+| 开发环境（PM2） | `127.0.0.1:8090` | 直接连接宿主机 |
+| 生产环境（Docker） | `172.17.0.1:8090` | 通过 Docker 网关连接 |
 
 ---
 
@@ -265,6 +301,7 @@ module.exports = {
 4. **短信验证**：集成阿里云短信服务，支持手机号验证码登录
 5. **数据保护**：数据库初始化脚本带有防重复导入机制
 6. **日志系统**：使用winston进行结构化日志记录
+7. **缓存支持**：Redis缓存服务，支持会话管理、数据缓存、热点数据加速（2026-04-27新增）
 
 ---
 
@@ -275,4 +312,4 @@ module.exports = {
 
 ---
 
-*文档更新时间：2026年3月*
+*文档更新时间：2026年4月*
