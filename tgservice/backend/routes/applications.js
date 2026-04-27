@@ -286,10 +286,75 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
  *   - application_types: 逗号分隔的申请类型,如 "早加班申请,晚加班申请"
  *   - days: 天数,默认2
  *   - status: 1=已同意, 2=已拒绝
+ *   - future_only: true=只返回日期>=今天且已同意的记录(按日期升序)
  */
 router.get('/approved-recent', requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
-    const { application_types, days = 2, status } = req.query;
+    const { application_types, days = 2, status, future_only } = req.query;
+    const isFutureOnly = future_only === 'true';
+
+    if (isFutureOnly) {
+      // 未来模式：查询所有已同意的记录，按 extra_data 中的日期过滤和排序
+      const typeStr = application_types ? application_types.split(',').map(t => `'${t.trim()}'`).join(',') : null;
+      let sql = `
+        SELECT a.id, a.applicant_phone, a.application_type, a.remark,
+               a.status, a.approver_phone, a.approve_time, a.extra_data, a.created_at,
+               c.stage_name, c.coach_no, c.employee_id, c.shift
+        FROM applications a
+        LEFT JOIN coaches c ON a.applicant_phone = c.employee_id OR a.applicant_phone = c.phone
+        WHERE a.status = 1
+      `;
+      if (typeStr) {
+        sql += ` AND a.application_type IN (${typeStr})`;
+      }
+      sql += ' ORDER BY a.approve_time DESC';
+
+      const records = await db.all(sql);
+      const today = TimeUtil.todayStr();
+
+      // JS 层过滤：日期 >= 今天，并按日期升序排序
+      const dateFields = ['rest_date', 'leave_date', 'date', 'start_date'];
+      const filtered = [];
+      for (const r of records) {
+        if (!r.extra_data) continue;
+        try {
+          const extra = JSON.parse(r.extra_data);
+          let recordDate = null;
+          for (const field of dateFields) {
+            if (extra[field]) { recordDate = extra[field]; break; }
+          }
+          if (recordDate && recordDate >= today) {
+            let hours = extra.hours || null;
+            if (hours === null && r.remark) {
+              const match = r.remark.match(/(\d+)小时/);
+              if (match) hours = parseInt(match[1], 10);
+            }
+            filtered.push({
+              id: r.id,
+              applicant_phone: r.applicant_phone,
+              employee_id: r.employee_id || '-',
+              coach_no: r.coach_no || '-',
+              stage_name: r.stage_name || '未知',
+              shift: r.shift || '-',
+              application_type: r.application_type,
+              hours: hours,
+              extra_data: r.extra_data,
+              _sortDate: recordDate,
+              status: r.status,
+              approve_time: r.approve_time,
+              created_at: r.created_at
+            });
+          }
+        } catch (e) {}
+      }
+      // 按日期升序（早的优先）
+      filtered.sort((a, b) => a._sortDate.localeCompare(b._sortDate));
+      // 清理内部字段
+      const formatted = filtered.map(({ _sortDate, ...rest }) => rest);
+      return res.json({ success: true, data: formatted });
+    }
+
+    // 原有逻辑：近N天模式
     const daysNum = parseInt(days, 10);
     const sinceTime = TimeUtil.offsetDB(-daysNum * 24);
 

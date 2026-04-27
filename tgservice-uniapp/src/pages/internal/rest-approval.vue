@@ -267,11 +267,17 @@ const loadPendingWithRestCount = async () => {
 const loadApprovedRecent = async () => {
   try {
     const status = activeTab.value === 'approved' ? 1 : 2
-    const res = await api.applications.getApprovedRecent({
+    const params = {
       application_types: '休息申请',
-      days: 2,
       status: status
-    })
+    }
+    // 已同意标签：显示所有日期>=今天的已审批记录，按日期升序
+    if (activeTab.value === 'approved') {
+      params.future_only = true
+    } else {
+      params.days = 2
+    }
+    const res = await api.applications.getApprovedRecent(params)
     approvedList.value = res.data || []
   } catch (e) { uni.showToast({ title: '加载失败', icon: 'none' }) }
 }
