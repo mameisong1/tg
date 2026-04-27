@@ -251,8 +251,17 @@ router.put('/:coach_no/status', auth.required, requireBackendPermission(['waterB
       remark: `手动更新水牌状态：${oldValue.status} → ${newValue.status}`
     });
     
-    return { coach_no, status: newValue.status, table_no: newValue.table_no };
+    return { coach_no, status: newValue.status, table_no: newValue.table_no, oldValue, newValue };
     });
+    
+    // 清除相关缓存
+    await redisCache.del('water_boards'); // 清除所有水牌列表缓存
+    await redisCache.del('coaches');      // 清除所有助教列表缓存
+    
+    // 如果状态涉及乐捐变化，清除乐捐角标缓存
+    if (result.oldValue.status === '乐捐' || result.newValue.status === '乐捐') {
+      await redisCache.delOne('pending_count');
+    }
     
     res.json({
       success: true,
