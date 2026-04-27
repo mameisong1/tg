@@ -1,7 +1,7 @@
 # 天宫国际 - 数据模型
 
 ## 数据库架构
-- **生产**: SQLite (`/TG/run/db/tgservice.db`)，`TGSERVICE_ENV=production`
+- **生产**: Turso 云端 (`libsql://`)，`TGSERVICE_ENV=production`（本地 SQLite 已废弃）
 - **开发**: Turso 云端 (`libsql://tgservicedev-mameisong.aws-ap-northeast-1.turso.io`)，`TGSERVICE_ENV=test`
 - **入口**: `db/index.js` 根据环境变量选择实现
 - **Turso 预处理**: `preprocess-sql.js` 自动将 SQL 中的字符串常量转为参数化查询（Turso 不支持直接字符串）

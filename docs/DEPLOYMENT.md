@@ -59,7 +59,6 @@ docker run -d \
   --name tgservice \
   -p 8081:80 \
   -p 8083:81 \
-  -v /TG/run/db:/app/tgservice/db \
   -v /TG/run/logs:/app/tgservice/logs \
   -v /TG/run/images:/app/tgservice/images \
   -v /TG/run/qrcode:/app/tgservice/qrcode \
@@ -77,7 +76,6 @@ docker run -d \
 
 ```
 /TG/run/
-├── db/           # 生产数据库
 ├── logs/         # 生产日志
 ├── images/       # 生产图片
 ├── qrcode/       # 生产二维码
@@ -585,17 +583,9 @@ tail -f /var/log/nginx/access.log
 ### 5.3 数据库操作
 
 ```bash
-# 进入数据库目录
-cd /TG/tgservice/backend/db
-
-# 使用 SQLite CLI
-sqlite3 tgservice.db
-
-# 常用 SQL 命令
-.tables                          # 查看所有表
-.schema coaches                  # 查看表结构
-SELECT * FROM coaches LIMIT 10;  # 查询数据
-.quit                            # 退出
+# 生产数据库已迁移至 Turso，本地 SQLite 文件已废弃。
+# 如需连接 Turso 数据库，使用 libsql CLI:
+# libsql <turso-db-url>
 ```
 
 ### 5.4 备份与恢复
