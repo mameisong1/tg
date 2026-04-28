@@ -66,7 +66,7 @@ cd /TG/tgservice-uniapp && npm run build:mp-toutiao
 配置文件位于 `/TG/tgservice/.config`，包含：
 
 - 服务器配置（端口）
-- 数据库路径
+- 数据库配置（Turso 云端数据库，本地 SQLite 已废弃）
 - OSS配置（阿里云对象存储）
 - 钉钉webhook配置
 - JWT密钥

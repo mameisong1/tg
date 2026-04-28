@@ -243,6 +243,30 @@
         </tbody>
       </table>
     </div>
+
+    <!-- Tab: SQL-超300行 -->
+    <div class="tab-content" id="tab-sqlAudit">
+      <div class="filter-bar">
+        <button class="btn btn-primary" onclick="loadSqlAudit()">🔄 刷新</button>
+        <button class="btn btn-danger btn-sm" onclick="clearSqlAudit()">🗑 清空日志</button>
+        <span id="sqlAuditCount" style="font-size:12px;color:rgba(255,255,255,0.4);margin-left:8px;"></span>
+      </div>
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width:180px;">时间</th>
+            <th style="width:100px;">行数</th>
+            <th>SQL</th>
+          </tr>
+        </thead>
+        <tbody id="sqlAuditTable">
+          <tr><td colspan="3" class="empty-state">
+            <div class="empty-state-icon">🔍</div>
+            <div>点击刷新加载</div>
+          </td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -731,6 +755,64 @@
         var el = document.getElementById("queueStatus");
         if (el) el.textContent = "加载失败";
       }
+    }
+
+    // ==================== SQL 审计 ====================
+    function loadSqlAudit() {
+      fetch(API_BASE + '/system-report/sql-audit', {
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (!data.success) { showToast('加载失败', 'error'); return; }
+
+        var entries = data.entries || [];
+        document.getElementById('sqlAuditCount').textContent = '共 ' + entries.length + ' 条记录';
+
+        var html = '';
+        if (entries.length === 0) {
+          html = '<tr><td colspan="3" class="empty-state"><div class="empty-state-icon">✅</div><div>暂无超300行查询记录</div></td></tr>';
+        } else {
+          for (var i = 0; i < entries.length; i++) {
+            var e = entries[i];
+            var time = e.time ? new Date(e.time).toLocaleString('zh-CN', {timeZone:'Asia/Shanghai'}) : '-';
+            var rows = e.rows || '-';
+            var sql = e.sql || e.raw || '-';
+            // 截断过长的 SQL 显示
+            var displaySql = sql.length > 300 ? sql.substring(0, 300) + '...' : sql;
+            html += '<tr>';
+            html += '<td style="white-space:nowrap;">' + escapeHtml(time) + '</td>';
+            html += '<td><span class="badge badge-failed">' + rows + '</span></td>';
+            html += '<td style="word-break:break-all;font-size:12px;font-family:monospace;color:rgba(255,255,255,0.7);">' + escapeHtml(displaySql) + '</td>';
+            html += '</tr>';
+          }
+        }
+        document.getElementById('sqlAuditTable').innerHTML = html;
+      })
+      .catch(function(err) {
+        showToast('加载失败: ' + err.message, 'error');
+      });
+    }
+
+    function clearSqlAudit() {
+      if (!confirm('确定清空所有 SQL 审计日志吗？此操作不可恢复。')) return;
+
+      fetch(API_BASE + '/system-report/sql-audit', {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.success) {
+          showToast('日志已清空');
+          loadSqlAudit();
+        } else {
+          showToast('清空失败', 'error');
+        }
+      })
+      .catch(function(err) {
+        showToast('请求失败: ' + err.message, 'error');
+      });
     }
 
     // ==================== 初始化 ====================

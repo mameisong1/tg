@@ -8,7 +8,7 @@
 - **前端**: UniApp + Vue 3 + Vite（H5/微信小程序）
 - **其他**: 阿里云OSS（图片/视频）、阿里云短信、bcryptjs、jsonwebtoken、winston
 
-> 数据库单连接架构（`db/index.js` 是唯一连接中心），2026-04-12确立。
+> 数据库单连接架构（`db/index.js` 是唯一连接中心，测试/生产均连接 Turso 云端数据库），2026-04-12确立，2026-04-28迁移Turso。
 
 ## 核心功能
 - 首页（banner/公告/热门商品/人气助教）
@@ -35,7 +35,7 @@
 ## 项目结构
 ```
 /TG/
-├── tgservice/backend/      # 后端（db/index.js 为数据库连接中心）
+├── tgservice/backend/      # 后端（db/index.js 为数据库连接中心，连接 Turso 云端 DB）
 ├── tgservice-uniapp/src/   # 前端UniApp
 ├── run/                    # 生产数据（db/logs/images/qrcode/redis-data/scripts）
 └── data/                   # 初始数据（商品/台桌）

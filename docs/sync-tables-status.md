@@ -131,6 +131,6 @@ function convertStatus(status) {
 
 1. 确保 mychrome 已正确配置并可以访问台客多后台
 2. 需要提前登录台客多后台，脚本不会自动登录
-3. 数据库路径和表结构需与脚本配置一致
+3. 数据库在 Turso 云端，通过 db/index.js 连接（禁止 sqlite3 CLI 操作本地 .db 文件）
 4. 日志文件会持续追加，建议定期清理或配置 logrotate
 5. Chrome 启动时需要 DISPLAY=:1 环境变量，脚本已自动设置

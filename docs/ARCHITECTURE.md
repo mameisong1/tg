@@ -81,7 +81,7 @@
 backend/
 ├── server.js           # 主入口，包含所有 API 路由和业务逻辑
 ├── package.json        # 依赖管理
-├── tiangong.db         # SQLite 数据库文件
+├── tiangong.db         # ⚠️ SQLite 数据库文件（已废弃，数据在 Turso 云端）
 └── logs/               # 日志目录
     ├── app.log         # 应用日志
     ├── error.log       # 错误日志

@@ -1371,9 +1371,9 @@ const { db, all, get, run, enqueueRun, runInTransaction } = require('./db/index'
 // ✅ 正确：使用唯一连接
 const rows = await all('SELECT * FROM switch_device');
 
-// ❌ 禁止：新建连接
+// ❌ 禁止：新建连接（本地 SQLite 已废弃，数据库在 Turso 云端）
 const sqlite3 = require('sqlite3');
-const db2 = new sqlite3.Database(path);
+const db2 = new sqlite3.Database(path);  // ⚠️ 本地 SQLite 已废弃
 ```
 
 ### 9.3 数据库写入

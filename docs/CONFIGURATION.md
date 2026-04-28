@@ -23,7 +23,7 @@
     "_comment": "webhook填入钉钉机器人完整地址，secret填入加签密钥"
   },
   "database": {
-    "path": "./db/tgservice.db"
+    "path": "./db/tgservice.db"  // ⚠️ 已废弃，实际使用 Turso 云端数据库（见 turso 字段）
   },
   "upload": {
     "imageDir": "./images",
@@ -123,7 +123,7 @@
 ```json
 {
   "database": {
-    "path": "./db/tgservice.db"
+    "path": "./db/tgservice.db"  // ⚠️ 已废弃
   }
 }
 ```
