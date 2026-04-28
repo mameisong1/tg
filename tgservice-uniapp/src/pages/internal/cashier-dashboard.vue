@@ -127,19 +127,22 @@ const getYesterday = () => {
 onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 20
-  loadData()
+  loadPendingData() // 首次加载待处理数据
   startAutoRefresh()
 })
 
 onUnmounted(() => { stopAutoRefresh() })
 
 // 监听标签切换：已完成/已取消标签页停止自动刷新并加载对应数据
-watch(activeTab, (newTab) => {
+watch(activeTab, (newTab, oldTab) => {
   if (newTab === 'pending') {
+    // 切换回待处理时：立刻刷新数据 + 启动定时器
+    loadPendingData()
     startAutoRefresh()
   } else {
+    // 切换到已完成/已取消时：停止定时器 + 加载对应数据
     stopAutoRefresh()
-    loadData() // 切换到已完成/已取消时，主动加载对应状态的数据
+    loadData()
   }
 })
 

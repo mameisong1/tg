@@ -18,16 +18,19 @@ console.log('[Turso] 连接云端数据库:', process.env.TURSO_DATABASE_URL);
 
 // ========== SQL 审计：超 300 行查询记录 ==========
 const SQL_AUDIT_THRESHOLD = 300;
+const SQL_AUDIT_COOLDOWN_MS = 60 * 60 * 1000; // 同一 SQL 每小时最多记录一次
 const sqlAuditLogPath = path.join(__dirname, '../../logs/sql-audit.log');
-const sqlAuditRecorded = new Set(); // 已记录的 SQL（防重复写入）
+const sqlAuditLastRecorded = new Map(); // normalizedSQL → 上次记录时间戳(ms)
 
 function auditLargeQuery(sql, rowCount) {
+  const now = Date.now();
   // 标准化 SQL：去多余空白，用于去重
   const normalizedSQL = sql.replace(/\s+/g, ' ').trim();
-  if (sqlAuditRecorded.has(normalizedSQL)) return;
-  sqlAuditRecorded.add(normalizedSQL);
+  const lastTime = sqlAuditLastRecorded.get(normalizedSQL);
+  if (lastTime && (now - lastTime) < SQL_AUDIT_COOLDOWN_MS) return;
+  sqlAuditLastRecorded.set(normalizedSQL, now);
 
-  const timestamp = new Date().toISOString();
+  const timestamp = new Date(now).toISOString();
   const line = JSON.stringify({ time: timestamp, rows: rowCount, sql: normalizedSQL }) + '\n';
   try {
     fs.appendFileSync(sqlAuditLogPath, line, 'utf-8');
@@ -35,6 +38,16 @@ function auditLargeQuery(sql, rowCount) {
     console.error('[SQL审计] 写日志失败:', e.message);
   }
 }
+
+// 定期清理过期条目，防止 Map 无限增长
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, lastTime] of sqlAuditLastRecorded) {
+    if (now - lastTime >= SQL_AUDIT_COOLDOWN_MS * 2) {
+      sqlAuditLastRecorded.delete(key);
+    }
+  }
+}, 30 * 60 * 1000); // 每30分钟清理一次
 
 // ========== Write Queue: 所有写操作串行化 ==========
 
@@ -118,15 +131,21 @@ const runWriteQueue = async () => {
 
 // ========== 内部执行函数（不预处理，供内部调用）==========
 
-const _executeAll = async (sql, args) => {
+const _executeAll = async (sql, args, auditOriginalSql) => {
   const result = await client.execute({ sql, args });
-  return result.rows.map(row => {
+  const rows = result.rows.map(row => {
     const obj = {};
     result.columns.forEach((col, i) => {
       obj[col] = row[i];
     });
     return obj;
   });
+  // 审计：超阈值查询记录（统一入口，覆盖所有 all() 路径）
+  if (rows.length >= SQL_AUDIT_THRESHOLD) {
+    // 优先用原始 SQL 记录（更可读），没有则用执行时的 SQL
+    auditLargeQuery(auditOriginalSql || sql, rows.length);
+  }
+  return rows;
 };
 
 const _executeGet = async (sql, args) => {
@@ -151,8 +170,8 @@ const _executeRun = async (sql, args) => {
 
 const all = async (sql, params = []) => {
   const processed = preprocessSQL(sql, params);
-  const rows = await _executeAll(processed.sql, processed.args);
-  if (rows.length >= SQL_AUDIT_THRESHOLD) auditLargeQuery(sql, rows.length);
+  // 审计已由 _executeAll 统一处理，传入原始 sql 用于审计日志的可读性
+  const rows = await _executeAll(processed.sql, processed.args, sql);
   return rows;
 };
 
@@ -215,6 +234,8 @@ const dbTx = (fn) => {
                   });
                   return obj;
                 });
+                // 审计已由 _executeAll 统一处理；此处为回调路径，手动补充审计
+                if (rows.length >= SQL_AUDIT_THRESHOLD) auditLargeQuery(sql, rows.length);
                 callback(null, rows);
               }
             })
@@ -254,7 +275,7 @@ const beginTransaction = async () => {
     },
     all: async (sql, params = []) => {
       const processed = preprocessSQL(sql, params);
-      return _executeAll(processed.sql, processed.args);
+      return _executeAll(processed.sql, processed.args, sql);
     },
     commit: async () => {
       // Turso 自动提交，无需手动 commit
@@ -283,7 +304,7 @@ const runInTransaction = async (callback) => {
       },
       all: async (sql, params = []) => {
         const processed = preprocessSQL(sql, params);
-        return _executeAll(processed.sql, processed.args);
+        return _executeAll(processed.sql, processed.args, sql);
       },
       commit: async () => {},
       rollback: async () => {
