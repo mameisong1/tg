@@ -361,15 +361,7 @@
       }
     },
 
-    {
-      "path": "pages/internal/cashier-dashboard",
-      "style": {
-        "navigationBarTitleText": "收银看板",
-        "navigationBarBackgroundColor": "#0a0a0f",
-        "navigationBarTextStyle": "white",
-        "navigationStyle": "custom"
-      }
-    },
+
     {
       "path": "pages/internal/attendance-review",
       "style": {
