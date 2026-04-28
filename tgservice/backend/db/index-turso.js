@@ -5,6 +5,8 @@
 
 const { createClient } = require('@tursodatabase/serverless/compat');
 const { preprocessSQL } = require('./preprocess-sql');
+const fs = require('fs');
+const path = require('path');
 
 // Turso 连接配置（从环境变量读取）
 const client = createClient({
@@ -13,6 +15,26 @@ const client = createClient({
 });
 
 console.log('[Turso] 连接云端数据库:', process.env.TURSO_DATABASE_URL);
+
+// ========== SQL 审计：超 300 行查询记录 ==========
+const SQL_AUDIT_THRESHOLD = 300;
+const sqlAuditLogPath = path.join(__dirname, '../../logs/sql-audit.log');
+const sqlAuditRecorded = new Set(); // 已记录的 SQL（防重复写入）
+
+function auditLargeQuery(sql, rowCount) {
+  // 标准化 SQL：去多余空白，用于去重
+  const normalizedSQL = sql.replace(/\s+/g, ' ').trim();
+  if (sqlAuditRecorded.has(normalizedSQL)) return;
+  sqlAuditRecorded.add(normalizedSQL);
+
+  const timestamp = new Date().toISOString();
+  const line = JSON.stringify({ time: timestamp, rows: rowCount, sql: normalizedSQL }) + '\n';
+  try {
+    fs.appendFileSync(sqlAuditLogPath, line, 'utf-8');
+  } catch (e) {
+    console.error('[SQL审计] 写日志失败:', e.message);
+  }
+}
 
 // ========== Write Queue: 所有写操作串行化 ==========
 
@@ -129,7 +151,9 @@ const _executeRun = async (sql, args) => {
 
 const all = async (sql, params = []) => {
   const processed = preprocessSQL(sql, params);
-  return _executeAll(processed.sql, processed.args);
+  const rows = await _executeAll(processed.sql, processed.args);
+  if (rows.length >= SQL_AUDIT_THRESHOLD) auditLargeQuery(sql, rows.length);
+  return rows;
 };
 
 const get = async (sql, params = []) => {
@@ -345,6 +369,7 @@ const db = {
             });
             return obj;
           });
+          if (rows.length >= SQL_AUDIT_THRESHOLD) auditLargeQuery(sql, rows.length);
           callback(null, rows);
         }
       })

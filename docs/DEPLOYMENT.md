@@ -176,8 +176,8 @@ pm2 save
 ├── backend/
 │   ├── server.js           # 主入口
 │   ├── package.json         # 依赖
-│   ├── db/                  # 数据库目录
-│   │   └── tgservice.db     # SQLite 数据库
+│   ├── db/                  # 数据库目录（已废弃，已迁移至 Turso 云端数据库）
+│   │   └── tgservice.db     # ~~SQLite 数据库~~ 已废弃
 │   ├── logs/                # 日志目录
 │   │   ├── error.log
 │   │   ├── access.log
@@ -591,19 +591,18 @@ tail -f /var/log/nginx/access.log
 ### 5.4 备份与恢复
 
 ```bash
-# 备份数据库
-cp /TG/tgservice/backend/db/tgservice.db /backup/tgservice_$(date +%Y%m%d).db
+# ⚠️ 数据库已迁移至 Turso 云端数据库，本地 SQLite 文件已废弃。
+# 备份数据库请使用 Turso CLI 或 Turso 平台导出功能:
+#   turso db shell tgservice .dump > backup.sql
+#   或在 Turso Dashboard (https://turso.tech) 导出
 
 # 备份配置
 cp /TG/tgservice/.config /backup/config_$(date +%Y%m%d).json
 
-# 恢复数据库
-cp /backup/tgservice_20240322.db /TG/tgservice/backend/db/tgservice.db
+# 恢复数据库（需通过 Turso CLI 导入）
+#   turso db shell tgservice < backup.sql
 
-# 定时备份（添加到 crontab）
-crontab -e
-# 每天凌晨 3 点备份
-0 3 * * * cp /TG/tgservice/backend/db/tgservice.db /backup/tgservice_$(date +\%Y\%m\%d).db
+# Turso 自带备份，无需 crontab 定时备份
 ```
 
 ### 5.5 问题排查
@@ -732,14 +731,19 @@ pm2 restart tgservice
 tail -f /var/log/nginx/error.log
 ```
 
-### 7.3 数据库损坏
+### 7.3 数据库问题
+
+> ⚠️ 数据库已迁移至 Turso 云端数据库。本地 SQLite 文件已废弃，如遇到数据库问题请检查 Turso 连接。
 
 ```bash
-# 恢复最近的备份
-cp /backup/tgservice_latest.db /TG/tgservice/backend/db/tgservice.db
+# 检查 Turso 连接
+# 测试环境
+libsql libsql://tgservicedev-mameisong.aws-ap-northeast-1.turso.io --auth-token '<token>'
+# 生产环境
+libsql libsql://tgservice-mameisong.aws-ap-northeast-1.turso.io --auth-token '<token>'
 
 # 重启服务
-pm2 restart tgservice
+docker restart tgservice
 ```
 
 ---

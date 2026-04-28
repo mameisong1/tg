@@ -143,12 +143,13 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
       } else {
         throw { status: 400, error: '该日期已有审批通过的休息/请假申请' };
       }
-      // 月度4天限制
-      const monthStart = todayStr.substring(0, 7) + '-01 00:00:00';
-      const monthEnd = todayStr.substring(0, 7) + '-31 23:59:59';
+      // 月度4天限制（按休息日所在月份）
+      const restMonth = restDate.substring(0, 7);
+      const monthStart = restMonth + '-01 00:00:00';
+      const monthEnd = restMonth + '-31 23:59:59';
       const restRecords = await tx.all(
         `SELECT extra_data FROM applications
-         WHERE applicant_phone = ? AND application_type IN ('休息申请', '请假申请')
+         WHERE applicant_phone = ? AND application_type = '休息申请'
          AND status = 1 AND created_at >= ? AND created_at <= ?`,
         [applicant_phone, monthStart, monthEnd]
       );
@@ -156,12 +157,12 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
       for (const r of restRecords) {
         try {
           const ed = JSON.parse(r.extra_data);
-          if (ed.rest_date) restDays.add(ed.rest_date);
-          if (ed.leave_date) restDays.add(ed.leave_date);
+          // 只统计休息日落在目标月份的记录
+          if (ed.rest_date && ed.rest_date.startsWith(restMonth)) restDays.add(ed.rest_date);
         } catch(e) {}
       }
       if (restDays.size >= 4) {
-        throw { status: 400, error: '本月休息日已达上限(4天/月)' };
+        throw { status: 400, error: `${restMonth}月休息日已达上限(4天/月)` };
       }
     }
 
@@ -195,26 +196,7 @@ router.post('/', requireBackendPermission(['all']), async (req, res) => {
       if (existing) {
         throw { status: 400, error: '该日期已有审批通过的休息/请假申请' };
       }
-      // 月度4天限制(复用逻辑)
-      const monthStart = todayStr.substring(0, 7) + '-01 00:00:00';
-      const monthEnd = todayStr.substring(0, 7) + '-31 23:59:59';
-      const restRecords = await tx.all(
-        `SELECT extra_data FROM applications
-         WHERE applicant_phone = ? AND application_type IN ('休息申请', '请假申请')
-         AND status = 1 AND created_at >= ? AND created_at <= ?`,
-        [applicant_phone, monthStart, monthEnd]
-      );
-      const restDays = new Set();
-      for (const r of restRecords) {
-        try {
-          const ed = JSON.parse(r.extra_data);
-          if (ed.rest_date) restDays.add(ed.rest_date);
-          if (ed.leave_date) restDays.add(ed.leave_date);
-        } catch(e) {}
-      }
-      if (restDays.size >= 4) {
-        throw { status: 400, error: '本月休息日已达上限(4天/月)' };
-      }
+      // 请假申请无月度天数限制
     }
 
     const insertResult = await tx.run(`

@@ -11,6 +11,8 @@ const { requireBackendPermission } = require('../middleware/permission');
 const TimeUtil = require('../utils/time');
 const timerManager = require('../services/timer-manager');
 const cronScheduler = require('../services/cron-scheduler');
+const fs = require('fs');
+const path = require('path');
 
 // 所有接口需要认证
 router.use(auth.required);
@@ -195,6 +197,49 @@ router.get('/active-timers', async (req, res) => {
         });
     } catch (err) {
         console.error(`获取活跃计时器失败: ${err.message}`);
+        res.status(500).json({ error: '服务器错误' });
+    }
+});
+
+/**
+ * GET /api/system-report/sql-audit
+ * 读取 SQL 审计日志（超过300行的查询）
+ */
+router.get('/sql-audit', async (req, res) => {
+    try {
+        const logPath = path.join(__dirname, '../../logs/sql-audit.log');
+        if (!fs.existsSync(logPath)) {
+            return res.json({ success: true, entries: [] });
+        }
+        const content = fs.readFileSync(logPath, 'utf-8').trim();
+        if (!content) {
+            return res.json({ success: true, entries: [] });
+        }
+        const lines = content.split('\n').filter(l => l.trim());
+        const entries = lines.map(line => {
+            try { return JSON.parse(line); }
+            catch (e) { return { raw: line }; }
+        });
+        res.json({ success: true, entries, total: entries.length });
+    } catch (err) {
+        console.error('SQL审计日志读取失败:', err.message);
+        res.status(500).json({ error: '服务器错误' });
+    }
+});
+
+/**
+ * DELETE /api/system-report/sql-audit
+ * 清空 SQL 审计日志
+ */
+router.delete('/sql-audit', async (req, res) => {
+    try {
+        const logPath = path.join(__dirname, '../../logs/sql-audit.log');
+        if (fs.existsSync(logPath)) {
+            fs.writeFileSync(logPath, '', 'utf-8');
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error('SQL审计日志清空失败:', err.message);
         res.status(500).json({ error: '服务器错误' });
     }
 });

@@ -55,8 +55,10 @@
 - **样式**: 去掉台桌号标签、去掉下单人显示
 
 #### 5. 数据库迁移
-- 开发环境：`/TG/tgservice/db/tgservice.db`
-- 生产环境：`/TG/run/db/tgservice.db`
+- 开发环境：`/TG/tgservice/db/tgservice.db`（已废弃，已迁移至 Turso 云端数据库）
+- 生产环境：`/TG/run/db/tgservice.db`（已废弃，已迁移至 Turso 云端数据库）
+
+> ⚠️ 2026-04-28 迁移：测试和生产环境均已迁移至 Turso 云端数据库。本地 SQLite 文件已废弃。
 
 ### 分类配置
 | 类别 | 按钮数 | 颜色 |

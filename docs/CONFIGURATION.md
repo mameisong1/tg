@@ -114,16 +114,45 @@
 }
 ```
 
-#### database - 数据库配置
+#### database - 数据库配置（已废弃，保留兼容）
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `path` | string | SQLite 数据库文件路径（相对于 backend 目录） |
+| `path` | string | ~~SQLite 数据库文件路径~~ 已废弃，仅保留兼容 |
 
 ```json
 {
   "database": {
     "path": "./db/tgservice.db"
+  }
+}
+```
+
+> ⚠️ **2026-04-28 迁移**：测试和生产环境均已迁移至 **Turso 云端数据库**。`database.path` 字段已废弃，实际连接由 `turso` 配置项决定。
+
+#### turso - Turso 云端数据库配置
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `url` | string | Turso 数据库 URL（libsql:// 协议） |
+| `authToken` | string | Turso 认证 Token |
+
+**生产环境** (`.config`):
+```json
+{
+  "turso": {
+    "url": "libsql://tgservice-mameisong.aws-ap-northeast-1.turso.io",
+    "authToken": "eyJhbGciOiJFZERTQSIs..."
+  }
+}
+```
+
+**测试环境** (`.config.env`):
+```json
+{
+  "turso": {
+    "url": "libsql://tgservicedev-mameisong.aws-ap-northeast-1.turso.io",
+    "authToken": "eyJhbGciOiJFZERTQSIs..."
   }
 }
 ```

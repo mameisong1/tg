@@ -15,7 +15,7 @@
 ## 依赖
 
 - `ws` - WebSocket 客户端，用于 CDP (Chrome DevTools Protocol) 通信
-- `better-sqlite3` - SQLite 数据库操作
+- `better-sqlite3` - SQLite 数据库操作（已迁移至 Turso 云端数据库，通过 db/index.js 连接）
 
 ## 工作流程
 
@@ -92,7 +92,7 @@
 const CDP_PORT = 9222;                                          // Chrome DevTools 端口
 const TARGET_URL = 'https://admin.taikeduo.com/#/storeOverview/tableOverview';  // 目标页面
 const AREAS = ['大厅区', 'TV区', '包厢区', '棋牌区', '虚拟区', '斯诺克区'];      // 区域列表
-const DB_PATH = '/TG/tgservice/db/tgservice.db';               // 数据库路径
+const DB_PATH = '/TG/tgservice/db/tgservice.db';               // ~~数据库路径~~ 已废弃，已迁移至 Turso 云端数据库，通过 db/index.js 连接
 const LOG_PATH = '/TG/tgservice/scripts/sync-tables-status.log'; // 日志路径
 const CHROME_START_CMD = 'bash /root/chrome';                  // Chrome 启动命令
 ```

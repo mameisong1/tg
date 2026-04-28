@@ -439,7 +439,7 @@
       <text class="footer-icp">粤ICP备2026027219号</text>
       <!-- #endif -->
       <!-- 新增：公安备案号 -->
-      <text class="footer-psb-icp">京公网安备11010102000001号</text>
+      <text class="footer-psb-icp">粤公网安备44200102445953号</text>
     </view>
     
     <!-- #ifdef H5 -->
