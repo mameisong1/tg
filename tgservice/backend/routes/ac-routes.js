@@ -78,6 +78,9 @@ router.post('/api/admin/ac-devices', requireBackendPermission(['vipRoomManagemen
         [switch_id, switch_seq, switch_label, auto_off_start || '', auto_off_end || '', auto_on_start || '', auto_on_end || '', remark || '', now, now]
       );
     });
+    // 清除台桌无关设备缓存
+    const { clearTableIndependentCache } = require('../services/auto-off-ac');
+    await clearTableIndependentCache();
     const user = req.user;
     operationLogService.logToFile({
       operator_phone: user.username,
@@ -135,6 +138,9 @@ router.put('/api/admin/ac-devices/:id', requireBackendPermission(['vipRoomManage
         params
       );
     });
+    // 清除台桌无关设备缓存
+    const { clearTableIndependentCache } = require('../services/auto-off-ac');
+    await clearTableIndependentCache();
     const user = req.user;
     operationLogService.logToFile({
       operator_phone: user.username,
@@ -164,6 +170,9 @@ router.delete('/api/admin/ac-devices/:id', requireBackendPermission(['vipRoomMan
     await runInTransaction(async (tx) => {
       await tx.run('DELETE FROM switch_device WHERE id = ? AND device_type = "空调"', [req.params.id]);
     });
+    // 清除台桌无关设备缓存
+    const { clearTableIndependentCache } = require('../services/auto-off-ac');
+    await clearTableIndependentCache();
     const user = req.user;
     operationLogService.logToFile({
       operator_phone: user.username,

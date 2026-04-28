@@ -86,6 +86,9 @@ router.post('/api/admin/switches', requireBackendPermission(['vipRoomManagement'
         [switch_id, switch_seq, switch_label, auto_off_start || '', auto_off_end || '', auto_on_start || '', auto_on_end || '', device_type || '灯', remark || '', now, now]
       );
     });
+    // 清除台桌无关设备缓存
+    const { clearTableIndependentCache } = require('../services/auto-off-lighting');
+    await clearTableIndependentCache();
     // 记录日志
     const user = req.user;
     operationLogService.logToFile({
@@ -156,6 +159,9 @@ router.put('/api/admin/switches/:id', requireBackendPermission(['vipRoomManageme
         params
       );
     });
+    // 清除台桌无关设备缓存
+    const { clearTableIndependentCache } = require('../services/auto-off-lighting');
+    await clearTableIndependentCache();
     // 记录日志
     const user = req.user;
     operationLogService.logToFile({
@@ -187,6 +193,9 @@ router.delete('/api/admin/switches/:id', requireBackendPermission(['vipRoomManag
     await runInTransaction(async (tx) => {
       await tx.run('DELETE FROM switch_device WHERE id = ?', [req.params.id]);
     });
+    // 清除台桌无关设备缓存
+    const { clearTableIndependentCache } = require('../services/auto-off-lighting');
+    await clearTableIndependentCache();
     // 记录日志
     const user = req.user;
     operationLogService.logToFile({
@@ -233,6 +242,9 @@ router.post('/api/admin/table-devices', requireBackendPermission(['vipRoomManage
         [table_name_en, switch_seq, switch_label, now, now]
       );
     });
+    // 清除台桌无关设备缓存
+    const { clearTableIndependentCache } = require('../services/auto-off-lighting');
+    await clearTableIndependentCache();
     // 记录日志
     const user = req.user;
     operationLogService.logToFile({
@@ -260,6 +272,9 @@ router.delete('/api/admin/table-devices/:id', requireBackendPermission(['vipRoom
     await runInTransaction(async (tx) => {
       await tx.run('DELETE FROM table_device WHERE id = ?', [req.params.id]);
     });
+    // 清除台桌无关设备缓存
+    const { clearTableIndependentCache } = require('../services/auto-off-lighting');
+    await clearTableIndependentCache();
     // 记录日志
     const user = req.user;
     operationLogService.logToFile({

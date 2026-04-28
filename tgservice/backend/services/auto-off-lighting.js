@@ -11,6 +11,13 @@ const TimeUtil = require('../utils/time');
 const { all, get } = require('../db/index');
 const { sendBatchCommand } = require('./mqtt-switch');
 const { getAutoOffSettings } = require('../utils/config-helper');
+const redisCache = require('../utils/redis-cache');
+
+// 辅助函数：HH:MM:SS 转分钟数
+function timeToMinutes(timeStr) {
+  const parts = timeStr.split(':');
+  return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+}
 
 /**
  * 执行自动关灯
@@ -104,6 +111,14 @@ async function executeAutoOffLighting() {
  * 执行台桌无关自动关灯
  * @returns {Object} { status, turnedOffCount }
  */
+/**
+ * 清除台桌无关设备缓存（在 switch_device/table_device 增删改时调用）
+ */
+async function clearTableIndependentCache() {
+  await redisCache.del('autooff:independent:');
+  console.log('[自动关灯-台桌无关] 缓存已清除');
+}
+
 async function executeAutoOffTableIndependent() {
   // 1. 检查自动关灯功能是否开启
   const settings = await getAutoOffSettings();
@@ -113,37 +128,51 @@ async function executeAutoOffTableIndependent() {
   }
 
   const now = TimeUtil.nowDB();
+  const cacheKey = 'autooff:independent:灯';
 
-  // 2. 查询台桌无关的关灯对象（device_type=灯）
-  const switches = await all(`
-    SELECT DISTINCT sd.switch_id, sd.switch_seq
-    FROM switch_device sd
-    LEFT JOIN table_device td 
-      ON LOWER(sd.switch_label) = LOWER(td.switch_label) 
-      AND LOWER(sd.switch_seq) = LOWER(td.switch_seq)
-    WHERE td.table_name_en IS NULL
-      AND sd.device_type = '灯'
-      AND sd.auto_off_start != ''
-      AND sd.auto_off_end != ''
-      AND (
-        CASE
-          WHEN sd.auto_off_start <= sd.auto_off_end THEN
-            (TIME(?) >= TIME(sd.auto_off_start) AND TIME(?) <= TIME(sd.auto_off_end))
-          ELSE
-            (TIME(?) >= TIME(sd.auto_off_start) OR TIME(?) <= TIME(sd.auto_off_end))
-        END
-      )
-  `, [now, now, now, now]);
+  // 2. 从缓存获取基础数据（24h TTL），内存过滤时间窗口
+  let switches = await redisCache.get(cacheKey);
 
-  if (switches.length === 0) {
+  if (!switches) {
+    // 缓存未命中，查数据库（不传 now 参数，SQL 更简洁）
+    switches = await all(`
+      SELECT DISTINCT sd.switch_id, sd.switch_seq, sd.auto_off_start, sd.auto_off_end
+      FROM switch_device sd
+      LEFT JOIN table_device td
+        ON LOWER(sd.switch_label) = LOWER(td.switch_label)
+        AND LOWER(sd.switch_seq) = LOWER(td.switch_seq)
+      WHERE td.table_name_en IS NULL
+        AND sd.device_type = '灯'
+        AND sd.auto_off_start != ''
+        AND sd.auto_off_end != ''
+    `);
+    await redisCache.set(cacheKey, switches, 86400);
+    console.log(`[自动关灯-台桌无关] 数据库查询 ${switches.length} 个，已缓存 24h`);
+  } else {
+    console.log(`[自动关灯-台桌无关] Redis缓存命中 ${switches.length} 个`);
+  }
+
+  // 3. 内存过滤时间窗口
+  const currentMin = timeToMinutes(now.split(' ')[1] || now);
+  const filtered = switches.filter(s => {
+    const startMin = timeToMinutes(s.auto_off_start);
+    const endMin = timeToMinutes(s.auto_off_end);
+    if (startMin <= endMin) {
+      return currentMin >= startMin && currentMin <= endMin;
+    } else {
+      return currentMin >= startMin || currentMin <= endMin;
+    }
+  });
+
+  if (filtered.length === 0) {
     console.log('[自动关灯-台桌无关] 无需要关的灯');
     return { status: 'ok', turnedOffCount: 0 };
   }
 
-  console.log(`[自动关灯-台桌无关] 查询到 ${switches.length} 个台桌无关开关`);
+  console.log(`[自动关灯-台桌无关] 查询到 ${filtered.length} 个台桌无关开关`);
 
-  // 3. 发送 MQTT 关灯指令
-  const sendResult = await sendBatchCommand(switches, 'OFF');
+  // 4. 发送 MQTT 关灯指令
+  const sendResult = await sendBatchCommand(filtered, 'OFF');
   const turnedOffCount = sendResult?.successCount ?? sendResult ?? 0;
 
   console.log(`[自动关灯-台桌无关] 已关闭 ${turnedOffCount} 个台桌无关开关`);
@@ -151,4 +180,4 @@ async function executeAutoOffTableIndependent() {
   return { status: 'ok', turnedOffCount };
 }
 
-module.exports = { executeAutoOffLighting, executeAutoOffTableIndependent };
+module.exports = { executeAutoOffLighting, executeAutoOffTableIndependent, clearTableIndependentCache };
