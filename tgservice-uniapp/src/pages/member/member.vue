@@ -364,36 +364,6 @@
       </view>
     </view>
     
-    <!-- 历史订单 -->
-    <view class="order-section">
-      <view class="section-header">
-        <text class="section-title">📋 待处理订单</text>
-        <text class="section-hint" v-if="pendingOrders.length > 0">{{ pendingOrders.length }} 条</text>
-      </view>
-      <view class="order-list" v-if="pendingOrders.length > 0">
-        <view class="order-card" v-for="order in pendingOrders" :key="order.id">
-          <view class="order-header">
-            <text class="order-no">{{ order.order_no }}</text>
-            <text class="order-time">{{ formatOrderTime(order.created_at) }}</text>
-          </view>
-          <view class="order-items">
-            <view class="order-item" v-for="(item, idx) in order.items" :key="idx">
-              <text class="item-name">{{ item.name }}</text>
-              <text class="item-qty">x{{ item.quantity }}</text>
-              <text class="item-price">¥{{ item.price * item.quantity }}</text>
-            </view>
-          </view>
-          <view class="order-footer">
-            <text class="order-total">合计: ¥{{ order.total_price }}</text>
-            <text class="order-status">待处理</text>
-          </view>
-        </view>
-      </view>
-      <view class="empty-orders" v-else>
-        <text class="empty-text">暂无待处理订单</text>
-      </view>
-    </view>
-    
     <!-- 设置区域 -->
     <!-- 悬浮按钮位置设置 - 始终显示，无需登录 -->
     <view class="settings-section">
@@ -710,7 +680,6 @@ const isEmployee = computed(() => {
 })
 
 const statusBarHeight = ref(0)
-const pendingOrders = ref([])
 const coachInfo = ref({})
 const myPopularity = ref(0)
 const topCoaches = ref([])
@@ -1263,30 +1232,6 @@ const goProfile = () => {
   uni.navigateTo({ url: '/pages/profile/profile' })
 }
 
-// 加载待处理订单（严格模式：只显示当前设备的订单）
-const loadPendingOrders = async () => {
-  const deviceFingerprint = uni.getStorageSync('device_fp')
-  if (!deviceFingerprint) {
-    pendingOrders.value = []
-    return
-  }
-  try {
-    const orders = await api.getMyPendingOrders(deviceFingerprint)
-    pendingOrders.value = orders || []
-  } catch (err) {
-    console.error('获取订单失败', err)
-  }
-}
-
-// 格式化时间（使用 TimeUtil）
-// 格式化时间：formatOrderTime 已定义（使用 TimeUtil.toDate）
-
-// 检查教练登录
-const checkCoachLogin = () => {
-  const info = uni.getStorageSync('coachInfo')
-  coachInfo.value = info || {}
-}
-
 // 加载人气值数据
 const loadPopularity = async () => {
   if (!coachInfo.value.coachNo) return
@@ -1458,7 +1403,7 @@ const toggleFloatPosition = () => {
 onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 20
-  loadPendingOrders()
+  // QA-20260429-1: 删除 loadPendingOrders（待处理订单板块已删除）
   
   // 常用功能板块渲染时，加载奖罚角标
   if (showCommonFeatures.value) {
@@ -1470,7 +1415,10 @@ onMounted(() => {
     loadApprovalCounts()
   }
   
-  checkCoachLogin()
+  // 检查教练信息
+  const coachInfoStored = uni.getStorageSync('coachInfo')
+  coachInfo.value = coachInfoStored || {}
+  
   checkAutoLogin()
   
   // 读取悬浮按钮位置设置
@@ -1507,7 +1455,7 @@ onMounted(() => {
 })
 
 onShow(() => {
-  loadPendingOrders()
+  // QA-20260429-1: 删除 loadPendingOrders（待处理订单板块已删除）
   
   // 常用功能板块渲染时，加载奖罚角标
   if (showCommonFeatures.value) {
@@ -1519,7 +1467,10 @@ onShow(() => {
     loadApprovalCounts()
   }
   
-  checkCoachLogin()
+  // 检查教练信息
+  const coachInfoStored = uni.getStorageSync('coachInfo')
+  coachInfo.value = coachInfoStored || {}
+  
   loadPopularity()
   checkAutoLogin()  // 每次显示时检查自动登录
 })

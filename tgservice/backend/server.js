@@ -865,6 +865,22 @@ app.post('/api/order', async (req, res) => {
   try {
     const { sessionId, deviceFingerprint } = req.body;
 
+    // QA-20260429-1: 获取会员手机号（从 token 解析）
+    let memberPhone = null;
+    const authHeader = req.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      try {
+        const decoded = jwt.verify(token, config.jwt.secret);
+        // 检查是否为会员 token（包含 memberNo 和 phone）
+        if (decoded.memberNo && decoded.phone) {
+          memberPhone = decoded.phone;
+        }
+      } catch (e) {
+        // token 无效或过期，忽略，视为未登录
+      }
+    }
+
     // 检查设备指纹黑名单
     if (deviceFingerprint) {
       const blacklisted = await dbGet(
@@ -936,12 +952,10 @@ app.post('/api/order', async (req, res) => {
     }
 
     // 保存订单(存UTC时间,前端显示时转换为北京时间)
-    // 已迁移：device_fingerprint 列已存在，无需在启动路径执行 DDL
-    // await enqueueRun(`ALTER TABLE orders ADD COLUMN device_fingerprint TEXT`);
-
+    // QA-20260429-1: 新增 member_phone 字段
     await enqueueRun(
-      `INSERT INTO orders (order_no, table_no, items, total_price, status, device_fingerprint, created_at) VALUES (?, ?, ?, ?, '待处理', ?, ?)`,
-      [orderNo, tableNo, JSON.stringify(orderItems), totalPrice, deviceFingerprint || null, TimeUtil.nowDB()]
+      `INSERT INTO orders (order_no, table_no, items, total_price, status, device_fingerprint, member_phone, created_at) VALUES (?, ?, ?, ?, '待处理', ?, ?, ?)`,
+      [orderNo, tableNo, JSON.stringify(orderItems), totalPrice, deviceFingerprint || null, memberPhone, TimeUtil.nowDB()]
     );
 
     // 清空购物车
@@ -1240,6 +1254,73 @@ app.get('/api/orders/my-pending', async (req, res) => {
     })));
   } catch (err) {
     logger.error(`获取我的待处理订单失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// QA-20260429-1: 获取我的订单（近3天，手机号或设备指纹匹配）
+app.get('/api/orders/my-orders', async (req, res) => {
+  try {
+    const { deviceFingerprint } = req.query;
+
+    // 获取会员手机号（从 token 解析）
+    let memberPhone = null;
+    const authHeader = req.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      try {
+        const decoded = jwt.verify(token, config.jwt.secret);
+        if (decoded.memberNo && decoded.phone) {
+          memberPhone = decoded.phone;
+        }
+      } catch (e) {
+        // token 无效，忽略
+      }
+    }
+
+    // 近3天的时间阈值
+    const threeDaysAgo = TimeUtil.offsetDB(-3 * 24 * 60);  // 3天前的分钟数
+
+    let orders = [];
+
+    if (memberPhone) {
+      // 已登录：优先按手机号查询
+      orders = await dbAll(
+        `SELECT * FROM orders 
+         WHERE member_phone = ? AND created_at >= ? 
+         ORDER BY created_at DESC 
+         LIMIT 50`,
+        [memberPhone, threeDaysAgo]
+      );
+    } else if (deviceFingerprint) {
+      // 未登录：按设备指纹查询
+      orders = await dbAll(
+        `SELECT * FROM orders 
+         WHERE device_fingerprint = ? AND created_at >= ? 
+         ORDER BY created_at DESC 
+         LIMIT 50`,
+        [deviceFingerprint, threeDaysAgo]
+      );
+    }
+
+    // 处理订单数据：解析 items JSON，获取商品图片
+    const productMap = await getProductMap();
+    const processedOrders = orders.map(o => {
+      const items = o.items ? JSON.parse(o.items) : [];
+      // 为每个商品获取图片
+      const itemsWithImage = items.map(item => ({
+        ...item,
+        image_url: productMap[item.name]?.image_url || '/static/avatar-default.png'
+      }));
+      return {
+        ...o,
+        items: itemsWithImage
+      }; 
+    });
+
+    res.json(processedOrders);
+  } catch (err) {
+    logger.error(`获取我的订单失败: ${err.message}`);
     res.status(500).json({ error: '服务器错误' });
   }
 });
@@ -1598,7 +1679,7 @@ app.post('/api/sms/send', async (req, res) => {
 // 短信验证码登录(H5用)
 app.post('/api/member/login-sms', async (req, res) => {
   try {
-    const { phone, code } = req.body;
+    const { phone, code, deviceFingerprint } = req.body;  // QA-20260429-1: 新增 deviceFingerprint
 
     if (!phone || !code) {
       return res.status(400).json({ error: '请输入手机号和验证码' });
@@ -1647,10 +1728,11 @@ app.post('/api/member/login-sms', async (req, res) => {
 
     if (!member) {
       // 新用户注册（使用事务保证原子性，避免 INSERT/SELECT 竞态）
+      // QA-20260429-1: 新增 device_fingerprint 字段
       member = await runInTransaction(async (tx) => {
         const result = await tx.run(
-          'INSERT INTO members (phone, created_at, updated_at) VALUES (?, ?, ?)',
-          [phone, TimeUtil.nowDB(), TimeUtil.nowDB()]
+          'INSERT INTO members (phone, device_fingerprint, created_at, updated_at) VALUES (?, ?, ?, ?)',
+          [phone, deviceFingerprint || null, TimeUtil.nowDB(), TimeUtil.nowDB()]
         );
         const newMember = await tx.get(
           'SELECT * FROM members WHERE member_no = ?',
@@ -1659,6 +1741,15 @@ app.post('/api/member/login-sms', async (req, res) => {
         return newMember;
       });
       operationLog.info(`新会员注册(H5): ${phone}`);
+    } else {
+      // QA-20260429-1: 更新设备指纹（已有则覆盖）
+      if (deviceFingerprint) {
+        await enqueueRun(
+          'UPDATE members SET device_fingerprint = ?, updated_at = ? WHERE member_no = ?',
+          [deviceFingerprint, TimeUtil.nowDB(), member.member_no]
+        );
+        member.device_fingerprint = deviceFingerprint;
+      }
     }
 
     // 生成token
@@ -1718,7 +1809,7 @@ app.post('/api/member/login-sms', async (req, res) => {
 // 微信手机号登录/注册
 app.post('/api/member/login', async (req, res) => {
   try {
-    const { code, encryptedData, iv } = req.body;
+    const { code, encryptedData, iv, deviceFingerprint } = req.body;  // QA-20260429-1: 新增 deviceFingerprint
 
     if (!code || !encryptedData || !iv) {
       return res.status(400).json({ error: '参数不完整' });
@@ -1772,17 +1863,32 @@ app.post('/api/member/login', async (req, res) => {
 
     if (!member) {
       // 新用户注册
+      // QA-20260429-1: 新增 device_fingerprint 字段
       const result = await enqueueRun(
-        'INSERT INTO members (phone, openid, created_at, updated_at) VALUES (?, ?, ?, ?)',
-        [phone, openid, TimeUtil.nowDB(), TimeUtil.nowDB()]
+        'INSERT INTO members (phone, openid, device_fingerprint, created_at, updated_at) VALUES (?, ?, ?, ?, ?)',
+        [phone, openid, deviceFingerprint || null, TimeUtil.nowDB(), TimeUtil.nowDB()]
       );
       member = await dbGet('SELECT * FROM members WHERE member_no = ?', [result.lastID]);
       operationLog.info(`新会员注册: ${phone}`);
     } else {
-      // 更新openid(可能用户换手机了)
+      // QA-20260429-1: 更新 openid 和设备指纹
+      const updates = [];
+      const params = [];
       if (member.openid !== openid) {
-        await enqueueRun('UPDATE members SET openid = ?, updated_at = ? WHERE member_no = ?', [openid, TimeUtil.nowDB(), member.member_no]);
-        member.openid = openid;
+        updates.push('openid = ?');
+        params.push(openid);
+      }
+      if (deviceFingerprint) {
+        updates.push('device_fingerprint = ?');
+        params.push(deviceFingerprint);
+      }
+      if (updates.length > 0) {
+        params.push(TimeUtil.nowDB());
+        params.push(member.member_no);
+        await enqueueRun(
+          `UPDATE members SET ${updates.join(', ')}, updated_at = ? WHERE member_no = ?`,
+          params
+        );
       }
     }
 
@@ -3988,6 +4094,74 @@ const initAdminUserEmploymentStatus = async () => {
   }
 };
 initAdminUserEmploymentStatus();
+
+// QA-20260429-1: orders 表新增 member_phone 字段
+const initOrdersMemberPhone = async () => {
+  try {
+    // 先检查字段是否存在
+    const tableInfo = await dbAll("PRAGMA table_info(orders)");
+    const hasMemberPhone = tableInfo.some(col => col.name === 'member_phone');
+    if (!hasMemberPhone) {
+      await enqueueRun(`ALTER TABLE orders ADD COLUMN member_phone TEXT`);
+      console.log('✅ orders.member_phone 字段添加完成');
+    }
+    // 添加索引
+    try {
+      await enqueueRun(`CREATE INDEX IF NOT EXISTS idx_orders_member_phone ON orders(member_phone)`);
+      await enqueueRun(`CREATE INDEX IF NOT EXISTS idx_orders_member_phone_created_at ON orders(member_phone, created_at DESC)`);
+      console.log('✅ orders.member_phone 索引添加完成');
+    } catch (idxErr) {
+      if (!idxErr.message.includes('already exists')) {
+        console.error('orders.member_phone 索引添加失败:', idxErr.message);
+      }
+    }
+  } catch (err) {
+    if (!err.message.includes('duplicate column')) {
+      console.error('orders.member_phone 字段添加失败:', err.message);
+    }
+  }
+};
+initOrdersMemberPhone();
+
+// QA-20260429-1: members 表新增 device_fingerprint 字段
+const initMembersDeviceFingerprint = async () => {
+  try {
+    // 先检查字段是否存在
+    const tableInfo = await dbAll("PRAGMA table_info(members)");
+    const hasDeviceFingerprint = tableInfo.some(col => col.name === 'device_fingerprint');
+    if (!hasDeviceFingerprint) {
+      await enqueueRun(`ALTER TABLE members ADD COLUMN device_fingerprint TEXT`);
+      console.log('✅ members.device_fingerprint 字段添加完成');
+    }
+    // 添加索引
+    try {
+      await enqueueRun(`CREATE INDEX IF NOT EXISTS idx_members_device_fingerprint ON members(device_fingerprint)`);
+      console.log('✅ members.device_fingerprint 索引添加完成');
+    } catch (idxErr) {
+      if (!idxErr.message.includes('already exists')) {
+        console.error('members.device_fingerprint 索引添加失败:', idxErr.message);
+      }
+    }
+  } catch (err) {
+    if (!err.message.includes('duplicate column')) {
+      console.error('members.device_fingerprint 字段添加失败:', err.message);
+    }
+  }
+};
+initMembersDeviceFingerprint();
+
+// QA-20260429-1: orders 表新增 device_fingerprint 复合索引（优化查询）
+const initOrdersDeviceFingerprintIndex = async () => {
+  try {
+    await enqueueRun(`CREATE INDEX IF NOT EXISTS idx_orders_device_fingerprint_created_at ON orders(device_fingerprint, created_at DESC)`);
+    console.log('✅ orders.device_fingerprint 复合索引添加完成');
+  } catch (idxErr) {
+    if (!idxErr.message.includes('already exists')) {
+      console.error('orders.device_fingerprint 复合索引添加失败:', idxErr.message);
+    }
+  }
+};
+initOrdersDeviceFingerprintIndex();
 
 const initRewardPenaltyTypes = async () => {
   try {

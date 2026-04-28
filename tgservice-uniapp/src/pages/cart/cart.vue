@@ -1,5 +1,15 @@
 <template>
   <view class="page">
+    <!-- QA-20260429-1: 标签切换 -->
+    <view class="tabs-container">
+      <view class="tab" :class="{ active: activeTab === 'cart' }" @click="switchTab('cart')">
+        <text>购物车</text>
+      </view>
+      <view class="tab" :class="{ active: activeTab === 'orders' }" @click="switchTab('orders')">
+        <text>我的订单</text>
+      </view>
+    </view>
+
     <!-- #ifdef H5 -->
     <!-- 员工模式：顶部台桌号 + 切换按钮 -->
     <view v-if="isEmployee" class="employee-table-bar">
@@ -16,8 +26,10 @@
     <!-- #ifndef H5 -->
     <TableInfo ref="tableInfoRef" />
     <!-- #endif -->
-    
-    <view class="cart-list" v-if="cartItems.length > 0">
+
+    <!-- 购物车内容（原有内容） -->
+    <view v-if="activeTab === 'cart'">
+      <view class="cart-list" v-if="cartItems.length > 0">
       <view class="cart-item" v-for="(item, index) in cartItems" :key="index">
         <image class="item-img" :src="getProductImage(item)" mode="aspectFill"></image>
         <view class="item-info">
@@ -39,8 +51,37 @@
       <text class="empty-text">购物车是空的</text>
       <view class="shop-btn" @click="goShop">去选购</view>
     </view>
-    
-    <view class="bottom-bar" v-if="cartItems.length > 0">
+
+    <!-- 我的订单内容 -->
+    <view v-else class="orders-list">
+      <view v-if="myOrders.length > 0" class="order-item" v-for="(order, index) in myOrders" :key="index">
+        <view class="order-header">
+          <text class="order-time">{{ formatOrderTime(order.created_at) }}</text>
+          <text class="order-status">{{ order.status }}</text>
+          <text class="order-total">¥{{ order.total_price.toFixed(2) }}</text>
+        </view>
+        <view class="order-items">
+          <view class="order-product" v-for="(item, idx) in order.items" :key="idx">
+            <image class="product-img" :src="getProductImageUrl(item.image_url)" mode="aspectFill"></image>
+            <view class="product-info">
+              <text class="product-name">{{ item.name }}</text>
+              <text v-if="item.options" class="product-options">{{ item.options }}</text>
+              <view class="product-row">
+                <text class="product-qty">x{{ item.quantity }}</text>
+                <text class="product-price">¥{{ (item.price * item.quantity).toFixed(2) }}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view v-else class="empty-orders">
+        <text class="empty-icon">📋</text>
+        <text class="empty-text">近3天无订单记录</text>
+      </view>
+    </view>
+
+    <!-- QA-20260429-1: 购物车底部栏（仅在购物车标签时显示） -->
+    <view class="bottom-bar" v-if="activeTab === 'cart' && cartItems.length > 0">
       <view class="total-info">
         <text class="total-label">合计</text>
         <text class="total-price">¥{{ totalPrice.toFixed(2) }}</text>
@@ -90,11 +131,17 @@ import api from '@/utils/api.js'
 import BeautyModal from '@/components/BeautyModal.vue'
 import TableInfo from '@/components/TableInfo.vue'
 import TableSelector from '@/components/TableSelector.vue'
+import TimeUtil from '@/utils/time-util.js'  // QA-20260429-1: 引入时间工具
 
 const tableInfoRef = ref(null)
 const sessionId = ref('')
 const cartItems = ref([])
 const totalPrice = ref(0)
+
+// QA-20260429-1: 标签切换
+const activeTab = ref('cart')  // 默认显示购物车
+const myOrders = ref([])       // 我的订单数据
+const ordersLoaded = ref(false) // 是否已加载订单数据
 
 // 台桌信息（用 ref 保证响应式，切换后手动更新）
 const tableName = ref(uni.getStorageSync('tableName') || '')
@@ -132,6 +179,47 @@ const showCoachTableWarning = ref(false)
 const coachWaterTableNo = ref('')
 const pendingOrderSubmit = ref(false)
 const floatPosition = ref('left')
+
+// QA-20260429-1: 切换标签
+const switchTab = async (tab) => {
+  if (activeTab.value === tab) return
+  activeTab.value = tab
+  
+  // 切换到「我的订单」时才加载数据（延迟加载）
+  if (tab === 'orders' && !ordersLoaded.value) {
+    await loadMyOrders()
+    ordersLoaded.value = true
+  }
+}
+
+// QA-20260429-1: 加载我的订单
+const loadMyOrders = async () => {
+  try {
+    uni.showLoading({ title: '加载中...' })
+    const deviceFingerprint = api.getDeviceFingerprint()
+    const data = await api.getMyOrders(deviceFingerprint)
+    uni.hideLoading()
+    myOrders.value = data || []
+  } catch (e) {
+    uni.hideLoading()
+    myOrders.value = []
+    console.log('加载订单失败', e)
+  }
+}
+
+// QA-20260429-1: 格式化订单时间
+const formatOrderTime = (timeStr) => {
+  const d = TimeUtil.toDate(timeStr)
+  if (!d) return ''
+  return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
+}
+
+// QA-20260429-1: 获取商品图片 URL
+const getProductImageUrl = (url) => {
+  if (!url) return '/static/avatar-default.png'
+  if (url.startsWith('http')) return url
+  return 'https://tiangong.club' + url
+}
 
 // 员工识别：有 adminToken 或 coachToken 即为员工
 const isEmployee = computed(() => {
@@ -358,8 +446,8 @@ const goBack = () => {
 
 onMounted(() => { 
   sessionId.value = uni.getStorageSync('sessionId') || ''
+  // QA-20260429-1: 默认显示购物车，不加载订单数据
   loadCart()
-  // 读取悬浮按钮位置设置
   floatPosition.value = uni.getStorageSync('floatButtonPosition') || 'left'
 })
 
@@ -372,11 +460,156 @@ onShow(() => {
   tableName.value = uni.getStorageSync('tableName') || ''
   tableInfoRef.value?.loadTableInfo()
   loadCart()
+  // QA-20260429-1: 如果当前是「我的订单」标签，刷新数据
+  if (activeTab.value === 'orders' && ordersLoaded.value) {
+    loadMyOrders()
+  }
 })
 </script>
 
 <style scoped>
 .page { min-height: 100vh; background: #0a0a0f; padding: 16px; padding-bottom: 100px; }
+
+/* QA-20260429-1: 标签切换样式 */
+.tabs-container {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  background: rgba(20, 20, 30, 0.6);
+  border-radius: 12px;
+  padding: 4px;
+}
+
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 12px 0;
+  border-radius: 8px;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.6);
+  transition: all 0.2s;
+}
+
+.tab.active {
+  background: linear-gradient(135deg, #d4af37, #ffd700);
+  color: #000;
+  font-weight: 600;
+}
+
+/* QA-20260429-1: 我的订单列表样式 */
+.orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.order-item {
+  background: rgba(20, 20, 30, 0.6);
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid rgba(218, 165, 32, 0.1);
+}
+
+.order-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.order-time {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.order-status {
+  font-size: 12px;
+  color: #d4af37;
+  margin-left: 8px;
+  padding: 2px 8px;
+  background: rgba(212, 175, 55, 0.1);
+  border-radius: 4px;
+}
+
+.order-total {
+  font-size: 16px;
+  color: #d4af37;
+  font-weight: 600;
+  margin-left: auto;
+}
+
+.order-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.order-product {
+  display: flex;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.order-product:last-child {
+  border-bottom: none;
+}
+
+.product-img {
+  width: 60px;
+  height: 60px;
+  border-radius: 8px;
+  background: rgba(30, 30, 40, 0.5);
+}
+
+.product-info {
+  flex: 1;
+}
+
+.product-name {
+  font-size: 14px;
+  font-weight: 500;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.product-options {
+  font-size: 12px;
+  color: #e6553a;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.product-row {
+  display: flex;
+  align-items: center;
+}
+
+.product-qty {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-right: 12px;
+}
+
+.product-price {
+  font-size: 14px;
+  color: #d4af37;
+}
+
+.empty-orders {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.empty-orders .empty-icon {
+  font-size: 48px;
+  display: block;
+  margin-bottom: 16px;
+}
+
+.empty-orders .empty-text {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.3);
+}
 
 /* 员工模式：顶部台桌号 + 切换按钮 */
 .employee-table-bar {

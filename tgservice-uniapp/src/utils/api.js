@@ -293,6 +293,8 @@ export default {
   }),
   getPendingOrders: (tableName) => request({ url: `/orders/pending/${encodeURIComponent(tableName)}` }),
   getMyPendingOrders: (deviceFingerprint) => request({ url: `/orders/my-pending?deviceFingerprint=${deviceFingerprint}` }),
+  // QA-20260429-1: 新增我的订单接口
+  getMyOrders: (deviceFingerprint) => request({ url: `/orders/my-orders?deviceFingerprint=${deviceFingerprint}` }),
   
   // 教练（需要coach认证）
   getCoaches: (level) => request({ url: '/coaches', data: { level } }),
@@ -394,10 +396,18 @@ export default {
   sendSmsCode: (phone) => request({ url: '/sms/send', method: 'POST', data: { phone } }),
   
   // H5短信验证码登录
-  loginBySms: (phone, code) => request({ url: '/member/login-sms', method: 'POST', data: { phone, code } }),
+  // QA-20260429-1: 新增 deviceFingerprint 参数
+  loginBySms: (phone, code) => {
+    const deviceFingerprint = getDeviceFingerprint();
+    return request({ url: '/member/login-sms', method: 'POST', data: { phone, code, deviceFingerprint } });
+  },
   
   // 微信手机号登录/注册
-  memberLogin: (data) => request({ url: '/member/login', method: 'POST', data }),
+  // QA-20260429-1: 新增 deviceFingerprint 参数
+  memberLogin: (data) => {
+    const deviceFingerprint = getDeviceFingerprint();
+    return request({ url: '/member/login', method: 'POST', data: { ...data, deviceFingerprint } });
+  },
   
   // 通过openid自动登录
   memberAutoLogin: (code, preferredRole = null) => request({ 

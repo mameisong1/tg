@@ -1,0 +1,12 @@
+{
+  "qaRequirement": "订单功能开发（三个需求）：\n1. 订单表新增会员手机号字段，确认已有设备指纹字段。用户下单时，已登录H5则写入手机号+设备指纹，未登录则只写设备指纹。\n2. 会员表新增设备指纹字段。每次会员登录时写入设备指纹，已有则覆盖。\n3. 前台H5购物车页面新增「我的订单」标签页。购物车和我的订单标签可切换。我的订单展示近3天手机号或设备指纹匹配的订单，按下单时间倒序，最多50条。显示商品图片、商品名、数量、金额、订单合计金额。默认显示购物车页面，不切换不加载订单数据。",
+  "acceptanceFocus": "1. 订单表member_phone字段正确写入（登录带手机号+指纹，未登录仅指纹）\n2. 会员表device_fingerprint字段登录时正确写入/覆盖\n3. H5购物车页面我的订单标签切换正常，订单数据按手机号/指纹匹配查询，近3天、倒序、最多50条\n4. 默认显示购物车，不切换不加载订单",
+  "workDir": "/TG/temp/QA-20260429-1",
+  "designAuditRound": 1,
+  "testCasesAuditRound": 1,
+  "fixRound": 0,
+  "currentStep": "deploy",
+  "designSummary": "订单功能开发：1.orders表新增member_phone字段+索引；2.members表新增device_fingerprint字段+索引；3.下单API从token解析手机号写入；4.会员登录API写入/覆盖设备指纹；5.新增GET /api/orders/my-orders查询近3天订单；6.购物车页面新增我的订单标签页；7.删除会员中心待处理订单板块",
+  "userConfirmedAt": "2026-04-28T17:11:50.263Z",
+  "userConfirmedBy": "马哥"
+}

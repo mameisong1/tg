@@ -1,0 +1,1 @@
+订单功能开发：1.orders表新增member_phone字段+索引；2.members表新增device_fingerprint字段+索引；3.下单API从token解析手机号写入；4.会员登录API写入/覆盖设备指纹；5.新增GET /api/orders/my-orders查询近3天订单；6.购物车页面新增我的订单标签页；7.删除会员中心待处理订单板块
