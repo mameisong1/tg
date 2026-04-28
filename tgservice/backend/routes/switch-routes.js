@@ -24,7 +24,7 @@ const { requireBackendPermission } = require('../middleware/permission');
 router.use((req, res, next) => {
   const path = req.path;
   // 只对 /api/switch 和 /api/admin/switches 等相关路径应用认证
-  if (path.startsWith('/api/switch') || path.startsWith('/api/admin/switches') || path.startsWith('/api/admin/table-devices') || path.startsWith('/api/admin/switch-scenes')) {
+  if (path.startsWith('/api/switch') || path.startsWith('/api/admin/switches') || path.startsWith('/api/admin/table-devices') || path.startsWith('/api/admin/switch-scenes') || path.startsWith('/api/admin/ac-control')) {
     return auth.required(req, res, next);
   }
   next();
