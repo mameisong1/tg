@@ -276,8 +276,10 @@ router.get('/approved-recent', requireBackendPermission(['coachManagement']), as
     const isFutureOnly = future_only === 'true';
 
     if (isFutureOnly) {
-      // 未来模式：查询所有已同意的记录，按 extra_data 中的日期过滤和排序
+      // 未来模式：查询已同意的记录，按 extra_data 中的日期过滤和排序
       const typeStr = application_types ? application_types.split(',').map(t => `'${t.trim()}'`).join(',') : null;
+      // 强制3天日期过滤：只查 created_at >= 3天前的记录
+      const threeDaysAgo = TimeUtil.offsetDB(-72).split(' ')[0] + ' 00:00:00';
       let sql = `
         SELECT a.id, a.applicant_phone, a.application_type, a.remark,
                a.status, a.approver_phone, a.approve_time, a.extra_data, a.created_at,
@@ -285,13 +287,15 @@ router.get('/approved-recent', requireBackendPermission(['coachManagement']), as
         FROM applications a
         LEFT JOIN coaches c ON a.applicant_phone = c.employee_id OR a.applicant_phone = c.phone
         WHERE a.status = 1
+          AND a.created_at >= ?
       `;
+      const sqlParams = [threeDaysAgo];
       if (typeStr) {
         sql += ` AND a.application_type IN (${typeStr})`;
       }
-      sql += ' ORDER BY a.approve_time DESC';
+      sql += ' ORDER BY a.approve_time DESC LIMIT 100';
 
-      const records = await db.all(sql);
+      const records = await db.all(sql, sqlParams);
       const today = TimeUtil.todayStr();
 
       // JS 层过滤：日期 >= 今天，并按日期升序排序

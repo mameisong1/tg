@@ -408,7 +408,8 @@ router.get('/', auth.required, requireBackendPermission(['invitationReview']), a
       date,
       shift,
       coach_no,
-      result
+      result,
+      limit = 100
     } = req.query;
 
     let sql = `
@@ -419,9 +420,14 @@ router.get('/', auth.required, requireBackendPermission(['invitationReview']), a
     `;
     const params = [];
 
+    // 强制3天日期过滤：无 date 参数时默认近3天
     if (date) {
       sql += ' AND date = ?';
       params.push(date);
+    } else {
+      const threeDaysAgo = TimeUtil.offsetDB(-72).split(' ')[0];
+      sql += ' AND date >= ?';
+      params.push(threeDaysAgo);
     }
 
     if (shift) {
@@ -439,7 +445,8 @@ router.get('/', auth.required, requireBackendPermission(['invitationReview']), a
       params.push(result);
     }
 
-    sql += ' ORDER BY coach_no, created_at';
+    sql += ' ORDER BY coach_no, created_at LIMIT ?';
+    params.push(parseInt(limit));
 
     const invitations = await db.all(sql, params);
 
