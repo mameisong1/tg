@@ -2480,6 +2480,10 @@ app.get('/api/admin/orders', authMiddleware, requireBackendPermission(['cashierD
     }
 
     sql += ' ORDER BY created_at DESC';
+    // 查待处理时加 LIMIT，减少数据传输量（轮询和筛选用）
+    if (status === '待处理') {
+      sql += ' LIMIT 50';
+    }
 
     const orders = await dbAll(sql, params);
 

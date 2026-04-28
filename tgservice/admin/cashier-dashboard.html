@@ -609,7 +609,34 @@
     });
 
     // ===== 筛选 =====
-    function setFilter(column, filter) {
+    // 根据筛选状态获取历史查询参数（已完成/已取消查10小时内数据）
+    function getHistoryQueryParams(status) {
+      if (status === '已完成' || status === '已取消') {
+        const t = new Date(Date.now() - 10 * 60 * 60 * 1000);
+        const date_start = t.toISOString().slice(0, 19).replace('T', ' ');
+        return `&date_start=${encodeURIComponent(date_start)}`;
+      }
+      return '';
+    }
+
+    async function fetchFilteredOrders(column, status) {
+      const extra = getHistoryQueryParams(status);
+      try {
+        if (column === 'product') {
+          const orders = await api(`/api/admin/orders?status=${encodeURIComponent(status)}${extra}`);
+          return Array.isArray(orders) ? orders : [];
+        } else if (column === 'service') {
+          const res = await api(`/api/service-orders?status=${encodeURIComponent(status)}${extra}`);
+          return res.success ? (res.data || []) : [];
+        } else if (column === 'coach') {
+          const res = await api(`/api/table-action-orders?status=${encodeURIComponent(status)}${extra}`);
+          return res.success ? (res.data || []) : [];
+        }
+      } catch(e) { console.error(`获取${column}订单失败:`, e); }
+      return [];
+    }
+
+    async function setFilter(column, filter) {
       filters[column] = filter;
       document.querySelectorAll(`#${column}FilterBtns .filter-btn`).forEach(btn => {
         btn.classList.remove('active', 'active-pending', 'active-completed', 'active-cancelled');
@@ -619,6 +646,14 @@
           else btn.classList.add('active-cancelled');
         }
       });
+      // 切到已完成/已取消时，实时拉取10小时内数据
+      if (filter === '已完成' || filter === '已取消') {
+        const data = await fetchFilteredOrders(column, filter);
+        if (column === 'product') productOrders = data;
+        else if (column === 'service') serviceOrders = data;
+        else if (column === 'coach') coachSessions = data;
+        console.log(`📋 ${column} ${filter}: 获取到 ${data.length} 条数据`);
+      }
       renderAll();
     }
 
@@ -844,15 +879,14 @@
       document.getElementById('lastRefresh').textContent = '上次刷新: ' + new Date().toLocaleTimeString('zh-CN');
     }
 
-    // 增量轮询（每10秒检查新订单）
+    // 增量轮询（每10秒检查新订单）— 只查待处理，减少数据传输量
     async function pollNewOrders() {
       try {
-        // 检查商品订单
+        // 检查商品订单（只查待处理）
         try {
-          const orders = await api('/api/admin/orders');
+          const orders = await api('/api/admin/orders?status=待处理');
           const newOrders = Array.isArray(orders) ? orders : [];
-          // 新订单 = 不在已渲染列表中的待处理订单
-          const newOnes = newOrders.filter(o => o.status === '待处理' && !renderedProductIds.has(o.id));
+          const newOnes = newOrders.filter(o => !renderedProductIds.has(o.id));
           if (newOnes.length > 0) {
             productOrders = newOrders;
             console.log('📦 发现新商品订单:', newOnes.length, '个');
@@ -861,11 +895,11 @@
           }
         } catch(e) {}
         
-        // 检查服务订单
+        // 检查服务订单（只查待处理）
         try {
-          const svcRes = await api('/api/service-orders');
+          const svcRes = await api('/api/service-orders?status=待处理');
           const newOrders = (svcRes.success ? (svcRes.data || []) : []);
-          const newOnes = newOrders.filter(o => o.status === '待处理' && !renderedServiceIds.has(o.id));
+          const newOnes = newOrders.filter(o => !renderedServiceIds.has(o.id));
           if (newOnes.length > 0) {
             serviceOrders = newOrders;
             console.log('🎯 发现新服务订单:', newOnes.length, '个');
@@ -874,11 +908,11 @@
           }
         } catch(e) {}
         
-        // 检查上下桌单
+        // 检查上下桌单（只查待处理）
         try {
-          const tblRes = await api('/api/table-action-orders');
+          const tblRes = await api('/api/table-action-orders?status=待处理');
           const newOrders = (tblRes.success ? (tblRes.data || []) : []);
-          const newOnes = newOrders.filter(o => o.status === '待处理' && !renderedCoachIds.has(o.id));
+          const newOnes = newOrders.filter(o => !renderedCoachIds.has(o.id));
           if (newOnes.length > 0) {
             coachSessions = newOrders;
             console.log('👩‍🏫 发现新上下桌单:', newOnes.length, '个');
