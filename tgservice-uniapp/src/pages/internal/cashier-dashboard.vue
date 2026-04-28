@@ -133,12 +133,13 @@ onMounted(() => {
 
 onUnmounted(() => { stopAutoRefresh() })
 
-// 监听标签切换：已完成/已取消标签页停止自动刷新
+// 监听标签切换：已完成/已取消标签页停止自动刷新并加载对应数据
 watch(activeTab, (newTab) => {
   if (newTab === 'pending') {
     startAutoRefresh()
   } else {
     stopAutoRefresh()
+    loadData() // 切换到已完成/已取消时，主动加载对应状态的数据
   }
 })
 
