@@ -124,6 +124,16 @@ export const tableActionOrders = {
   updateStatus: (id, data) => request({ url: `/table-action-orders/${id}/status`, method: 'PUT', data })
 }
 
+// ========== 商品订单 ==========
+export const productOrders = {
+  // 获取商品订单列表
+  getList: (params) => request({ url: '/admin/orders', data: params, authType: 'admin' }),
+  // 完成订单
+  complete: (id) => request({ url: `/admin/orders/${id}/complete`, method: 'POST', authType: 'admin' }),
+  // 取消订单
+  cancel: (id) => request({ url: `/admin/orders/${id}/cancel`, method: 'POST', authType: 'admin' })
+}
+
 // ========== 申请事项 ==========
 export const applications = {
   // 提交申请（加班/公休/乐捐）
@@ -460,6 +470,7 @@ export default {
   serviceOrders,
   systemConfig,
   tableActionOrders,
+  productOrders,
   applications,
   guestInvitations,
   coachesV2,

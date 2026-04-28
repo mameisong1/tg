@@ -82,7 +82,24 @@
           <text class="column-count">{{ productOrders.length }}</text>
         </view>
         <scroll-view class="column-body" scroll-y>
-          <view class="empty-col"><text>待对接商品订单</text></view>
+          <view class="order-card" v-for="order in productOrders" :key="'p' + order.id">
+            <view class="card-header">
+              <text class="card-table">{{ order.table_no }}</text>
+              <text class="card-status" :class="'status-' + order.status">{{ order.status }}</text>
+            </view>
+            <view class="card-items">
+              <text class="card-item" v-for="(item, idx) in order.items" :key="idx">
+                {{ item.name }} x{{ item.quantity }}
+              </text>
+            </view>
+            <text class="card-total">合计：¥{{ order.total_price }}</text>
+            <text class="card-time">{{ order.created_at }}</text>
+            <view class="card-actions" v-if="order.status === '待处理'">
+              <view class="mini-btn cancel" @click="updateProductOrder(order.id, '已取消')"><text>取消</text></view>
+              <view class="mini-btn complete" @click="updateProductOrder(order.id, '已完成')"><text>完成</text></view>
+            </view>
+          </view>
+          <view class="empty-col" v-if="productOrders.length === 0"><text>暂无</text></view>
         </scroll-view>
       </view>
     </view>
@@ -90,7 +107,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import api from '@/utils/api.js'
 
 const statusBarHeight = ref(0)
@@ -100,30 +117,86 @@ const tableOrders = ref([])
 const productOrders = ref([])
 let timer = null
 
+// 获取昨天的日期（YYYY-MM-DD 格式）
+const getYesterday = () => {
+  const now = new Date()
+  now.setDate(now.getDate() - 1)
+  return now.toISOString().split('T')[0]
+}
+
 onMounted(() => {
   const systemInfo = uni.getSystemInfoSync()
   statusBarHeight.value = systemInfo.statusBarHeight || 20
   loadData()
-  timer = setInterval(loadData, 10000) // 每10秒刷新
+  startAutoRefresh()
 })
 
-onUnmounted(() => { if (timer) clearInterval(timer) })
+onUnmounted(() => { stopAutoRefresh() })
+
+// 监听标签切换：已完成/已取消标签页停止自动刷新
+watch(activeTab, (newTab) => {
+  if (newTab === 'pending') {
+    startAutoRefresh()
+  } else {
+    stopAutoRefresh()
+  }
+})
 
 const statusMap = { pending: '待处理', completed: '已完成', cancelled: '已取消' }
 
-const loadData = async () => {
-  const status = statusMap[activeTab.value]
+const startAutoRefresh = () => {
+  stopAutoRefresh() // 先清除旧的定时器
+  timer = setInterval(() => {
+    // 只刷新待处理订单
+    if (activeTab.value === 'pending') {
+      loadPendingData()
+    }
+  }, 10000) // 每10秒刷新
+}
+
+const stopAutoRefresh = () => {
+  if (timer) {
+    clearInterval(timer)
+    timer = null
+  }
+}
+
+// 只加载待处理数据（用于自动刷新）
+const loadPendingData = async () => {
   try {
-    const [svc, tbl] = await Promise.all([
-      api.serviceOrders.getList({ status, limit: 50 }),
-      api.tableActionOrders.getList({ status, limit: 50 })
+    const [svc, tbl, prod] = await Promise.all([
+      api.serviceOrders.getList({ status: '待处理', limit: 50 }),
+      api.tableActionOrders.getList({ status: '待处理', limit: 50 }),
+      api.productOrders.getList({ status: '待处理' })
     ])
     serviceOrders.value = svc.data || []
     tableOrders.value = tbl.data || []
+    productOrders.value = prod || []
   } catch (e) {}
 }
 
-const pendingCount = computed(() => serviceOrders.value.filter(o => o.status === '待处理').length + tableOrders.value.filter(o => o.status === '待处理').length)
+// 加载全部数据（用于标签切换和首次加载）
+const loadData = async () => {
+  const status = statusMap[activeTab.value]
+  const yesterday = getYesterday()
+  
+  try {
+    const [svc, tbl, prod] = await Promise.all([
+      api.serviceOrders.getList({ status, date_start: yesterday, limit: 50 }),
+      api.tableActionOrders.getList({ status, date_start: yesterday, limit: 50 }),
+      api.productOrders.getList({ status, date_start: yesterday })
+    ])
+    serviceOrders.value = svc.data || []
+    tableOrders.value = tbl.data || []
+    productOrders.value = prod || []
+  } catch (e) {}
+}
+
+const pendingCount = computed(() => 
+  serviceOrders.value.filter(o => o.status === '待处理').length + 
+  tableOrders.value.filter(o => o.status === '待处理').length + 
+  productOrders.value.filter(o => o.status === '待处理').length
+)
 
 const updateServiceOrder = async (id, status) => {
   try {
@@ -136,6 +209,18 @@ const updateServiceOrder = async (id, status) => {
 const updateTableOrder = async (id, status) => {
   try {
     await api.tableActionOrders.updateStatus(id, { status })
+    uni.showToast({ title: '操作成功', icon: 'success' })
+    loadData()
+  } catch (e) { uni.showToast({ title: e.error || '操作失败', icon: 'none' }) }
+}
+
+const updateProductOrder = async (id, status) => {
+  try {
+    if (status === '已完成') {
+      await api.productOrders.complete(id)
+    } else if (status === '已取消') {
+      await api.productOrders.cancel(id)
+    }
     uni.showToast({ title: '操作成功', icon: 'success' })
     loadData()
   } catch (e) { uni.showToast({ title: e.error || '操作失败', icon: 'none' }) }
@@ -184,5 +269,8 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .mini-btn { flex: 1; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; }
 .mini-btn.cancel { background: rgba(231,76,60,0.15); color: #e74c3c; }
 .mini-btn.complete { background: rgba(46,204,113,0.15); color: #2ecc71; }
+.card-items { margin-bottom: 4px; }
+.card-item { font-size: 12px; color: rgba(255,255,255,0.7); display: block; margin-bottom: 2px; }
+.card-total { font-size: 13px; color: #2ecc71; font-weight: 500; }
 .empty-col { text-align: center; padding: 20px; color: rgba(255,255,255,0.2); font-size: 12px; }
 </style>
