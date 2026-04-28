@@ -39,6 +39,27 @@ const QRCode = require('qrcode');
 // Redis 缓存工具
 const redisCache = require('./utils/redis-cache');
 
+// ===== 商品 Map 缓存（替代 SELECT name, image_url, category FROM products） =====
+const PRODUCT_MAP_CACHE_KEY = 'product:map';
+const PRODUCT_MAP_CACHE_TTL = 3600; // 1 小时
+
+async function getProductMap() {
+  try {
+    const cached = await redisCache.get(PRODUCT_MAP_CACHE_KEY);
+    if (cached) return cached;
+  } catch (e) { /* Redis 不可用，降级到 DB */ }
+  // 从 DB 加载
+  const products = await dbAll('SELECT name, image_url, category FROM products');
+  const map = {};
+  products.forEach(p => { map[p.name] = { image_url: p.image_url, category: p.category }; });
+  await redisCache.set(PRODUCT_MAP_CACHE_KEY, map, PRODUCT_MAP_CACHE_TTL);
+  return map;
+}
+
+function invalidateProductMapCache() {
+  redisCache.delOne(PRODUCT_MAP_CACHE_KEY).catch(e => console.error('[ProductMap] 缓存失效失败:', e.message));
+}
+
 // 路由模块
 const applicationsRouter = require('./routes/applications');
 const guestInvitationsRouter = require('./routes/guest-invitations');
@@ -2487,12 +2508,8 @@ app.get('/api/admin/orders', authMiddleware, requireBackendPermission(['cashierD
 
     const orders = await dbAll(sql, params);
 
-    // 获取所有商品信息(用于关联图片和类别)
-    const products = await dbAll('SELECT name, image_url, category FROM products');
-    const productMap = {};
-    products.forEach(p => {
-      productMap[p.name] = { image_url: p.image_url, category: p.category };
-    });
+    // 获取商品 Map（Redis 缓存）
+    const productMap = await getProductMap();
 
     // 处理订单,添加商品图片和类别
     const processedOrders = orders.map(o => {
@@ -2616,9 +2633,9 @@ app.post('/api/admin/orders/:id/cancel-item', authMiddleware, requireBackendPerm
       );
 
       // 返回更新后的订单信息(包含商品图片和类别)
-      const products = await dbAll('SELECT name, image_url, category FROM products');
+      const productMap = await getProductMap();
       const processedItems = items.map(i => {
-        const product = products.find(p => p.name === i.name);
+        const product = productMap[i.name];
         return {
           ...i,
           image_url: product?.image_url || null,
@@ -2998,6 +3015,9 @@ app.post('/api/admin/sync/products', authMiddleware, requireBackendPermission(['
     const elapsed = Date.now() - startTime;
     logger.info(`商品同步完成: 新增 ${result.inserted} 条, 更新 ${result.updated} 条, 跳过 ${result.skipped} 条, 分类新增 ${result.categoriesInserted} 个, 已存在 ${result.categoriesExisting} 个, 耗时 ${elapsed}ms`);
 
+    // 清除商品 Map 缓存
+    invalidateProductMapCache();
+
     res.json({
       success: true,
       data: {
@@ -3037,6 +3057,7 @@ app.post('/api/admin/products', authMiddleware, requireBackendPermission(['produ
       [name, category, imageUrl, price, stockTotal, stockAvailable, status, req.user.username, TimeUtil.nowDB(), TimeUtil.nowDB()]
     );
     operationLog.info(`创建商品: ${name}`);
+    invalidateProductMapCache();
     res.json({ success: true });
   } catch (err) {
     if (err.message.includes('UNIQUE constraint failed')) {
@@ -3055,6 +3076,7 @@ app.put('/api/admin/products/:name', authMiddleware, requireBackendPermission(['
       [category, imageUrl, price, stockTotal, stockAvailable, status, TimeUtil.nowDB(), req.params.name]
     );
     operationLog.info(`更新商品: ${req.params.name}`);
+    invalidateProductMapCache();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
@@ -3065,6 +3087,7 @@ app.delete('/api/admin/products/:name', authMiddleware, requireBackendPermission
   try {
     await enqueueRun('DELETE FROM products WHERE name = ?', [req.params.name]);
     operationLog.info(`删除商品: ${req.params.name}`);
+    invalidateProductMapCache();
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
