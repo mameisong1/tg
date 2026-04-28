@@ -2476,6 +2476,12 @@ app.get('/api/admin/orders', authMiddleware, requireBackendPermission(['cashierD
     const params = [];
 
     const conditions = [];
+    // 默认时间窗口：24 小时内（防止老页面未刷新返回全量数据）
+    if (!date && !date_start) {
+      const yesterday = TimeUtil.offsetDB(0, -24).split(' ')[0]; // YYYY-MM-DD
+      conditions.push("DATE(created_at) >= ?");
+      params.push(yesterday);
+    }
     if (date) {
       conditions.push("DATE(created_at) = ?");
       params.push(date);
@@ -2501,8 +2507,8 @@ app.get('/api/admin/orders', authMiddleware, requireBackendPermission(['cashierD
     }
 
     sql += ' ORDER BY created_at DESC';
-    // 查待处理时加 LIMIT，减少数据传输量（轮询和筛选用）
-    if (status === '待处理') {
+    // 非待处理查询加 LIMIT 50，减少数据传输量
+    if (status !== '待处理') {
       sql += ' LIMIT 50';
     }
 
