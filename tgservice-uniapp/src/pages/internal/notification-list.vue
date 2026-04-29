@@ -113,9 +113,7 @@ const loadNotifications = async () => {
   loading.value = true;
   
   try {
-    const res = await api.default({
-      url: `/notifications?page=${page.value}&pageSize=${pageSize.value}`
-    });
+    const res = await api.notifications.getList({ page: page.value, pageSize: pageSize.value });
     
     if (res.success) {
       const list = res.data.notifications || [];
@@ -146,10 +144,7 @@ const loadMore = () => {
 // 标记已阅
 const markAsRead = async (item) => {
   try {
-    const res = await api.default({
-      url: `/notifications/${item.id}/read`,
-      method: 'POST'
-    });
+    const res = await api.notifications.markAsRead(item.id);
     
     if (res.success) {
       item.is_read = 1;

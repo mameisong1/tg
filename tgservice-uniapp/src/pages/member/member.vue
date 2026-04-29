@@ -1393,7 +1393,7 @@ const loadRewardPenaltyCount = async () => {
 // 加载未阅通知数量（常用功能板块专用 - 所有后台用户）
 const loadNotificationUnreadCount = async () => {
   try {
-    const res = await api.default({ url: '/notifications/unread-count' })
+    const res = await api.notifications.getUnreadCount()
     if (res.success) {
       notificationUnreadCount.value = res.data.unread_count || 0
     }

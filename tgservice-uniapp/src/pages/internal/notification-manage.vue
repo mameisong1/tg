@@ -201,9 +201,7 @@ const canSend = computed(() => {
 // 加载可选员工
 const loadEmployees = async () => {
   try {
-    const res = await api.default({
-      url: '/notifications/manage/employees'
-    });
+    const res = await api.notifications.getEmployees();
     
     if (res.success) {
       // 合并助教和后台用户
@@ -279,15 +277,11 @@ const sendNotification = async () => {
       });
     }
     
-    const res = await api.default({
-      url: '/notifications/manage/send',
-      method: 'POST',
-      data: {
-        title: form.value.title.trim(),
-        content: form.value.content.trim(),
-        recipient_type: form.value.recipient_type,
-        recipients: form.value.recipient_type === 'selected' ? recipients : []
-      }
+    const res = await api.notifications.send({
+      title: form.value.title.trim(),
+      content: form.value.content.trim(),
+      recipient_type: form.value.recipient_type,
+      recipients: form.value.recipient_type === 'selected' ? recipients : []
     });
     
     if (res.success) {
@@ -316,9 +310,7 @@ const switchToList = () => {
 // 加载已发送列表
 const loadSentNotifications = async () => {
   try {
-    const res = await api.default({
-      url: '/notifications/manage/list'
-    });
+    const res = await api.notifications.getSentList();
     
     if (res.success) {
       sentNotifications.value = res.data.notifications || [];
@@ -333,9 +325,7 @@ const showRecipients = async (item) => {
   currentNotification.value = item;
   
   try {
-    const res = await api.default({
-      url: `/notifications/manage/${item.id}/recipients`
-    });
+    const res = await api.notifications.getRecipients(item.id);
     
     if (res.success) {
       recipients.value = res.data.recipients || [];

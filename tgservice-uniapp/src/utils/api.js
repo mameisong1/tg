@@ -264,6 +264,24 @@ export const guestRankings = {
   removeExempt: (coachNo) => request({ url: `/guest-rankings/exempt/${coachNo}`, method: 'DELETE' })
 }
 
+// ========== 通知管理 ==========
+export const notifications = {
+  // 获取我的通知列表
+  getList: (params) => request({ url: '/notifications', data: params }),
+  // 获取未阅数量
+  getUnreadCount: () => request({ url: '/notifications/unread-count' }),
+  // 标记已阅
+  markAsRead: (id) => request({ url: `/notifications/${id}/read`, method: 'POST' }),
+  // 发送通知
+  send: (data) => request({ url: '/notifications/manage/send', method: 'POST', data }),
+  // 获取已发送列表
+  getSentList: (params) => request({ url: '/notifications/manage/list', data: params }),
+  // 获取接收者详情
+  getRecipients: (id) => request({ url: `/notifications/manage/${id}/recipients` }),
+  // 获取可选员工列表
+  getEmployees: (params) => request({ url: '/notifications/manage/employees', data: params })
+}
+
 // API接口
 export default {
   // 首页
@@ -493,5 +511,6 @@ export default {
   rewardPenalty,
   leaveCalendar,
   attendanceReview,
-  guestRankings
+  guestRankings,
+  notifications
 }
