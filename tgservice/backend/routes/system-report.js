@@ -96,8 +96,9 @@ router.get('/cron-logs', async (req, res) => {
         const params = [];
 
         if (taskName) {
-            sql += ' AND task_name = ?';
-            params.push(taskName);
+            // 支持 task_name 精确匹配 或 task_type 类型匹配
+            sql += ' AND (task_name = ? OR task_type = ?)';
+            params.push(taskName, taskName);
         }
         if (status) {
             sql += ' AND status = ?';
