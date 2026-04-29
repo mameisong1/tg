@@ -783,6 +783,9 @@ const goBack = () => {
 .list-section {
   height: calc(100vh - 44px - 60px);
   padding: 15px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .sent-item {
@@ -791,6 +794,9 @@ const goBack = () => {
   padding: 15px;
   margin-bottom: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .sent-title {
@@ -799,6 +805,9 @@ const goBack = () => {
   font-weight: 500;
   margin-bottom: 8px;
   display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sent-content {
@@ -810,12 +819,15 @@ const goBack = () => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  word-break: break-all;
 }
 
 .sent-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .sent-time {
@@ -826,6 +838,7 @@ const goBack = () => {
 .sent-stats {
   display: flex;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .stat-total, .stat-unread {

@@ -206,6 +206,9 @@ const goBack = () => {
 .page {
   min-height: 100vh;
   background: linear-gradient(180deg, #0a0a0f 0%, #1a1a2e 100%);
+  width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .fixed-header {
@@ -259,6 +262,9 @@ const goBack = () => {
 .notification-list {
   height: calc(100vh - 44px);
   padding: 15px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .notification-item {
@@ -267,6 +273,9 @@ const goBack = () => {
   padding: 15px;
   margin-bottom: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .notification-item.unread {
@@ -286,6 +295,9 @@ const goBack = () => {
   color: #fff;
   font-weight: 500;
   flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .new-badge {
@@ -305,12 +317,15 @@ const goBack = () => {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  word-break: break-all;
 }
 
 .item-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .item-sender {
@@ -391,6 +406,8 @@ const goBack = () => {
   border-radius: 16px;
   padding: 20px;
   border: 1px solid rgba(212, 175, 55, 0.3);
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .modal-title {
