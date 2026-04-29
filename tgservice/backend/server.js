@@ -4732,27 +4732,51 @@ app.post('/api/admin/sync/tables', authMiddleware, requireBackendPermission(['vi
       return '接待中';
     };
 
-    // 事务包裹: 所有更新在一个 BEGIN/COMMIT 内执行
+    // 事务包裹: 批量更新减少 writeQueue 入队次数
     const result = await runInTransaction(async (tx) => {
+      const nowDB = TimeUtil.nowDB();
       let tablesUpdated = 0;
       let vipRoomsUpdated = 0;
 
-      // 更新 tables 表
-      for (const table of tables) {
-        const dbStatus = convertStatus(table.status);
-        const r = await tx.run(
-          `UPDATE tables SET status = ?, updated_at = ? WHERE name = ?`,
-          [dbStatus, TimeUtil.nowDB(), table.name]
-        );
-        if (r.changes > 0) tablesUpdated++;
+      // ===== 1. 批量更新 tables 表 (CASE WHEN，单次 SQL) =====
+      if (tables.length > 0) {
+        // 构建 CASE WHEN 条件
+        const caseWhenStatus = tables.map(() => `WHEN ? THEN ?`).join(' ');
+        const caseWhenTime = tables.map(() => `WHEN ? THEN ?`).join(' ');
+        const namesIn = tables.map(() => `?`).join(',');
+        
+        const tablesUpdateSql = `
+          UPDATE tables SET 
+            status = CASE name ${caseWhenStatus} ELSE status END,
+            updated_at = CASE name ${caseWhenTime} ELSE updated_at END
+          WHERE name IN (${namesIn})
+        `;
+        
+        // 构建参数数组
+        // 第一组 CASE: name, status
+        // 第二组 CASE: name, updated_at
+        // 第三组 WHERE IN: name
+        const tablesParams = [];
+        tables.forEach(t => {
+          tablesParams.push(t.name, convertStatus(t.status));
+        });
+        tables.forEach(t => {
+          tablesParams.push(t.name, nowDB);
+        });
+        tables.forEach(t => {
+          tablesParams.push(t.name);
+        });
+        
+        const tablesResult = await tx.run(tablesUpdateSql, tablesParams);
+        tablesUpdated = tablesResult.changes;
       }
 
-      // 更新 vip_rooms 表(name 匹配台桌名前缀,与脚本逻辑一致)
+      // ===== 2. 更新 vip_rooms 表 (保持循环，前缀匹配逻辑复杂) =====
       for (const table of tables) {
         const dbStatus = convertStatus(table.status);
         const r = await tx.run(
           `UPDATE vip_rooms SET status = ?, updated_at = ? WHERE name LIKE ? || '%'`,
-          [dbStatus, TimeUtil.nowDB(), table.name]
+          [dbStatus, nowDB, table.name]
         );
         if (r.changes > 0) vipRoomsUpdated += r.changes;
       }
