@@ -128,10 +128,19 @@
     <!-- Tab: Cron 日志 -->
     <div class="tab-content" id="tab-cronLogs">
       <div class="filter-bar">
-        <div class="filter-group" id="cronLogTaskFilter">
+        <div class="filter-group" id="cronLogTaskFilter" style="flex-wrap:wrap;">
           <button class="btn btn-outline active" data-task="" onclick="setCronLogTask('')">全部任务</button>
-          <button class="btn btn-outline" data-task="end_lejuan" onclick="setCronLogTask('end_lejuan')">结束乐捐</button>
+          <button class="btn btn-outline" data-task="end_lejuan_morning" onclick="setCronLogTask('end_lejuan_morning')">结束乐捐(早班)</button>
+          <button class="btn btn-outline" data-task="end_lejuan_evening" onclick="setCronLogTask('end_lejuan_evening')">结束乐捐(晚班)</button>
           <button class="btn btn-outline" data-task="sync_reward_penalty" onclick="setCronLogTask('sync_reward_penalty')">奖罚同步</button>
+          <button class="btn btn-outline" data-task="lock_guest_invitation_morning" onclick="setCronLogTask('lock_guest_invitation_morning')">约客锁定(早班)</button>
+          <button class="btn btn-outline" data-task="lock_guest_invitation_evening" onclick="setCronLogTask('lock_guest_invitation_evening')">约客锁定(晚班)</button>
+          <button class="btn btn-outline" data-task="guest_ranking_morning" onclick="setCronLogTask('guest_ranking_morning')">门迎排序(早班)</button>
+          <button class="btn btn-outline" data-task="guest_ranking_evening" onclick="setCronLogTask('guest_ranking_evening')">门迎排序(晚班)</button>
+          <button class="btn btn-outline" data-task="guest_ranking_midnight" onclick="setCronLogTask('guest_ranking_midnight')">门迎排序(清空)</button>
+          <button class="btn btn-outline" data-task="auto_off_table_independent_light" onclick="setCronLogTask('auto_off_table_independent_light')">关台桌无关灯</button>
+          <button class="btn btn-outline" data-task="auto_off_table_independent_ac" onclick="setCronLogTask('auto_off_table_independent_ac')">关台桌无关空调</button>
+          <button class="btn btn-outline" data-task="reset_water_board_status" onclick="setCronLogTask('reset_water_board_status')">重置水牌状态</button>
         </div>
         <div class="filter-group">
           <button class="btn btn-outline active" data-status="" onclick="setCronLogStatus('')">全部状态</button>
