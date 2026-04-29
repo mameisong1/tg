@@ -1284,6 +1284,7 @@ module.exports = {
     getCronLogs,
     toggleTask,
     calcNextRun,
+    logCron,
     // 内部方法（供测试）
     taskEndLejuan,
     taskSyncRewardPenalty,
