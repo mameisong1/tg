@@ -55,13 +55,22 @@
           <!-- 筛选按钮 -->
           <view class="filter-bar">
             <view class="filter-label">助教级别：</view>
+            <view class="filter-btn" :class="{ active: levelFilter === 'none' }" @click="setLevelFilter('none')">不显示</view>
             <view class="filter-btn" :class="{ active: levelFilter === '' }" @click="setLevelFilter('')">全部</view>
             <view class="filter-btn" v-for="lv in coachLevels" :key="lv" :class="{ active: levelFilter === lv }" @click="setLevelFilter(lv)">{{ lv }}</view>
           </view>
           <view class="filter-bar" v-if="adminRoles.length > 0">
             <view class="filter-label">后台角色：</view>
+            <view class="filter-btn" :class="{ active: roleFilter === 'none' }" @click="setRoleFilter('none')">不显示</view>
             <view class="filter-btn" :class="{ active: roleFilter === '' }" @click="setRoleFilter('')">全部</view>
             <view class="filter-btn" v-for="r in adminRoles" :key="r" :class="{ active: roleFilter === r }" @click="setRoleFilter(r)">{{ r }}</view>
+          </view>
+          
+          <!-- 全选按钮 -->
+          <view class="select-actions">
+            <view class="action-btn" @click="selectAllFiltered">全选当前</view>
+            <view class="action-btn" @click="clearSelection">取消全选</view>
+            <text class="selected-count">已选择 {{ selectedEmployeeIds.length }} 人</text>
           </view>
           
           <!-- 员工列表 -->
@@ -76,9 +85,6 @@
               </view>
             </view>
           </scroll-view>
-          
-          <!-- 已选人数 -->
-          <text class="selected-count">已选择 {{ selectedEmployeeIds.length }} 人</text>
         </view>
       </view>
       
@@ -192,13 +198,15 @@ const filteredEmployees = computed(() => {
       const idMatch = emp.employee_id && emp.employee_id.includes(kw);
       if (!nameMatch && !idMatch) return false;
     }
-    // 级别过滤（助教）
-    if (levelFilter.value && emp.type === 'coach' && emp.level !== levelFilter.value) {
-      return false;
+    // 助教过滤
+    if (emp.type === 'coach') {
+      if (levelFilter.value === 'none') return false;  // 不显示助教
+      if (levelFilter.value && emp.level !== levelFilter.value) return false;  // 级别筛选
     }
-    // 角色过滤（后台用户）
-    if (roleFilter.value && emp.type === 'admin' && emp.role !== roleFilter.value) {
-      return false;
+    // 后台用户过滤
+    if (emp.type === 'admin') {
+      if (roleFilter.value === 'none') return false;  // 不显示后台
+      if (roleFilter.value && emp.role !== roleFilter.value) return false;  // 角色筛选
     }
     return true;
   });
@@ -315,6 +323,20 @@ const toggleEmployee = (emp) => {
   } else {
     selectedEmployeeIds.value.push(emp.id);
   }
+};
+
+// 全选当前筛选结果
+const selectAllFiltered = () => {
+  filteredEmployees.value.forEach(emp => {
+    if (!selectedEmployeeIds.value.includes(emp.id)) {
+      selectedEmployeeIds.value.push(emp.id);
+    }
+  });
+};
+
+// 取消全选
+const clearSelection = () => {
+  selectedEmployeeIds.value = [];
 };
 
 // 发送通知
@@ -596,6 +618,9 @@ const goBack = () => {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 8px;
   padding: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .search-input {
@@ -633,6 +658,28 @@ const goBack = () => {
 .filter-btn.active {
   background: rgba(212, 175, 55, 0.2);
   color: #d4af37;
+}
+
+/* 全选按钮区域 */
+.select-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.action-btn {
+  padding: 6px 12px;
+  background: rgba(212, 175, 55, 0.15);
+  border-radius: 4px;
+  font-size: 12px;
+  color: #d4af37;
+}
+
+.selected-count {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-left: auto;
 }
 
 .employee-list {
@@ -684,14 +731,6 @@ const goBack = () => {
 .emp-extra {
   font-size: 12px;
   color: rgba(255, 255, 255, 0.5);
-}
-
-.selected-count {
-  font-size: 14px;
-  color: #d4af37;
-  margin-top: 10px;
-  text-align: center;
-  display: block;
 }
 
 /* 发送按钮 */
