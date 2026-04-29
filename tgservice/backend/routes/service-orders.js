@@ -121,11 +121,11 @@ router.get('/', auth.required, requireBackendPermission(['serviceOrder']), async
       params.push(date);
     }
     if (date_start) {
-      sql += ' AND DATE(created_at) >= ?';
+      sql += ' AND created_at >= ?';
       params.push(date_start);
     }
     if (date_end) {
-      sql += ' AND DATE(created_at) <= ?';
+      sql += ' AND created_at <= ?';
       params.push(date_end);
     }
     

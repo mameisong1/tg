@@ -2599,11 +2599,11 @@ app.get('/api/admin/orders', authMiddleware, requireBackendPermission(['cashierD
       params.push(date);
     }
     if (date_start) {
-      conditions.push("DATE(created_at) >= ?");
+      conditions.push("created_at >= ?");
       params.push(date_start);
     }
     if (date_end) {
-      conditions.push("DATE(created_at) <= ?");
+      conditions.push("created_at <= ?");
       params.push(date_end);
     }
     if (status && status !== '全部') {

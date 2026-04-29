@@ -245,11 +245,11 @@ router.get('/', auth.required, requireBackendPermission(['cashierDashboard']), a
       params.push(date);
     }
     if (date_start) {
-      sql += ' AND DATE(t.created_at) >= ?';
+      sql += ' AND t.created_at >= ?';
       params.push(date_start);
     }
     if (date_end) {
-      sql += ' AND DATE(t.created_at) <= ?';
+      sql += ' AND t.created_at <= ?';
       params.push(date_end);
     }
     

@@ -1,0 +1,9 @@
+{
+  "qaRequirement": "台桌状态同步和系统通知相关改造：\n1. 台桌状态同步脚本改造：成功同步后写Cron日志（含开台数量、自动关灯数量、自动关空调数量）；失败时新增接口提交错误信息写Cron日志；Admin后台Cron日志板块新增台桌状态同步日志过滤检索。\n2. 系统通知消息发送：系统异常时自动发送通知给所有管理员账号（后台用户表管理员权限），包括台桌状态同步异常、cron-scheduler批处理执行异常、计时器任务执行异常。",
+  "acceptanceFocus": "1. 台桌同步成功/失败均写入Cron日志 2. Admin后台可按类型筛选台桌同步日志 3. 系统异常自动发通知给管理员 4. 管理员能在通知列表看到系统通知",
+  "workDir": "/TG/temp/QA-20260429-3",
+  "designAuditRound": 0,
+  "testCasesAuditRound": 0,
+  "fixRound": 0,
+  "currentStep": "audit-design"
+}
