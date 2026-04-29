@@ -1,0 +1,13 @@
+{
+  "qaRequirement": "通知功能的开发：\n1. 通知功能：店长/助教管理可以把通知消息发送给所有员工（未离职助教+所有后台用户）。系统可以给所有管理员发送异常通知（台桌同步异常、批处理异常、计时器任务异常）。通知状态有已阅/未阅两种。\n2. 通知查阅：前台H5常用功能板块新增通知图标，权限所有员工，角标显示未阅数量，通知列表按未阅优先+发送时间倒序，未阅消息有New图标，可点已阅按钮（已阅不可改回未阅）。\n3. 通知管理：前台H5管理功能板块新增通知管理按钮，权限店长/助教管理/管理员。包含：\n   a) 通知发送板块：可针对具体员工或全员发送，员工选择器支持复选/搜索（姓名/艺名/工号），助教级别筛选、后台用户角色筛选。\n   b) 通知列表板块：显示已发送通知列表（发送时间倒序，最多50条），显示发送总人数和未阅人数，点击弹框显示未阅者姓名/工号/艺名。",
+  "acceptanceFocus": "1. 通知发送和查阅功能完整可用 2. 权限控制正确（店长/助教管理/管理员可发通知，所有员工可查阅） 3. 系统异常通知自动发送 4. 员工选择器搜索和筛选功能正常 5. 已阅/未阅状态管理正确",
+  "workDir": "/TG/temp/QA-20260429-2",
+  "designAuditRound": 1,
+  "testCasesAuditRound": 1,
+  "fixRound": 0,
+  "currentStep": null,
+  "designSummary": "通知功能技术设计方案 - 修正版\n\n新增文件(4个)：backend/routes/notifications.js, backend/services/notification-service.js, pages/internal/notification-list.vue, pages/internal/notification-manage.vue\n\n修改文件(4个)：backend/server.js(注册路由), backend/middleware/permission.js(通知管理权限), pages.json(2个新页面), pages/member/member.vue(通知图标+角标+管理按钮)\n\n数据库：新增notifications表+notification_recipients表+2个索引\n\nAPI接口(7个)：\n1. GET /api/notifications - 我的通知列表(分页,pageSize上限50)\n2. GET /api/notifications/unread-count - 未阅数量\n3. POST /api/notifications/:id/read - 标记已阅(不可改回)\n4. POST /api/notifications/manage/send - 发送通知(全员/指定)\n5. GET /api/notifications/manage/list - 已发送列表(分页,最多50条)\n6. GET /api/notifications/manage/:id/recipients - 接收者详情(LIMIT 50)\n7. GET /api/notifications/manage/employees - 可选员工(LIMIT 50,搜索+筛选)\n\n修正项：(1)3个查询接口加LIMIT上限50 (2)统一A/B的API路径和参数格式 (3)补充5个缺失测试场景",
+  "userConfirmedAt": "2026-04-29T05:16:07.008Z",
+  "userConfirmedBy": "马哥",
+  "qaReportPath": "/TG/temp/QA-20260429-2/qa-report.md"
+}

@@ -365,21 +365,21 @@ router.get('/manage/list', authMiddleware, canManageNotification, async (req, re
     const pageSize = Math.min(parseInt(req.query.pageSize) || 50, 50); // LIMIT上限50
     const offset = (page - 1) * pageSize;
 
-    // 查询已发送通知（当前用户发送的）
+    // 查询所有管理者发送的通知（排除系统自动发送）
     const notifications = await dbAll(`
       SELECT id, title, content, sender_name, created_at, total_recipients, read_count
       FROM notifications
-      WHERE sender_type = 'admin' AND sender_id = ?
+      WHERE sender_type = 'admin'
       ORDER BY created_at DESC
       LIMIT ? OFFSET ?
-    `, [req.user.username, pageSize, offset]);
+    `, [pageSize, offset]);
 
     // 查询总数
     const totalRow = await dbGet(`
       SELECT COUNT(*) as total
       FROM notifications
-      WHERE sender_type = 'admin' AND sender_id = ?
-    `, [req.user.username]);
+      WHERE sender_type = 'admin'
+    `);
 
     res.json({
       success: true,
