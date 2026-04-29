@@ -90,7 +90,7 @@ router.get('/timer-logs', async (req, res) => {
  */
 router.get('/cron-logs', async (req, res) => {
     try {
-        const { taskName, status, limit = 50 } = req.query;
+        const { taskName, taskType, status, limit = 50 } = req.query;
 
         let sql = 'SELECT * FROM cron_log WHERE 1=1';
         const params = [];
@@ -100,13 +100,17 @@ router.get('/cron-logs', async (req, res) => {
             sql += ' AND (task_name = ? OR task_type = ?)';
             params.push(taskName, taskName);
         }
+        if (taskType) {
+            sql += ' AND task_type = ?';
+            params.push(taskType);
+        }
         if (status) {
             sql += ' AND status = ?';
             params.push(status);
         }
 
         sql += ' ORDER BY id DESC LIMIT ?';
-        params.push(parseInt(limit));
+        params.push(parseInt(limit) || 50);
 
         const logs = await all(sql, params);
 

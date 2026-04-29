@@ -9,6 +9,7 @@
 
 const { all, get, enqueueRun, runInTransaction } = require('../db');
 const TimeUtil = require('../utils/time');
+const { sendSystemNotificationToAdmins } = require('../routes/notifications');
 
 // 内存中的定时器 Map<timer_id, { timerId, type, recordId, execTime, coachInfo }>
 const activeTimers = {};
@@ -86,6 +87,21 @@ async function executeTimer(timerId, timerType, recordId, callback) {
             error: err.message
         });
         console.error(`[TimerManager] ${timerType} 计时器 ${timerId} 执行失败:`, err);
+
+        // 发送系统通知
+        try {
+            const coachInfo = activeTimers[timerId] ? activeTimers[timerId].coachInfo : {};
+            const coachDesc = coachInfo.stage_name
+                ? `（助教: ${coachInfo.stage_name}${coachInfo.employee_id ? ', 工号: ' + coachInfo.employee_id : ''}）`
+                : '';
+            await sendSystemNotificationToAdmins(
+                '计时器任务执行异常',
+                `计时器 ${timerId} (${timerType}) 执行失败: ${err.message.substring(0, 200)}${coachDesc}`,
+                'timer_error'
+            );
+        } catch (notifyErr) {
+            console.error('[TimerManager] 发送异常通知失败:', notifyErr.message);
+        }
     }
 
     delete activeTimers[timerId];

@@ -89,12 +89,16 @@ const systemConfigRouter = require('./routes/system-config');
 
 // 通知管理路由
 const notificationsRouter = require('./routes/notifications');
+const { sendSystemNotificationToAdmins } = require('./routes/notifications');
 
 // 智能开关路由模块
 const { router: switchRouter, triggerAutoOffIfEligible } = require('./routes/switch-routes');
 
 // 智能空调路由模块（新增）
 const { router: acRouter, triggerAutoOffACIfEligible } = require('./routes/ac-routes');
+
+// Cron 日志记录函数
+const { logCron } = require('./services/cron-scheduler');
 
 // 系统报告路由
 const systemReportRouter = require('./routes/system-report');
@@ -2363,6 +2367,52 @@ app.post('/api/device/visit', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     logger.error(`记录设备访问失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 台桌同步错误上报接口（无需认证，由同步脚本调用）
+app.post('/api/admin/sync/tables/error', async (req, res) => {
+  try {
+    const { error_message, tablesCount, elapsedMs } = req.body;
+
+    if (!error_message) {
+      return res.status(400).json({ error: '缺少错误信息' });
+    }
+
+    const now = TimeUtil.nowDB();
+    const details = JSON.stringify({
+      tablesCount: tablesCount || 0,
+      elapsedMs: elapsedMs || 0,
+      source: 'sync-tables-status.js'
+    });
+
+    // 写入 Cron 日志（status='failed'）
+    await logCron(
+      'table_sync',
+      'table_sync',
+      'failed',
+      0,
+      details,
+      error_message.substring(0, 500), // 截断过长错误信息
+      now,
+      now
+    );
+
+    // 发送系统通知给所有管理员
+    try {
+      await sendSystemNotificationToAdmins(
+        '台桌状态同步异常',
+        `台桌状态同步失败，错误：${error_message.substring(0, 200)}`,
+        'table_sync_error'
+      );
+    } catch (notifyErr) {
+      logger.error(`发送同步异常通知失败: ${notifyErr.message}`);
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    logger.error(`台桌同步错误上报失败: ${err.message}`);
     res.status(500).json({ error: '服务器错误' });
   }
 });
@@ -4724,6 +4774,37 @@ app.post('/api/admin/sync/tables', authMiddleware, requireBackendPermission(['vi
     if (autoOffACResult.triggered) {
       logger.info(`[自动关空调触发] ${JSON.stringify(autoOffACResult)}`);
     }
+
+    // === 新增：计算开台数量 ===
+    const openCount = tables.filter(t => t.status === '接待中').length;
+
+    // === 新增：获取自动关灯/关空调数量 ===
+    const autoOffLightCount = (autoOffResult && autoOffResult.triggered && autoOffResult.turnedOffCount) || 0;
+    const autoOffACCount = (autoOffACResult && autoOffACResult.triggered && autoOffACResult.turnedOffCount) || 0;
+
+    // === 新增：写入 Cron 日志 ===
+    const now = TimeUtil.nowDB();
+    const details = JSON.stringify({
+      tablesCount: tables.length,
+      tablesUpdated: result.tablesUpdated,
+      vipRoomsUpdated: result.vipRoomsUpdated,
+      openCount: openCount,
+      autoOffLightCount: autoOffLightCount,
+      autoOffACCount: autoOffACCount,
+      autoOffTriggered: autoOffResult.triggered,
+      autoOffACTriggered: autoOffACResult.triggered
+    });
+
+    await logCron(
+      'table_sync',      // task_name
+      'table_sync',      // task_type
+      'success',         // status
+      result.tablesUpdated, // records_affected
+      details,           // details (JSON 格式)
+      null,              // error
+      now,               // started_at
+      now                // finished_at
+    );
 
     res.json({
       success: true,

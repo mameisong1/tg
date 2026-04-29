@@ -523,4 +523,57 @@ router.get('/manage/employees', authMiddleware, canManageNotification, async (re
   }
 });
 
+// ========== 系统通知辅助函数 ==========
+
+/**
+ * 发送系统通知给所有管理员
+ * @param {string} title - 通知标题
+ * @param {string} content - 通知内容
+ * @param {string} errorType - 错误类型: 'table_sync_error' | 'cron_error' | 'timer_error'
+ * @returns {Promise<{notificationId, recipientCount}>}
+ */
+async function sendSystemNotificationToAdmins(title, content, errorType) {
+  // 1. 查询所有管理员（role IN ('店长', '助教管理', '管理员')）
+  const admins = await dbAll(`
+    SELECT username, name, role
+    FROM admin_users
+    WHERE role IN ('店长', '助教管理', '管理员')
+    LIMIT 50
+  `);
+
+  if (!admins || admins.length === 0) {
+    console.warn('[SystemNotification] 无管理员用户，跳过通知');
+    return { notificationId: null, recipientCount: 0 };
+  }
+
+  const now = TimeUtil.nowDB();
+
+  // 2. 使用 runInTransaction 创建通知 + 批量插入接收者
+  const notificationId = await runInTransaction(async (tx) => {
+    // 创建通知记录
+    const result = await tx.run(`
+      INSERT INTO notifications (title, content, sender_type, sender_id, sender_name, 
+                                 notification_type, error_type, created_at, total_recipients)
+      VALUES (?, ?, 'system', 'system', '系统', ?, ?, ?, ?)
+    `, [title, content, 'system', errorType, now, admins.length]);
+
+    const nid = result.lastID;
+
+    // 3. 批量插入接收者记录
+    for (const admin of admins) {
+      await tx.run(`
+        INSERT INTO notification_recipients (notification_id, recipient_type, recipient_id, 
+                                             recipient_name, recipient_employee_id)
+        VALUES (?, 'admin', ?, ?, NULL)
+      `, [nid, admin.username, admin.name || admin.username]);
+    }
+
+    return nid;
+  });
+
+  console.log(`[SystemNotification] 发送系统通知(${errorType})给 ${admins.length} 位管理员, ID: ${notificationId}`);
+  return { notificationId, recipientCount: admins.length };
+}
+
 module.exports = router;
+module.exports.sendSystemNotificationToAdmins = sendSystemNotificationToAdmins;

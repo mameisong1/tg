@@ -1073,6 +1073,27 @@ async function main() {
     const elapsed = Date.now() - startTime;
     writeSyncStatus(false, 0, err.message);
     
+    // 调用错误上报接口
+    try {
+      const apiUrl = process.env.TGSERVICE_API_URL || 'http://127.0.0.1:8081';
+      const response = await fetch(`${apiUrl}/api/admin/sync/tables/error`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          error_message: err.message,
+          tablesCount: 0,
+          elapsedMs: elapsed
+        })
+      });
+      if (response.ok) {
+        log('错误已上报到服务器');
+      } else {
+        log(`错误上报失败: HTTP ${response.status}`);
+      }
+    } catch (reportErr) {
+      log(`错误上报请求失败: ${reportErr.message}`);
+    }
+    
     // 完整错误日志输出
     log('=== 同步失败 ===');
     log(`错误类型: ${err.name}`);

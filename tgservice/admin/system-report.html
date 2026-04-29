@@ -128,6 +128,18 @@
     <!-- Tab: Cron 日志 -->
     <div class="tab-content" id="tab-cronLogs">
       <div class="filter-bar">
+        <div class="filter-group">
+          <select id="cronLogTaskTypeFilter" onchange="filterCronLogs()" style="padding:8px 12px;border-radius:6px;background:rgba(20,20,30,0.8);border:1px solid rgba(255,255,255,0.1);color:#fff;font-size:13px;">
+            <option value="">全部类型</option>
+            <option value="table_sync">台桌同步</option>
+            <option value="end_lejuan">结束乐捐</option>
+            <option value="sync_reward_penalty">奖罚同步</option>
+            <option value="lock_guest_invitation">锁定应约客</option>
+            <option value="guest_ranking">门迎排序</option>
+            <option value="auto_off_table_independent">自动关灯/空调</option>
+            <option value="reset_water_board_status">水牌状态重置</option>
+          </select>
+        </div>
         <div class="filter-group" id="cronLogTaskFilter" style="flex-wrap:wrap;">
           <button class="btn btn-outline active" data-task="" onclick="setCronLogTask('')">全部任务</button>
           <button class="btn btn-outline" data-task="end_lejuan_morning" onclick="setCronLogTask('end_lejuan_morning')">结束乐捐(早班)</button>
@@ -285,6 +297,7 @@
     // ==================== 全局变量 ====================
     var API_BASE = '/api';
     var currentCronLogTask = '';
+    var currentCronLogTaskType = '';
     var currentCronLogStatus = '';
     var currentTimerLogType = '';
     var currentActiveTimerType = '';
@@ -476,6 +489,26 @@
       }
     }
 
+    function setCronLogTaskType(taskType) {
+      currentCronLogTaskType = taskType;
+      var select = document.getElementById('cronLogTaskTypeFilter');
+      if (select) {
+        for (var i = 0; i < select.options.length; i++) {
+          if (select.options[i].value === taskType) {
+            select.selectedIndex = i;
+            break;
+          }
+        }
+      }
+      filterCronLogs();
+    }
+
+    function filterCronLogs() {
+      var taskType = document.getElementById('cronLogTaskTypeFilter').value;
+      currentCronLogTaskType = taskType;
+      loadCronLogs();
+    }
+
     function setCronLogStatus(status) {
       currentCronLogStatus = status;
       var btns = document.querySelectorAll('[data-status]');
@@ -492,6 +525,7 @@
     function loadCronLogs() {
       var params = [];
       if (currentCronLogTask) params.push('taskName=' + encodeURIComponent(currentCronLogTask));
+      if (currentCronLogTaskType) params.push('taskType=' + encodeURIComponent(currentCronLogTaskType));
       if (currentCronLogStatus) params.push('status=' + encodeURIComponent(currentCronLogStatus));
       params.push('limit=50');
 
@@ -512,6 +546,18 @@
             var log = logs[i];
             var statusClass = log.status === 'success' ? 'badge-success' : 'badge-failed';
             var statusText = log.status === 'success' ? '成功' : '失败';
+            var detailsDisplay = log.details || log.error || '-';
+            
+            // 解析 table_sync 的 details JSON，展示开台/关灯/关空调数量
+            if (log.task_type === 'table_sync' && log.details) {
+              try {
+                var d = JSON.parse(log.details);
+                detailsDisplay = '开台: ' + (d.openCount || 0) + ' | 关灯: ' + (d.autoOffLightCount || 0) + ' | 关空调: ' + (d.autoOffACCount || 0);
+              } catch (e) {
+                detailsDisplay = log.details;
+              }
+            }
+            
             html += '<tr>';
             html += '<td>' + log.id + '</td>';
             html += '<td>' + (log.task_name || '-') + '</td>';
@@ -519,7 +565,7 @@
             html += '<td>' + (log.records_affected || 0) + '</td>';
             html += '<td>' + (log.started_at || '-') + '</td>';
             html += '<td>' + (log.duration_ms || '-') + '</td>';
-            html += '<td>' + (log.details || log.error || '-') + '</td>';
+            html += '<td>' + escapeHtml(detailsDisplay) + '</td>';
             html += '</tr>';
           }
         }

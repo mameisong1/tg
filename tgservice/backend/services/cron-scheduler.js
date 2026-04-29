@@ -14,6 +14,7 @@ const http = require('http');
 const dingtalkService = require('./dingtalk-service');
 const { executeAutoOffTableIndependent } = require('./auto-off-lighting');
 const { executeAutoOffACTableIndependent } = require('./auto-off-ac');
+const { sendSystemNotificationToAdmins } = require('../routes/notifications');
 
 // Cron 任务执行间隔（毫秒）
 const CRON_CHECK_INTERVAL = 60 * 1000; // 每分钟检查一次
@@ -358,6 +359,17 @@ async function taskEndLejuan(shiftType) {
             lastStatus: 'failed',
             lastError: err.message
         });
+
+        // 发送系统通知
+        try {
+            await sendSystemNotificationToAdmins(
+                'Cron任务执行异常',
+                `定时任务 ${taskName} (${taskType}) 执行失败: ${err.message.substring(0, 200)}`,
+                'cron_error'
+            );
+        } catch (notifyErr) {
+            console.error('[CronScheduler] 发送异常通知失败:', notifyErr.message);
+        }
     }
 }
 
@@ -630,6 +642,17 @@ async function taskSyncRewardPenalty() {
             lastStatus: 'failed',
             lastError: err.message
         });
+
+        // 发送系统通知
+        try {
+            await sendSystemNotificationToAdmins(
+                'Cron任务执行异常',
+                `定时任务 ${taskName} (${taskType}) 执行失败: ${err.message.substring(0, 200)}`,
+                'cron_error'
+            );
+        } catch (notifyErr) {
+            console.error('[CronScheduler] 发送异常通知失败:', notifyErr.message);
+        }
     }
 }
 
@@ -746,6 +769,17 @@ async function taskLockGuestInvitation(shiftType) {
             lastStatus: 'failed',
             lastError: err.message
         });
+
+        // 发送系统通知
+        try {
+            await sendSystemNotificationToAdmins(
+                'Cron任务执行异常',
+                `定时任务 ${taskName} (${taskType}) 执行失败: ${err.message.substring(0, 200)}`,
+                'cron_error'
+            );
+        } catch (notifyErr) {
+            console.error('[CronScheduler] 发送异常通知失败:', notifyErr.message);
+        }
     }
 }
 
@@ -921,6 +955,17 @@ async function taskGuestRanking(shift, startRank, maxRank) {
             lastStatus: 'failed',
             lastError: err.message
         });
+
+        // 发送系统通知
+        try {
+            await sendSystemNotificationToAdmins(
+                'Cron任务执行异常',
+                `定时任务 ${taskName} (${taskType}) 执行失败: ${err.message.substring(0, 200)}`,
+                'cron_error'
+            );
+        } catch (notifyErr) {
+            console.error('[CronScheduler] 发送异常通知失败:', notifyErr.message);
+        }
     }
 }
 
@@ -977,6 +1022,17 @@ async function taskAutoOffTableIndependent(taskName) {
             lastStatus: 'failed',
             lastError: err.message
         });
+
+        // 发送系统通知
+        try {
+            await sendSystemNotificationToAdmins(
+                'Cron任务执行异常',
+                `定时任务 ${taskName} (auto_off_table_independent) 执行失败: ${err.message.substring(0, 200)}`,
+                'cron_error'
+            );
+        } catch (notifyErr) {
+            console.error('[CronScheduler] 发送异常通知失败:', notifyErr.message);
+        }
     }
 }
 
@@ -1063,6 +1119,17 @@ async function taskResetWaterBoardStatus() {
             lastStatus: 'failed',
             lastError: err.message
         });
+
+        // 发送系统通知
+        try {
+            await sendSystemNotificationToAdmins(
+                'Cron任务执行异常',
+                `定时任务 ${taskName} (${taskType}) 执行失败: ${err.message.substring(0, 200)}`,
+                'cron_error'
+            );
+        } catch (notifyErr) {
+            console.error('[CronScheduler] 发送异常通知失败:', notifyErr.message);
+        }
     }
 }
 
