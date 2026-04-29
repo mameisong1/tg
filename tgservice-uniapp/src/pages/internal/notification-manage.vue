@@ -602,7 +602,6 @@ const goBack = () => {
   width: 100%;
   box-sizing: border-box;
 }
-}
 
 .type-btn {
   flex: 1;
