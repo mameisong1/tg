@@ -314,6 +314,9 @@ const getCount = (status) => {
 }
 
 const groupedBoards = computed(() => {
+  // 显式依赖 guestRankingData，确保门迎数据加载后重新排序
+  const rankingData = guestRankingData.value
+  
   const groups = {}
   statusList.forEach(s => { groups[s] = [] })
   // 下班助教不参与独立分组，后续合并到空闲组

@@ -188,8 +188,9 @@ class GuestRankingService {
    * 打卡后排序
    * @param {string} coachNo - 打卡助教 coach_no
    * @param {string} shift - 班次
+   * @param {boolean} isLejuanReturn - 是否乐捐归来打卡
    */
-  async afterClockRank(coachNo, shift) {
+  async afterClockRank(coachNo, shift, isLejuanReturn = false) {
     await this.checkAndResetIfNewDay();
 
     const now = new Date(TimeUtil.nowDB() + '+08:00');
@@ -235,7 +236,15 @@ class GuestRankingService {
       return { rank: null, message: '该班次序号已满' };
     }
 
-    // 如果该助教已有旧序号，先删除
+    // 乐捐归来场景：检查是否已有旧序号
+    const oldRank = this._ranking[String(coachNo)];
+    if (isLejuanReturn && oldRank && oldRank >= startRank && oldRank <= maxRank) {
+      // 已有旧序号，保留不更新
+      console.log(`[GuestRanking] 乐捐归来保留旧序号: coach_no=${coachNo}, rank=${oldRank}`);
+      return { rank: oldRank, message: `保留原序号第${oldRank}位` };
+    }
+
+    // 其他场景：删除旧序号，分配新序号
     delete this._ranking[String(coachNo)];
 
     this._ranking[String(coachNo)] = newRank;

@@ -252,7 +252,8 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
       const currentHour = new Date(TimeUtil.nowDB() + '+08:00').getHours();
       if ((result.status === '早班空闲' && currentHour >= 14) ||
           (result.status === '晚班空闲' && currentHour >= 18)) {
-        const postData = JSON.stringify({ coachNo: result.coach_no, shift: result.shift });
+        const isLejuanReturn = result.oldStatus === '乐捐';
+        const postData = JSON.stringify({ coachNo: result.coach_no, shift: result.shift, isLejuanReturn });
         const options = {
           hostname: '127.0.0.1',
           port: parseInt(process.env.PORT) || (process.env.TGSERVICE_ENV === 'test' ? 8088 : 80),

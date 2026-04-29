@@ -85,12 +85,12 @@ router.post('/internal/after-clock', async (req, res) => {
       return res.status(403).json({ success: false, error: '仅允许内部调用' });
     }
 
-    const { coachNo, shift } = req.body;
+    const { coachNo, shift, isLejuanReturn } = req.body;
     if (!coachNo || !shift) {
       return res.status(400).json({ success: false, error: '缺少 coachNo 或 shift' });
     }
 
-    const result = await guestRankingService.afterClockRank(coachNo, shift);
+    const result = await guestRankingService.afterClockRank(coachNo, shift, isLejuanReturn);
     
     // 清除 Redis 缓存（排序数据变化了）
     await redisCache.delOne('guest_ranking_today');
