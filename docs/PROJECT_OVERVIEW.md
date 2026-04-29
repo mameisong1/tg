@@ -42,16 +42,16 @@
 ```
 
 ## 部署
-- **生产**: Docker `tgservice` 容器，8081/8083端口，`TGSERVICE_ENV=production`
+- **生产**: Docker `tgservice` 容器，/端口，`TGSERVICE_ENV=production`
 - **开发**: PM2（`tgservice-dev`/`tgservice-uniapp-dev`），8088/8089端口，`TGSERVICE_ENV=test`
 - 环境判断用 `TGSERVICE_ENV` 而非 `NODE_ENV`
 - Redis 独立容器，端口8090，数据持久化到 `/TG/run/redis-data`
 - 配置文件：`.config`（生产）、`.config.env`（开发）
 
 ## 访问地址
-- API: `http://localhost:8081`
-- 后台: `http://localhost:8081/frontend/index.html`
-- 健康检查: `http://localhost:8081/api/health`
+- API: `http://localhost:`
+- 后台: `http://localhost:/frontend/index.html`
+- 健康检查: `http://localhost:/api/health`
 - 默认管理员: tgadmin / mms633268
 
 ## 技术特点

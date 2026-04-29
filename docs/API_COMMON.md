@@ -1,7 +1,7 @@
 # API 公共文档
 
 ## 基本信息
-- 基础URL: `http://localhost:8081`
+- 基础URL: `http://localhost:`
 - 响应格式: JSON
 - 认证: JWT Token（后台管理需要）
 

@@ -1,6 +1,6 @@
 # API 前端接口文档（用户端）
 
-> 基础URL: `http://localhost:8081` | 响应格式: JSON
+> 基础URL: `http://localhost:` | 响应格式: JSON
 
 ## 公共
 | 方法 | 路径 | 说明 |

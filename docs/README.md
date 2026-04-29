@@ -41,14 +41,14 @@
 
 | 服务 | 地址 |
 |------|------|
-| 后端API | http://47.238.80.12:8081/api/ |
-| 后台管理 | http://47.238.80.12:8081/frontend/admin/ |
+| 后端API | http://47.238.80.12:/api/ |
+| 后台管理 | http://47.238.80.12:/frontend/admin/ |
 | UniApp H5 | 需单独启动，默认 localhost:5173 |
 
 ## 启动命令
 
 ```bash
-# 启动后端服务（端口8081）
+# 启动后端服务（端口）
 cd /TG/tgservice/backend && node server.js
 
 # 启动UniApp H5开发服务器
