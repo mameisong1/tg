@@ -87,6 +87,9 @@ const missingTableOutOrdersRouter = require('./routes/missing-table-out-orders')
 // 系统配置路由
 const systemConfigRouter = require('./routes/system-config');
 
+// 通知管理路由
+const notificationsRouter = require('./routes/notifications');
+
 // 智能开关路由模块
 const { router: switchRouter, triggerAutoOffIfEligible } = require('./routes/switch-routes');
 
@@ -428,6 +431,9 @@ app.use('/api/missing-table-out-orders', missingTableOutOrdersRouter);
 
 // 系统配置路由
 app.use('/api/system-config', systemConfigRouter);
+
+// 通知管理路由
+app.use('/api/notifications', notificationsRouter);
 
 // 系统报告
 app.use('/api/system-report', systemReportRouter);

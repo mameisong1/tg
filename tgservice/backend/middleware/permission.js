@@ -37,7 +37,8 @@ const PERMISSION_MATRIX = {
     switchDevices: true,
     tableDevices: true,
     switchScenes: true,
-    userManagement: true
+    userManagement: true,
+    notificationManagement: true
   },
   '店长': {
     menu: ['index', 'home', 'members', 'users', 'reward-penalty-stats', 'cashier-dashboard', 'products', 'vip-rooms', 'tables', 'categories', 'coaches'],
@@ -58,7 +59,8 @@ const PERMISSION_MATRIX = {
     switchDevices: false,
     tableDevices: false,
     switchScenes: false,
-    userManagement: true  // 可以管理用户,但不能授权管理员角色
+    userManagement: true,  // 可以管理用户,但不能授权管理员角色
+    notificationManagement: true
   },
   '助教管理': {
     menu: ['index', 'coaches', 'reward-penalty-stats', 'cashier-dashboard'],
@@ -79,7 +81,8 @@ const PERMISSION_MATRIX = {
     switchDevices: false,
     tableDevices: false,
     switchScenes: false,
-    userManagement: false
+    userManagement: false,
+    notificationManagement: true
   },
   '教练': {
     menu: [],
