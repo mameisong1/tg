@@ -138,6 +138,12 @@
             <text class="internal-btn-text">我的奖罚</text>
             <view class="badge" v-if="rewardPenaltyCount > 0">{{ rewardPenaltyCount }}</view>
           </view>
+          <!-- 通知：所有后台用户可用 -->
+          <view class="internal-btn" @click="navigateTo('/pages/internal/notification-list')">
+            <text class="internal-btn-icon">🔔</text>
+            <text class="internal-btn-text">通知</text>
+            <view class="badge" v-if="notificationUnreadCount > 0">{{ notificationUnreadCount }}</view>
+          </view>
         </view>
       </view>
     </view>
@@ -242,6 +248,11 @@
           <view class="internal-btn" @click="navigateTo('/pages/internal/ac-control')">
             <text class="internal-btn-icon">❄️</text>
             <text class="internal-btn-text">智能空调</text>
+          </view>
+          <!-- 通知管理：店长/助教管理/管理员可用 -->
+          <view class="internal-btn" @click="navigateTo('/pages/internal/notification-manage')">
+            <text class="internal-btn-icon">🔔</text>
+            <text class="internal-btn-text">通知管理</text>
           </view>
         </view>
       </view>
@@ -1328,6 +1339,7 @@ const restCount = ref(0)
 const lejuanCount = ref(0)
 const rewardPenaltyCount = ref(0)
 const attendanceReviewCount = ref(0)
+const notificationUnreadCount = ref(0)
 
 // === 业务追踪（使用统一的 errorReporter）===
 import errorReporter from '@/utils/error-reporter.js'
@@ -1378,6 +1390,18 @@ const loadRewardPenaltyCount = async () => {
   }
 }
 
+// 加载未阅通知数量（常用功能板块专用 - 所有后台用户）
+const loadNotificationUnreadCount = async () => {
+  try {
+    const res = await api.default({ url: '/notifications/unread-count' })
+    if (res.success) {
+      notificationUnreadCount.value = res.data.unread_count || 0
+    }
+  } catch (e) {
+    console.error('加载未阅通知数量失败:', e)
+  }
+}
+
 const getCoachPhoto = (coach) => {
   const photo = coach.photos && coach.photos[0]
   if (!photo) return '/static/avatar-default.png'
@@ -1408,6 +1432,7 @@ onMounted(() => {
   // 常用功能板块渲染时，加载奖罚角标
   if (showCommonFeatures.value) {
     loadRewardPenaltyCount()
+    loadNotificationUnreadCount()
   }
   
   // 管理功能板块渲染时，加载审批角标
@@ -1460,6 +1485,7 @@ onShow(() => {
   // 常用功能板块渲染时，加载奖罚角标
   if (showCommonFeatures.value) {
     loadRewardPenaltyCount()
+    loadNotificationUnreadCount()
   }
   
   // 管理功能板块渲染时，加载审批角标

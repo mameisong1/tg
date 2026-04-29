@@ -370,6 +370,24 @@
         "navigationBarTextStyle": "white",
         "navigationStyle": "custom"
       }
+    },
+    {
+      "path": "pages/internal/notification-list",
+      "style": {
+        "navigationBarTitleText": "通知列表",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/notification-manage",
+      "style": {
+        "navigationBarTitleText": "通知管理",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
     }
   ],
   "globalStyle": {
