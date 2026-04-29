@@ -447,6 +447,9 @@ const goBack = () => {
 .page {
   min-height: 100vh;
   background: linear-gradient(180deg, #0a0a0f 0%, #1a1a2e 100%);
+  width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .fixed-header {
@@ -533,10 +536,15 @@ const goBack = () => {
 .send-section {
   height: calc(100vh - 44px - 60px);
   padding: 0 15px;
+  box-sizing: border-box;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 .input-item {
   margin-bottom: 15px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .input-label {
@@ -553,6 +561,8 @@ const goBack = () => {
   padding: 12px;
   font-size: 14px;
   color: #fff;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .input-area {
@@ -564,6 +574,7 @@ const goBack = () => {
   color: #fff;
   height: 100px;
   width: 100%;
+  box-sizing: border-box;
 }
 
 .placeholder-text {
@@ -573,6 +584,8 @@ const goBack = () => {
 /* 接收者选择 */
 .recipient-section {
   margin-bottom: 15px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .section-title {
@@ -586,6 +599,9 @@ const goBack = () => {
   display: flex;
   gap: 10px;
   margin-bottom: 15px;
+  width: 100%;
+  box-sizing: border-box;
+}
 }
 
 .type-btn {
@@ -631,6 +647,8 @@ const goBack = () => {
   font-size: 14px;
   color: #fff;
   margin-bottom: 10px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .filter-bar {
@@ -639,6 +657,8 @@ const goBack = () => {
   margin-bottom: 10px;
   flex-wrap: wrap;
   align-items: center;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .filter-label {
@@ -666,6 +686,8 @@ const goBack = () => {
   align-items: center;
   gap: 10px;
   margin-bottom: 10px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .action-btn {
