@@ -239,7 +239,9 @@ export const leaveCalendar = {
   // 获取本月和下月休假日历统计
   getStats: (yearMonth) => request({ url: '/leave-calendar/stats', data: yearMonth ? { yearMonth } : {} }),
   // 获取指定日期的休息人数
-  getDayCount: (date) => request({ url: '/leave-calendar/day-count', data: { date } })
+  getDayCount: (date) => request({ url: '/leave-calendar/day-count', data: { date } }),
+  // 获取指定日期的请假/休息助教详情
+  getDayDetail: (date) => request({ url: '/leave-calendar/day-detail', data: { date } })
 }
 
 // ========== 打卡审查 ==========

@@ -20,7 +20,7 @@
           <view class="weekday-cell" v-for="d in weekdays" :key="d"><text>{{ d }}</text></view>
         </view>
         <view class="date-row" v-for="(row, ri) in currentMonthDays" :key="ri">
-          <view class="date-cell" v-for="(cell, ci) in row" :key="ci" :class="{ empty: !cell.day, today: cell.isToday }">
+          <view class="date-cell" v-for="(cell, ci) in row" :key="ci" :class="{ empty: !cell.day, today: cell.isToday, clickable: cell.day && cell.count > 0 }" @click="onDateClick(cell, true)">
             <text class="date-number" v-if="cell.day">{{ cell.day }}</text>
             <view class="date-badge" v-if="cell.day && cell.count > 0" :class="{ past: cell.isPast }">
               <text class="badge-number">{{ cell.count }}</text>
@@ -40,7 +40,7 @@
           <view class="weekday-cell" v-for="d in weekdays" :key="d"><text>{{ d }}</text></view>
         </view>
         <view class="date-row" v-for="(row, ri) in nextMonthDays" :key="ri">
-          <view class="date-cell" v-for="(cell, ci) in row" :key="ci" :class="{ empty: !cell.day }">
+          <view class="date-cell" v-for="(cell, ci) in row" :key="ci" :class="{ empty: !cell.day, clickable: cell.day && cell.count > 0 }" @click="onDateClick(cell, false)">
             <text class="date-number" v-if="cell.day">{{ cell.day }}</text>
             <view class="date-badge" v-if="cell.day && cell.count > 0" :class="{ past: cell.isPast }">
               <text class="badge-number">{{ cell.count }}</text>
@@ -52,7 +52,31 @@
 
     <!-- 说明 -->
     <view class="notice-section">
-      <text class="notice-text">角标数字表示当天已同意请假/休息的助教人数</text>
+      <text class="notice-text">角标数字表示当天已同意请假/休息的助教人数，点击可查看详情</text>
+    </view>
+
+    <!-- 详情弹窗 -->
+    <view class="detail-modal" v-if="showDetailModal" @click="closeModal">
+      <view class="modal-content" @click.stop>
+        <view class="modal-header">
+          <text class="modal-title">{{ selectedDate }} 休假详情</text>
+          <view class="close-btn" @click="closeModal"><text>✕</text></view>
+        </view>
+        <view class="modal-body" v-if="dayDetailList.length > 0">
+          <view class="detail-item" v-for="(item, idx) in dayDetailList" :key="idx">
+            <view class="item-info">
+              <text class="item-id">{{ item.employee_id }}</text>
+              <text class="item-name">{{ item.stage_name }}</text>
+            </view>
+            <view class="item-type" :class="item.type === '请假' ? 'leave' : 'rest'">
+              <text>{{ item.type }}</text>
+            </view>
+          </view>
+        </view>
+        <view class="modal-empty" v-else>
+          <text>当天无请假/休息助教</text>
+        </view>
+      </view>
     </view>
   </view>
 </template>
@@ -68,6 +92,11 @@ const weekdays = ['日', '一', '二', '三', '四', '五', '六']
 const currentMonth = ref({ yearMonth: '', days: {} })
 const nextMonth = ref({ yearMonth: '', days: {} })
 const todayStr = ref('')
+
+// 弹窗状态
+const showDetailModal = ref(false)
+const selectedDate = ref('')
+const dayDetailList = ref([])
 
 // 计算本月日历网格
 const currentMonthDays = computed(() => {
@@ -139,8 +168,38 @@ const loadCalendarStats = async () => {
   }
 }
 
-// 注意：日志上报已统一使用 errorReporter.track()
-// sendErrorLog 函数已移除
+// 点击日期
+const onDateClick = async (cell, isCurrentMonth) => {
+  if (!cell.day || cell.count === 0) return
+  
+  // 构建完整日期
+  const yearMonth = isCurrentMonth 
+    ? currentMonth.value.yearMonth 
+    : nextMonth.value.yearMonth
+  selectedDate.value = `${yearMonth}-${String(cell.day).padStart(2, '0')}`
+  
+  // 调用 API 获取详情
+  try {
+    uni.showLoading({ title: '加载中...' })
+    const res = await api.leaveCalendar.getDayDetail(selectedDate.value)
+    uni.hideLoading()
+    if (res.success) {
+      dayDetailList.value = res.data || []
+      showDetailModal.value = true
+    } else {
+      uni.showToast({ title: res.error || '加载失败', icon: 'none' })
+    }
+  } catch (e) {
+    uni.hideLoading()
+    uni.showToast({ title: '加载失败', icon: 'none' })
+  }
+}
+
+// 关闭弹窗
+const closeModal = () => {
+  showDetailModal.value = false
+  dayDetailList.value = []
+}
 
 const goBack = () => {
   const pages = getCurrentPages()
@@ -186,6 +245,7 @@ onMounted(() => {
 .date-row { display: flex; justify-content: space-around; margin-bottom: 4px; }
 .date-cell { width: 14.28%; height: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
 .date-cell.empty { }
+.date-cell.clickable { cursor: pointer; }
 .date-cell.today { background: rgba(212,175,55,0.2); border-radius: 8px; }
 .date-number { font-size: 14px; color: #fff; }
 .date-cell.today .date-number { color: #d4af37; font-weight: 600; }
@@ -196,4 +256,25 @@ onMounted(() => {
 
 .notice-section { margin: 16px; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; }
 .notice-text { font-size: 12px; color: rgba(255,255,255,0.6); text-align: center; }
+
+/* 弹窗样式 */
+.detail-modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+.modal-content { width: 85%; max-width: 360px; max-height: 60vh; background: rgba(20,20,30,0.95); border: 1px solid rgba(218,165,32,0.2); border-radius: 12px; overflow: hidden; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+.modal-title { font-size: 16px; color: #d4af37; font-weight: 600; }
+.close-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.1); border-radius: 14px; }
+.close-btn text { font-size: 14px; color: rgba(255,255,255,0.6); }
+.modal-body { padding: 12px 16px; max-height: 45vh; overflow-y: auto; }
+.detail-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+.detail-item:last-child { border-bottom: none; }
+.item-info { display: flex; gap: 12px; align-items: center; }
+.item-id { font-size: 14px; color: rgba(255,255,255,0.7); }
+.item-name { font-size: 14px; color: #fff; font-weight: 500; }
+.item-type { padding: 4px 12px; border-radius: 4px; }
+.item-type.leave { background: rgba(231,76,60,0.2); }
+.item-type.leave text { color: #e74c3c; font-size: 12px; }
+.item-type.rest { background: rgba(76,175,80,0.2); }
+.item-type.rest text { color: #4caf50; font-size: 12px; }
+.modal-empty { padding: 40px 20px; text-align: center; }
+.modal-empty text { color: rgba(255,255,255,0.5); font-size: 14px; }
 </style>

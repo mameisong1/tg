@@ -4401,6 +4401,63 @@ async function getLeaveCalendarDayCount(date) {
   return row ? row.count : 0;
 }
 
+
+/**
+ * GET /api/leave-calendar/day-detail
+ * 获取指定日期的请假/休息助教详情列表
+ * 参数：date（必填，如 2026-04-27）
+ * 返回：[{ employee_id, stage_name, type: '请假'/'休息' }]
+ */
+app.get('/api/leave-calendar/day-detail', authMiddleware, async (req, res) => {
+  try {
+    const { date } = req.query;
+    if (!date) {
+      return res.status(400).json({ success: false, error: '缺少日期参数' });
+    }
+    
+    const details = await getLeaveCalendarDayDetail(date);
+    
+    res.json({
+      success: true,
+      data: details
+    });
+  } catch (error) {
+    console.error('获取休假详情失败:', error);
+    res.status(500).json({ success: false, error: '获取休假详情失败' });
+  }
+});
+
+/**
+ * 辅助函数：获取指定日期的请假/休息助教详情
+ */
+async function getLeaveCalendarDayDetail(date) {
+  const sql = `
+    SELECT 
+      a.applicant_phone,
+      a.application_type,
+      c.employee_id,
+      c.stage_name
+    FROM applications a
+    LEFT JOIN coaches c ON a.applicant_phone = c.phone OR a.applicant_phone = c.employee_id
+    WHERE a.application_type IN ('请假申请', '休息申请')
+      AND a.status = 1
+      AND (
+        JSON_EXTRACT(a.extra_data, '$.leave_date') = ?
+        OR JSON_EXTRACT(a.extra_data, '$.rest_date') = ?
+      )
+    ORDER BY c.employee_id
+  `;
+  const params = [date, date];
+  const rows = await dbAll(sql, params);
+  
+  // 转换为前端需要的格式
+  return rows.map(row => ({
+    employee_id: row.employee_id || row.applicant_phone,
+    stage_name: row.stage_name || '未知',
+    type: row.application_type === '请假申请' ? '请假' : '休息'
+  }));
+}
+
 // =============== 台桌管理 API ===============
 
 // 汉字转拼音映射(扩展版)
