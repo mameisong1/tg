@@ -4771,14 +4771,55 @@ app.post('/api/admin/sync/tables', authMiddleware, requireBackendPermission(['vi
         tablesUpdated = tablesResult.changes;
       }
 
-      // ===== 2. 更新 vip_rooms 表 (保持循环，前缀匹配逻辑复杂) =====
-      for (const table of tables) {
-        const dbStatus = convertStatus(table.status);
-        const r = await tx.run(
-          `UPDATE vip_rooms SET status = ?, updated_at = ? WHERE name LIKE ? || '%'`,
-          [dbStatus, nowDB, table.name]
-        );
-        if (r.changes > 0) vipRoomsUpdated += r.changes;
+      // ===== 2. 批量更新 vip_rooms 表 (CASE WHEN，单次 SQL) =====
+      // 先查询所有 vip_rooms，确定每个包房应该更新成什么状态
+      const vipRoomsList = await tx.all('SELECT id, name FROM vip_rooms');
+      
+      if (vipRoomsList.length > 0) {
+        // 构建 vip_rooms 的状态映射
+        const vipRoomStatusMap = {};  // id -> status
+        const vipRoomTimeMap = {};    // id -> updated_at
+        
+        for (const vr of vipRoomsList) {
+          // 找到匹配的台桌前缀（台桌名是 vip_room name 的前缀）
+          for (const table of tables) {
+            if (vr.name.startsWith(table.name)) {
+              vipRoomStatusMap[vr.id] = convertStatus(table.status);
+              vipRoomTimeMap[vr.id] = nowDB;
+              break; // 一个 vip_room 只匹配一个台桌
+            }
+          }
+        }
+        
+        // 构建 CASE WHEN SQL（只更新有匹配的 vip_rooms）
+        const matchedIds = Object.keys(vipRoomStatusMap);
+        if (matchedIds.length > 0) {
+          const caseWhenStatus = matchedIds.map(() => `WHEN ? THEN ?`).join(' ');
+          const caseWhenTime = matchedIds.map(() => `WHEN ? THEN ?`).join(' ');
+          const idsIn = matchedIds.map(() => `?`).join(',');
+          
+          const vipRoomsUpdateSql = `
+            UPDATE vip_rooms SET 
+              status = CASE id ${caseWhenStatus} ELSE status END,
+              updated_at = CASE id ${caseWhenTime} ELSE updated_at END
+            WHERE id IN (${idsIn})
+          `;
+          
+          // 构建参数数组
+          const vipRoomsParams = [];
+          matchedIds.forEach(id => {
+            vipRoomsParams.push(parseInt(id), vipRoomStatusMap[id]);
+          });
+          matchedIds.forEach(id => {
+            vipRoomsParams.push(parseInt(id), vipRoomTimeMap[id]);
+          });
+          matchedIds.forEach(id => {
+            vipRoomsParams.push(parseInt(id));
+          });
+          
+          const vipRoomsResult = await tx.run(vipRoomsUpdateSql, vipRoomsParams);
+          vipRoomsUpdated = vipRoomsResult.changes;
+        }
       }
 
       return { tablesUpdated, vipRoomsUpdated };
