@@ -16,17 +16,20 @@ const WebSocket = require('ws');
 const fs = require('fs');
 const path = require('path');
 const { execSync, spawn } = require('child_process');
-const Database = require('better-sqlite3');
 
 // 配置
 const CDP_PORT = 9998;
 const TARGET_URL = 'http://admin.taikeduo.com/#/storeOverview/tableOverview';
 const AREAS = ['大厅区', 'TV区', '包厢区', '棋牌区', '虚拟区', '斯诺克区'];
-const DB_PATH = '/TG/tgservice/db/tgservice.db';
-const LOG_PATH = '/TG/tgservice/scripts/sync-tables-status.log';
-const SYNC_STATUS_PATH = '/TG/tgservice/scripts/sync-status.json';
+const LOG_PATH = '/TG/run/scripts/sync-tables-status.log';
 const CHROME_START_CMD = 'bash /root/chrome-sync';
 const CREDENTIALS_PATH = '/root/.openclaw/credentials.json';
+
+// API 配置
+// const API_BASE_URL = 'https://tg.tiangong.club/api';  // 测试环境
+const API_BASE_URL = 'https://tiangong.club/api';  // 生产环境
+const ADMIN_LOGIN_URL = `${API_BASE_URL}/admin/login`;
+const SYNC_TABLES_URL = `${API_BASE_URL}/admin/sync/tables`;
 
 // 随机停顿函数（防止操作过快导致网络异常）
 function randomSleep(minMs = 200, maxMs = 500) {
@@ -944,69 +947,79 @@ function parseTableData(text) {
   return result;
 }
 
-// 状态转换：空闲保持空闲，已暂停保持已暂停，其他统一为"接待中"
-function convertStatus(status) {
-  if (status === '空闲') return '空闲';
-  if (status === '已暂停') return '已暂停';
-  return '接待中';
-}
-
-// 写入同步状态文件
-function writeSyncStatus(success, tablesCount = 0, errorMsg = '') {
-  const status = {
-    success,
-    lastSyncTime: new Date().toISOString(),
-    lastSyncTimeLocal: new Date().toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' }),
-    tablesCount,
-    errorMsg
-  };
-  
+// 获取天宫国际 admin token
+async function getAdminToken() {
   try {
-    fs.writeFileSync(SYNC_STATUS_PATH, JSON.stringify(status, null, 2), 'utf8');
+    const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_PATH, 'utf8'));
+    const tgservice = credentials.tgservice_admin;
+    if (!tgservice) {
+      throw new Error('缺少天宫国际管理员凭证');
+    }
+    
+    const response = await fetch(ADMIN_LOGIN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: tgservice.username,
+        password: tgservice.password
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`登录失败: HTTP ${response.status}`);
+    }
+    
+    const data = await response.json();
+    if (!data.success || !data.token) {
+      throw new Error(`登录失败: ${data.error || '未知错误'}`);
+    }
+    
+    log(`获取 admin token 成功`);
+    return data.token;
   } catch (err) {
-    log(`写入状态文件失败: ${err.message}`);
+    log(`获取 admin token 失败: ${err.message}`);
+    throw err;
   }
 }
 
-// 更新数据库
-function updateDatabase(tables) {
-  const db = new Database(DB_PATH);
-  
-  // 更新 tables 表
-  const updateTable = db.prepare(`
-    UPDATE tables 
-    SET status = ?, updated_at = CURRENT_TIMESTAMP 
-    WHERE name = ?
-  `);
-  
-  let tablesUpdated = 0;
-  for (const table of tables) {
-    const dbStatus = convertStatus(table.status);
-    const result = updateTable.run(dbStatus, table.name);
-    if (result.changes > 0) {
-      tablesUpdated++;
+// 调用 API 同步台桌数据
+async function syncTablesViaAPI(tables) {
+  const startTime = Date.now();
+  try {
+    const token = await getAdminToken();
+    
+    const response = await fetch(SYNC_TABLES_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ tables })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API 返回错误: HTTP ${response.status}`);
     }
-  }
-  
-  // 更新 vip_rooms 表（name 匹配台桌名前缀）
-  const updateVipRoom = db.prepare(`
-    UPDATE vip_rooms 
-    SET status = ?, updated_at = CURRENT_TIMESTAMP 
-    WHERE name LIKE ? || '%'
-  `);
-  
-  let vipRoomsUpdated = 0;
-  for (const table of tables) {
-    const dbStatus = convertStatus(table.status);
-    const result = updateVipRoom.run(dbStatus, table.name);
-    if (result.changes > 0) {
-      vipRoomsUpdated += result.changes;
+    
+    const data = await response.json();
+    if (!data.success) {
+      throw new Error(data.error || '同步失败');
     }
+    
+    const elapsed = Date.now() - startTime;
+    log(`API 同步耗时: ${elapsed}ms`);
+    log(`API 返回: tables更新 ${data.data.tablesUpdated} 条, vip_rooms更新 ${data.data.vipRoomsUpdated} 条`);
+    
+    return {
+      tablesUpdated: data.data.tablesUpdated,
+      vipRoomsUpdated: data.data.vipRoomsUpdated,
+      elapsedMs: elapsed
+    }
+    } catch (err) {
+    const elapsed = Date.now() - startTime;
+    log(`API 同步失败: ${err.message}, 耗时 ${elapsed}ms`);
+    throw err;
   }
-  
-  db.close();
-  
-  return { tablesUpdated, vipRoomsUpdated };
 }
 
 // 主函数
@@ -1052,10 +1065,9 @@ async function main() {
     // 输出部分数据样本
     log('台桌数据样本: ' + JSON.stringify(tables.slice(0, 3)));
     
-    // 5. 更新数据库
-    const { tablesUpdated, vipRoomsUpdated } = updateDatabase(tables);
-    log(`tables 表更新: ${tablesUpdated} 条`);
-    log(`vip_rooms 表更新: ${vipRoomsUpdated} 条`);
+    // 5. 调用 API 同步数据
+    const syncResult = await syncTablesViaAPI(tables);
+    log(`同步完成: tables更新 ${syncResult.tablesUpdated} 条, vip_rooms更新 ${syncResult.vipRoomsUpdated} 条`);
     
     // 6. 关闭标签页
     if (shouldClose && currentPage.id) {
@@ -1063,36 +1075,16 @@ async function main() {
       log('已关闭台桌概览标签页');
     }
     
-    // 7. 写入同步状态（成功）
+    // 7. 同步完成
     const elapsed = Date.now() - startTime;
-    writeSyncStatus(true, tables.length);
-    log(`同步完成，耗时 ${elapsed}ms`);
+    log(`========== 同步完成 ========== 总耗时 ${elapsed}ms`);
     
   } catch (err) {
-    // 写入同步状态（失败）
+    // 错误日志输出
     const elapsed = Date.now() - startTime;
-    writeSyncStatus(false, 0, err.message);
-    
-    // 调用错误上报接口
-    try {
-      const apiUrl = process.env.TGSERVICE_API_URL || 'http://127.0.0.1:8081';
-      const response = await fetch(`${apiUrl}/api/admin/sync/tables/error`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          error_message: err.message,
-          tablesCount: 0,
-          elapsedMs: elapsed
-        })
-      });
-      if (response.ok) {
-        log('错误已上报到服务器');
-      } else {
-        log(`错误上报失败: HTTP ${response.status}`);
-      }
-    } catch (reportErr) {
-      log(`错误上报请求失败: ${reportErr.message}`);
-    }
+    log('=== 同步失败 ===');
+    log(`错误类型: ${err.name}`);
+    log(`错误消息: ${err.message}`);
     
     // 完整错误日志输出
     log('=== 同步失败 ===');
