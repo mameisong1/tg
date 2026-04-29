@@ -345,10 +345,11 @@ const groupedBoards = computed(() => {
     const offDuty = groups[s].filter(c => c._offDuty)
     const overtime = groups[s].filter(c => c._overtime)
     
+    // 正常助教按门迎序号降序排序（序号大的排前面）
     normal.sort((a, b) => {
-      const ta = a.clock_in_time ? new Date(a.clock_in_time + '+08:00').getTime() : 0
-      const tb = b.clock_in_time ? new Date(b.clock_in_time + '+08:00').getTime() : 0
-      return tb - ta
+      const rankA = getRankBadge(a) || 0  // 无门迎序号的排在后面
+      const rankB = getRankBadge(b) || 0
+      return rankB - rankA  // 降序
     })
     
     // 下班助教保持原有排序（按 updated_at 倒序）
