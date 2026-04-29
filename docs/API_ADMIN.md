@@ -105,4 +105,22 @@
 
 ## 系统报告
 | GET | `/api/system-report` | 系统报告列表 |
+| GET | `/api/system-report/cron-logs` | Cron日志列表(taskName/taskType/status/limit) |
+| GET | `/api/system-report/cron-tasks` | Cron任务列表 |
 | POST | `/api/system-report/cron/:name/trigger` | 手动触发Cron任务 |
+| POST | `/api/system-report/cron/:name/toggle` | 启用/禁用Cron任务 |
+| GET | `/api/system-report/timer-logs` | 计时器日志(type/action/limit) |
+| GET | `/api/system-report/active-timers` | 活跃计时器详情 |
+| GET | `/api/system-report/sql-audit` | SQL审计日志 |
+| DELETE | `/api/system-report/sql-audit` | 清空SQL审计日志 |
+
+## 台桌状态同步
+| POST | `/api/admin/sync/tables` | 同步台桌状态(写cron_log) |
+| POST | `/api/admin/sync/tables/error` | 同步失败上报(无需认证,写cron_log+发通知) |
+| GET | `/api/admin/sync-tables-status` | 获取最近同步状态 |
+
+## 通知管理
+| POST | `/api/notifications/manage/send` | 发送通知(店长/助教管理/管理员) |
+| GET | `/api/notifications/manage/list` | 已发送通知列表 |
+| GET | `/api/notifications/manage/:id/recipients` | 通知接收者详情 |
+| GET | `/api/notifications/manage/employees` | 可选员工列表 |
