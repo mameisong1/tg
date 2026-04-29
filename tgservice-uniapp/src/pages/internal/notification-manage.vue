@@ -54,8 +54,14 @@
           
           <!-- 筛选按钮 -->
           <view class="filter-bar">
-            <view class="filter-btn" :class="{ active: levelFilter === '' }" @click="setLevelFilter('')">全部级别</view>
+            <view class="filter-label">助教级别：</view>
+            <view class="filter-btn" :class="{ active: levelFilter === '' }" @click="setLevelFilter('')">全部</view>
             <view class="filter-btn" v-for="lv in coachLevels" :key="lv" :class="{ active: levelFilter === lv }" @click="setLevelFilter(lv)">{{ lv }}</view>
+          </view>
+          <view class="filter-bar" v-if="adminRoles.length > 0">
+            <view class="filter-label">后台角色：</view>
+            <view class="filter-btn" :class="{ active: roleFilter === '' }" @click="setRoleFilter('')">全部</view>
+            <view class="filter-btn" v-for="r in adminRoles" :key="r" :class="{ active: roleFilter === r }" @click="setRoleFilter(r)">{{ r }}</view>
           </view>
           
           <!-- 员工列表 -->
@@ -150,6 +156,7 @@ const allEmployees = ref([]);
 const selectedEmployeeIds = ref([]);
 const searchKeyword = ref('');
 const levelFilter = ref('');
+const roleFilter = ref(''); // 后台角色筛选
 
 // 已发送列表
 const sentNotifications = ref([]);
@@ -161,6 +168,8 @@ const currentNotification = ref(null);
 
 // 助教级别列表
 const coachLevels = ref(['金牌', '钻石', ' 普通']);
+// 后台角色列表
+const adminRoles = ref([]);
 
 // 获取状态栏高度
 onMounted(() => {
@@ -185,6 +194,10 @@ const filteredEmployees = computed(() => {
     }
     // 级别过滤（助教）
     if (levelFilter.value && emp.type === 'coach' && emp.level !== levelFilter.value) {
+      return false;
+    }
+    // 角色过滤（后台用户）
+    if (roleFilter.value && emp.type === 'admin' && emp.role !== roleFilter.value) {
       return false;
     }
     return true;
@@ -226,6 +239,9 @@ const loadEmployees = async () => {
       // 提取级别列表
       const levels = new Set(res.data.coaches.map(c => c.level).filter(l => l));
       coachLevels.value = Array.from(levels);
+      // 提取后台角色列表
+      const roles = new Set(res.data.admins.map(a => a.role).filter(r => r));
+      adminRoles.value = Array.from(roles);
     }
   } catch (e) {
     uni.showToast({ title: '加载员工失败', icon: 'none' });
@@ -241,7 +257,8 @@ const searchEmployees = async () => {
     try {
       const res = await api.notifications.getEmployees({
         search: searchKeyword.value,
-        level: levelFilter.value || undefined
+        level: levelFilter.value || undefined,
+        role: roleFilter.value || undefined
       });
       if (res.success) {
         allEmployees.value = [
@@ -279,6 +296,13 @@ const selectRecipientType = (type) => {
 // 设置级别筛选
 const setLevelFilter = (level) => {
   levelFilter.value = level;
+  // 触发API搜索
+  searchEmployees();
+};
+
+// 设置后台角色筛选
+const setRoleFilter = (role) => {
+  roleFilter.value = role;
   // 触发API搜索
   searchEmployees();
 };
@@ -589,6 +613,13 @@ const goBack = () => {
   gap: 6px;
   margin-bottom: 10px;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-label {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-right: 4px;
 }
 
 .filter-btn {
