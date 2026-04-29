@@ -50,12 +50,12 @@
         <!-- 指定员工选择器 -->
         <view class="employee-selector" v-if="form.recipient_type === 'selected'">
           <!-- 搜索框 -->
-          <input class="search-input" v-model="searchKeyword" placeholder="搜索姓名/艺名/工号" placeholder-class="placeholder-text" @input="searchEmployees" />
+          <input class="search-input" v-model="searchKeyword" placeholder="搜索姓名/艺名/工号" placeholder-class="placeholder-text" @input="searchEmployees" confirm-type="search" />
           
           <!-- 筛选按钮 -->
           <view class="filter-bar">
-            <view class="filter-btn" :class="{ active: levelFilter === '' }" @click="levelFilter = ''">全部级别</view>
-            <view class="filter-btn" v-for="lv in coachLevels" :key="lv" :class="{ active: levelFilter === lv }" @click="levelFilter = lv">{{ lv }}</view>
+            <view class="filter-btn" :class="{ active: levelFilter === '' }" @click="setLevelFilter('')">全部级别</view>
+            <view class="filter-btn" v-for="lv in coachLevels" :key="lv" :class="{ active: levelFilter === lv }" @click="setLevelFilter(lv)">{{ lv }}</view>
           </view>
           
           <!-- 员工列表 -->
@@ -232,12 +232,39 @@ const loadEmployees = async () => {
   }
 };
 
-// 搜索员工（防抖）
+// 搜索员工 - 触发API搜索（防抖）
 let searchTimer = null;
-const searchEmployees = () => {
+const searchEmployees = async () => {
   if (searchTimer) clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => {
-    // filteredEmployees 会自动更新
+  searchTimer = setTimeout(async () => {
+    // 通过API搜索，传入search参数
+    try {
+      const res = await api.notifications.getEmployees({
+        search: searchKeyword.value,
+        level: levelFilter.value || undefined
+      });
+      if (res.success) {
+        allEmployees.value = [
+          ...res.data.coaches.map(c => ({
+            id: `coach_${c.coach_no}`,
+            type: 'coach',
+            coach_no: c.coach_no,
+            name: c.stage_name,
+            employee_id: c.employee_id,
+            level: c.level
+          })),
+          ...res.data.admins.map(a => ({
+            id: `admin_${a.username}`,
+            type: 'admin',
+            username: a.username,
+            name: a.name,
+            role: a.role
+          }))
+        ];
+      }
+    } catch (e) {
+      console.error('搜索员工失败:', e);
+    }
   }, 300);
 };
 
@@ -247,6 +274,13 @@ const selectRecipientType = (type) => {
   if (type === 'all') {
     selectedEmployeeIds.value = [];
   }
+};
+
+// 设置级别筛选
+const setLevelFilter = (level) => {
+  levelFilter.value = level;
+  // 触发API搜索
+  searchEmployees();
 };
 
 // 切换员工选择
@@ -261,7 +295,11 @@ const toggleEmployee = (emp) => {
 
 // 发送通知
 const sendNotification = async () => {
-  if (!canSend.value || sending.value) return;
+  if (sending.value) return;
+  if (!canSend.value) {
+    uni.showToast({ title: '请填写标题和内容', icon: 'none' });
+    return;
+  }
   sending.value = true;
   
   try {
