@@ -27,29 +27,29 @@
     <TableInfo ref="tableInfoRef" />
     <!-- #endif -->
 
-    <!-- 购物车内容（原有内容） -->
+    <!-- 购物车内容 -->
     <view v-if="activeTab === 'cart'">
       <view class="cart-list" v-if="cartItems.length > 0">
-      <view class="cart-item" v-for="(item, index) in cartItems" :key="index">
-        <image class="item-img" :src="getProductImage(item)" mode="aspectFill"></image>
-        <view class="item-info">
-          <view class="item-name">{{ item.product_name }}</view>
-          <view v-if="item.options" class="item-options">{{ item.options }}</view>
-          <view class="item-price">¥{{ item.price }}</view>
-          <view class="item-actions">
-            <view class="qty-btn" @click="changeQty(item, -1)">-</view>
-            <text class="qty-num">{{ item.quantity }}</text>
-            <view class="qty-btn" @click="changeQty(item, 1)">+</view>
-            <text class="delete-btn" @click="deleteItem(item)">删除</text>
+        <view class="cart-item" v-for="(item, index) in cartItems" :key="index">
+          <image class="item-img" :src="getProductImage(item)" mode="aspectFill"></image>
+          <view class="item-info">
+            <view class="item-name">{{ item.product_name }}</view>
+            <view v-if="item.options" class="item-options">{{ item.options }}</view>
+            <view class="item-price">¥{{ item.price }}</view>
+            <view class="item-actions">
+              <view class="qty-btn" @click="changeQty(item, -1)">-</view>
+              <text class="qty-num">{{ item.quantity }}</text>
+              <view class="qty-btn" @click="changeQty(item, 1)">+</view>
+              <text class="delete-btn" @click="deleteItem(item)">删除</text>
+            </view>
           </view>
         </view>
       </view>
-    </view>
-    
-    <view class="empty-state" v-else>
-      <text class="empty-icon">🛒</text>
-      <text class="empty-text">购物车是空的</text>
-      <view class="shop-btn" @click="goShop">去选购</view>
+      <view class="empty-state" v-else>
+        <text class="empty-icon">🛒</text>
+        <text class="empty-text">购物车是空的</text>
+        <view class="shop-btn" @click="goShop">去选购</view>
+      </view>
     </view>
 
     <!-- 我的订单内容 -->
@@ -131,7 +131,7 @@ import api from '@/utils/api.js'
 import BeautyModal from '@/components/BeautyModal.vue'
 import TableInfo from '@/components/TableInfo.vue'
 import TableSelector from '@/components/TableSelector.vue'
-import TimeUtil from '@/utils/time-util.js'  // QA-20260429-1: 引入时间工具
+import { format, toDate } from '@/utils/time-util.js'  // QA-20260429-1: 引入时间工具
 
 const tableInfoRef = ref(null)
 const sessionId = ref('')
@@ -209,7 +209,7 @@ const loadMyOrders = async () => {
 
 // QA-20260429-1: 格式化订单时间
 const formatOrderTime = (timeStr) => {
-  const d = TimeUtil.toDate(timeStr)
+  const d = toDate(timeStr)
   if (!d) return ''
   return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`
 }

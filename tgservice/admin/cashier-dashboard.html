@@ -446,7 +446,8 @@
 
     function filterByTime(items, status) {
       if (status === '已完成' || status === '已取消') {
-        return items.filter(o => isWithinMinutes(o.created_at, 120));
+        // 已完成/已取消显示10小时内数据（与API请求参数一致）
+        return items.filter(o => isWithinMinutes(o.created_at, 600));
       }
       return items;
     }
