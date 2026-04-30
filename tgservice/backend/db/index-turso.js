@@ -31,11 +31,32 @@ function auditLargeQuery(sql, rowCount) {
   sqlAuditLastRecorded.set(normalizedSQL, now);
 
   const timestamp = new Date(now).toISOString();
-  const line = JSON.stringify({ time: timestamp, rows: rowCount, sql: normalizedSQL }) + '\n';
+  const line = JSON.stringify({ time: timestamp, type: 'large', rows: rowCount, sql: normalizedSQL }) + '\n';
   try {
     fs.appendFileSync(sqlAuditLogPath, line, 'utf-8');
   } catch (e) {
     console.error('[SQL审计] 写日志失败:', e.message);
+  }
+}
+
+// ========== SQL 审计：慢查询（SELECT 超过 500ms）==========
+const SQL_SLOW_THRESHOLD_MS = 500;
+const sqlSlowAuditLogPath = path.join(__dirname, '../../logs/sql-slow-audit.log');
+const sqlSlowAuditLastRecorded = new Map(); // normalizedSQL → 上次记录时间戳(ms)
+
+function auditSlowQuery(sql, durationMs) {
+  const now = Date.now();
+  const normalizedSQL = sql.replace(/\s+/g, ' ').trim();
+  const lastTime = sqlSlowAuditLastRecorded.get(normalizedSQL);
+  if (lastTime && (now - lastTime) < SQL_AUDIT_COOLDOWN_MS) return;
+  sqlSlowAuditLastRecorded.set(normalizedSQL, now);
+
+  const timestamp = new Date(now).toISOString();
+  const line = JSON.stringify({ time: timestamp, type: 'slow', durationMs, sql: normalizedSQL }) + '\n';
+  try {
+    fs.appendFileSync(sqlSlowAuditLogPath, line, 'utf-8');
+  } catch (e) {
+    console.error('[SQL慢查询审计] 写日志失败:', e.message);
   }
 }
 
@@ -45,6 +66,11 @@ setInterval(() => {
   for (const [key, lastTime] of sqlAuditLastRecorded) {
     if (now - lastTime >= SQL_AUDIT_COOLDOWN_MS * 2) {
       sqlAuditLastRecorded.delete(key);
+    }
+  }
+  for (const [key, lastTime] of sqlSlowAuditLastRecorded) {
+    if (now - lastTime >= SQL_AUDIT_COOLDOWN_MS * 2) {
+      sqlSlowAuditLastRecorded.delete(key);
     }
   }
 }, 30 * 60 * 1000); // 每30分钟清理一次

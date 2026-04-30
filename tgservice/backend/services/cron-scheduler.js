@@ -737,6 +737,13 @@ async function taskLockGuestInvitation(shiftType) {
             });
 
             console.log(`[CronScheduler] ${taskName} 完成: 锁定 ${lockedCount} 人`);
+
+            // ===== 发送约客提醒通知给未提交证明的助教 =====
+            try {
+                await sendInvitationReminders(today, shiftType);
+            } catch (notifyErr) {
+                console.error(`[CronScheduler] ${taskName} 发送约客提醒通知失败:`, notifyErr.message);
+            }
         } else {
             // API 返回失败（如时间未到、已锁定等）
             const errorMsg = result.error || '未知错误';
@@ -782,6 +789,84 @@ async function taskLockGuestInvitation(shiftType) {
             console.error('[CronScheduler] 发送异常通知失败:', notifyErr.message);
         }
     }
+}
+
+/**
+ * 发送约客提醒通知给未提交约客证明的助教
+ * 每个助教一条个性化通知，已发送过的跳过（去重）
+ * @param {string} date - 日期 YYYY-MM-DD
+ * @param {string} shiftType - 班次类型：'早班' 或 '晚班'
+ */
+async function sendInvitationReminders(date, shiftType) {
+    // 1. 查询被锁定但未提交约客证明的助教
+    const pendingCoaches = await all(`
+        SELECT coach_no, stage_name
+        FROM guest_invitation_results
+        WHERE date = ? AND shift = ? AND result = '应约客'
+          AND invitation_image_url IS NULL AND images IS NULL
+    `, [date, shiftType]);
+
+    if (pendingCoaches.length === 0) {
+        console.log(`[CronScheduler] 约客提醒: ${shiftType} 无待提醒助教`);
+        return;
+    }
+
+    // 2. 去重：排除今天已收到约客提醒通知的助教
+    const alreadyNotified = await all(`
+        SELECT DISTINCT nr.recipient_id
+        FROM notification_recipients nr
+        INNER JOIN notifications n ON n.id = nr.notification_id
+        WHERE n.notification_type = 'invitation_reminder'
+          AND nr.recipient_type = 'coach'
+          AND n.content LIKE ?
+          AND n.created_at >= ?
+    `, [`%${date}%`, date + ' 00:00:00']);
+
+    const notifiedSet = new Set(alreadyNotified.map(n => n.recipient_id));
+    const toNotify = pendingCoaches.filter(c => !notifiedSet.has(c.coach_no));
+
+    if (toNotify.length === 0) {
+        console.log(`[CronScheduler] 约客提醒: ${shiftType} 所有待提醒助教已通知过，跳过`);
+        return;
+    }
+
+    // 3. 为每个助教创建个性化通知
+    const now = TimeUtil.nowDB();
+    let sentCount = 0;
+
+    for (const coach of toNotify) {
+        try {
+            // 获取 employee_id
+            const coachInfo = await get('SELECT employee_id FROM coaches WHERE coach_no = ?', [coach.coach_no]);
+            const employeeId = coachInfo?.employee_id || null;
+
+            await runInTransaction(async (tx) => {
+                // 创建通知主记录
+                const notifyResult = await tx.run(`
+                    INSERT INTO notifications (title, content, sender_type, sender_id, sender_name,
+                                               notification_type, created_at, total_recipients)
+                    VALUES (?, ?, 'system', 'system', '系统', 'invitation_reminder', ?, 1)
+                `, [
+                    '约客提醒',
+                    `${coach.stage_name}，你已被锁定为${shiftType}应约客，请及时提交约客证明`,
+                    now
+                ]);
+
+                // 创建接收者记录
+                await tx.run(`
+                    INSERT INTO notification_recipients (notification_id, recipient_type, recipient_id,
+                                                         recipient_name, recipient_employee_id)
+                    VALUES (?, 'coach', ?, ?, ?)
+                `, [notifyResult.lastID, coach.coach_no, coach.stage_name, employeeId]);
+            });
+
+            sentCount++;
+        } catch (err) {
+            console.error(`[CronScheduler] 约客提醒: 发送给 ${coach.stage_name}(${coach.coach_no}) 失败:`, err.message);
+        }
+    }
+
+    console.log(`[CronScheduler] 约客提醒: ${shiftType} 已发送 ${sentCount}/${toNotify.length} 条通知`);
 }
 
 /**

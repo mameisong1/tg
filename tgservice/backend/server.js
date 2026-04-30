@@ -2640,7 +2640,7 @@ app.get('/api/admin/orders', authMiddleware, requireBackendPermission(['cashierD
     const conditions = [];
     // 默认时间窗口：24 小时内（防止老页面未刷新返回全量数据）
     if (!date && !date_start) {
-      const yesterday = TimeUtil.offsetDB(0, -24).split(' ')[0]; // YYYY-MM-DD
+      const yesterday = TimeUtil.offsetDB(-24).split(' ')[0]; // YYYY-MM-DD
       conditions.push("DATE(created_at) >= ?");
       params.push(yesterday);
     }
