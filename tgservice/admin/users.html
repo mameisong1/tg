@@ -292,6 +292,7 @@
         }
         closeModal();
         loadUsers(currentPage);
+      } catch (err) { showToast(err.message || '操作失败'); }
     }
 
     async function deleteUser(username) {

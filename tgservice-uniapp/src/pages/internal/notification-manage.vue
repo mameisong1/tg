@@ -738,7 +738,7 @@ const goBack = () => {
 }
 
 /* H5穿透：UniApp input组件内部的实际input元素 */
-.input-field :deep(input) {
+.input-field :deep(.uni-input-input) {
   height: 44px !important;
   line-height: 44px !important;
   font-size: 14px !important;
