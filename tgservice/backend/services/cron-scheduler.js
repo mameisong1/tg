@@ -846,7 +846,7 @@ async function sendInvitationReminders(date, shiftType) {
                     VALUES (?, ?, 'system', 'system', '系统', 'invitation_reminder', ?, 1)
                 `, [
                     '约客提醒',
-                    `${coach.stage_name}，你已被锁定为${shiftType}应约客，请及时提交约客证明`,
+                    `${coach.stage_name}小姐姐，${shiftType}约客花名册上有你哟🧚‍♀️，记得提交约客证明哈～`,
                     now
                 ]);
 

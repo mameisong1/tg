@@ -8,5 +8,6 @@
   "currentStep": null,
   "designSummary": "新增admin/orders.html订单管理页面(列表+详情+筛选+搜索+分页); 修改sidebar.js添加前厅菜单; 修改server.js新增3个API(GET详情/DELETE删除/PUT状态更新); 无数据库变更; 权限cashierDashboard",
   "userConfirmedAt": "2026-04-29T23:58:25.749Z",
-  "userConfirmedBy": "马哥"
+  "userConfirmedBy": "马哥",
+  "qaReportPath": "/TG/temp/QA-20260430-1/qa-report.md"
 }

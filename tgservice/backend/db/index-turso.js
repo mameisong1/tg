@@ -179,7 +179,7 @@ const _executeAll = async (sql, args, auditOriginalSql) => {
   return rows;
 };
 
-const _executeGet = async (sql, args) => {
+const _executeGet = async (sql, args, auditOriginalSql) => {
   const startMs = Date.now();
   const result = await client.execute({ sql, args });
   const durationMs = Date.now() - startMs;
@@ -190,8 +190,7 @@ const _executeGet = async (sql, args) => {
   });
   // 审计：慢查询记录（get 不可能超 300 行，只审计慢查询）
   if (durationMs >= SQL_SLOW_THRESHOLD_MS) {
-    // 尝试从 args 还原原始 SQL 用于审计可读性（get 无原始SQL参数，用执行SQL即可）
-    auditSlowQuery(sql, durationMs);
+    auditSlowQuery(auditOriginalSql || sql, durationMs);
   }
   return obj;
 };
@@ -215,7 +214,7 @@ const all = async (sql, params = []) => {
 
 const get = async (sql, params = []) => {
   const processed = preprocessSQL(sql, params);
-  return _executeGet(processed.sql, processed.args);
+  return _executeGet(processed.sql, processed.args, sql);
 };
 
 const run = async (sql, params = []) => {
@@ -314,16 +313,7 @@ const beginTransaction = async () => {
     },
     get: async (sql, params = []) => {
       const processed = preprocessSQL(sql, params);
-      const startMs = Date.now();
-      const result = await client.execute({ sql: processed.sql, args: processed.args });
-      const durationMs = Date.now() - startMs;
-      if (result.rows.length === 0) return undefined;
-      const obj = {};
-      result.columns.forEach((col, i) => {
-        obj[col] = result.rows[0][i];
-      });
-      if (durationMs >= SQL_SLOW_THRESHOLD_MS) auditSlowQuery(sql, durationMs);
-      return obj;
+      return _executeGet(processed.sql, processed.args, sql);
     },
     all: async (sql, params = []) => {
       const processed = preprocessSQL(sql, params);
@@ -353,7 +343,7 @@ const runInTransaction = async (callback) => {
       },
       get: async (sql, params = []) => {
         const processed = preprocessSQL(sql, params);
-        return _executeGet(processed.sql, processed.args);
+        return _executeGet(processed.sql, processed.args, sql);
       },
       all: async (sql, params = []) => {
         const processed = preprocessSQL(sql, params);

@@ -268,8 +268,12 @@ export const guestRankings = {
 export const notifications = {
   // 获取我的通知列表
   getList: (params) => request({ url: '/notifications', data: params }),
+  // 获取我的系统通知列表
+  getSystemList: (params) => request({ url: '/notifications', data: { ...params, type: 'system,invitation_reminder' } }),
   // 获取未阅数量
   getUnreadCount: () => request({ url: '/notifications/unread-count' }),
+  // 获取系统通知未阅数量
+  getSystemUnreadCount: () => request({ url: '/notifications/unread-count', data: { type: 'system,invitation_reminder' } }),
   // 标记已阅
   markAsRead: (id) => request({ url: `/notifications/${id}/read`, method: 'POST' }),
   // 发送通知

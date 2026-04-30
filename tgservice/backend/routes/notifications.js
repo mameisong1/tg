@@ -99,24 +99,46 @@ router.get('/', authMiddleware, async (req, res) => {
     const recipientType = user.userType === 'coach' ? 'coach' : 'admin';
     const recipientId = user.userType === 'coach' ? user.coachNo : user.username;
 
+    // 可选：按通知类型过滤（逗号分隔，如 'system,invitation_reminder'）
+    const typeFilter = req.query.type;
+    let typeCondition = '';
+    const queryParams = [recipientType, recipientId];
+    if (typeFilter) {
+      const types = typeFilter.split(',').map(t => t.trim()).filter(Boolean);
+      if (types.length > 0) {
+        const placeholders = types.map(() => '?').join(',');
+        typeCondition = ` AND n.notification_type IN (${placeholders})`;
+        queryParams.push(...types);
+      }
+    }
+
     // 查询通知列表（联表查询获取 is_read 状态）
+    queryParams.push(pageSize, offset);
     const notifications = await dbAll(`
       SELECT 
         n.id, n.title, n.content, n.sender_name, n.notification_type, n.created_at,
         nr.is_read, nr.read_at
       FROM notifications n
       INNER JOIN notification_recipients nr ON n.id = nr.notification_id
-      WHERE nr.recipient_type = ? AND nr.recipient_id = ?
+      WHERE nr.recipient_type = ? AND nr.recipient_id = ?${typeCondition}
       ORDER BY nr.is_read ASC, n.created_at DESC
       LIMIT ? OFFSET ?
-    `, [recipientType, recipientId, pageSize, offset]);
+    `, queryParams);
 
     // 查询总数
+    const countParams = [recipientType, recipientId];
+    if (typeFilter) {
+      const types = typeFilter.split(',').map(t => t.trim()).filter(Boolean);
+      if (types.length > 0) {
+        countParams.push(...types);
+      }
+    }
     const totalRow = await dbGet(`
       SELECT COUNT(*) as total
-      FROM notification_recipients
-      WHERE recipient_type = ? AND recipient_id = ?
-    `, [recipientType, recipientId]);
+      FROM notification_recipients nr
+      INNER JOIN notifications n ON n.id = nr.notification_id
+      WHERE nr.recipient_type = ? AND nr.recipient_id = ?${typeCondition}
+    `, countParams);
 
     res.json({
       success: true,
@@ -152,11 +174,25 @@ router.get('/unread-count', authMiddleware, async (req, res) => {
     const recipientType = user.userType === 'coach' ? 'coach' : 'admin';
     const recipientId = user.userType === 'coach' ? user.coachNo : user.username;
 
+    // 可选：按通知类型过滤
+    const typeFilter = req.query.type;
+    let typeCondition = '';
+    const params = [recipientType, recipientId];
+    if (typeFilter) {
+      const types = typeFilter.split(',').map(t => t.trim()).filter(Boolean);
+      if (types.length > 0) {
+        const placeholders = types.map(() => '?').join(',');
+        typeCondition = ` AND n.notification_type IN (${placeholders})`;
+        params.push(...types);
+      }
+    }
+
     const row = await dbGet(`
       SELECT COUNT(*) as unread_count
-      FROM notification_recipients
-      WHERE recipient_type = ? AND recipient_id = ? AND is_read = 0
-    `, [recipientType, recipientId]);
+      FROM notification_recipients nr
+      INNER JOIN notifications n ON n.id = nr.notification_id
+      WHERE nr.recipient_type = ? AND nr.recipient_id = ? AND nr.is_read = 0${typeCondition}
+    `, params);
 
     res.json({
       success: true,
