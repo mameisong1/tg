@@ -737,17 +737,6 @@ const goBack = () => {
   overflow: visible;
 }
 
-/* H5穿透：UniApp input组件内部的实际input元素 */
-.input-field :deep(.uni-input-input) {
-  height: 44px !important;
-  line-height: 44px !important;
-  font-size: 14px !important;
-  color: #fff !important;
-  background: transparent !important;
-  width: 100% !important;
-  outline: none !important;
-}
-
 .input-area {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1231,3 +1220,18 @@ const goBack = () => {
   color: rgba(255, 255, 255, 0.5);
 }
 </style>
+
+<!-- H5穿透：非scoped样式块，用于修复UniApp input组件内部input元素高度 -->
+<!-- #ifdef H5 -->
+<style>
+uni-input.input-field .uni-input-input {
+  height: 44px !important;
+  line-height: 44px !important;
+  font-size: 14px !important;
+  color: #fff !important;
+  background: transparent !important;
+  width: 100% !important;
+  outline: none !important;
+}
+</style>
+<!-- #endif -->
