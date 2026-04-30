@@ -5,6 +5,7 @@
 
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 const { preprocessSQL } = require('./preprocess-sql');
 
 const dbPath = path.join(__dirname, '../../db/tgservice.db');
@@ -19,6 +20,62 @@ const db = new sqlite3.Database(dbPath, (err) => {
 });
 
 console.log('[SQLite] 连接本地数据库:', dbPath);
+
+// ========== SQL 审计：超 300 行查询记录 ==========
+const SQL_AUDIT_THRESHOLD = 300;
+const SQL_AUDIT_COOLDOWN_MS = 60 * 60 * 1000;
+const sqlAuditLogPath = path.join(__dirname, '../../logs/sql-audit.log');
+const sqlAuditLastRecorded = new Map();
+
+function auditLargeQuery(sql, rowCount) {
+  const now = Date.now();
+  const normalizedSQL = sql.replace(/\s+/g, ' ').trim();
+  const lastTime = sqlAuditLastRecorded.get(normalizedSQL);
+  if (lastTime && (now - lastTime) < SQL_AUDIT_COOLDOWN_MS) return;
+  sqlAuditLastRecorded.set(normalizedSQL, now);
+  const timestamp = new Date(now).toISOString();
+  const line = JSON.stringify({ time: timestamp, type: 'large', rows: rowCount, sql: normalizedSQL }) + '\n';
+  try {
+    fs.appendFileSync(sqlAuditLogPath, line, 'utf-8');
+  } catch (e) {
+    console.error('[SQL审计] 写日志失败:', e.message);
+  }
+}
+
+// ========== SQL 审计：慢查询（SELECT 超过 500ms）==========
+const SQL_SLOW_THRESHOLD_MS = 500;
+const sqlSlowAuditLogPath = path.join(__dirname, '../../logs/sql-slow-audit.log');
+const sqlSlowAuditLastRecorded = new Map();
+
+function auditSlowQuery(sql, durationMs) {
+  const now = Date.now();
+  const normalizedSQL = sql.replace(/\s+/g, ' ').trim();
+  const lastTime = sqlSlowAuditLastRecorded.get(normalizedSQL);
+  if (lastTime && (now - lastTime) < SQL_AUDIT_COOLDOWN_MS) return;
+  sqlSlowAuditLastRecorded.set(normalizedSQL, now);
+  const timestamp = new Date(now).toISOString();
+  const line = JSON.stringify({ time: timestamp, type: 'slow', durationMs, sql: normalizedSQL }) + '\n';
+  try {
+    fs.appendFileSync(sqlSlowAuditLogPath, line, 'utf-8');
+  } catch (e) {
+    console.error('[SQL慢查询审计] 写日志失败:', e.message);
+  }
+}
+
+// 定期清理过期条目，防止 Map 无限增长
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, lastTime] of sqlAuditLastRecorded) {
+    if (now - lastTime >= SQL_AUDIT_COOLDOWN_MS * 2) {
+      sqlAuditLastRecorded.delete(key);
+    }
+  }
+  for (const [key, lastTime] of sqlSlowAuditLastRecorded) {
+    if (now - lastTime >= SQL_AUDIT_COOLDOWN_MS * 2) {
+      sqlSlowAuditLastRecorded.delete(key);
+    }
+  }
+}, 30 * 60 * 1000);
 
 // ========== Write Queue: 所有写操作串行化 ==========
 
@@ -98,9 +155,15 @@ const runWriteQueue = () => {
 const all = (sql, params = []) => {
   const processed = preprocessSQL(sql, params);
   return new Promise((resolve, reject) => {
+    const startMs = Date.now();
     db.all(processed.sql, processed.args, (err, rows) => {
       if (err) reject(err);
-      else resolve(rows);
+      else {
+        const durationMs = Date.now() - startMs;
+        if (rows && rows.length >= SQL_AUDIT_THRESHOLD) auditLargeQuery(sql, rows.length);
+        if (durationMs >= SQL_SLOW_THRESHOLD_MS) auditSlowQuery(sql, durationMs);
+        resolve(rows);
+      }
     });
   });
 };
@@ -108,9 +171,14 @@ const all = (sql, params = []) => {
 const get = (sql, params = []) => {
   const processed = preprocessSQL(sql, params);
   return new Promise((resolve, reject) => {
+    const startMs = Date.now();
     db.get(processed.sql, processed.args, (err, row) => {
       if (err) reject(err);
-      else resolve(row);
+      else {
+        const durationMs = Date.now() - startMs;
+        if (durationMs >= SQL_SLOW_THRESHOLD_MS) auditSlowQuery(sql, durationMs);
+        resolve(row);
+      }
     });
   });
 };
@@ -212,18 +280,29 @@ const beginTransaction = async () => {
     get: (sql, params = []) => {
       const processed = preprocessSQL(sql, params);
       return new Promise((resolve, reject) => {
+        const startMs = Date.now();
         db.get(processed.sql, processed.args, (err, row) => {
           if (err) reject(err);
-          else resolve(row);
+          else {
+            const durationMs = Date.now() - startMs;
+            if (durationMs >= SQL_SLOW_THRESHOLD_MS) auditSlowQuery(sql, durationMs);
+            resolve(row);
+          }
         });
       });
     },
     all: (sql, params = []) => {
       const processed = preprocessSQL(sql, params);
       return new Promise((resolve, reject) => {
+        const startMs = Date.now();
         db.all(processed.sql, processed.args, (err, rows) => {
           if (err) reject(err);
-          else resolve(rows);
+          else {
+            const durationMs = Date.now() - startMs;
+            if (rows && rows.length >= SQL_AUDIT_THRESHOLD) auditLargeQuery(sql, rows.length);
+            if (durationMs >= SQL_SLOW_THRESHOLD_MS) auditSlowQuery(sql, durationMs);
+            resolve(rows);
+          }
         });
       });
     },
@@ -249,16 +328,27 @@ function runTxInnerLocal(done, callback, resolve, reject) {
     }),
     get: (sql, params = []) => new Promise((res, rej) => {
       const processed = preprocessSQL(sql, params);
+      const startMs = Date.now();
       db.get(processed.sql, processed.args, (e, row) => {
         if (e) rej(e);
-        else res(row);
+        else {
+          const durationMs = Date.now() - startMs;
+          if (durationMs >= SQL_SLOW_THRESHOLD_MS) auditSlowQuery(sql, durationMs);
+          res(row);
+        }
       });
     }),
     all: (sql, params = []) => new Promise((res, rej) => {
       const processed = preprocessSQL(sql, params);
+      const startMs = Date.now();
       db.all(processed.sql, processed.args, (e, rows) => {
         if (e) rej(e);
-        else res(rows);
+        else {
+          const durationMs = Date.now() - startMs;
+          if (rows && rows.length >= SQL_AUDIT_THRESHOLD) auditLargeQuery(sql, rows.length);
+          if (durationMs >= SQL_SLOW_THRESHOLD_MS) auditSlowQuery(sql, durationMs);
+          res(rows);
+        }
       });
     }),
     commit: () => new Promise((res, rej) => {

@@ -158,7 +158,9 @@ const runWriteQueue = async () => {
 // ========== 内部执行函数（不预处理，供内部调用）==========
 
 const _executeAll = async (sql, args, auditOriginalSql) => {
+  const startMs = Date.now();
   const result = await client.execute({ sql, args });
+  const durationMs = Date.now() - startMs;
   const rows = result.rows.map(row => {
     const obj = {};
     result.columns.forEach((col, i) => {
@@ -168,19 +170,29 @@ const _executeAll = async (sql, args, auditOriginalSql) => {
   });
   // 审计：超阈值查询记录（统一入口，覆盖所有 all() 路径）
   if (rows.length >= SQL_AUDIT_THRESHOLD) {
-    // 优先用原始 SQL 记录（更可读），没有则用执行时的 SQL
     auditLargeQuery(auditOriginalSql || sql, rows.length);
+  }
+  // 审计：慢查询记录
+  if (durationMs >= SQL_SLOW_THRESHOLD_MS) {
+    auditSlowQuery(auditOriginalSql || sql, durationMs);
   }
   return rows;
 };
 
 const _executeGet = async (sql, args) => {
+  const startMs = Date.now();
   const result = await client.execute({ sql, args });
+  const durationMs = Date.now() - startMs;
   if (result.rows.length === 0) return undefined;
   const obj = {};
   result.columns.forEach((col, i) => {
     obj[col] = result.rows[0][i];
   });
+  // 审计：慢查询记录（get 不可能超 300 行，只审计慢查询）
+  if (durationMs >= SQL_SLOW_THRESHOLD_MS) {
+    // 尝试从 args 还原原始 SQL 用于审计可读性（get 无原始SQL参数，用执行SQL即可）
+    auditSlowQuery(sql, durationMs);
+  }
   return obj;
 };
 
@@ -231,8 +243,10 @@ const dbTx = (fn) => {
         },
         get: (sql, params, callback) => {
           const processed = preprocessSQL(sql, params);
+          const startMs = Date.now();
           client.execute({ sql: processed.sql, args: processed.args })
             .then(result => {
+              const durationMs = Date.now() - startMs;
               if (callback) {
                 if (result.rows.length === 0) callback(null, undefined);
                 else {
@@ -240,6 +254,7 @@ const dbTx = (fn) => {
                   result.columns.forEach((col, i) => {
                     obj[col] = result.rows[0][i];
                   });
+                  if (durationMs >= SQL_SLOW_THRESHOLD_MS) auditSlowQuery(sql, durationMs);
                   callback(null, obj);
                 }
               }
@@ -250,8 +265,10 @@ const dbTx = (fn) => {
         },
         all: (sql, params, callback) => {
           const processed = preprocessSQL(sql, params);
+          const startMs = Date.now();
           client.execute({ sql: processed.sql, args: processed.args })
             .then(result => {
+              const durationMs = Date.now() - startMs;
               if (callback) {
                 const rows = result.rows.map(row => {
                   const obj = {};
@@ -260,8 +277,8 @@ const dbTx = (fn) => {
                   });
                   return obj;
                 });
-                // 审计已由 _executeAll 统一处理；此处为回调路径，手动补充审计
                 if (rows.length >= SQL_AUDIT_THRESHOLD) auditLargeQuery(sql, rows.length);
+                if (durationMs >= SQL_SLOW_THRESHOLD_MS) auditSlowQuery(sql, durationMs);
                 callback(null, rows);
               }
             })
@@ -297,10 +314,20 @@ const beginTransaction = async () => {
     },
     get: async (sql, params = []) => {
       const processed = preprocessSQL(sql, params);
-      return _executeGet(processed.sql, processed.args);
+      const startMs = Date.now();
+      const result = await client.execute({ sql: processed.sql, args: processed.args });
+      const durationMs = Date.now() - startMs;
+      if (result.rows.length === 0) return undefined;
+      const obj = {};
+      result.columns.forEach((col, i) => {
+        obj[col] = result.rows[0][i];
+      });
+      if (durationMs >= SQL_SLOW_THRESHOLD_MS) auditSlowQuery(sql, durationMs);
+      return obj;
     },
     all: async (sql, params = []) => {
       const processed = preprocessSQL(sql, params);
+      // 传入原始 sql 用于审计日志可读性
       return _executeAll(processed.sql, processed.args, sql);
     },
     commit: async () => {
@@ -387,8 +414,10 @@ const db = {
   },
   get: (sql, params, callback) => {
     const processed = preprocessSQL(sql, params);
+    const startMs = Date.now();
     client.execute({ sql: processed.sql, args: processed.args })
       .then(result => {
+        const durationMs = Date.now() - startMs;
         if (callback) {
           if (result.rows.length === 0) callback(null, undefined);
           else {
@@ -396,6 +425,7 @@ const db = {
             result.columns.forEach((col, i) => {
               obj[col] = result.rows[0][i];
             });
+            if (durationMs >= SQL_SLOW_THRESHOLD_MS) auditSlowQuery(sql, durationMs);
             callback(null, obj);
           }
         }
@@ -406,8 +436,10 @@ const db = {
   },
   all: (sql, params, callback) => {
     const processed = preprocessSQL(sql, params);
+    const startMs = Date.now();
     client.execute({ sql: processed.sql, args: processed.args })
       .then(result => {
+        const durationMs = Date.now() - startMs;
         if (callback) {
           const rows = result.rows.map(row => {
             const obj = {};
@@ -417,6 +449,7 @@ const db = {
             return obj;
           });
           if (rows.length >= SQL_AUDIT_THRESHOLD) auditLargeQuery(sql, rows.length);
+          if (durationMs >= SQL_SLOW_THRESHOLD_MS) auditSlowQuery(sql, durationMs);
           callback(null, rows);
         }
       })

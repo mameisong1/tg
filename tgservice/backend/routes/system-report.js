@@ -233,14 +233,135 @@ router.get('/sql-audit', async (req, res) => {
 });
 
 /**
+ * GET /api/system-report/sql-slow-audit
+ * 读取 SQL 慢查询审计日志（超过500ms的SELECT查询）
+ */
+router.get('/sql-slow-audit', async (req, res) => {
+    try {
+        const logPath = path.join(__dirname, '../../logs/sql-slow-audit.log');
+        if (!fs.existsSync(logPath)) {
+            return res.json({ success: true, entries: [] });
+        }
+        const content = fs.readFileSync(logPath, 'utf-8').trim();
+        if (!content) {
+            return res.json({ success: true, entries: [] });
+        }
+        const lines = content.split('\n').filter(l => l.trim());
+        const entries = lines.map(line => {
+            try { return JSON.parse(line); }
+            catch (e) { return { raw: line }; }
+        });
+        res.json({ success: true, entries, total: entries.length });
+    } catch (err) {
+        console.error('SQL慢查询审计日志读取失败:', err.message);
+        res.status(500).json({ error: '服务器错误' });
+    }
+});
+
+/**
+ * GET /api/system-report/sql-audit-all
+ * 合并读取所有 SQL 审计日志（大行数 + 慢查询），按时间倒序
+ */
+router.get('/sql-audit-all', async (req, res) => {
+    try {
+        const { type } = req.query; // type: 'large' | 'slow' | undefined(全部)
+        const entries = [];
+
+        // 读取大行数审计日志
+        if (!type || type === 'large') {
+            const largePath = path.join(__dirname, '../../logs/sql-audit.log');
+            if (fs.existsSync(largePath)) {
+                const content = fs.readFileSync(largePath, 'utf-8').trim();
+                if (content) {
+                    content.split('\n').filter(l => l.trim()).forEach(line => {
+                        try {
+                            const entry = JSON.parse(line);
+                            entry.type = entry.type || 'large';
+                            entries.push(entry);
+                        } catch (e) {
+                            entries.push({ raw: line, type: 'large' });
+                        }
+                    });
+                }
+            }
+        }
+
+        // 读取慢查询审计日志
+        if (!type || type === 'slow') {
+            const slowPath = path.join(__dirname, '../../logs/sql-slow-audit.log');
+            if (fs.existsSync(slowPath)) {
+                const content = fs.readFileSync(slowPath, 'utf-8').trim();
+                if (content) {
+                    content.split('\n').filter(l => l.trim()).forEach(line => {
+                        try {
+                            const entry = JSON.parse(line);
+                            entry.type = entry.type || 'slow';
+                            entries.push(entry);
+                        } catch (e) {
+                            entries.push({ raw: line, type: 'slow' });
+                        }
+                    });
+                }
+            }
+        }
+
+        // 按时间倒序排列
+        entries.sort((a, b) => (b.time || '').localeCompare(a.time || ''));
+
+        res.json({ success: true, entries, total: entries.length });
+    } catch (err) {
+        console.error('SQL审计日志读取失败:', err.message);
+        res.status(500).json({ error: '服务器错误' });
+    }
+});
+
+/**
  * DELETE /api/system-report/sql-audit
- * 清空 SQL 审计日志
+ * 清空 SQL 审计日志（大行数）
  */
 router.delete('/sql-audit', async (req, res) => {
     try {
         const logPath = path.join(__dirname, '../../logs/sql-audit.log');
         if (fs.existsSync(logPath)) {
             fs.writeFileSync(logPath, '', 'utf-8');
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error('SQL审计日志清空失败:', err.message);
+        res.status(500).json({ error: '服务器错误' });
+    }
+});
+
+/**
+ * DELETE /api/system-report/sql-slow-audit
+ * 清空 SQL 慢查询审计日志
+ */
+router.delete('/sql-slow-audit', async (req, res) => {
+    try {
+        const logPath = path.join(__dirname, '../../logs/sql-slow-audit.log');
+        if (fs.existsSync(logPath)) {
+            fs.writeFileSync(logPath, '', 'utf-8');
+        }
+        res.json({ success: true });
+    } catch (err) {
+        console.error('SQL慢查询审计日志清空失败:', err.message);
+        res.status(500).json({ error: '服务器错误' });
+    }
+});
+
+/**
+ * DELETE /api/system-report/sql-audit-all
+ * 清空所有 SQL 审计日志（大行数 + 慢查询）
+ */
+router.delete('/sql-audit-all', async (req, res) => {
+    try {
+        const largePath = path.join(__dirname, '../../logs/sql-audit.log');
+        const slowPath = path.join(__dirname, '../../logs/sql-slow-audit.log');
+        if (fs.existsSync(largePath)) {
+            fs.writeFileSync(largePath, '', 'utf-8');
+        }
+        if (fs.existsSync(slowPath)) {
+            fs.writeFileSync(slowPath, '', 'utf-8');
         }
         res.json({ success: true });
     } catch (err) {

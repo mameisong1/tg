@@ -798,7 +798,7 @@ async function taskLockGuestInvitation(shiftType) {
  * @param {string} shiftType - 班次类型：'早班' 或 '晚班'
  */
 async function sendInvitationReminders(date, shiftType) {
-    // 1. 查询被锁定但未提交约客证明的助教
+    // 查询被锁定但未提交约客证明的助教
     const pendingCoaches = await all(`
         SELECT coach_no, stage_name
         FROM guest_invitation_results
@@ -811,36 +811,34 @@ async function sendInvitationReminders(date, shiftType) {
         return;
     }
 
-    // 2. 去重：排除今天已收到约客提醒通知的助教
-    const alreadyNotified = await all(`
-        SELECT DISTINCT nr.recipient_id
-        FROM notification_recipients nr
-        INNER JOIN notifications n ON n.id = nr.notification_id
-        WHERE n.notification_type = 'invitation_reminder'
-          AND nr.recipient_type = 'coach'
-          AND n.content LIKE ?
-          AND n.created_at >= ?
-    `, [`%${date}%`, date + ' 00:00:00']);
-
-    const notifiedSet = new Set(alreadyNotified.map(n => n.recipient_id));
-    const toNotify = pendingCoaches.filter(c => !notifiedSet.has(c.coach_no));
-
-    if (toNotify.length === 0) {
-        console.log(`[CronScheduler] 约客提醒: ${shiftType} 所有待提醒助教已通知过，跳过`);
-        return;
-    }
-
-    // 3. 为每个助教创建个性化通知
+    // 为每个助教创建个性化通知（去重检查在事务内保证原子性）
     const now = TimeUtil.nowDB();
     let sentCount = 0;
+    let skippedCount = 0;
 
-    for (const coach of toNotify) {
+    for (const coach of pendingCoaches) {
         try {
-            // 获取 employee_id
             const coachInfo = await get('SELECT employee_id FROM coaches WHERE coach_no = ?', [coach.coach_no]);
             const employeeId = coachInfo?.employee_id || null;
 
             await runInTransaction(async (tx) => {
+                // 事务内去重：检查今天是否已给该助教发送过约客提醒
+                const existing = await tx.get(`
+                    SELECT nr.id
+                    FROM notification_recipients nr
+                    INNER JOIN notifications n ON n.id = nr.notification_id
+                    WHERE n.notification_type = 'invitation_reminder'
+                      AND nr.recipient_type = 'coach'
+                      AND nr.recipient_id = ?
+                      AND n.created_at >= ?
+                    LIMIT 1
+                `, [coach.coach_no, date + ' 00:00:00']);
+
+                if (existing) {
+                    skippedCount++;
+                    return; // 已发送过，跳过
+                }
+
                 // 创建通知主记录
                 const notifyResult = await tx.run(`
                     INSERT INTO notifications (title, content, sender_type, sender_id, sender_name,
@@ -858,15 +856,19 @@ async function sendInvitationReminders(date, shiftType) {
                                                          recipient_name, recipient_employee_id)
                     VALUES (?, 'coach', ?, ?, ?)
                 `, [notifyResult.lastID, coach.coach_no, coach.stage_name, employeeId]);
-            });
 
-            sentCount++;
+                sentCount++;
+            });
         } catch (err) {
             console.error(`[CronScheduler] 约客提醒: 发送给 ${coach.stage_name}(${coach.coach_no}) 失败:`, err.message);
         }
     }
 
-    console.log(`[CronScheduler] 约客提醒: ${shiftType} 已发送 ${sentCount}/${toNotify.length} 条通知`);
+    if (sentCount > 0 || skippedCount > 0) {
+        console.log(`[CronScheduler] 约客提醒: ${shiftType} 发送 ${sentCount} 条, 跳过已通知 ${skippedCount} 条`);
+    } else {
+        console.log(`[CronScheduler] 约客提醒: ${shiftType} 无待提醒助教`);
+    }
 }
 
 /**

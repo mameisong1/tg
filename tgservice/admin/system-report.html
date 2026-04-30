@@ -96,7 +96,7 @@
       <button class="tab-btn" data-tab="timerLogs" onclick="switchTab('timerLogs')">计时器日志</button>
       <button class="tab-btn" data-tab="dbQueue" onclick="switchTab('dbQueue')">DB 队列</button>
       <button class="tab-btn" data-tab="activeTimers" onclick="switchTab('activeTimers')">活跃计时器</button>
-      <button class="tab-btn" data-tab="sqlAudit" onclick="switchTab('sqlAudit')">SQL-超300行</button>
+      <button class="tab-btn" data-tab="sqlAudit" onclick="switchTab('sqlAudit')">SQL审计</button>
     </div>
 
     <!-- Tab: 概览 -->
@@ -252,9 +252,14 @@
       </table>
     </div>
 
-    <!-- Tab: SQL-超300行 -->
+    <!-- Tab: SQL审计 -->
     <div class="tab-content" id="tab-sqlAudit">
       <div class="filter-bar">
+        <div class="filter-group" id="sqlAuditTypeFilter">
+          <button class="btn btn-outline active" data-type="" onclick="setSqlAuditType('')">全部</button>
+          <button class="btn btn-outline" data-type="large" onclick="setSqlAuditType('large')">超300行</button>
+          <button class="btn btn-outline" data-type="slow" onclick="setSqlAuditType('slow')">慢查询(>500ms)</button>
+        </div>
         <button class="btn btn-primary" onclick="loadSqlAudit()">🔄 刷新</button>
         <button class="btn btn-danger btn-sm" onclick="clearSqlAudit()">🗑 清空日志</button>
         <span id="sqlAuditCount" style="font-size:12px;color:rgba(255,255,255,0.4);margin-left:8px;"></span>
@@ -263,12 +268,14 @@
         <thead>
           <tr>
             <th style="width:180px;">时间</th>
-            <th style="width:100px;">行数</th>
+            <th style="width:100px;">类型</th>
+            <th style="width:80px;">行数</th>
+            <th style="width:100px;">耗时(ms)</th>
             <th>SQL</th>
           </tr>
         </thead>
         <tbody id="sqlAuditTable">
-          <tr><td colspan="3" class="empty-state">
+          <tr><td colspan="5" class="empty-state">
             <div class="empty-state-icon">🔍</div>
             <div>点击刷新加载</div>
           </td></tr>
