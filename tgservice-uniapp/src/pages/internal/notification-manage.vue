@@ -726,13 +726,26 @@ const goBack = () => {
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  padding: 12px;
+  padding: 0 12px;
   font-size: 14px;
   color: #fff;
   height: 44px;
-  line-height: 20px;
   width: 100%;
   box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  overflow: visible;
+}
+
+/* H5穿透：UniApp input组件内部的实际input元素 */
+.input-field :deep(input) {
+  height: 44px !important;
+  line-height: 44px !important;
+  font-size: 14px !important;
+  color: #fff !important;
+  background: transparent !important;
+  width: 100% !important;
+  outline: none !important;
 }
 
 .input-area {
