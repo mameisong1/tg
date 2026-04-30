@@ -109,6 +109,10 @@
             <text class="stat-unread">未阅 {{ item.unread_count }} 人</text>
           </view>
         </view>
+        <!-- 删除按钮 -->
+        <view class="delete-btn" @click.stop="deleteNotification(item)">
+          <text>删除</text>
+        </view>
       </view>
       
       <!-- 空状态 -->
@@ -565,6 +569,32 @@ const closeRecipientsModal = () => {
   currentNotification.value = null;
 };
 
+// 删除通知
+const deleteNotification = (item) => {
+  uni.showModal({
+    title: '确认删除',
+    content: `确定删除通知「${item.title}」吗？删除后不可恢复。`,
+    confirmColor: '#ff4d4f',
+    success: async (res) => {
+      if (res.confirm) {
+        try {
+          const result = await api.notifications.delete(item.id);
+          if (result.success) {
+            uni.showToast({ title: '删除成功', icon: 'success' });
+            // 从列表中移除
+            const idx = sentNotifications.value.findIndex(n => n.id === item.id);
+            if (idx >= 0) sentNotifications.value.splice(idx, 1);
+          } else {
+            uni.showToast({ title: result.error || '删除失败', icon: 'none' });
+          }
+        } catch (e) {
+          uni.showToast({ title: '删除失败', icon: 'none' });
+        }
+      }
+    }
+  });
+};
+
 // 格式化时间
 const formatTime = (timeStr) => {
   if (!timeStr) return '';
@@ -699,6 +729,8 @@ const goBack = () => {
   padding: 12px;
   font-size: 14px;
   color: #fff;
+  height: 44px;
+  line-height: 20px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -986,6 +1018,22 @@ const goBack = () => {
 
 .stat-unread {
   color: #d4af37;
+}
+
+.delete-btn {
+  margin-top: 10px;
+  padding: 6px 14px;
+  background: rgba(255, 77, 79, 0.15);
+  border: 1px solid rgba(255, 77, 79, 0.4);
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-btn text {
+  font-size: 13px;
+  color: #ff4d4f;
 }
 
 .empty {

@@ -283,7 +283,9 @@ export const notifications = {
   // 获取接收者详情
   getRecipients: (id) => request({ url: `/notifications/manage/${id}/recipients` }),
   // 获取可选员工列表
-  getEmployees: (params) => request({ url: '/notifications/manage/employees', data: params })
+  getEmployees: (params) => request({ url: '/notifications/manage/employees', data: params }),
+  // 删除通知
+  delete: (id) => request({ url: `/notifications/manage/${id}`, method: 'DELETE' })
 }
 
 // API接口

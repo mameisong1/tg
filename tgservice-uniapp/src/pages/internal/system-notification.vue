@@ -33,6 +33,9 @@
         <view class="read-btn" v-if="item.is_read === 0" @click.stop="markAsRead(item)">
           <text>标记已阅</text>
         </view>
+        <view class="read-btn marking" v-if="item.is_read === 2" @click.stop>
+          <text>已阅中...</text>
+        </view>
       </view>
       
       <!-- 空状态 -->
@@ -68,6 +71,9 @@
         </view>
         <view class="modal-btn" v-if="selectedItem?.is_read === 0" @click="markAsRead(selectedItem)">
           <text>标记已阅</text>
+        </view>
+        <view class="modal-btn marking" v-if="selectedItem?.is_read === 2" @click.stop>
+          <text>已阅中...</text>
         </view>
         <view class="modal-btn secondary" @click="closeModal">
           <text>关闭</text>
@@ -143,6 +149,11 @@ const loadMore = () => {
 
 // 标记已阅
 const markAsRead = async (item) => {
+  // 防抖锁定：已在处理中则忽略
+  if (item.is_read === 2) return;
+  // 立即锁定按钮
+  item.is_read = 2;
+  
   try {
     const res = await api.notifications.markAsRead(item.id);
     
@@ -162,9 +173,11 @@ const markAsRead = async (item) => {
         closeModal();
       }
     } else {
+      item.is_read = 0; // 恢复
       uni.showToast({ title: res.error || '操作失败', icon: 'none' });
     }
   } catch (e) {
+    item.is_read = 0; // 恢复
     uni.showToast({ title: '操作失败', icon: 'none' });
   }
 };
@@ -354,6 +367,15 @@ const goBack = () => {
   font-weight: 500;
 }
 
+.read-btn.marking {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.read-btn.marking text {
+  color: rgba(255, 255, 255, 0.5);
+}
+
 .empty {
   display: flex;
   flex-direction: column;
@@ -463,5 +485,14 @@ const goBack = () => {
 
 .modal-btn.secondary text {
   color: rgba(255, 255, 255, 0.7);
+}
+
+.modal-btn.marking {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.modal-btn.marking text {
+  color: rgba(255, 255, 255, 0.5);
 }
 </style>

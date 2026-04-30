@@ -235,21 +235,24 @@ router.post('/:id/read', authMiddleware, async (req, res) => {
     }
 
     // 使用 runInTransaction 同步更新 read_count
+    // 事务内加 is_read=0 条件防止并发重复标记
     const now = TimeUtil.nowDB();
     await runInTransaction(async (tx) => {
-      // 更新接收者状态
-      await tx.run(`
+      // 更新接收者状态（加 AND is_read = 0 防并发）
+      const recipientResult = await tx.run(`
         UPDATE notification_recipients
         SET is_read = 1, read_at = ?
-        WHERE notification_id = ? AND recipient_type = ? AND recipient_id = ?
+        WHERE notification_id = ? AND recipient_type = ? AND recipient_id = ? AND is_read = 0
       `, [now, notificationId, recipientType, recipientId]);
 
-      // 同步更新通知表的 read_count
-      await tx.run(`
-        UPDATE notifications
-        SET read_count = read_count + 1
-        WHERE id = ?
-      `, [notificationId]);
+      // 只有接收者确实被更新时才递增 read_count，且加 read_count < total_recipients 防超
+      if (recipientResult.changes > 0) {
+        await tx.run(`
+          UPDATE notifications
+          SET read_count = read_count + 1
+          WHERE id = ? AND read_count < total_recipients
+        `, [notificationId]);
+      }
     });
 
     res.json({ success: true, message: '已标记已阅' });
@@ -479,7 +482,7 @@ router.get('/manage/list', authMiddleware, canManageNotification, async (req, re
           created_at: n.created_at,
           total_recipients: n.total_recipients,
           read_count: n.read_count,
-          unread_count: n.total_recipients - n.read_count
+          unread_count: Math.max(0, n.total_recipients - n.read_count)
         })),
         total: totalRow.total
       }
@@ -606,6 +609,34 @@ router.get('/manage/employees', authMiddleware, canManageNotification, async (re
     });
   } catch (err) {
     console.error('[Notifications] 获取员工列表失败:', err.message);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+/**
+ * DELETE /api/notifications/manage/:id
+ * 删除通知及其接收者（店长/助教管理/管理员）
+ * 利用 ON DELETE CASCADE 级联删除 notification_recipients
+ */
+router.delete('/manage/:id', authMiddleware, canManageNotification, async (req, res) => {
+  try {
+    const notificationId = parseInt(req.params.id);
+
+    // 验证通知存在
+    const notification = await dbGet(`
+      SELECT id FROM notifications WHERE id = ?
+    `, [notificationId]);
+
+    if (!notification) {
+      return res.status(404).json({ error: '通知不存在' });
+    }
+
+    // 删除通知主记录（CASCADE 自动删除 recipients）
+    await enqueueRun(`DELETE FROM notifications WHERE id = ?`, [notificationId]);
+
+    res.json({ success: true, message: '删除成功' });
+  } catch (err) {
+    console.error('[Notifications] 删除失败:', err.message);
     res.status(500).json({ error: '服务器错误' });
   }
 });
