@@ -19,6 +19,9 @@
       <view class="tab" :class="{ active: activeTab === 'list' }" @click="switchToList">
         <text>已发送列表</text>
       </view>
+      <view class="tab" :class="{ active: activeTab === 'system' }" @click="switchToSystem">
+        <text>系统通知</text>
+      </view>
     </view>
 
     <!-- 发送通知板块 -->
@@ -115,6 +118,52 @@
       </view>
     </scroll-view>
 
+    <!-- 系统通知板块 -->
+    <scroll-view class="list-section" scroll-y v-if="activeTab === 'system'" @scrolltolower="loadMoreSystemNotif">
+      <view class="sent-item" v-for="item in systemNotifications" :key="item.id" @click="showSystemNotifDetail(item)">
+        <view class="sent-title-row">
+          <text class="sent-title">{{ item.title }}</text>
+          <text class="type-badge" :class="item.notification_type">{{ getNotifTypeLabel(item.notification_type) }}</text>
+        </view>
+        <text class="sent-content">{{ item.content }}</text>
+        <view class="sent-footer">
+          <text class="sent-time">{{ formatTime(item.created_at) }}</text>
+          <text class="stat-total">{{ item.sender_name }}</text>
+        </view>
+      </view>
+      
+      <!-- 空状态 -->
+      <view class="empty" v-if="systemNotifications.length === 0 && !systemNotifLoading">
+        <text class="empty-icon">📭</text>
+        <text class="empty-text">暂无系统通知</text>
+      </view>
+
+      <!-- 加载状态 -->
+      <view class="loading" v-if="systemNotifLoading">
+        <text>加载中...</text>
+      </view>
+
+      <!-- 无更多 -->
+      <view class="no-more" v-if="!systemNotifHasMore && systemNotifications.length > 0">
+        <text>没有更多通知了</text>
+      </view>
+    </scroll-view>
+
+    <!-- 系统通知详情弹框 -->
+    <view class="recipients-modal" v-if="showSystemDetailModal" @click="closeSystemDetailModal">
+      <view class="modal-content" @click.stop>
+        <text class="modal-title">{{ currentSystemNotif?.title }}</text>
+        <text class="modal-content-text">{{ currentSystemNotif?.content }}</text>
+        <view class="modal-info-row">
+          <text class="sent-time">{{ currentSystemNotif?.sender_name }}</text>
+          <text class="sent-time">{{ currentSystemNotif?.created_at }}</text>
+        </view>
+        <view class="modal-close" @click="closeSystemDetailModal">
+          <text>关闭</text>
+        </view>
+      </view>
+    </view>
+
     <!-- 接收者弹框 -->
     <view class="recipients-modal" v-if="showRecipientsModal" @click="closeRecipientsModal">
       <view class="modal-content" @click.stop>
@@ -166,6 +215,15 @@ const roleFilter = ref(''); // 后台角色筛选
 
 // 已发送列表
 const sentNotifications = ref([]);
+
+// 系统通知列表
+const systemNotifications = ref([]);
+const systemNotifPage = ref(1);
+const systemNotifTotal = ref(0);
+const systemNotifLoading = ref(false);
+const systemNotifHasMore = ref(true);
+const showSystemDetailModal = ref(false);
+const currentSystemNotif = ref(null);
 
 // 接收者弹框
 const showRecipientsModal = ref(false);
@@ -389,6 +447,86 @@ const sendNotification = async () => {
 const switchToList = () => {
   activeTab.value = 'list';
   loadSentNotifications();
+};
+
+// 切换到系统通知
+const switchToSystem = () => {
+  activeTab.value = 'system';
+  systemNotifPage.value = 1;
+  systemNotifications.value = [];
+  systemNotifHasMore.value = true;
+  loadSystemNotifications();
+};
+
+// 加载系统通知列表（管理员视角：查看系统发送的通知）
+const loadSystemNotifications = async () => {
+  if (systemNotifLoading.value) return;
+  systemNotifLoading.value = true;
+
+  try {
+    const res = await api.notifications.getSentList({
+      page: systemNotifPage.value,
+      pageSize: 20,
+      sender_type: 'system'
+    });
+
+    if (res.success) {
+      const list = res.data.notifications || [];
+      if (systemNotifPage.value === 1) {
+        systemNotifications.value = list;
+      } else {
+        systemNotifications.value.push(...list);
+      }
+      systemNotifTotal.value = res.data.total;
+      systemNotifHasMore.value = systemNotifications.value.length < systemNotifTotal.value;
+    }
+  } catch (e) {
+    uni.showToast({ title: '加载失败', icon: 'none' });
+  }
+
+  systemNotifLoading.value = false;
+};
+
+// 加载更多系统通知
+const loadMoreSystemNotif = () => {
+  if (!systemNotifHasMore.value || systemNotifLoading.value) return;
+  systemNotifPage.value++;
+  loadSystemNotifications();
+};
+
+// 显示系统通知详情
+const showSystemNotifDetail = async (item) => {
+  currentSystemNotif.value = item;
+
+  // 查看接收者详情
+  try {
+    const res = await api.notifications.getRecipients(item.id);
+    if (res.success) {
+      currentSystemNotif.value = {
+        ...item,
+        recipientsList: res.data.recipients || []
+      };
+    }
+  } catch (e) {
+    // 不影响展示
+  }
+
+  showSystemDetailModal.value = true;
+};
+
+// 关闭系统通知详情
+const closeSystemDetailModal = () => {
+  showSystemDetailModal.value = false;
+  currentSystemNotif.value = null;
+};
+
+// 通知类型标签
+const getNotifTypeLabel = (type) => {
+  const labels = {
+    system: '系统',
+    invitation_reminder: '约客提醒'
+  };
+  return labels[type] || '系统';
 };
 
 // 加载已发送列表
@@ -975,5 +1113,60 @@ const goBack = () => {
 .modal-close text {
   font-size: 14px;
   color: rgba(255, 255, 255, 0.7);
+}
+
+/* 系统通知标签 */
+.sent-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+
+.type-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.type-badge.system {
+  background: rgba(100, 149, 237, 0.3);
+  color: #6495ed;
+}
+
+.type-badge.invitation_reminder {
+  background: rgba(212, 175, 55, 0.2);
+  color: #d4af37;
+}
+
+/* 系统通知详情弹框 */
+.modal-content-text {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  line-height: 1.6;
+  margin-bottom: 12px;
+  display: block;
+}
+
+.modal-info-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 15px;
+}
+
+.loading, .no-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.loading text, .no-more text {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.5);
 }
 </style>

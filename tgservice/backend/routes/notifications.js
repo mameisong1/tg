@@ -401,21 +401,70 @@ router.get('/manage/list', authMiddleware, canManageNotification, async (req, re
     const pageSize = Math.min(parseInt(req.query.pageSize) || 50, 50); // LIMIT上限50
     const offset = (page - 1) * pageSize;
 
-    // 查询所有管理者发送的通知（排除系统自动发送）
+    // 可选参数：sender_type 过滤，默认 'admin'（排除系统自动发送）
+    // 传 'all' 查全部，传 'system' 查系统通知
+    const senderTypeFilter = req.query.sender_type || 'admin';
+    let senderCondition = '';
+    const queryParams = [];
+    if (senderTypeFilter === 'all') {
+      // 不加条件
+    } else {
+      senderCondition = ' WHERE sender_type = ?';
+      queryParams.push(senderTypeFilter);
+    }
+
+    // 可选：按通知类型过滤
+    const typeFilter = req.query.type;
+    let typeCondition = '';
+    if (typeFilter) {
+      const types = typeFilter.split(',').map(t => t.trim()).filter(Boolean);
+      if (types.length > 0) {
+        const placeholders = types.map(() => '?').join(',');
+        if (senderCondition) {
+          typeCondition = ` AND notification_type IN (${placeholders})`;
+        } else {
+          typeCondition = ` WHERE notification_type IN (${placeholders})`;
+        }
+        queryParams.push(...types);
+      }
+    }
+
+    queryParams.push(pageSize, offset);
     const notifications = await dbAll(`
-      SELECT id, title, content, sender_name, created_at, total_recipients, read_count
+      SELECT id, title, content, sender_name, sender_type, notification_type, created_at, total_recipients, read_count
       FROM notifications
-      WHERE sender_type = 'admin'
+      ${senderCondition}${typeCondition}
       ORDER BY created_at DESC
       LIMIT ? OFFSET ?
-    `, [pageSize, offset]);
+    `, queryParams);
 
     // 查询总数
+    const countParams = [];
+    let countCondition = '';
+    if (senderTypeFilter === 'all') {
+      // 不加条件
+    } else {
+      countCondition = ' WHERE sender_type = ?';
+      countParams.push(senderTypeFilter);
+    }
+    if (typeFilter) {
+      const types = typeFilter.split(',').map(t => t.trim()).filter(Boolean);
+      if (types.length > 0) {
+        const placeholders = types.map(() => '?').join(',');
+        if (countCondition) {
+          countCondition += ` AND notification_type IN (${placeholders})`;
+        } else {
+          countCondition = ` WHERE notification_type IN (${placeholders})`;
+        }
+        countParams.push(...types);
+      }
+    }
+
     const totalRow = await dbGet(`
       SELECT COUNT(*) as total
       FROM notifications
-      WHERE sender_type = 'admin'
-    `);
+      ${countCondition}
+    `, countParams);
 
     res.json({
       success: true,
@@ -425,6 +474,8 @@ router.get('/manage/list', authMiddleware, canManageNotification, async (req, re
           title: n.title,
           content: n.content,
           sender_name: n.sender_name,
+          sender_type: n.sender_type,
+          notification_type: n.notification_type,
           created_at: n.created_at,
           total_recipients: n.total_recipients,
           read_count: n.read_count,

@@ -144,12 +144,6 @@
             <text class="internal-btn-text">通知</text>
             <view class="badge" v-if="notificationUnreadCount > 0">{{ notificationUnreadCount }}</view>
           </view>
-          <!-- 系统通知：所有后台用户可用 -->
-          <view class="internal-btn" @click="navigateTo('/pages/internal/system-notification')">
-            <text class="internal-btn-icon">📢</text>
-            <text class="internal-btn-text">系统通知</text>
-            <view class="badge" v-if="systemNotifUnreadCount > 0">{{ systemNotifUnreadCount }}</view>
-          </view>
         </view>
       </view>
     </view>
@@ -1346,7 +1340,6 @@ const lejuanCount = ref(0)
 const rewardPenaltyCount = ref(0)
 const attendanceReviewCount = ref(0)
 const notificationUnreadCount = ref(0)
-const systemNotifUnreadCount = ref(0)
 
 // === 业务追踪（使用统一的 errorReporter）===
 import errorReporter from '@/utils/error-reporter.js'
@@ -1406,14 +1399,6 @@ const loadNotificationUnreadCount = async () => {
     }
   } catch (e) {
     console.error('加载未阅通知数量失败:', e)
-  }
-  try {
-    const res2 = await api.notifications.getSystemUnreadCount()
-    if (res2.success) {
-      systemNotifUnreadCount.value = res2.data.unread_count || 0
-    }
-  } catch (e) {
-    console.error('加载系统通知未阅数量失败:', e)
   }
 }
 
