@@ -1032,6 +1032,12 @@ const checkAutoLogin = async () => {
         if (profile.coachInfo) {
           uni.setStorageSync('coachInfo', profile.coachInfo)
           coachInfo.value = profile.coachInfo
+          // QA-20260430: 当 coachInfo 有 phone 时，重新生成带 phone 的 coachToken
+          // 旧 token 格式: btoa(coachNo:timestamp)，新格式: btoa(coachNo:phone:timestamp)
+          if (profile.coachInfo.coachNo && profile.coachInfo.phone) {
+            const newCoachToken = btoa(`${profile.coachInfo.coachNo}:${profile.coachInfo.phone}:${Date.now()}`)
+            uni.setStorageSync('coachToken', newCoachToken)
+          }
         }
       }
       
@@ -1132,10 +1138,12 @@ const saveLoginData = (data) => {
   }
   
   if (data.coachInfo) {
-    const coachToken = btoa(`${data.coachInfo.coachNo}:${Date.now()}`)
-    uni.setStorageSync('coachToken', coachToken)
     uni.setStorageSync('coachInfo', data.coachInfo)
     coachInfo.value = data.coachInfo
+    // QA-20260430: 新 token 格式 coachNo:phone:timestamp
+    const phone = data.coachInfo.phone || ''
+    const coachToken = btoa(`${data.coachInfo.coachNo}:${phone}:${Date.now()}`)
+    uni.setStorageSync('coachToken', coachToken)
   }
 }
 
@@ -1172,7 +1180,8 @@ const selectRole = async (role) => {
     }
   } else if (role === 'coach' && tempLoginData.value) {
     if (tempLoginData.value.coachInfo) {
-      const coachToken = btoa(`${tempLoginData.value.coachInfo.coachNo}:${Date.now()}`)
+      const phone = tempLoginData.value.coachInfo.phone || ''
+      const coachToken = btoa(`${tempLoginData.value.coachInfo.coachNo}:${phone}:${Date.now()}`)
       uni.setStorageSync('coachToken', coachToken)
       uni.setStorageSync('coachInfo', tempLoginData.value.coachInfo)
       coachInfo.value = tempLoginData.value.coachInfo

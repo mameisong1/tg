@@ -328,7 +328,7 @@ export default {
     const fp = getDeviceFingerprint()
     return request({ url: `/coaches/${coachNo}`, data: { fp } })
   },
-  coachLogin: (data) => request({ url: '/coach/login', method: 'POST', data }),
+  // 助教登录已废弃，统一走 SMS 登录
   updateCoachProfile: (data) => request({ url: '/coach/profile', method: 'PUT', data, authType: 'coach' }),
   setCoachAvatar: (data) => request({ url: '/coach/avatar', method: 'PUT', data, authType: 'coach' }),
   getPopularityTop6: () => request({ url: '/coaches/popularity/top6' }),

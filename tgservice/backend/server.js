@@ -882,12 +882,33 @@ app.post('/api/order', async (req, res) => {
       const token = authHeader.substring(7);
       try {
         const decoded = jwt.verify(token, config.jwt.secret);
-        // 检查是否为会员 token（包含 memberNo 和 phone）
+        // 1. 会员 token（包含 memberNo 和 phone）
         if (decoded.memberNo && decoded.phone) {
           memberPhone = decoded.phone;
         }
+        // 2. 后台 token（username 即手机号）
+        else if (decoded.username && /^1\d{10}$/.test(decoded.username)) {
+          memberPhone = decoded.username;
+        }
       } catch (e) {
-        // token 无效或过期，忽略，视为未登录
+        // JWT 验证失败，可能是助教 base64 token
+        try {
+          const decoded_str = Buffer.from(token, 'base64').toString();
+          const parts = decoded_str.split(':');
+          // 新格式: coachNo:phone:timestamp
+          if (parts.length === 3 && /^1\d{10}$/.test(parts[1])) {
+            memberPhone = parts[1];
+          }
+          // 旧格式: coachNo:timestamp → 无 phone，fallback 查库
+          else if (parts.length === 2 && parts[0]) {
+            const coach = await dbGet('SELECT phone FROM coaches WHERE coach_no = ?', [parts[0]]);
+            if (coach && coach.phone) {
+              memberPhone = coach.phone;
+            }
+          }
+        } catch (e2) {
+          // 不是 base64 token，忽略
+        }
       }
     }
 
@@ -1282,9 +1303,22 @@ app.get('/api/orders/my-orders', async (req, res) => {
         const decoded = jwt.verify(token, config.jwt.secret);
         if (decoded.memberNo && decoded.phone) {
           memberPhone = decoded.phone;
+        } else if (decoded.username && /^1\d{10}$/.test(decoded.username)) {
+          memberPhone = decoded.username;
         }
       } catch (e) {
-        // token 无效，忽略
+        try {
+          const decoded_str = Buffer.from(token, 'base64').toString();
+          const parts = decoded_str.split(':');
+          if (parts.length === 3 && /^1\d{10}$/.test(parts[1])) {
+            memberPhone = parts[1];
+          } else if (parts.length === 2 && parts[0]) {
+            const coach = await dbGet('SELECT phone FROM coaches WHERE coach_no = ?', [parts[0]]);
+            if (coach && coach.phone) {
+              memberPhone = coach.phone;
+            }
+          }
+        } catch (e2) {}
       }
     }
 
@@ -1331,81 +1365,6 @@ app.get('/api/orders/my-orders', async (req, res) => {
     res.json(processedOrders);
   } catch (err) {
     logger.error(`获取我的订单失败: ${err.message}`);
-    res.status(500).json({ error: '服务器错误' });
-  }
-});
-
-// 助教登录
-app.post('/api/coach/login', async (req, res) => {
-  try {
-    const { employeeId, stageName, idCardLast6 } = req.body;
-
-    if (!employeeId || !stageName || !idCardLast6) {
-      return res.status(400).json({ error: '请填写完整信息' });
-    }
-
-    const coach = await dbGet(
-      'SELECT * FROM coaches WHERE employee_id = ? AND stage_name = ?',
-      [employeeId, stageName]
-    );
-
-    if (!coach) {
-      // QA-20260422-3: 登录失败日志
-      logger.warn(`助教登录失败: 信息不匹配 - 工号=${employeeId}, 艺名=${stageName}`);
-      return res.status(401).json({ error: '助教信息不匹配' });
-    }
-
-    // 离职助教禁止登录
-    if (coach.status === '离职') {
-      // QA-20260422-3: 登录失败日志
-      logger.warn(`助教登录失败: 账号已离职 - 工号=${employeeId}, 艺名=${stageName}`);
-      return res.status(403).json({ error: '该账号已离职' });
-    }
-
-    // 更新身份证后6位(首次登录时设置)
-    if (!coach.id_card_last6) {
-      await enqueueRun('UPDATE coaches SET id_card_last6 = ? WHERE coach_no = ?', [idCardLast6, coach.coach_no]);
-    } else if (coach.id_card_last6 !== idCardLast6) {
-      // QA-20260422-3: 登录失败日志
-      logger.warn(`助教登录失败: 身份证不匹配 - 工号=${employeeId}`);
-      return res.status(401).json({ error: '身份证后6位不正确' });
-    }
-
-    // 生成简单token
-    const token = Buffer.from(`${coach.coach_no}:${Date.now()}`).toString('base64');
-
-    // 检查助教是否同时是后台用户(通过手机号匹配)
-    let adminInfo = null;
-    let adminToken = null;
-    if (coach.phone) {
-      const adminUser = await dbGet('SELECT username, role, name FROM admin_users WHERE username = ?', [coach.phone]);
-      if (adminUser) {
-        adminInfo = {
-          username: adminUser.username,
-          name: adminUser.name || '',
-          role: adminUser.role
-        };
-        adminToken = jwt.sign({ username: adminUser.username, role: adminUser.role }, config.jwt.secret, { expiresIn: config.jwt.expiresIn });
-      }
-    }
-
-    operationLog.info(`助教登录: ${coach.stage_name} (${coach.coach_no})`);
-    res.json({
-      success: true,
-      token,
-      coach: {
-        coachNo: coach.coach_no,
-        employeeId: coach.employee_id,
-        stageName: coach.stage_name,
-        phone: coach.phone || '',
-        level: coach.level,
-        shift: coach.shift || '晚班'
-      },
-      adminInfo: adminInfo,
-      adminToken: adminToken
-    });
-  } catch (err) {
-    logger.error(`助教登录失败: ${err.message}`);
     res.status(500).json({ error: '服务器错误' });
   }
 });
@@ -1941,8 +1900,11 @@ app.post('/api/member/login', async (req, res) => {
       adminToken: adminToken,
       coachInfo: coach ? {
         coachNo: coach.coach_no,
+        employeeId: coach.employee_id,
         stageName: coach.stage_name,
+        phone: coach.phone,
         level: coach.level,
+        shift: coach.shift || '晚班',
         status: coach.status
       } : null
     });
@@ -2002,7 +1964,7 @@ app.post('/api/member/auto-login', async (req, res) => {
     const memberToken = jwt.sign({ memberNo: member.member_no, phone: member.phone }, config.jwt.secret, { expiresIn: '30d' });
 
     // 检查是否同时是助教
-    const coach = await dbGet('SELECT coach_no, employee_id, stage_name, level, status FROM coaches WHERE phone = ? AND status != ?', [member.phone, '离职']);
+    const coach = await dbGet('SELECT coach_no, employee_id, stage_name, phone, level, shift, status FROM coaches WHERE phone = ? AND status != ?', [member.phone, '离职']);
 
     // 检查是否匹配后台用户
     const adminUser = await dbGet('SELECT username, role, name FROM admin_users WHERE username = ?', [member.phone]);
@@ -2031,7 +1993,9 @@ app.post('/api/member/auto-login', async (req, res) => {
         coachNo: coach.coach_no,
         employeeId: coach.employee_id,
         stageName: coach.stage_name,
+        phone: coach.phone || member.phone,
         level: coach.level,
+        shift: coach.shift || '晚班',
         status: coach.status
       };
     } else if (!preferredRole) {
@@ -2049,7 +2013,9 @@ app.post('/api/member/auto-login', async (req, res) => {
           coachNo: coach.coach_no,
           employeeId: coach.employee_id,
           stageName: coach.stage_name,
+          phone: coach.phone || member.phone,
           level: coach.level,
+          shift: coach.shift || '晚班',
           status: coach.status
         };
       }
@@ -2314,12 +2280,23 @@ const authMiddleware = (req, res, next) => {
     // JWT 解析失败,尝试 base64 解析(助教 token)
     try {
       const decodedStr = Buffer.from(token, 'base64').toString('utf8');
-      // 格式: "coachNo:timestamp"
-      const [coachNo, timestamp] = decodedStr.split(':');
-      if (coachNo && timestamp) {
+      // 新格式: "coachNo:phone:timestamp"（2026-04-30 起）
+      // 旧格式: "coachNo:timestamp"（兼容）
+      const parts = decodedStr.split(':');
+      if (parts.length === 3 && parts[0] && parts[1] && parts[2]) {
+        // 新格式: coachNo:phone:timestamp
         req.user = {
           userType: 'coach',
-          coachNo: coachNo,
+          coachNo: parts[0],
+          phone: parts[1],
+          role: '助教'
+        };
+        return next();
+      } else if (parts.length === 2 && parts[0] && parts[1]) {
+        // 旧格式: coachNo:timestamp
+        req.user = {
+          userType: 'coach',
+          coachNo: parts[0],
           role: '助教'
         };
         return next();
