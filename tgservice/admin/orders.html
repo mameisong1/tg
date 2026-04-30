@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>订单管理 - 天宫国际</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0f; font-family: 'PingFang SC', sans-serif; color: #fff; display: flex; min-height: 100vh; }
+    .sidebar-logo img { width: 32px; height: 32px; }
+    .nav-item:hover, .nav-item.active { background: rgba(212,175,55,0.1); color: #d4af37; }
+    .nav-group-title .arrow { transition: transform 0.2s; font-size: 12px; }
+    .nav-group.open .nav-group-title .arrow { transform: rotate(180deg); }
+    .nav-group-title .group-icon { font-size: 18px; margin-right: 12px; }
+    .nav-group-title .group-text { flex: 1; }
+    
+    .main { flex: 1; padding: 20px; overflow-y: auto; }
+    .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+    .page-title { font-size: 22px; background: linear-gradient(135deg, #d4af37, #ffd700); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    
+    /* 统计栏 */
+    .stats-bar { display: flex; gap: 16px; margin-bottom: 20px; }
+    .stat-card { padding: 16px 24px; background: rgba(20,20,30,0.6); border-radius: 12px; border: 1px solid rgba(218,165,32,0.1); min-width: 120px; }
+    .stat-card .stat-value { font-size: 24px; font-weight: 600; color: #d4af37; }
+    .stat-card .stat-label { font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+    .stat-card.pending .stat-value { color: #f1c40f; }
+    .stat-card.completed .stat-value { color: #2ecc71; }
+    .stat-card.cancelled .stat-value { color: #e74c3c; }
+    
+    /* 工具栏 */
+    .toolbar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+    .search-input { flex: 1; min-width: 200px; max-width: 300px; padding: 10px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; }
+    .search-input:focus { outline: none; border-color: #d4af37; }
+    .filter-select { padding: 10px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; cursor: pointer; }
+    .filter-select option { background: #1a1a24; color: #fff; }
+    
+    /* 状态筛选按钮 */
+    .status-filter { display: flex; gap: 8px; }
+    .status-btn { padding: 8px 16px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; color: rgba(255,255,255,0.6); font-size: 13px; cursor: pointer; transition: all 0.2s; }
+    .status-btn:hover { background: rgba(212,175,55,0.1); border-color: rgba(212,175,55,0.3); }
+    .status-btn.active { background: rgba(212,175,55,0.2); border-color: #d4af37; color: #d4af37; }
+    .status-btn.active-pending { background: rgba(241,196,15,0.2); border-color: #f1c40f; color: #f1c40f; }
+    .status-btn.active-completed { background: rgba(46,204,113,0.2); border-color: #2ecc71; color: #2ecc71; }
+    .status-btn.active-cancelled { background: rgba(231,76,60,0.2); border-color: #e74c3c; color: #e74c3c; }
+    
+    /* 按钮 */
+    .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; border: none; }
+    .btn-primary { background: linear-gradient(135deg, #d4af37 0%, #ffd700 100%); color: #000; }
+    .btn-danger { background: rgba(231,76,60,0.2); color: #e74c3c; border: 1px solid rgba(231,76,60,0.3); }
+    .btn-success { background: rgba(46,204,113,0.2); color: #2ecc71; border: 1px solid rgba(46,204,113,0.3); }
+    .btn-warning { background: rgba(241,196,15,0.2); color: #f1c40f; border: 1px solid rgba(241,196,15,0.3); }
+    .btn-sm { padding: 6px 12px; font-size: 12px; }
+    .btn-cancel { background: rgba(255,255,255,0.1); color: #fff; }
+    
+    /* 数据表格 */
+    .data-table { width: 100%; background: rgba(20,20,30,0.6); border-radius: 12px; border: 1px solid rgba(218,165,32,0.1); overflow: hidden; border-collapse: collapse; }
+    .data-table th, .data-table td { padding: 14px 16px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .data-table th { background: rgba(212,175,55,0.1); font-weight: 500; font-size: 13px; color: rgba(255,255,255,0.7); }
+    .data-table td { font-size: 14px; }
+    .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+    
+    /* Badge */
+    .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; }
+    .badge-pending { background: rgba(241,196,15,0.2); color: #f1c40f; }
+    .badge-completed { background: rgba(46,204,113,0.2); color: #2ecc71; }
+    .badge-cancelled { background: rgba(231,76,60,0.2); color: #e74c3c; }
+    
+    /* 弹窗 */
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
+    .modal.show { display: flex; }
+    .modal-content { background: rgba(20,20,30,0.95); border-radius: 16px; padding: 24px; width: 90%; max-width: 600px; border: 1px solid rgba(218,165,32,0.2); max-height: 90vh; overflow-y: auto; }
+    .modal-title { font-size: 18px; margin-bottom: 20px; background: linear-gradient(135deg, #d4af37, #ffd700); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .modal-close { position: absolute; top: 16px; right: 16px; font-size: 24px; color: rgba(255,255,255,0.5); cursor: pointer; background: none; border: none; }
+    .modal-close:hover { color: #fff; }
+    
+    /* 订单详情 */
+    .order-info { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 20px; padding: 16px; background: rgba(30,30,45,0.5); border-radius: 12px; }
+    .order-info-item { display: flex; flex-direction: column; gap: 4px; }
+    .order-info-label { font-size: 12px; color: rgba(255,255,255,0.5); }
+    .order-info-value { font-size: 14px; color: #fff; }
+    
+    /* 商品列表 */
+    .items-list { margin-bottom: 20px; }
+    .items-title { font-size: 14px; color: rgba(255,255,255,0.7); margin-bottom: 12px; }
+    .item-row { display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(30,30,45,0.5); border-radius: 8px; margin-bottom: 8px; }
+    .item-img { width: 50px; height: 50px; border-radius: 8px; object-fit: cover; background: rgba(30,30,40,0.5); }
+    .item-info { flex: 1; }
+    .item-name { font-size: 14px; color: #fff; font-weight: 500; }
+    .item-category { font-size: 12px; color: rgba(255,255,255,0.5); }
+    .item-qty { font-size: 13px; color: rgba(255,255,255,0.7); }
+    .item-price { font-size: 14px; color: #d4af37; font-weight: 600; }
+    
+    /* 状态修改按钮 */
+    .status-actions { display: flex; gap: 12px; margin-top: 20px; }
+    .status-actions .btn { flex: 1; }
+    
+    /* Toast */
+    .toast { position: fixed; top: 20px; right: 20px; background: rgba(0,0,0,0.9); color: #fff; padding: 12px 24px; border-radius: 8px; z-index: 1001; display: none; }
+    .toast.show { display: block; }
+    .toast.error { background: rgba(231,76,60,0.9); }
+    .toast.success { background: rgba(46,204,113,0.9); }
+  </style>
+  <link rel="stylesheet" href="sidebar.css">
+</head>
+<body>
+  <div class="sidebar"></div>
+
+  <div class="main">
+    <div class="page-header">
+      <div class="page-title">订单管理</div>
+    </div>
+    
+    <!-- 统计栏 -->
+    <div class="stats-bar">
+      <div class="stat-card">
+        <div class="stat-value" id="statTotal">0</div>
+        <div class="stat-label">总订单</div>
+      </div>
+      <div class="stat-card pending">
+        <div class="stat-value" id="statPending">0</div>
+        <div class="stat-label">待处理</div>
+      </div>
+      <div class="stat-card completed">
+        <div class="stat-value" id="statCompleted">0</div>
+        <div class="stat-label">已完成</div>
+      </div>
+      <div class="stat-card cancelled">
+        <div class="stat-value" id="statCancelled">0</div>
+        <div class="stat-label">已取消</div>
+      </div>
+    </div>
+    
+    <!-- 工具栏 -->
+    <div class="toolbar">
+      <input type="text" class="search-input" id="searchInput" placeholder="搜索订单号/台桌号/会员手机...">
+      <div class="status-filter">
+        <button class="status-btn active" data-status="全部" onclick="setStatusFilter('全部')">全部</button>
+        <button class="status-btn" data-status="待处理" onclick="setStatusFilter('待处理')">待处理</button>
+        <button class="status-btn" data-status="已完成" onclick="setStatusFilter('已完成')">已完成</button>
+        <button class="status-btn" data-status="已取消" onclick="setStatusFilter('已取消')">已取消</button>
+      </div>
+      <input type="date" class="filter-select" id="dateFilter" onchange="loadOrders()">
+    </div>
+    
+    <!-- 订单列表 -->
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>订单号</th>
+          <th>台桌号</th>
+          <th>商品数</th>
+          <th>总价</th>
+          <th>状态</th>
+          <th>会员手机</th>
+          <th>创建时间</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="ordersTable"></tbody>
+    </table>
+  </div>
+  
+  <!-- 详情弹窗 -->
+  <div class="modal" id="detailModal">
+    <div class="modal-content" style="position: relative;">
+      <button class="modal-close" onclick="closeDetailModal()">×</button>
+      <div class="modal-title" id="modalTitle">订单详情</div>
+      
+      <div class="order-info" id="orderInfo"></div>
+      
+      <div class="items-list">
+        <div class="items-title">商品列表</div>
+        <div id="itemsContainer"></div>
+      </div>
+      
+      <div class="status-actions" id="statusActions"></div>
+    </div>
+  </div>
+  
+  <div class="toast" id="toast"></div>
+  
+  <script src="js/sidebar.js"></script>
+  <script src="js/time-util.js"></script>
+  <script>
+    const token = localStorage.getItem('adminToken');
+    if (!token) window.location.href = 'login.html';
+    
+    let orders = [];
+    let currentStatus = '全部';
+    let currentOrder = null;
+    
+    async function api(url, options = {}) {
+      options.headers = { ...options.headers, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
+      const res = await fetch(url, options);
+      if (res.status === 401) { localStorage.removeItem('adminToken'); window.location.href = 'login.html'; }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: '服务器错误' }));
+        throw new Error(err.error || '服务器错误');
+      }
+      return res.json();
+    }
+    
+    function showToast(msg, type = '') { 
+      const t = document.getElementById('toast'); 
+      t.textContent = msg;
+      t.className = 'toast show ' + type;
+      setTimeout(() => t.classList.remove('show'), 3000); 
+    }
+    
+    function setStatusFilter(status) {
+      currentStatus = status;
+      document.querySelectorAll('.status-btn').forEach(btn => {
+        btn.classList.remove('active', 'active-pending', 'active-completed', 'active-cancelled');
+        if (btn.dataset.status === status) {
+          if (status === '待处理') btn.classList.add('active-pending');
+          else if (status === '已完成') btn.classList.add('active-completed');
+          else if (status === '已取消') btn.classList.add('active-cancelled');
+          else btn.classList.add('active');
+        }
+      });
+      loadOrders();
+    }
+    
+    async function loadStats() {
+      try {
+        const date = document.getElementById('dateFilter').value || TimeUtil.today();
+        const stats = await api(`/api/admin/orders/stats?date=${date}`);
+        document.getElementById('statTotal').textContent = stats.data.count || 0;
+        
+        // 分状态统计
+        const pendingRes = await api(`/api/admin/orders/stats?date=${date}&status=待处理`);
+        const completedRes = await api(`/api/admin/orders/stats?date=${date}&status=已完成`);
+        const cancelledRes = await api(`/api/admin/orders/stats?date=${date}&status=已取消`);
+        
+        document.getElementById('statPending').textContent = pendingRes.data.count || 0;
+        document.getElementById('statCompleted').textContent = completedRes.data.count || 0;
+        document.getElementById('statCancelled').textContent = cancelledRes.data.count || 0;
+      } catch (e) {
+        console.error('加载统计失败:', e);
+      }
+    }
+    
+    async function loadOrders() {
+      try {
+        const search = document.getElementById('searchInput').value.trim();
+        const date = document.getElementById('dateFilter').value;
+        
+        let url = '/api/admin/orders?';
+        if (currentStatus !== '全部') url += `status=${currentStatus}&`;
+        if (date) url += `date=${date}&`;
+        
+        orders = await api(url);
+        
+        // 搜索过滤
+        if (search) {
+          orders = orders.filter(o => 
+            (o.order_no && o.order_no.includes(search)) ||
+            (o.table_no && o.table_no.includes(search)) ||
+            (o.member_phone && o.member_phone.includes(search))
+          );
+        }
+        
+        renderOrders();
+        loadStats();
+      } catch (e) {
+        showToast('加载订单失败: ' + e.message, 'error');
+      }
+    }
+    
+    function renderOrders() {
+      const tbody = document.getElementById('ordersTable');
+      if (!orders.length) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:rgba(255,255,255,0.5)">暂无订单</td></tr>';
+        return;
+      }
+      
+      tbody.innerHTML = orders.map(o => {
+        const itemCount = o.items ? o.items.length : 0;
+        const statusBadge = o.status === '待处理' ? 'badge-pending' : 
+                           o.status === '已完成' ? 'badge-completed' : 'badge-cancelled';
+        const canDelete = o.status === '已取消' || o.status === '已完成';
+        
+        return `
+          <tr>
+            <td>${o.order_no || o.id}</td>
+            <td>${o.table_no || '-'}</td>
+            <td>${itemCount}</td>
+            <td style="color:#d4af37;font-weight:600">¥${o.total_price || 0}</td>
+            <td><span class="badge ${statusBadge}">${o.status}</span></td>
+            <td>${o.member_phone || '-'}</td>
+            <td>${TimeUtil.format(o.created_at)}</td>
+            <td>
+              <button class="btn btn-primary btn-sm" onclick="showDetail(${o.id})">详情</button>
+              ${canDelete ? `<button class="btn btn-danger btn-sm" onclick="deleteOrder(${o.id})">删除</button>` : ''}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+    
+    async function showDetail(id) {
+      try {
+        currentOrder = await api(`/api/admin/orders/${id}`);
+        
+        document.getElementById('modalTitle').textContent = `订单详情 - ${currentOrder.order_no || currentOrder.id}`;
+        
+        // 基本信息
+        document.getElementById('orderInfo').innerHTML = `
+          <div class="order-info-item">
+            <div class="order-info-label">订单号</div>
+            <div class="order-info-value">${currentOrder.order_no || currentOrder.id}</div>
+          </div>
+          <div class="order-info-item">
+            <div class="order-info-label">台桌号</div>
+            <div class="order-info-value">${currentOrder.table_no || '-'}</div>
+          </div>
+          <div class="order-info-item">
+            <div class="order-info-label">总价</div>
+            <div class="order-info-value" style="color:#d4af37;font-weight:600">¥${currentOrder.total_price || 0}</div>
+          </div>
+          <div class="order-info-item">
+            <div class="order-info-label">状态</div>
+            <div class="order-info-value"><span class="badge ${currentOrder.status === '待处理' ? 'badge-pending' : currentOrder.status === '已完成' ? 'badge-completed' : 'badge-cancelled'}">${currentOrder.status}</span></div>
+          </div>
+          <div class="order-info-item">
+            <div class="order-info-label">会员手机</div>
+            <div class="order-info-value">${currentOrder.member_phone || '-'}</div>
+          </div>
+          <div class="order-info-item">
+            <div class="order-info-label">创建时间</div>
+            <div class="order-info-value">${TimeUtil.formatFull(currentOrder.created_at)}</div>
+          </div>
+        `;
+        
+        // 商品列表
+        const items = currentOrder.items || [];
+        document.getElementById('itemsContainer').innerHTML = items.length ? 
+          items.map(item => `
+            <div class="item-row">
+              <img class="item-img" src="${item.image_url || '/images/no-image.png'}" alt="${item.name}">
+              <div class="item-info">
+                <div class="item-name">${item.name}</div>
+                <div class="item-category">${item.category || '其他'}</div>
+              </div>
+              <div class="item-qty">×${item.quantity}</div>
+              <div class="item-price">¥${(item.price * item.quantity).toFixed(2)}</div>
+            </div>
+          `).join('') : '<div style="color:rgba(255,255,255,0.5);text-align:center;padding:20px">无商品</div>';
+        
+        // 状态修改按钮
+        const statusActions = document.getElementById('statusActions');
+        if (currentOrder.status === '待处理') {
+          statusActions.innerHTML = `
+            <button class="btn btn-success" onclick="updateStatus(${id}, '已完成')">标记完成</button>
+            <button class="btn btn-danger" onclick="updateStatus(${id}, '已取消')">取消订单</button>
+          `;
+        } else if (currentOrder.status === '已完成') {
+          statusActions.innerHTML = `
+            <button class="btn btn-warning" onclick="updateStatus(${id}, '待处理')">重新打开</button>
+            <button class="btn btn-cancel" onclick="closeDetailModal()">关闭</button>
+          `;
+        } else {
+          statusActions.innerHTML = `
+            <button class="btn btn-warning" onclick="updateStatus(${id}, '待处理')">重新打开</button>
+            <button class="btn btn-cancel" onclick="closeDetailModal()">关闭</button>
+          `;
+        }
+        
+        document.getElementById('detailModal').classList.add('show');
+      } catch (e) {
+        showToast('加载详情失败: ' + e.message, 'error');
+      }
+    }
+    
+    function closeDetailModal() {
+      document.getElementById('detailModal').classList.remove('show');
+      currentOrder = null;
+    }
+    
+    async function updateStatus(id, status) {
+      try {
+        await api(`/api/admin/orders/${id}/status`, {
+          method: 'PUT',
+          body: JSON.stringify({ status })
+        });
+        showToast(`订单状态已更新为 ${status}`, 'success');
+        closeDetailModal();
+        loadOrders();
+      } catch (e) {
+        showToast('更新状态失败: ' + e.message, 'error');
+      }
+    }
+    
+    async function deleteOrder(id) {
+      if (!confirm('确认删除此订单？删除后无法恢复。')) return;
+      
+      try {
+        await api(`/api/admin/orders/${id}`, { method: 'DELETE' });
+        showToast('订单已删除', 'success');
+        loadOrders();
+      } catch (e) {
+        showToast('删除失败: ' + e.message, 'error');
+      }
+    }
+    
+    // 搜索输入延迟触发
+    document.getElementById('searchInput').addEventListener('input', () => {
+      clearTimeout(window.searchTimeout);
+      window.searchTimeout = setTimeout(loadOrders, 300);
+    });
+    
+    // 初始化：设置今天日期
+    document.getElementById('dateFilter').value = TimeUtil.today();
+    loadOrders();
+  </script>
+</body>
+</html>

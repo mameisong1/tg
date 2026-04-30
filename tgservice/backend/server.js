@@ -2724,6 +2724,82 @@ app.post('/api/admin/orders/:id/cancel', authMiddleware, requireBackendPermissio
   }
 });
 
+// GET /api/admin/orders/:id - 订单详情
+app.get('/api/admin/orders/:id', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
+  try {
+    const order = await dbGet('SELECT * FROM orders WHERE id = ?', [req.params.id]);
+    if (!order) {
+      return res.status(404).json({ error: '订单不存在' });
+    }
+    
+    // 获取商品 Map（Redis 缓存）
+    const productMap = await getProductMap();
+    
+    // 处理订单商品,添加图片和类别
+    const items = order.items ? JSON.parse(order.items) : [];
+    const itemsWithDetails = items.map(item => ({
+      ...item,
+      image_url: productMap[item.name]?.image_url || '',
+      category: productMap[item.name]?.category || '其他'
+    }));
+    
+    res.json({
+      ...order,
+      items: itemsWithDetails
+    });
+  } catch (err) {
+    logger.error(`获取订单详情失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// DELETE /api/admin/orders/:id - 删除订单（仅已取消/已完成）
+app.delete('/api/admin/orders/:id', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
+  try {
+    const order = await dbGet('SELECT id, order_no, status FROM orders WHERE id = ?', [req.params.id]);
+    if (!order) {
+      return res.status(404).json({ error: '订单不存在' });
+    }
+    
+    // 业务规则：只允许删除已取消或已完成的订单
+    if (order.status === '待处理') {
+      return res.status(400).json({ error: '待处理订单不能删除，请先取消或完成' });
+    }
+    
+    await enqueueRun('DELETE FROM orders WHERE id = ?', [req.params.id]);
+    operationLog.info(`订单删除: ${order.order_no || order.id} (${order.status}) by ${req.user.username}`);
+    res.json({ success: true });
+  } catch (err) {
+    logger.error(`删除订单失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// PUT /api/admin/orders/:id/status - 更新订单状态
+app.put('/api/admin/orders/:id/status', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
+  try {
+    const { status } = req.body;
+    
+    // 参数验证
+    if (!status || !['待处理', '已完成', '已取消'].includes(status)) {
+      return res.status(400).json({ error: '状态参数无效' });
+    }
+    
+    const order = await dbGet('SELECT id, order_no, status FROM orders WHERE id = ?', [req.params.id]);
+    if (!order) {
+      return res.status(404).json({ error: '订单不存在' });
+    }
+    
+    const oldStatus = order.status;
+    await enqueueRun('UPDATE orders SET status = ?, updated_at = ? WHERE id = ?', [status, TimeUtil.nowDB(), req.params.id]);
+    operationLog.info(`订单状态变更: ${order.order_no || order.id} ${oldStatus} -> ${status} by ${req.user.username}`);
+    res.json({ success: true });
+  } catch (err) {
+    logger.error(`更新订单状态失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
 // 取消订单中的单个商品
 app.post('/api/admin/orders/:id/cancel-item', authMiddleware, requireBackendPermission(['cashierDashboard']), async (req, res) => {
   try {

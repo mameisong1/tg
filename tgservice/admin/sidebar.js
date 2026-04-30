@@ -17,6 +17,7 @@ var MENU_CONFIG = [
   { label: '奖罚统计', icon: '\uD83C\uDFC6', href: 'reward-penalty-stats.html', group: '管理' },
   // 【前厅】
   { label: '收银看板', icon: '\uD83D\uDCB0', href: 'cashier-dashboard.html', group: '前厅' },
+  { label: '订单管理', icon: '\uD83D\uDCDC', href: 'orders.html', group: '前厅' },
   { label: '商品管理', icon: '\uD83D\uDCE6', href: 'products.html', group: '前厅' },
   { label: '包房管理', icon: '\uD83D\uDECB\uFE0F', href: 'vip-rooms.html', group: '前厅' },
   { label: '台桌管理', icon: '\uD83C\uDFB1', href: 'tables.html', group: '前厅' },
@@ -55,9 +56,9 @@ var ROLE_MAP = {
 // 角色权限配置
 var ROLE_ALLOWED = {
   '\u7BA1\u7406\u5458': 'all',
-  '\u5E97\u957F': ['index.html', 'home.html', 'members.html', 'users.html', 'reward-penalty-stats.html', 'cashier-dashboard.html', 'products.html', 'vip-rooms.html', 'tables.html', 'categories.html', 'coaches.html', 'coaches.html#batch-shift'],
+  '\u5E97\u957F': ['index.html', 'home.html', 'members.html', 'users.html', 'reward-penalty-stats.html', 'cashier-dashboard.html', 'orders.html', 'products.html', 'vip-rooms.html', 'tables.html', 'categories.html', 'coaches.html', 'coaches.html#batch-shift'],
   '\u52A9\u6559\u7BA1\u7406': ['coaches.html', 'coaches.html#batch-shift'],
-  '\u524D\u5385\u7BA1\u7406': ['cashier-dashboard.html', 'products.html', 'vip-rooms.html', 'tables.html', 'categories.html'],
+  '\u524D\u5385\u7BA1\u7406': ['cashier-dashboard.html', 'orders.html', 'products.html', 'vip-rooms.html', 'tables.html', 'categories.html'],
   '\u6536\u94F6': ['cashier-dashboard.html'],
   '\u6559\u7EC3': [],
   '\u670D\u52A1\u5458': []
