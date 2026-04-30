@@ -797,8 +797,23 @@
     }
 
     // ==================== SQL 审计 ====================
+    var _sqlAuditType = '';
+
+    function setSqlAuditType(type) {
+      _sqlAuditType = type;
+      var btns = document.querySelectorAll('#sqlAuditTypeFilter .btn-outline');
+      for (var i = 0; i < btns.length; i++) {
+        btns[i].classList.toggle('active', btns[i].getAttribute('data-type') === type);
+      }
+      loadSqlAudit();
+    }
+
     function loadSqlAudit() {
-      fetch(API_BASE + '/system-report/sql-audit', {
+      var url = API_BASE + '/system-report/sql-audit-all';
+      if (_sqlAuditType) {
+        url += '?type=' + _sqlAuditType;
+      }
+      fetch(url, {
         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') }
       })
       .then(function(r) { return r.json(); })
@@ -810,18 +825,23 @@
 
         var html = '';
         if (entries.length === 0) {
-          html = '<tr><td colspan="3" class="empty-state"><div class="empty-state-icon">✅</div><div>暂无超300行查询记录</div></td></tr>';
+          html = '<tr><td colspan="5" class="empty-state"><div class="empty-state-icon">✅</div><div>暂无SQL审计记录</div></td></tr>';
         } else {
           for (var i = 0; i < entries.length; i++) {
             var e = entries[i];
             var time = e.time ? new Date(e.time).toLocaleString('zh-CN', {timeZone:'Asia/Shanghai'}) : '-';
+            var entryType = e.type || 'large';
+            var typeLabel = entryType === 'slow' ? '慢查询' : '超300行';
+            var typeBadge = entryType === 'slow' ? 'badge-pending' : 'badge-failed';
             var rows = e.rows || '-';
+            var durationMs = e.durationMs || '-';
             var sql = e.sql || e.raw || '-';
-            // 截断过长的 SQL 显示
             var displaySql = sql.length > 300 ? sql.substring(0, 300) + '...' : sql;
             html += '<tr>';
             html += '<td style="white-space:nowrap;">' + escapeHtml(time) + '</td>';
-            html += '<td><span class="badge badge-failed">' + rows + '</span></td>';
+            html += '<td><span class="badge ' + typeBadge + '">' + typeLabel + '</span></td>';
+            html += '<td>' + (rows !== '-' ? '<span class="badge badge-failed">' + rows + '</span>' : '-') + '</td>';
+            html += '<td>' + (durationMs !== '-' ? '<span class="badge badge-pending">' + durationMs + '</span>' : '-') + '</td>';
             html += '<td style="word-break:break-all;font-size:12px;font-family:monospace;color:rgba(255,255,255,0.7);">' + escapeHtml(displaySql) + '</td>';
             html += '</tr>';
           }
@@ -836,7 +856,7 @@
     function clearSqlAudit() {
       if (!confirm('确定清空所有 SQL 审计日志吗？此操作不可恢复。')) return;
 
-      fetch(API_BASE + '/system-report/sql-audit', {
+      fetch(API_BASE + '/system-report/sql-audit-all', {
         method: 'DELETE',
         headers: { 'Authorization': 'Bearer ' + localStorage.getItem('adminToken') }
       })
