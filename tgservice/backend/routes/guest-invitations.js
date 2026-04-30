@@ -139,26 +139,6 @@ router.get('/check-lock', auth.required, requireBackendPermission(['invitationRe
 router.post('/lock-should-invite', auth.required, requireBackendPermission(['invitationReview']), async (req, res) => {
   // 手动锁定已永久禁用，统一由 Cron 批处理自动执行
   return res.status(403).json({ success: false, error: '手动锁定已禁用，约客锁定由系统批处理自动执行（15:00/16:00 早班，19:00/20:00 晚班）' });
-
-    res.json({
-      success: true,
-      data: {
-        date: result.date,
-        shift: result.shift,
-        locked_count: result.locked_count,
-        total_count: result.total_count,
-        coaches: result.coaches,
-        source: 'manual_trigger'
-      }
-    });
-  } catch (error) {
-    errorLogger.logApiRejection(req, error);
-    if (error.status) {
-      return res.status(error.status).json({ success: false, error: error.error });
-    }
-    console.error('锁定应约客人员失败:', error);
-    res.status(500).json({ success: false, error: '锁定应约客人员失败' });
-  }
 });
 
 /**
