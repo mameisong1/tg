@@ -5,7 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { runInTransaction } = require('../db');
+const { runInTransaction, waitForIdle } = require('../db');
 const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const TimeUtil = require('../utils/time');
@@ -87,6 +87,13 @@ async function calculateIsLate(clockInTime, shift, coachNo, date, tx) {
  */
 router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coachManagement'], { coachSelfOnly: true }), async (req, res) => {
   try {
+    // 【方案A】等待异步队列完成，避免竞态导致的重复记录
+    try {
+      await waitForIdle(5000);  // 最长等待5秒
+    } catch (e) {
+      console.log('[clock-in] waitForIdle timeout, continue anyway');
+    }
+    
     const result = await runInTransaction(async (tx) => {
     const { coach_no } = req.params;
     const { clock_in_photo } = req.body; // 新增：打卡截图参数
@@ -198,6 +205,21 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
       new_value: JSON.stringify({ status: newStatus, table_no: null }),
       remark: `上班:${oldStatus} → ${newStatus}`
     });
+    
+    // 【方案C】合并重复记录：删除只有 dingtalk_in_time 但没有 clock_in_time 的记录
+    // 保留有 clock_in_time 的记录（刚创建或刚更新的）
+    const duplicateRecords = await tx.all(
+      `SELECT id FROM attendance_records 
+       WHERE coach_no = ? AND date = ? AND clock_in_time IS NULL AND dingtalk_in_time IS NOT NULL`,
+      [coach_no, todayStr]
+    );
+    if (duplicateRecords.length > 0) {
+      const ids = duplicateRecords.map(r => r.id);
+      await tx.run(
+        `DELETE FROM attendance_records WHERE id IN (${ids.join(',')})`
+      );
+      console.log(`[clock-in] 合并重复记录: coach_no=${coach_no}, 删除 ${ids.length} 条`);
+    }
 
     return { coach_no, stage_name: coach.stage_name, status: newStatus, shift: coach.shift, oldStatus };
     });

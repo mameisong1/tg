@@ -320,46 +320,53 @@ async function queryRecentAttendance(dingtalkUserId, coachNo, clockType, db) {
     
     dingtalkLog.write(`${coachNo} 查到 ${recentRecords.length} 条5分钟内钉钉打卡记录`);
     
-    // 处理每条最近的打卡记录
-    for (const record of recentRecords) {
-      const checkTime = record.userCheckTime || record.checkTime;
+    // 【修复】先统一检查是否存在当天记录，避免循环内竞态导致重复创建
+    const existingAttendance = await get(
+      'SELECT id FROM attendance_records WHERE coach_no = ? AND date = ?',
+      [coachNo, todayStr]
+    );
+    
+    if (clockType === 'in') {
+      // 【修复】取最后一条记录（时间最晚）
+      const lastRecord = recentRecords[recentRecords.length - 1];
+      const checkTime = lastRecord.userCheckTime || lastRecord.checkTime;
       const checkTimeStr = TimeUtil.formatTimestamp(checkTime);
       
-      if (clockType === 'in') {
-        const attendance = await get(
-          'SELECT id FROM attendance_records WHERE coach_no = ? AND date = ?',
-          [coachNo, todayStr]
+      if (!existingAttendance) {
+        // 只创建一条记录
+        await enqueueRun(
+          `INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, dingtalk_in_time, created_at, updated_at)
+           VALUES (?, ?, '', '', ?, ?, ?)`,
+          [todayStr, coachNo, checkTimeStr, TimeUtil.nowDB(), TimeUtil.nowDB()]
         );
-        
-        if (!attendance) {
-          await enqueueRun(
-            `INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, dingtalk_in_time, created_at, updated_at)
-             VALUES (?, ?, '', '', ?, ?, ?)`,
-            [todayStr, coachNo, checkTimeStr, TimeUtil.nowDB(), TimeUtil.nowDB()]
-          );
-          dingtalkLog.write(`${coachNo} 创建打卡记录 dingtalk_in_time = ${checkTimeStr}`);
-        } else {
-          await enqueueRun(
-            `UPDATE attendance_records SET dingtalk_in_time = ?, updated_at = ? WHERE id = ?`,
-            [checkTimeStr, TimeUtil.nowDB(), attendance.id]
-          );
-          dingtalkLog.write(`${coachNo} 更新 dingtalk_in_time = ${checkTimeStr}`);
-        }
-      } else if (clockType === 'out') {
-        const attendance = await get(
-          `SELECT id FROM attendance_records
-           WHERE coach_no = ? AND date IN (?, ?) AND clock_out_time IS NOT NULL
-           ORDER BY clock_in_time DESC LIMIT 1`,
-          [coachNo, todayStr, yesterdayStr]
+        dingtalkLog.write(`${coachNo} 创建打卡记录 dingtalk_in_time = ${checkTimeStr}`);
+      } else {
+        // 更新已有记录
+        await enqueueRun(
+          `UPDATE attendance_records SET dingtalk_in_time = ?, updated_at = ? WHERE id = ?`,
+          [checkTimeStr, TimeUtil.nowDB(), existingAttendance.id]
         );
-        
-        if (attendance) {
-          await enqueueRun(
-            `UPDATE attendance_records SET dingtalk_out_time = ?, updated_at = ? WHERE id = ?`,
-            [checkTimeStr, TimeUtil.nowDB(), attendance.id]
-          );
-          dingtalkLog.write(`${coachNo} 更新 dingtalk_out_time = ${checkTimeStr}`);
-        }
+        dingtalkLog.write(`${coachNo} 更新 dingtalk_in_time = ${checkTimeStr}`);
+      }
+    } else if (clockType === 'out') {
+      // 下班打卡：同样只处理第一条记录
+      const firstRecord = recentRecords[0];
+      const checkTime = firstRecord.userCheckTime || firstRecord.checkTime;
+      const checkTimeStr = TimeUtil.formatTimestamp(checkTime);
+      
+      const attendance = await get(
+        `SELECT id FROM attendance_records
+         WHERE coach_no = ? AND date IN (?, ?) AND clock_out_time IS NOT NULL
+         ORDER BY clock_in_time DESC LIMIT 1`,
+        [coachNo, todayStr, yesterdayStr]
+      );
+      
+      if (attendance) {
+        await enqueueRun(
+          `UPDATE attendance_records SET dingtalk_out_time = ?, updated_at = ? WHERE id = ?`,
+          [checkTimeStr, TimeUtil.nowDB(), attendance.id]
+        );
+        dingtalkLog.write(`${coachNo} 更新 dingtalk_out_time = ${checkTimeStr}`);
       }
     }
     
@@ -746,11 +753,17 @@ async function handleSingleAttendanceRecord(record, db) {
   
   // ========== 写入钉钉打卡时间 ==========
   
+  // 【修复】先查询当天是否已有记录（基于 date + coach_no），避免钉钉推送重复创建
+  const todayRecord = await get(
+    'SELECT id, dingtalk_in_time, dingtalk_out_time FROM attendance_records WHERE coach_no = ? AND date = ?',
+    [coach.coach_no, todayStr]
+  );
+  
   if (punchType === 'in') {
     // 上班打卡 → 写入 dingtalk_in_time
     dingtalkLog.write(`${coach.stage_name} 钉钉上班打卡: ${checkTimeStr}`);
     
-    if (!attendance) {
+    if (!todayRecord) {
       // 创建新记录
       await enqueueRun(
         `INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, dingtalk_in_time, created_at, updated_at)
@@ -758,22 +771,25 @@ async function handleSingleAttendanceRecord(record, db) {
         [todayStr, coach.coach_no, coach.employee_id, coach.stage_name, checkTimeStr, TimeUtil.nowDB(), TimeUtil.nowDB()]
       );
       dingtalkLog.write(`创建打卡记录: ${coach.stage_name}`);
-    } else {
-      // 更新钉钉上班时间
+    } else if (!todayRecord.dingtalk_in_time) {
+      // 已有记录但没有钉钉上班时间 → 更新
       await enqueueRun(
         `UPDATE attendance_records SET dingtalk_in_time = ?, updated_at = ? WHERE id = ?`,
-        [checkTimeStr, TimeUtil.nowDB(), attendance.id]
+        [checkTimeStr, TimeUtil.nowDB(), todayRecord.id]
       );
       dingtalkLog.write(`更新打卡记录: ${coach.stage_name} dingtalk_in_time = ${checkTimeStr}`);
+    } else {
+      // 已有钉钉上班时间，跳过（避免重复）
+      dingtalkLog.write(`${coach.stage_name} 已有钉钉上班时间 ${todayRecord.dingtalk_in_time}，跳过`);
     }
   } else if (punchType === 'out') {
     // 下班打卡 → 写入 dingtalk_out_time
     dingtalkLog.write(`${coach.stage_name} 钉钉下班打卡: ${checkTimeStr}`);
     
-    if (attendance) {
+    if (todayRecord) {
       await enqueueRun(
         `UPDATE attendance_records SET dingtalk_out_time = ?, updated_at = ? WHERE id = ?`,
-        [checkTimeStr, TimeUtil.nowDB(), attendance.id]
+        [checkTimeStr, TimeUtil.nowDB(), todayRecord.id]
       );
       dingtalkLog.write(`更新打卡记录: ${coach.stage_name} dingtalk_out_time = ${checkTimeStr}`);
     } else {
@@ -808,7 +824,7 @@ async function handleSingleAttendanceRecord(record, db) {
     }
     
     // 2. 写入打卡表（方案B1：同时写入 clock_in_time，但不覆盖已有的系统打卡时间）
-    if (!attendance) {
+    if (!todayRecord) {
       // 创建新记录（同时写入 clock_in_time + dingtalk_in_time）
       await enqueueRun(
         `INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, clock_in_time, dingtalk_in_time, created_at, updated_at)
@@ -818,18 +834,22 @@ async function handleSingleAttendanceRecord(record, db) {
       dingtalkLog.write(`创建打卡记录: ${coach.stage_name} clock_in_time + dingtalk_in_time = ${checkTimeStr}`);
     } else {
       // 更新：不覆盖已有的 clock_in_time
-      if (attendance.clock_in_time) {
+      const existingClockIn = await get(
+        'SELECT id, clock_in_time FROM attendance_records WHERE coach_no = ? AND date = ?',
+        [coach.coach_no, todayStr]
+      );
+      if (existingClockIn && existingClockIn.clock_in_time) {
         // 已有系统打卡时间，只更新 dingtalk_in_time
         await enqueueRun(
           `UPDATE attendance_records SET dingtalk_in_time = ?, updated_at = ? WHERE id = ?`,
-          [checkTimeStr, TimeUtil.nowDB(), attendance.id]
+          [checkTimeStr, TimeUtil.nowDB(), existingClockIn.id]
         );
-        dingtalkLog.write(`更新打卡记录: ${coach.stage_name} dingtalk_in_time = ${checkTimeStr}（保留已有 clock_in_time: ${attendance.clock_in_time})`);
+        dingtalkLog.write(`更新打卡记录: ${coach.stage_name} dingtalk_in_time = ${checkTimeStr}（保留已有 clock_in_time: ${existingClockIn.clock_in_time})`);
       } else {
         // 无系统打卡时间，同时写入 clock_in_time + dingtalk_in_time
         await enqueueRun(
           `UPDATE attendance_records SET clock_in_time = ?, dingtalk_in_time = ?, updated_at = ? WHERE id = ?`,
-          [checkTimeStr, checkTimeStr, TimeUtil.nowDB(), attendance.id]
+          [checkTimeStr, checkTimeStr, TimeUtil.nowDB(), todayRecord.id]
         );
         dingtalkLog.write(`更新打卡记录: ${coach.stage_name} clock_in_time + dingtalk_in_time = ${checkTimeStr}`);
       }

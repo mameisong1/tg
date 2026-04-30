@@ -155,6 +155,25 @@ const runWriteQueue = async () => {
   }, 0);
 };
 
+// 【新增】等待队列空闲（用于系统打卡前等待钉钉推送完成）
+const waitForIdle = (timeoutMs = 5000) => {
+  return new Promise((resolve, reject) => {
+    const startTime = Date.now();
+    
+    const check = () => {
+      if (writeQueue.length === 0 && !writeQueueRunning) {
+        resolve();
+      } else if (Date.now() - startTime > timeoutMs) {
+        reject(new Error('waitForIdle timeout'));
+      } else {
+        setTimeout(check, 50);  // 每50ms检查一次
+      }
+    };
+    
+    check();
+  });
+};
+
 // ========== 内部执行函数（不预处理，供内部调用）==========
 
 const _executeAll = async (sql, args, auditOriginalSql) => {
@@ -468,6 +487,7 @@ module.exports = {
   close,
   queueStats,
   writeQueue,
+  waitForIdle,
   parseTables,
   joinTables,
   preprocessSQL
