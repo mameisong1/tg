@@ -195,6 +195,7 @@ const showExpiredModal = ref(false) // 台桌号失效对话框
 const showConfirmModal = ref(false) // 确认邀请对话框
 const tableName = ref('') // 当前台桌号
 const tableAuthExpireMinutes = ref(30) // 台桌授权有效期（分钟）
+const INVITE_COOLDOWN_MINUTES = 5 // 邀请冷却时间（分钟）
 
 const mainPhoto = computed(() => photos.value.length > 0 ? photos.value[0] : '/static/avatar-default.png')
 const pricePerMin = computed(() => coach.value.price ? (coach.value.price / 60).toFixed(2) : '-')
@@ -300,6 +301,21 @@ const goBack = () => {
 }
 
 // ===== 邀请上桌逻辑 =====
+// 检查5分钟内是否已发送邀请（基于设备指纹+助教号）
+const checkRecentInvite = () => {
+  const deviceFp = uni.getStorageSync('device_fp') || 'unknown'
+  const key = `invite_${deviceFp}_${coachNo.value}`
+  const lastTime = uni.getStorageSync(key)
+  if (lastTime) {
+    const elapsed = Date.now() - parseInt(lastTime)
+    if (elapsed < INVITE_COOLDOWN_MINUTES * 60 * 1000) {
+      const remainMin = Math.ceil((INVITE_COOLDOWN_MINUTES * 60 * 1000 - elapsed) / 60000)
+      return { blocked: true, remainMin }
+    }
+  }
+  return { blocked: false }
+}
+
 // 点击"邀请上桌"按钮
 const handleInvite = () => {
   // 1. 检查水牌状态
@@ -317,7 +333,18 @@ const handleInvite = () => {
     return
   }
   
-  // 4. 有效，显示确认对话框
+  // 4. 检查是否已发送邀请（5分钟冷却）
+  const check = checkRecentInvite()
+  if (check.blocked) {
+    uni.showToast({ 
+      title: `请耐心等待，${check.remainMin}分钟后可再次邀请`, 
+      icon: 'none',
+      duration: 3000
+    })
+    return
+  }
+  
+  // 5. 有效，显示确认对话框
   showConfirmModal.value = true
 }
 
@@ -338,7 +365,12 @@ const confirmInvite = async () => {
     })
     
     if (result.statusCode === 200 && result.data.success) {
-      uni.showToast({ title: '邀请成功！', icon: 'success' })
+      // 记录发送时间（基于设备指纹+助教号）
+      const deviceFp = uni.getStorageSync('device_fp') || 'unknown'
+      const key = `invite_${deviceFp}_${coachNo.value}`
+      uni.setStorageSync(key, Date.now().toString())
+      
+      uni.showToast({ title: '邀请成功！请耐心等待教练安排', icon: 'success', duration: 3000 })
     } else {
       uni.showToast({ title: result.data?.error || '邀请失败', icon: 'none' })
     }
