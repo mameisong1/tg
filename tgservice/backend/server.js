@@ -2959,8 +2959,26 @@ app.get('/api/cashier-dashboard', authMiddleware, requireBackendPermission(['cas
 // 后台用户管理
 app.get('/api/admin/users', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
-    const users = await dbAll('SELECT username, name, role, created_at, employment_status FROM admin_users');
-    res.json(users);
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const pageSize = Math.min(200, Math.max(1, parseInt(req.query.pageSize) || 50));
+    const offset = (page - 1) * pageSize;
+    const roleFilter = req.query.role || '';
+
+    let countSql = 'SELECT COUNT(*) as total FROM admin_users';
+    let dataSql = 'SELECT username, name, role, created_at, employment_status FROM admin_users';
+    const params = [];
+
+    if (roleFilter) {
+      countSql += ' WHERE role = ?';
+      dataSql += ' WHERE role = ?';
+      params.push(roleFilter);
+    }
+
+    dataSql += ' ORDER BY created_at DESC LIMIT ? OFFSET ?';
+
+    const [{ total }] = await dbAll(countSql, params);
+    const data = await dbAll(dataSql, [...params, pageSize, offset]);
+    res.json({ data, total, page, pageSize });
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
   }
@@ -3899,8 +3917,13 @@ app.post('/api/admin/members/sync-coaches/execute', authMiddleware, requireBacke
 // 获取会员列表
 app.get('/api/admin/members', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
-    const members = await dbAll('SELECT member_no, phone, openid, name, gender, remark, created_at FROM members ORDER BY created_at DESC');
-    res.json(members);
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const pageSize = Math.min(200, Math.max(1, parseInt(req.query.pageSize) || 50));
+    const offset = (page - 1) * pageSize;
+
+    const [{ total }] = await dbAll('SELECT COUNT(*) as total FROM members');
+    const data = await dbAll('SELECT member_no, phone, openid, name, gender, remark, device_fingerprint, created_at FROM members ORDER BY created_at DESC LIMIT ? OFFSET ?', [pageSize, offset]);
+    res.json({ data, total, page, pageSize });
   } catch (err) {
     res.status(500).json({ error: '服务器错误' });
   }

@@ -34,6 +34,15 @@
     .member-table .gender-male { color: #3498db; }
     .member-table .gender-female { color: #e91e63; }
     .member-table .actions { display: flex; gap: 8px; }
+    .member-table .fingerprint { font-family: monospace; font-size: 12px; color: rgba(255,255,255,0.5); background: rgba(255,255,255,0.05); padding: 2px 6px; border-radius: 4px; }
+
+    .pagination { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 20px; padding: 12px; }
+    .pagination .page-info { font-size: 13px; color: rgba(255,255,255,0.5); margin-right: 12px; }
+    .pagination button { padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(218,165,32,0.3); background: rgba(255,255,255,0.05); color: #d4af37; cursor: pointer; font-size: 13px; }
+    .pagination button:hover:not(:disabled) { background: rgba(212,175,55,0.15); }
+    .pagination button:disabled { opacity: 0.3; cursor: default; }
+    .pagination button.active { background: rgba(212,175,55,0.2); border-color: #d4af37; }
+    .pagination .page-size-info { font-size: 12px; color: rgba(255,255,255,0.4); margin-left: 12px; }
     
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
     .modal.show { display: flex; }
@@ -87,12 +96,15 @@
           <th>手机号</th>
           <th>姓名</th>
           <th>性别</th>
+          <th>设备指纹</th>
           <th>注册时间</th>
           <th>操作</th>
         </tr>
       </thead>
       <tbody id="memberList"></tbody>
     </table>
+
+    <div class="pagination" id="pagination"></div>
   </div>
   
   <div class="modal" id="modal">
@@ -170,6 +182,9 @@
     
     let members = [];
     let editingNo = null;
+    let currentPage = 1;
+    let totalMembers = 0;
+    const PAGE_SIZE = 50;
     
     async function api(url, options = {}) {
       options.headers = { ...options.headers, 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' };
@@ -180,23 +195,27 @@
     
     function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
     
-    async function loadMembers() {
-      members = await api('/api/admin/members');
-      
+    async function loadMembers(page = 1) {
+      currentPage = page;
+      const res = await api(`/api/admin/members?page=${page}&pageSize=${PAGE_SIZE}`);
+      members = res.data || [];
+      totalMembers = res.total || 0;
+
       // 统计
-      document.getElementById('totalMembers').textContent = members.length;
+      document.getElementById('totalMembers').textContent = totalMembers;
       const today = TimeUtil.today();
       const todayCount = members.filter(m => m.created_at && m.created_at.startsWith(today)).length;
       document.getElementById('todayMembers').textContent = todayCount;
-      
+
       renderMembers();
+      renderPagination();
     }
     
     function renderMembers() {
       const tbody = document.getElementById('memberList');
       
       if (members.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:rgba(255,255,255,0.3)">暂无会员数据</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:rgba(255,255,255,0.3)">暂无会员数据</td></tr>';
         return;
       }
       
@@ -206,6 +225,7 @@
           <td class="phone">${maskPhone(m.phone)}</td>
           <td>${m.name || '-'}</td>
           <td><span class="${m.gender === '男' ? 'gender-male' : m.gender === '女' ? 'gender-female' : ''}">${m.gender || '-'}</span></td>
+          <td>${m.device_fingerprint ? `<span class="fingerprint">${m.device_fingerprint}</span>` : '-'}</td>
           <td>${formatTime(m.created_at)}</td>
           <td class="actions">
             <button class="btn btn-sm" onclick="editMember(${m.member_no})">编辑</button>
@@ -264,7 +284,7 @@
           showToast('添加成功');
         }
         closeModal();
-        loadMembers();
+        loadMembers(currentPage);
       } catch (err) { 
         showToast(err.error || '操作失败'); 
       }
@@ -374,7 +394,7 @@
         
         showToast(`同步成功！已更新 ${data.syncedCount} 位会员`);
         closeSyncCoachModal();
-        loadMembers();
+        loadMembers(currentPage);
         
       } catch (err) {
         showToast('同步失败：' + (err.error || '网络错误'));
@@ -383,6 +403,35 @@
       }
     }
     
+    function renderPagination() {
+      const container = document.getElementById('pagination');
+      const totalPages = Math.ceil(totalMembers / PAGE_SIZE);
+      if (totalPages <= 1) { container.innerHTML = ''; return; }
+
+      let html = `<span class="page-info">共 ${totalMembers} 条</span>`;
+      html += `<button onclick="loadMembers(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}>上一页</button>`;
+
+      const maxVisible = 7;
+      let start = Math.max(1, currentPage - 3);
+      let end = Math.min(totalPages, start + maxVisible - 1);
+      if (end - start < maxVisible - 1) start = Math.max(1, end - maxVisible + 1);
+
+      if (start > 1) html += `<button onclick="loadMembers(1)">1</button>`;
+      if (start > 2) html += `<button disabled>...</button>`;
+
+      for (let i = start; i <= end; i++) {
+        html += `<button class="${i === currentPage ? 'active' : ''}" onclick="loadMembers(${i})">${i}</button>`;
+      }
+
+      if (end < totalPages - 1) html += `<button disabled>...</button>`;
+      if (end < totalPages) html += `<button onclick="loadMembers(${totalPages})">${totalPages}</button>`;
+
+      html += `<button onclick="loadMembers(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''}>下一页</button>`;
+      html += `<span class="page-size-info">每页 ${PAGE_SIZE} 条</span>`;
+
+      container.innerHTML = html;
+    }
+
     loadMembers();
   </script>
   <script>

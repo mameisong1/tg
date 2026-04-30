@@ -35,8 +35,18 @@
     .badge-system { background: rgba(231,76,60,0.2); color: #e74c3c; }
     .badge-owner { background: rgba(76,175,80,0.2); color: #4caf50; }
 
-    .perm-tags { display: flex; flex-wrap: wrap; gap: 4px; }
-    .perm-tag { font-size: 11px; padding: 2px 8px; background: rgba(255,255,255,0.05); border-radius: 4px; color: rgba(255,255,255,0.5); }
+    .filter-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+    .filter-bar label { font-size: 13px; color: rgba(255,255,255,0.6); }
+    .filter-select { padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; font-size: 14px; }
+    .filter-select option { background: #1a1a2e; color: #fff; }
+
+    .pagination { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 20px; padding: 12px; }
+    .pagination .page-info { font-size: 13px; color: rgba(255,255,255,0.5); margin-right: 12px; }
+    .pagination button { padding: 6px 14px; border-radius: 6px; border: 1px solid rgba(218,165,32,0.3); background: rgba(255,255,255,0.05); color: #d4af37; cursor: pointer; font-size: 13px; }
+    .pagination button:hover:not(:disabled) { background: rgba(212,175,55,0.15); }
+    .pagination button:disabled { opacity: 0.3; cursor: default; }
+    .pagination button.active { background: rgba(212,175,55,0.2); border-color: #d4af37; }
+    .pagination .page-size-info { font-size: 12px; color: rgba(255,255,255,0.4); margin-left: 12px; }
 
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; align-items: center; justify-content: center; }
     .modal.show { display: flex; }
@@ -66,12 +76,28 @@
       <button class="btn btn-primary" onclick="showModal()">+ 添加用户</button>
     </div>
 
+    <div class="filter-bar">
+      <label>按角色筛选：</label>
+      <select class="filter-select" id="roleFilter" onchange="loadUsers(1)">
+        <option value="">全部</option>
+        <option value="管理员">管理员</option>
+        <option value="店长">店长</option>
+        <option value="助教管理">助教管理</option>
+        <option value="教练">教练</option>
+        <option value="前厅管理">前厅管理</option>
+        <option value="收银">收银</option>
+        <option value="服务员">服务员</option>
+      </select>
+    </div>
+
     <table class="data-table">
       <thead>
-        <tr><th>用户名</th><th>姓名</th><th>角色</th><th>在职状态</th><th>权限</th><th>创建时间</th><th>操作</th></tr>
+        <tr><th>用户名</th><th>姓名</th><th>角色</th><th>在职状态</th><th>创建时间</th><th>操作</th></tr>
       </thead>
       <tbody id="usersTable"></tbody>
     </table>
+
+    <div class="pagination" id="pagination"></div>
   </div>
 
   <div class="modal" id="modal">
@@ -125,6 +151,9 @@
     let users = [];
     let editingUsername = null;
     let currentUserRole = null;  // 当前用户角色
+    let currentPage = 1;
+    let totalUsers = 0;
+    const PAGE_SIZE = 50;
 
     // 获取当前用户角色
     function getCurrentUserRole() {
@@ -156,21 +185,15 @@
 
     function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 3000); }
 
-    async function loadUsers() {
-      users = await api('/api/admin/users');
+    async function loadUsers(page = 1) {
+      currentPage = page;
+      const roleFilter = document.getElementById('roleFilter').value;
+      let url = `/api/admin/users?page=${page}&pageSize=${PAGE_SIZE}`;
+      if (roleFilter) url += `&role=${encodeURIComponent(roleFilter)}`;
 
-      // 获取每个用户的权限
-      const permsMap = {};
-      for (const u of users) {
-        try {
-          const permRes = await api(`/api/admin/users/${u.username}/permissions`);
-          if (permRes.success && permRes.data) {
-            permsMap[u.username] = permRes.data.permissions || [];
-          }
-        } catch (e) {
-          permsMap[u.username] = [];
-        }
-      }
+      const res = await api(url);
+      users = res.data || [];
+      totalUsers = res.total || 0;
 
       document.getElementById('usersTable').innerHTML = users.map(u => {
         let roleText = u.role || '管理员';
@@ -193,11 +216,6 @@
           roleClass = 'badge-system';
         }
 
-        const perms = permsMap[u.username] || [];
-        const permTags = perms.length > 0
-          ? perms.map(p => `<span class="perm-tag">${p}</span>`).join('')
-          : '<span style="color:rgba(255,255,255,0.3)">无</span>';
-
         const empStatus = u.employment_status || '在职';
         const empBadge = empStatus === '在职' ? 'badge-cashier' : 'badge-waiter';
         return `
@@ -206,7 +224,6 @@
             <td>${u.name || '-'}</td>
             <td><span class="badge ${roleClass}">${roleText}</span></td>
             <td><span class="badge ${empBadge}">${empStatus}</span></td>
-            <td><div class="perm-tags">${permTags}</div></td>
             <td>${formatBeijingTime(u.created_at)}</td>
             <td>
               ${u.username !== 'tgadmin' ? `<button class="btn btn-sm" onclick="editUser('${u.username}')">编辑</button> <button class="btn btn-sm btn-danger" onclick="deleteUser('${u.username}')">删除</button>` : '<span style="color:rgba(255,255,255,0.3)">不可操作</span>'}
@@ -214,6 +231,8 @@
           </tr>
         `;
       }).join('');
+
+      renderUsersPagination();
     }
 
     function formatBeijingTime(timeStr) {
@@ -272,8 +291,7 @@
           showToast('用户已添加');
         }
         closeModal();
-        loadUsers();
-      } catch (err) { showToast(err.message || '操作失败'); }
+        loadUsers(currentPage);
     }
 
     async function deleteUser(username) {
@@ -281,7 +299,7 @@
       try {
         await api(`/api/admin/users/${username}`, { method: 'DELETE' });
         showToast('用户已删除');
-        loadUsers();
+        loadUsers(currentPage);
       } catch (err) { showToast('删除失败'); }
     }
 
@@ -309,6 +327,35 @@
       if (currentRole && roles.includes(currentRole)) {
         roleSelect.value = currentRole;
       }
+    }
+
+    function renderUsersPagination() {
+      const container = document.getElementById('pagination');
+      const totalPages = Math.ceil(totalUsers / PAGE_SIZE);
+      if (totalPages <= 1) { container.innerHTML = ''; return; }
+
+      let html = `<span class="page-info">共 ${totalUsers} 条</span>`;
+      html += `<button onclick="loadUsers(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}>上一页</button>`;
+
+      const maxVisible = 7;
+      let start = Math.max(1, currentPage - 3);
+      let end = Math.min(totalPages, start + maxVisible - 1);
+      if (end - start < maxVisible - 1) start = Math.max(1, end - maxVisible + 1);
+
+      if (start > 1) html += `<button onclick="loadUsers(1)">1</button>`;
+      if (start > 2) html += `<button disabled>...</button>`;
+
+      for (let i = start; i <= end; i++) {
+        html += `<button class="${i === currentPage ? 'active' : ''}" onclick="loadUsers(${i})">${i}</button>`;
+      }
+
+      if (end < totalPages - 1) html += `<button disabled>...</button>`;
+      if (end < totalPages) html += `<button onclick="loadUsers(${totalPages})">${totalPages}</button>`;
+
+      html += `<button onclick="loadUsers(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''}>下一页</button>`;
+      html += `<span class="page-size-info">每页 ${PAGE_SIZE} 条</span>`;
+
+      container.innerHTML = html;
     }
 
     loadUsers();
