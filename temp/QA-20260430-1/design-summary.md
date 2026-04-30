@@ -1,0 +1,1 @@
+新增admin/orders.html订单管理页面(列表+详情+筛选+搜索+分页); 修改sidebar.js添加前厅菜单; 修改server.js新增3个API(GET详情/DELETE删除/PUT状态更新); 无数据库变更; 权限cashierDashboard

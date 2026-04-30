@@ -4,8 +4,8 @@
  *   - end_lejuan_morning:  晚上 23:00 自动结束早班助教的乐捐，水牌设为下班
  *   - end_lejuan_evening:  凌晨 02:00 自动结束晚班助教的乐捐，水牌设为下班
  *   - sync_reward_penalty:  中午 12:00 奖罚自动同步（去重逻辑）
- *   - lock_guest_invitation_morning: 下午 16:00 自动锁定早班应约客人员
- *   - lock_guest_invitation_evening: 晚上 20:00 自动锁定晚班应约客人员
+ *   - lock_guest_invitation_morning: 下午 15:00/16:00 自动锁定早班应约客人员
+ *   - lock_guest_invitation_evening: 晚上 19:00/20:00 自动锁定晚班应约客人员
  */
 
 const { all, get, enqueueRun, runInTransaction } = require('../db');
@@ -105,20 +105,30 @@ async function initDefaultTasks() {
     nextSync.setHours(12, 0, 0, 0);
     const nextSyncStr = formatBeijing(nextSync);
 
-    // 计算下午 16:00（早班约客锁定）
+    // 计算早班约客锁定下次执行时间（15:00 或 16:00）
     let nextLockMorning = new Date(now);
     if (now.getHours() >= 16) {
         nextLockMorning.setDate(nextLockMorning.getDate() + 1);
+        nextLockMorning.setHours(15, 0, 0, 0);
+    } else if (now.getHours() >= 15) {
+        // 15:00-15:59，下次执行是16点（同天）
+        nextLockMorning.setHours(16, 0, 0, 0);
+    } else {
+        nextLockMorning.setHours(15, 0, 0, 0);
     }
-    nextLockMorning.setHours(16, 0, 0, 0);
     const nextLockMorningStr = formatBeijing(nextLockMorning);
 
-    // 计算晚上 20:00（晚班约客锁定）
+    // 计算晚班约客锁定下次执行时间（19:00 或 20:00）
     let nextLockEvening = new Date(now);
     if (now.getHours() >= 20) {
         nextLockEvening.setDate(nextLockEvening.getDate() + 1);
+        nextLockEvening.setHours(19, 0, 0, 0);
+    } else if (now.getHours() >= 19) {
+        // 19:00-19:59，下次执行是20点（同天）
+        nextLockEvening.setHours(20, 0, 0, 0);
+    } else {
+        nextLockEvening.setHours(19, 0, 0, 0);
     }
-    nextLockEvening.setHours(20, 0, 0, 0);
     const nextLockEveningStr = formatBeijing(nextLockEvening);
 
     const tasks = [
@@ -146,15 +156,15 @@ async function initDefaultTasks() {
         {
             task_name: 'lock_guest_invitation_morning',
             task_type: 'lock_guest_invitation',
-            description: '下午16点自动锁定早班应约客人员',
-            cron_expression: '0 16 * * *',
+            description: '下午15/16点自动锁定早班应约客人员',
+            cron_expression: '0 15,16 * * *',
             next_run: nextLockMorningStr
         },
         {
             task_name: 'lock_guest_invitation_evening',
             task_type: 'lock_guest_invitation',
-            description: '晚上20点自动锁定晚班应约客人员',
-            cron_expression: '0 20 * * *',
+            description: '晚上19/20点自动锁定晚班应约客人员',
+            cron_expression: '0 19,20 * * *',
             next_run: nextLockEveningStr
         },
         {
@@ -671,17 +681,8 @@ async function taskLockGuestInvitation(shiftType) {
     try {
         const today = TimeUtil.todayStr();
 
-        // 先检查是否已锁定（防止重复执行）
-        const existingTask = await get('SELECT last_run, last_status FROM cron_tasks WHERE task_name = ?', [taskName]);
-        if (existingTask && existingTask.last_status === 'success' && existingTask.last_run && existingTask.last_run.startsWith(today)) {
-            console.log(`[CronScheduler] ${taskName}: 今日已锁定，跳过`);
-            const finishedAt = TimeUtil.nowDB();
-            const nextRun = calcNextRun(shiftType === '早班' ? '0 16 * * *' : '0 20 * * *');
-            await logCron(taskName, taskType, 'skipped', 0, '今日已锁定', null, startedAt, finishedAt);
-            // 保持 last_status = 'success'，只更新 next_run
-            await updateTaskStatus(taskName, { nextRun });
-            return { skipped: true, reason: 'already_locked' };
-        }
+        // 不再检查重复执行——同一班次每天允许执行多次（15+16 / 19+20）
+        // 核心逻辑幂等，已有记录不会重复插入
 
         // 内部 HTTP 调用
         const postData = JSON.stringify({ date: today, shift: shiftType });
@@ -716,7 +717,7 @@ async function taskLockGuestInvitation(shiftType) {
         });
 
         const finishedAt = TimeUtil.nowDB();
-        const nextRun = calcNextRun(shiftType === '早班' ? '0 16 * * *' : '0 20 * * *');
+        const nextRun = calcNextRun(shiftType === '早班' ? '0 15,16 * * *' : '0 19,20 * * *');
 
         if (result.success) {
             const lockedCount = result.data?.locked_count || 0;

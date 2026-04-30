@@ -41,22 +41,19 @@ async function executeLockShouldInvite(date, shift, operatorInfo, skipTimeCheck 
     const currentMinute = now.getMinutes();
     const currentTime = currentHour * 60 + currentMinute;
 
-    if (shift === '早班' && currentTime < 16 * 60) {
-      throw { status: 400, error: '早班约客审查需在16:00后开始' };
+    if (shift === '早班' && currentTime < 15 * 60) {
+      throw { status: 400, error: '早班约客审查需在15:00后开始' };
     }
 
-    if (shift === '晚班' && currentTime < 20 * 60) {
-      throw { status: 400, error: '晚班约客审查需在20:00后开始' };
+    if (shift === '晚班' && currentTime < 19 * 60) {
+      throw { status: 400, error: '晚班约客审查需在19:00后开始' };
     }
   }
 
   // 检查 cron_tasks 表，判断当日是否已锁定（防止重复锁定）
   const taskName = shift === '早班' ? 'lock_guest_invitation_morning' : 'lock_guest_invitation_evening';
-  const today = TimeUtil.todayStr();
-  const existingTask = await db.get('SELECT last_run, last_status FROM cron_tasks WHERE task_name = ?', [taskName]);
-  if (existingTask && existingTask.last_status === 'success' && existingTask.last_run && existingTask.last_run.startsWith(today)) {
-    throw { status: 400, error: '今日该班次已锁定，无需重复操作' };
-  }
+  // 同一班次每天允许执行多次（15+16 / 19+20），核心逻辑幂等（已有记录不重复插入）
+  // 不再阻止重复执行
 
   return await runInTransaction(async (tx) => {
     const shouldInviteStatus = shift === '早班' ? ['早班空闲'] : ['晚班空闲'];
@@ -140,41 +137,8 @@ router.get('/check-lock', auth.required, requireBackendPermission(['invitationRe
  * 需要登录和权限校验
  */
 router.post('/lock-should-invite', auth.required, requireBackendPermission(['invitationReview']), async (req, res) => {
-  try {
-    const { date, shift } = req.body;
-    const user = req.user;
-
-    // 时间校验（手动锁定需要检查时间）
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    const currentTime = currentHour * 60 + currentMinute;
-
-    if (shift === '早班' && currentTime < 16 * 60) {
-      return res.status(400).json({ success: false, error: '早班约客审查需在16:00后开始' });
-    }
-    if (shift === '晚班' && currentTime < 20 * 60) {
-      return res.status(400).json({ success: false, error: '晚班约客审查需在20:00后开始' });
-    }
-
-    // 检查是否已锁定
-    const taskName = shift === '早班' ? 'lock_guest_invitation_morning' : 'lock_guest_invitation_evening';
-    const today = TimeUtil.todayStr();
-    const existingTask = await db.get('SELECT last_run, last_status FROM cron_tasks WHERE task_name = ?', [taskName]);
-    if (existingTask && existingTask.last_status === 'success' && existingTask.last_run && existingTask.last_run.startsWith(today)) {
-      return res.status(400).json({ success: false, error: '今日该班次已锁定，无需重复操作' });
-    }
-
-    // 调用 executeLockShouldInvite（skipTimeCheck=true，因为上面已校验）
-    const result = await executeLockShouldInvite(date, shift, { username: user.username, name: user.name }, true);
-
-    // 手动锁定成功后，更新 cron_tasks 表（保持状态一致性）
-    const finishedAt = TimeUtil.nowDB();
-    const nextRun = cronScheduler.calcNextRun(shift === '早班' ? '0 16 * * *' : '0 20 * * *');
-    await db.enqueueRun(
-      'UPDATE cron_tasks SET last_status = ?, last_run = ?, next_run = ?, last_error = NULL WHERE task_name = ?',
-      ['success', finishedAt, nextRun, result.taskName]
-    );
+  // 手动锁定已永久禁用，统一由 Cron 批处理自动执行
+  return res.status(403).json({ success: false, error: '手动锁定已禁用，约客锁定由系统批处理自动执行（15:00/16:00 早班，19:00/20:00 晚班）' });
 
     res.json({
       success: true,
@@ -219,7 +183,7 @@ router.post('/internal/lock', async (req, res) => {
     // 注意：cronScheduler.taskLockGuestInvitation 会自己更新 cron_tasks，
     // 但直接调用 /internal/lock 时需要更新
     const finishedAt = TimeUtil.nowDB();
-    const nextRun = cronScheduler.calcNextRun(shift === '早班' ? '0 16 * * *' : '0 20 * * *');
+    const nextRun = cronScheduler.calcNextRun(shift === '早班' ? '0 15,16 * * *' : '0 19,20 * * *');
     await db.enqueueRun(
       'UPDATE cron_tasks SET last_status = ?, last_run = ?, next_run = ?, last_error = NULL WHERE task_name = ?',
       ['success', finishedAt, nextRun, result.taskName]

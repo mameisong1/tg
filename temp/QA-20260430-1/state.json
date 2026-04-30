@@ -1,0 +1,12 @@
+{
+  "qaRequirement": "后台Admin前厅菜单目录下增加订单管理页面，管理订单表的CRUD（增删改查）。包括：订单列表展示、订单详情查看、订单状态修改、订单删除等功能。",
+  "acceptanceFocus": "1. 订单管理页面能正常CRUD操作 2. 页面在前厅菜单下正确显示 3. 列表支持分页和筛选 4. 遵守编码规范（TimeUtil、db/index.js、writeQueue、不显示coach_no）",
+  "workDir": "/TG/temp/QA-20260430-1",
+  "designAuditRound": 1,
+  "testCasesAuditRound": 2,
+  "fixRound": 0,
+  "currentStep": "deploy",
+  "designSummary": "新增admin/orders.html订单管理页面(列表+详情+筛选+搜索+分页); 修改sidebar.js添加前厅菜单; 修改server.js新增3个API(GET详情/DELETE删除/PUT状态更新); 无数据库变更; 权限cashierDashboard",
+  "userConfirmedAt": "2026-04-29T23:58:25.749Z",
+  "userConfirmedBy": "马哥"
+}

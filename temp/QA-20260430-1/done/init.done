@@ -1,0 +1,13 @@
+{
+  "done": true,
+  "stateUpdate": {
+    "workDir": "/TG/temp/QA-20260430-1",
+    "qaRequirement": "后台Admin前厅菜单目录下增加订单管理页面，管理订单表的CRUD（增删改查）。包括：订单列表展示、订单详情查看、订单状态修改、订单删除等功能。",
+    "acceptanceFocus": "1. 订单管理页面能正常CRUD操作 2. 页面在前厅菜单下正确显示 3. 列表支持分页和筛选 4. 遵守编码规范（TimeUtil、db/index.js、writeQueue、不显示coach_no）",
+    "designAuditRound": 0,
+    "testCasesAuditRound": 0,
+    "fixRound": 0,
+    "currentStep": "parallel-design"
+  },
+  "userMessage": "✅ QA任务已初始化\n\n工作目录：`/TG/temp/QA-20260430-1`\n需求：后台Admin前厅菜单目录下增加订单管理页面，管理订单表的CRUD（增删改查）。包括：订单列表展示、订单详情查看、订单状态修改、订单删除等功能。"
+}
