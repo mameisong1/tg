@@ -228,7 +228,7 @@ const handleClockIn = async () => {
     if (queryRes.data.status === 'found') {
       // 钉钉打卡时间已获取 → 直接上班
       await doClockIn()
-    } else if (queryRes.data.status === 'pending') {
+    } else if (queryRes.data.status === 'not_found' || queryRes.data.status === 'pending') {
       // 钉钉打卡时间未获取 → 显示沙漏弹框，启动轮询
       showHourglass.value = true
       countdownSeconds.value = 300
@@ -244,7 +244,7 @@ const handleClockIn = async () => {
   }
 }
 
-// QA-20260501-1: 启动轮询（每3秒查询一次钉钉打卡状态）
+// QA-20260501-1: 启动轮询（每10秒查询一次钉钉打卡状态）
 const startPolling = () => {
   pollingTimer.value = setInterval(async () => {
     try {
@@ -259,17 +259,13 @@ const startPolling = () => {
         stopPolling()
         showHourglass.value = false
         await doClockIn()
-      } else if (statusRes.data.status === 'timeout') {
-        // 超时 → 关闭沙漏，显示超时弹框
-        stopPolling()
-        showHourglass.value = false
-        showTimeoutModal.value = true
       }
+      // status === 'pending' → 继续轮询，前端倒计时控制超时
     } catch (e) {
       // 轮询失败，继续轮询
       console.error('轮询钉钉打卡状态失败:', e)
     }
-  }, 3000)  // 每3秒轮询一次
+  }, 10000)  // 每10秒轮询一次
 }
 
 // QA-20260501-1: 启动倒计时
