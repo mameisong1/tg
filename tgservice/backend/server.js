@@ -106,6 +106,9 @@ const systemReportRouter = require('./routes/system-report');
 // 钉钉回调路由
 const dingtalkCallbackRouter = require('./routes/dingtalk-callback');
 
+// 钉钉打卡查询路由（QA-20260501-1）
+const dingtalkAttendanceQueryRouter = require('./routes/dingtalk-attendance-query');
+
 // 设备指纹访问记录(内存存储,每日过期)
 // 结构: Map<fingerprint_coachNo, timestamp>
 const popularityCache = new Map();
@@ -444,6 +447,9 @@ app.use('/api/system-report', systemReportRouter);
 
 // 钉钉回调（不需要鉴权，钉钉签名验证）
 app.use('/api/dingtalk/callback', dingtalkCallbackRouter);
+
+// 钉钉打卡查询路由（QA-20260501-1）
+app.use('/api/dingtalk-attendance', dingtalkAttendanceQueryRouter);
 
 // 智能开关路由（在 authMiddleware 之后注册）
 

@@ -5,7 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { runInTransaction, waitForIdle } = require('../db');
+const { runInTransaction, waitForIdle, get } = require('../db');
 const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 const TimeUtil = require('../utils/time');
@@ -84,6 +84,7 @@ async function calculateIsLate(clockInTime, shift, coachNo, date, tx) {
 /**
  * POST /api/coaches/:coach_no/clock-in
  * 助教上班(助教只能打自己的卡)
+ * QA-20260501-1: 强制使用钉钉打卡时间
  */
 router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coachManagement'], { coachSelfOnly: true }), async (req, res) => {
   try {
@@ -93,11 +94,34 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
     } catch (e) {
       console.log('[clock-in] waitForIdle timeout, continue anyway');
     }
-    
-    const result = await runInTransaction(async (tx) => {
-    const { coach_no } = req.params;
-    const { clock_in_photo } = req.body; // 新增：打卡截图参数
 
+    const { coach_no } = req.params;
+    const { clock_in_photo, force_dingtalk = true } = req.body;
+
+    // QA-20260501-1: 强制钉钉打卡逻辑
+    const todayStr = TimeUtil.todayStr();
+    let dingtalkTime = null;
+
+    if (force_dingtalk) {
+      // 查询钉钉打卡时间
+      const attendance = await get(
+        'SELECT id, dingtalk_in_time FROM attendance_records WHERE coach_no = ? AND date = ?',
+        [coach_no, todayStr]
+      );
+      dingtalkTime = attendance?.dingtalk_in_time;
+
+      if (!dingtalkTime) {
+        // 未找到钉钉打卡时间 → 返回错误码
+        dingtalkService.dingtalkLog.write(`clock-in 失败: ${coach_no} 无钉钉打卡时间`);
+        return res.json({
+          success: false,
+          error: 'DINGTALK_NOT_FOUND',
+          message: '未获取到钉钉打卡时间，请先在钉钉打卡'
+        });
+      }
+    }
+
+    const result = await runInTransaction(async (tx) => {
     // 获取助教信息(包括班次和工号)
     const coach = await tx.get(`
       SELECT coach_no, stage_name, shift, employee_id FROM coaches WHERE coach_no = ?
@@ -121,6 +145,7 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
     // 根据班次和当前状态确定新状态
     let newStatus;
     let lejuanEnded = false;
+    let lejuanId = null;  // QA-20260501-1: 记录乐捐ID用于写入钉钉时间
     if (waterBoard.status === '乐捐') {
       // 自动结束乐捐,然后进入空闲
       const activeLejuan = await tx.get(
@@ -131,21 +156,25 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
       );
 
       if (activeLejuan) {
-        const nowDB = TimeUtil.nowDB();
+        lejuanId = activeLejuan.id;  // QA-20260501-1: 记录乐捐ID
+        // QA-20260501-1: 乐捐归来时间强制使用钉钉打卡时间
+        const returnTime = dingtalkTime || TimeUtil.nowDB();
         const { calculateLejuanHours } = require('../utils/lejuan-hours');
-        const lejuanHours = calculateLejuanHours(activeLejuan.scheduled_start_time, nowDB);
+        const lejuanHours = calculateLejuanHours(activeLejuan.scheduled_start_time, returnTime);
 
         await tx.run(
           `UPDATE lejuan_records
            SET lejuan_status = 'returned',
                return_time = ?,
+               dingtalk_return_time = ?,
                lejuan_hours = ?,
                returned_by = ?,
                updated_at = ?
            WHERE id = ? AND lejuan_status = 'active'`,
-          [nowDB, lejuanHours, req.user.username || 'system', nowDB, activeLejuan.id]
+          [returnTime, dingtalkTime || null, lejuanHours, req.user.username || 'system', TimeUtil.nowDB(), activeLejuan.id]
         );
         lejuanEnded = true;
+        dingtalkService.dingtalkLog.write(`乐捐归来: ${coach_no} return_time=${returnTime}, dingtalk_return_time=${dingtalkTime || 'null'}`);
       }
       newStatus = coach.shift === '早班' ? '早班空闲' : '晚班空闲';
     } else if (['早加班', '休息', '公休', '请假', '下班'].includes(waterBoard.status)) {
@@ -159,17 +188,19 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
       newStatus = coach.shift === '早班' ? '早班空闲' : '晚班空闲';
     }
 
-    // 更新水牌状态
+    // QA-20260501-1: 更新水牌状态，clock_in_time 使用钉钉打卡时间
+    const clockInTime = dingtalkTime || TimeUtil.nowDB();
     const nowDB = TimeUtil.nowDB();
     await tx.run(`
       UPDATE water_boards
       SET status = ?, table_no = NULL, clock_in_time = ?, updated_at = ?
       WHERE coach_no = ?
-    `, [newStatus, nowDB, nowDB, coach_no]);
+    `, [newStatus, clockInTime, nowDB, coach_no]);
 
-    // 新增:写入打卡记录（含打卡截图 + 迟到计算）
-    const todayStr = TimeUtil.todayStr();
-    const isLate = await calculateIsLate(nowDB, coach.shift, coach_no, todayStr, tx);
+    dingtalkService.dingtalkLog.write(`上班打卡: ${coach_no} clock_in_time=${clockInTime}, dingtalk_in_time=${dingtalkTime || 'null'}`);
+
+    // QA-20260501-1: 写入打卡记录，clock_in_time 使用钉钉打卡时间
+    const isLate = await calculateIsLate(clockInTime, coach.shift, coach_no, todayStr, tx);
     
     // 先查询今天是否已有记录（包括只有钉钉时间的）
     const existingRecord = await tx.get(`
@@ -177,20 +208,21 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
       WHERE coach_no = ? AND date = ?
       ORDER BY created_at DESC LIMIT 1
     `, [coach_no, todayStr]);
-    
+
+    // QA-20260501-1: clock_in_photo 改为可选（截图上传改为非必填）
     if (existingRecord && !existingRecord.clock_in_time) {
       // 有记录但没有 clock_in_time → UPDATE（钉钉先打卡，系统后打卡）
       await tx.run(`
         UPDATE attendance_records
         SET clock_in_time = ?, clock_in_photo = ?, is_late = ?, updated_at = ?
         WHERE id = ?
-      `, [nowDB, clock_in_photo || null, isLate, nowDB, existingRecord.id]);
+      `, [clockInTime, clock_in_photo || null, isLate, nowDB, existingRecord.id]);
     } else if (!existingRecord) {
       // 没有记录 → INSERT
       await tx.run(`
         INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, clock_in_time, clock_out_time, clock_in_photo, is_late, is_reviewed, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 0, ?, ?)
-      `, [todayStr, coach_no, coach.employee_id, coach.stage_name, nowDB, clock_in_photo || null, isLate, nowDB, nowDB]);
+      `, [todayStr, coach_no, coach.employee_id, coach.stage_name, clockInTime, clock_in_photo || null, isLate, nowDB, nowDB]);
     }
 
     // 记录操作日志
@@ -221,7 +253,7 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
       console.log(`[clock-in] 合并重复记录: coach_no=${coach_no}, 删除 ${ids.length} 条`);
     }
 
-    return { coach_no, stage_name: coach.stage_name, status: newStatus, shift: coach.shift, oldStatus };
+    return { coach_no, stage_name: coach.stage_name, status: newStatus, shift: coach.shift, oldStatus, clock_in_time: clockInTime, lejuanId };
     });
 
     res.json({

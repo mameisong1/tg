@@ -220,6 +220,14 @@ export const lejuanRecords = {
   returnRecord: (id, data) => request({ url: `/lejuan-records/${id}/return`, method: 'POST', data })
 }
 
+// ========== 钉钉打卡查询（QA-20260501-1）==========
+export const dingtalkAttendance = {
+  // 查询/轮询钉钉打卡时间
+  query: (data) => request({ url: '/dingtalk-attendance/query', method: 'POST', data }),
+  // 查询轮询状态
+  getStatus: (params) => request({ url: '/dingtalk-attendance/status', data: params })
+}
+
 // ========== 漏单统计 ==========
 export const missingTableOutOrders = {
   // 获取统计列表
@@ -518,5 +526,6 @@ export default {
   leaveCalendar,
   attendanceReview,
   guestRankings,
-  notifications
+  notifications,
+  dingtalkAttendance
 }
