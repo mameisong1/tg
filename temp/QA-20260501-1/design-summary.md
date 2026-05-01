@@ -1,0 +1,1 @@
+强制钉钉打卡翻牌：后端新增dingtalk-attendance-query路由(查询+轮询)，修改coaches.js的clock-in API强制使用钉钉时间(含正常上班+乐捐状态上班双重场景)，修改dingtalk-service.js新增轮询方法，修改clock.vue前端(提示+勾选框+沙漏弹框+超时处理)，截图改为可选。管理端手动乐捐归来不修改。下班打卡维持现状。
