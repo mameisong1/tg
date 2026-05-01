@@ -325,11 +325,17 @@ const doClockIn = async () => {
   }
 }
 
-// QA-20260501-1: 超时弹框确认
+// QA-20260501-1: 超时弹框确认 - 重置状态回初始界面
 const onTimeoutConfirm = () => {
   showTimeoutModal.value = false
-  // 可选：显示截图上传区域，让用户手动上传
-  showPhotoUpload.value = true
+  // 重置所有状态，回到初始打卡界面
+  // 此时用户需找助教管理或店长手动翻牌，不需要截图上传
+  dingtalkConfirmed.value = false
+  showPhotoUpload.value = false
+  imageUrls.value = []
+  currentLejuanId.value = null
+  // 刷新水牌状态
+  loadWaterBoard()
 }
 
 const handleClockOut = async () => {

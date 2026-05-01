@@ -161,6 +161,40 @@ router.get('/status', auth.required, requireBackendPermission(['coachManagement'
     
     const status = pollStatusCache.get(pollKey);
     
+    // ★ 优先检查数据库是否有钉钉推送数据
+    const todayStr = TimeUtil.todayStr();
+    let dingtalkTime;
+    
+    if (clock_type === 'in') {
+      const attendance = await get(
+        'SELECT dingtalk_in_time FROM attendance_records WHERE coach_no = ? AND date = ?',
+        [coach_no, todayStr]
+      );
+      dingtalkTime = attendance?.dingtalk_in_time;
+    } else if (clock_type === 'return') {
+      if (lejuan_id) {
+        const lejuan = await get(
+          'SELECT dingtalk_return_time FROM lejuan_records WHERE id = ?',
+          [lejuan_id]
+        );
+        dingtalkTime = lejuan?.dingtalk_return_time;
+      }
+    }
+    
+    if (dingtalkTime) {
+      // 数据库已有推送数据 → 更新缓存并返回 found
+      if (status) {
+        status.status = 'found';
+        status.dingtalk_time = dingtalkTime;
+        pollStatusCache.set(pollKey, status);
+      }
+      dingtalkService.dingtalkLog.write(`轮询查询: ${coach_no} 数据库已有推送 ${dingtalkTime}`);
+      return res.json({
+        success: true,
+        data: { status: 'found', dingtalk_time: dingtalkTime }
+      });
+    }
+    
     if (!status) {
       return res.json({ success: true, data: { status: 'unknown' } });
     }
