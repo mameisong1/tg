@@ -16,29 +16,6 @@ const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 
 /**
- * 检查钉钉打卡时间是否在10分钟内
- * dingtalkTime 格式: "YYYY-MM-DD HH:MM:SS"（北京时间）
- */
-function isDingtalkTimeRecent(dingtalkTime) {
-  if (!dingtalkTime) return false;
-  const now = Date.now();
-  const tenMinutesAgoMs = now - 10 * 60 * 1000;
-  
-  // 计算10分钟前的时间字符串（北京时间，格式同DB存储）
-  const cutoffDate = new Date(tenMinutesAgoMs);
-  const y = cutoffDate.getFullYear();
-  const m = String(cutoffDate.getMonth() + 1).padStart(2, '0');
-  const d = String(cutoffDate.getDate()).padStart(2, '0');
-  const h = String(cutoffDate.getHours()).padStart(2, '0');
-  const min = String(cutoffDate.getMinutes()).padStart(2, '0');
-  const s = String(cutoffDate.getSeconds()).padStart(2, '0');
-  const cutoff = `${y}-${m}-${d} ${h}:${min}:${s}`;
-  
-  // 字符串直接比较（同格式同时间）
-  return dingtalkTime >= cutoff;
-}
-
-/**
  * POST /api/dingtalk-attendance/query
  * 一次性查询钉钉打卡时间（不启动后台轮询）
  * 
@@ -60,38 +37,47 @@ router.post('/query', auth.required, requireBackendPermission(['coachManagement'
       return res.status(400).json({ success: false, error: '缺少 coach_no 参数' });
     }
     
-    // 1. 检查数据库是否已有钉钉打卡时间（推送）
+    // 1. 检查数据库是否有钉钉推送但未系统打卡的记录（10分钟内）
     const todayStr = TimeUtil.todayStr();
+    const now = TimeUtil.nowDB();
+    const tenMinutesAgoStr = TimeUtil.offsetDB(-1/6); // 10分钟前
+    
     let dingtalkTime;
+    let recordId;
     
     if (clock_type === 'in') {
       const attendance = await get(
-        'SELECT id, dingtalk_in_time FROM attendance_records WHERE coach_no = ? AND date = ?',
-        [coach_no, todayStr]
+        `SELECT id, dingtalk_in_time FROM attendance_records 
+         WHERE coach_no = ? AND date = ? 
+           AND clock_in_time IS NULL 
+           AND dingtalk_in_time IS NOT NULL
+           AND dingtalk_in_time >= ?
+         ORDER BY dingtalk_in_time DESC
+         LIMIT 1`,
+        [coach_no, todayStr, tenMinutesAgoStr]
       );
       dingtalkTime = attendance?.dingtalk_in_time;
+      recordId = attendance?.id;
     } else if (clock_type === 'return') {
       if (!lejuan_id) {
         return res.status(400).json({ success: false, error: '乐捐归来缺少 lejuan_id 参数' });
       }
       const lejuan = await get(
-        'SELECT id, dingtalk_return_time FROM lejuan_records WHERE id = ?',
+        `SELECT id, dingtalk_return_time FROM lejuan_records 
+         WHERE id = ? AND return_time IS NULL
+           AND dingtalk_return_time IS NOT NULL`,
         [lejuan_id]
       );
       dingtalkTime = lejuan?.dingtalk_return_time;
+      recordId = lejuan?.id;
     }
     
     if (dingtalkTime) {
-      // DB已有数据 → 验证是否在10分钟内
-      if (isDingtalkTimeRecent(dingtalkTime)) {
-        dingtalkService.dingtalkLog.write(`钉钉打卡查询: ${coach_no} 已有推送数据 ${dingtalkTime}`);
-        return res.json({
-          success: true,
-          data: { status: 'found', dingtalk_time: dingtalkTime }
-        });
-      } else {
-        dingtalkService.dingtalkLog.write(`钉钉打卡查询: ${coach_no} DB数据已过期 ${dingtalkTime}，继续查API`);
-      }
+      dingtalkService.dingtalkLog.write(`钉钉打卡查询: ${coach_no} 已有推送数据 ${dingtalkTime}`);
+      return res.json({
+        success: true,
+        data: { status: 'found', dingtalk_time: dingtalkTime }
+      });
     }
     
     // 2. 查询助教的钉钉用户ID
@@ -120,8 +106,7 @@ router.post('/query', auth.required, requireBackendPermission(['coachManagement'
     }
     
     // 4. 筛选10分钟内的打卡记录
-    const now = Date.now();
-    const tenMinutesAgo = now - 10 * 60 * 1000;
+    const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
     
     const recentRecords = records.filter(r => {
       const checkTime = r.userCheckTime || r.checkTime;
@@ -189,20 +174,30 @@ router.get('/status', auth.required, requireBackendPermission(['coachManagement'
   try {
     const { coach_no, clock_type, lejuan_id } = req.query;
     
-    // 1. 优先检查数据库是否有钉钉推送数据
+    // 1. 优先检查数据库是否有钉钉推送但未系统打卡的记录（10分钟内）
     const todayStr = TimeUtil.todayStr();
+    const tenMinutesAgoStr = TimeUtil.offsetDB(-1/6); // 10分钟前
+    
     let dingtalkTime;
     
     if (clock_type === 'in') {
       const attendance = await get(
-        'SELECT dingtalk_in_time FROM attendance_records WHERE coach_no = ? AND date = ?',
-        [coach_no, todayStr]
+        `SELECT dingtalk_in_time FROM attendance_records 
+         WHERE coach_no = ? AND date = ?
+           AND clock_in_time IS NULL 
+           AND dingtalk_in_time IS NOT NULL
+           AND dingtalk_in_time >= ?
+         ORDER BY dingtalk_in_time DESC
+         LIMIT 1`,
+        [coach_no, todayStr, tenMinutesAgoStr]
       );
       dingtalkTime = attendance?.dingtalk_in_time;
     } else if (clock_type === 'return') {
       if (lejuan_id) {
         const lejuan = await get(
-          'SELECT dingtalk_return_time FROM lejuan_records WHERE id = ?',
+          `SELECT dingtalk_return_time FROM lejuan_records 
+           WHERE id = ? AND return_time IS NULL
+             AND dingtalk_return_time IS NOT NULL`,
           [lejuan_id]
         );
         dingtalkTime = lejuan?.dingtalk_return_time;
@@ -210,16 +205,11 @@ router.get('/status', auth.required, requireBackendPermission(['coachManagement'
     }
     
     if (dingtalkTime) {
-      // DB已有数据 → 验证是否在10分钟内
-      if (isDingtalkTimeRecent(dingtalkTime)) {
-        dingtalkService.dingtalkLog.write(`轮询查询: ${coach_no} 数据库已有推送 ${dingtalkTime}`);
-        return res.json({
-          success: true,
-          data: { status: 'found', dingtalk_time: dingtalkTime }
-        });
-      } else {
-        dingtalkService.dingtalkLog.write(`轮询查询: ${coach_no} DB数据已过期 ${dingtalkTime}，继续查API`);
-      }
+      dingtalkService.dingtalkLog.write(`轮询查询: ${coach_no} 数据库已有推送 ${dingtalkTime}`);
+      return res.json({
+        success: true,
+        data: { status: 'found', dingtalk_time: dingtalkTime }
+      });
     }
     
     // 2. 数据库没有 → 实时查询钉钉API
@@ -243,8 +233,7 @@ router.get('/status', auth.required, requireBackendPermission(['coachManagement'
     }
     
     // 筛选5分钟内的打卡记录（轮询时窗口缩小到5分钟）
-    const now = Date.now();
-    const fiveMinutesAgo = now - 5 * 60 * 1000;
+    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
     
     const recentRecords = records.filter(r => {
       const checkTime = r.userCheckTime || r.checkTime;
