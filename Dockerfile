@@ -29,6 +29,7 @@ COPY data /app/data
 COPY ecosystem.config.js /app/ecosystem.config.js
 
 # 设置环境变量
+ENV TGSERVICE_ENV=production
 ENV NODE_ENV=production
 
 # 安装后端生产依赖（node_modules 已被 .dockerignore 排除）

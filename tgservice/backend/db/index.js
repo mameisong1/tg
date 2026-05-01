@@ -15,7 +15,7 @@ const path = require('path');
 const fs = require('fs');
 
 // 判断环境
-const env = process.env.TGSERVICE_ENV || 'production';
+const env = process.env.TGSERVICE_ENV || 'test';
 const configFileName = env === 'test' ? '.config' : '.config.prod';
 const configPath = path.join(__dirname, '../../' + configFileName);
 
