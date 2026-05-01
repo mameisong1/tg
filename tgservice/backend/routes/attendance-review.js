@@ -110,7 +110,8 @@ router.get('/', auth.required, requireBackendPermission(['店长', '助教管理
       WHERE COALESCE(ar.clock_in_time, ar.dingtalk_in_time) >= ?
         AND COALESCE(ar.clock_in_time, ar.dingtalk_in_time) <= ?
         AND (? IS NULL OR c.shift = ?)
-      ORDER BY COALESCE(ar.clock_in_time, ar.dingtalk_in_time) DESC
+      -- QA-20260501-22: 迟到优先，其次按上班打卡时间降序
+      ORDER BY ar.is_late DESC, COALESCE(ar.clock_in_time, ar.dingtalk_in_time) DESC
     `;
 
     const records = await all(sql, [timeStart, timeEnd, shift, shift]);
