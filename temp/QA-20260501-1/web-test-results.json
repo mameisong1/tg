@@ -1,0 +1,23 @@
+[
+  {
+    "test": "WEB-001",
+    "status": "pass"
+  },
+  {
+    "test": "WEB-002",
+    "status": "pass"
+  },
+  {
+    "test": "WEB-003",
+    "status": "fail",
+    "notes": "按钮仍disabled"
+  },
+  {
+    "test": "WEB-010",
+    "status": "pass"
+  },
+  {
+    "test": "WEB-011",
+    "status": "pass"
+  }
+]
