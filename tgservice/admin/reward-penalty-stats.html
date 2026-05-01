@@ -36,6 +36,19 @@
     .badge-executed { background: rgba(76,175,80,0.2); color: #4caf50; }
     .badge-pending { background: rgba(255,193,7,0.2); color: #ffc107; }
 
+    /* 角色徽章样式 */
+    .badge-coach { background: rgba(0,188,212,0.2); color: #00bcd4; }
+    .badge-coach-manager { background: rgba(230,126,34,0.2); color: #e67e22; }
+    .badge-waiter { background: rgba(158,158,158,0.2); color: #9e9e9e; }
+    .badge-lobby-manager { background: rgba(33,150,243,0.2); color: #2196f3; }
+    .badge-cashier { background: rgba(76,175,80,0.2); color: #4caf50; }
+    .badge-store-manager { background: rgba(155,89,182,0.2); color: #9b59b6; }
+    .badge-admin { background: rgba(231,76,60,0.2); color: #e74c3c; }
+
+    /* 筛选下拉样式 */
+    .filter-select { padding: 8px 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(212,175,55,0.3); border-radius: 8px; color: #d4af37; font-size: 13px; cursor: pointer; }
+    .filter-select option { background: #1a1a2e; color: #fff; }
+
     .stats-summary { display: flex; gap: 20px; margin-bottom: 20px; flex-wrap: wrap; }
     .stat-card { background: rgba(20,20,30,0.8); border-radius: 12px; padding: 16px 24px; border: 1px solid rgba(218,165,32,0.1); min-width: 150px; }
     .stat-label { font-size: 12px; color: rgba(255,255,255,0.5); }
@@ -125,7 +138,7 @@
       <div class="page-title">🏆 奖罚统计</div>
     </div>
 
-    <!-- 筛选栏 -->
+    <!-- 篮选栏 -->
     <div class="filter-bar">
       <div class="filter-group" id="monthFilter">
         <button class="btn btn-outline active" data-month="this" onclick="setMonth('this')">本月</button>
@@ -139,7 +152,25 @@
         <button class="btn btn-outline active" data-status="未执行" onclick="setExecStatus('未执行')">未执行</button>
         <button class="btn btn-outline" data-status="已执行" onclick="setExecStatus('已执行')">已执行</button>
       </div>
+      <select class="filter-select" id="roleFilter" onchange="setRole(this.value)">
+        <option value="">全部角色</option>
+        <option value="助教">助教</option>
+        <option value="助教管理">助教管理</option>
+        <option value="服务员">服务员</option>
+        <option value="教练">教练</option>
+        <option value="店长">店长</option>
+        <option value="前厅管理">前厅管理</option>
+        <option value="收银">收银</option>
+        <option value="管理员">管理员</option>
+      </select>
+      <select class="filter-select" id="sortFilter" onchange="setSort(this.value)">
+        <option value="">默认排序</option>
+        <option value="amount_desc">金额降序</option>
+        <option value="role">按角色</option>
+        <option value="employee_id">按工号</option>
+      </select>
       <button class="btn btn-primary" onclick="loadData()">🔍 查询</button>
+      <button class="btn btn-outline" onclick="downloadExcel()">📥 下载Excel</button>
     </div>
 
     <!-- 统计摘要 -->
@@ -152,6 +183,7 @@
           <th style="width:30px"><input type="checkbox" id="selectAll" onchange="toggleSelectAll(this)"></th>
           <th style="width:60px">工号</th>
           <th>姓名</th>
+          <th>角色</th>
           <th>金额合计</th>
           <th style="width:100px">记录数</th>
           <th style="width:100px">执行状态</th>
@@ -159,7 +191,7 @@
         </tr>
       </thead>
       <tbody id="statsTable">
-        <tr><td colspan="7" class="empty-state"><div class="empty-state-icon">📊</div><div>点击查询加载数据</div></td></tr>
+        <tr><td colspan="8" class="empty-state"><div class="empty-state-icon">📊</div><div>点击查询加载数据</div></td></tr>
       </tbody>
     </table>
   </div>
@@ -206,6 +238,8 @@
   <div class="toast" id="toast"></div>
 
   <script src="js/time-util.js"></script>
+  <!-- SheetJS for Excel export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
     const token = localStorage.getItem('adminToken');
     if (!token) window.location.href = 'login.html';
@@ -213,6 +247,8 @@
     let currentMonth = '';
     let currentType = '';
     let currentExecStatus = '未执行';
+    let currentRole = '';      // 角色筛选
+    let currentSort = '';      // 排序
     let rewardTypes = [];
     let summaryData = [];       // 统计摘要数据
     let selectedIds = new Set();
@@ -306,10 +342,25 @@
       filterBar.querySelector(`.btn[data-status="${val}"]`).classList.add('active');
     }
 
+    function setRole(val) {
+      currentRole = val;
+    }
+
+    function setSort(val) {
+      currentSort = val;
+    }
+
     // ============ 第一阶段：加载统计摘要 ============
     async function loadData() {
       try {
-        const res = await api(`/api/reward-penalty/stats?month=${currentMonth}&type=${encodeURIComponent(currentType)}&execStatus=${encodeURIComponent(currentExecStatus)}`);
+        const params = new URLSearchParams({
+          month: currentMonth,
+          type: currentType,
+          execStatus: currentExecStatus,
+          role: currentRole,
+          sort: currentSort
+        });
+        const res = await api(`/api/reward-penalty/stats?${params.toString()}`);
         if (res.success) {
           summaryData = res.data || [];
           renderSummary(res.summary);
@@ -355,13 +406,15 @@
     function renderTable() {
       const tbody = document.getElementById('statsTable');
       if (summaryData.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><div class="empty-state-icon">📭</div><div>暂无奖罚数据</div></td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><div class="empty-state-icon">📭</div><div>暂无奖罚数据</div></td></tr>';
         return;
       }
 
       let html = '';
       summaryData.forEach((person, idx) => {
         const empId = person.employee_id || '-';
+        const role = person.role || '未知';
+        const roleBadgeClass = getRoleBadgeClass(role);
         const statusText = person.pendingCount > 0
           ? `<span class="badge badge-pending">${person.pendingCount}/${person.totalCount} 未执行</span>`
           : `<span class="badge badge-executed">${person.totalCount}/${person.totalCount} 已执行</span>`;
@@ -370,6 +423,7 @@
           <td><input type="checkbox" class="person-check" data-idx="${idx}" ${person.pendingCount === 0 ? 'disabled' : ''} onchange="togglePerson(${idx}, this.checked)"></td>
           <td>${empId}</td>
           <td>${person.name}</td>
+          <td><span class="badge ${roleBadgeClass}">${role}</span></td>
           <td class="${person.personTotal >= 0 ? 'amount-positive' : 'amount-negative'}" id="amount-${idx}">${person.personTotal >= 0 ? '+' : ''}¥${Math.round(person.personTotal || 0)}</td>
           <td>${person.totalCount || 0}</td>
           <td>${statusText}</td>
@@ -381,6 +435,20 @@
       });
 
       tbody.innerHTML = html;
+    }
+
+    // 角色徽章样式映射
+    function getRoleBadgeClass(role) {
+      const roleMap = {
+        '助教': 'badge-coach',
+        '助教管理': 'badge-coach-manager',
+        '服务员': 'badge-waiter',
+        '教练': 'badge-coach',
+        '店长': 'badge-store-manager',
+        '前厅管理': 'badge-lobby-manager',
+        '收银': 'badge-cashier',
+        '管理员': 'badge-admin'
+      };return roleMap[role] || 'badge-waiter';
     }
 
     // ============ 第二阶段：弹框加载明细 ============
@@ -696,6 +764,43 @@
       } catch (e) {
         showToast('批量执行失败: ' + e.message);
       }
+    }
+
+    // ============ 下载Excel功能 ============
+    function downloadExcel() {
+      if (summaryData.length === 0) {
+        showToast('请先查询数据');
+        return;
+      }
+
+      // 构建Excel数据
+      const excelData = [
+        ['工号', '姓名', '角色', '金额合计', '记录数', '未执行数']
+      ];
+
+      summaryData.forEach(p => {
+        excelData.push([
+          p.employee_id || '-',
+          p.name,
+          p.role || '未知',
+          Math.round(p.personTotal),
+          p.totalCount,
+          p.pendingCount
+        ]);
+      });
+
+      // 创建工作簿
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(excelData);
+
+      // 设置列宽
+      ws['!cols'] = [{ wch: 8 }, { wch: 12 }, { wch: 10 }, { wch: 12 }, { wch: 8 }, { wch: 10 }];
+
+      XLSX.utils.book_append_sheet(wb, ws, '奖罚统计');
+
+      // 下载文件
+      const fileName = `奖罚统计_${currentMonth}.xlsx`;XLSX.writeFile(wb, fileName);
+      showToast('Excel已下载');
     }
 
     init();

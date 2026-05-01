@@ -6161,11 +6161,13 @@ app.get('/api/reward-penalty/list', authMiddleware, async (req, res) => {
 // GET /api/reward-penalty/stats — 统计摘要（不含明细）
 app.get('/api/reward-penalty/stats', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
-    const { month, type, execStatus } = req.query;
+    const { month, type, execStatus, role, sort } = req.query;
     const queryMonth = month || TimeUtil.todayStr().substring(0, 7); // 默认本月 YYYY-MM
 
     // 1) 按人员分组聚合统计
+    // 角色逻辑：助教硬编码为"助教"，其他从 admin_users.role 获取
     let sql = `SELECT rp.phone, rp.name, c.employee_id,
+                      CASE WHEN c.coach_no IS NOT NULL THEN '助教' ELSE au.role END as role,
                       SUM(rp.amount) as personTotal,
                       COUNT(*) as totalCount,
                       SUM(CASE WHEN rp.exec_status = '已执行' THEN 1 ELSE 0 END) as executedCount,
@@ -6173,6 +6175,7 @@ app.get('/api/reward-penalty/stats', authMiddleware, requireBackendPermission(['
                       GROUP_CONCAT(CASE WHEN rp.exec_status = '未执行' THEN rp.id END) as pendingIdsStr
                FROM reward_penalties rp
                LEFT JOIN coaches c ON c.phone = rp.phone
+               LEFT JOIN admin_users au ON au.username = rp.phone
                WHERE rp.confirm_date LIKE ?`;
     const params = [queryMonth + '%'];
 
@@ -6185,7 +6188,26 @@ app.get('/api/reward-penalty/stats', authMiddleware, requireBackendPermission(['
       params.push(execStatus);
     }
 
-    sql += ' GROUP BY rp.phone, rp.name, c.employee_id ORDER BY rp.phone';
+    // 角色筛选：助教用 coaches 表判断，其他用 admin_users.role
+    if (role === '助教') {
+      sql += ' AND c.coach_no IS NOT NULL';
+    } else if (role) {
+      sql += ' AND au.role = ?';
+      params.push(role);
+    }
+
+    sql += ' GROUP BY rp.phone, rp.name, c.employee_id, au.role';
+
+    // 排序：amount_desc=金额降序, role=按角色, employee_id=按工号, 默认按手机号
+    if (sort === 'amount_desc') {
+      sql += ' ORDER BY personTotal DESC';
+    } else if (sort === 'role') {
+      sql += ' ORDER BY role ASC';
+    } else if (sort === 'employee_id') {
+      sql += ' ORDER BY c.employee_id ASC';
+    } else {
+      sql += ' ORDER BY rp.phone';
+    }
 
     const rows = await dbAll(sql, params);
 
@@ -6193,6 +6215,7 @@ app.get('/api/reward-penalty/stats', authMiddleware, requireBackendPermission(['
       phone: r.phone,
       name: r.name,
       employee_id: r.employee_id || null,
+      role: r.role || '未知',
       personTotal: r.personTotal || 0,
       totalCount: r.totalCount || 0,
       executedCount: r.executedCount || 0,
@@ -6200,48 +6223,90 @@ app.get('/api/reward-penalty/stats', authMiddleware, requireBackendPermission(['
       pendingIds: r.pendingIdsStr ? r.pendingIdsStr.split(',').map(Number) : []
     }));
 
-    // 2) 总体汇总
-    let summarySql = 'SELECT SUM(amount) as totalAmount, COUNT(*) as totalCount FROM reward_penalties WHERE confirm_date LIKE ?';
+    // 2) 总体汇总（支持角色筛选）
+    // 需要关联 coaches 和 admin_users 表来支持角色筛选
+    let summarySql = `SELECT SUM(rp.amount) as totalAmount, COUNT(*) as totalCount
+                      FROM reward_penalties rp
+                      LEFT JOIN coaches c ON c.phone = rp.phone
+                      LEFT JOIN admin_users au ON au.username = rp.phone
+                      WHERE rp.confirm_date LIKE ?`;
     const summaryParams = [queryMonth + '%'];
     if (type) {
-      summarySql += ' AND type = ?';
+      summarySql += ' AND rp.type = ?';
       summaryParams.push(type);
     }
     if (execStatus) {
-      summarySql += ' AND exec_status = ?';
+      summarySql += ' AND rp.exec_status = ?';
       summaryParams.push(execStatus);
+    }
+    // 角色筛选
+    if (role === '助教') {
+      summarySql += ' AND c.coach_no IS NOT NULL';
+    } else if (role) {
+      summarySql += ' AND au.role = ?';
+      summaryParams.push(role);
     }
     const summaryRow = await dbGet(summarySql, summaryParams);
 
-    let bonusSql = 'SELECT SUM(amount) as totalBonus FROM reward_penalties WHERE confirm_date LIKE ? AND amount > 0';
+    let bonusSql = `SELECT SUM(rp.amount) as totalBonus
+                    FROM reward_penalties rp
+                    LEFT JOIN coaches c ON c.phone = rp.phone
+                    LEFT JOIN admin_users au ON au.username = rp.phone
+                    WHERE rp.confirm_date LIKE ? AND rp.amount > 0`;
     const bonusParams = [queryMonth + '%'];
     if (type) {
-      bonusSql += ' AND type = ?';
+      bonusSql += ' AND rp.type = ?';
       bonusParams.push(type);
     }
     if (execStatus) {
-      bonusSql += ' AND exec_status = ?';
+      bonusSql += ' AND rp.exec_status = ?';
       bonusParams.push(execStatus);
+    }
+    if (role === '助教') {
+      bonusSql += ' AND c.coach_no IS NOT NULL';
+    } else if (role) {
+      bonusSql += ' AND au.role = ?';
+      bonusParams.push(role);
     }
     const bonusRow = await dbGet(bonusSql, bonusParams);
 
-    let penaltySql = 'SELECT SUM(amount) as totalPenalty FROM reward_penalties WHERE confirm_date LIKE ? AND amount < 0';
+    let penaltySql = `SELECT SUM(rp.amount) as totalPenalty
+                      FROM reward_penalties rp
+                      LEFT JOIN coaches c ON c.phone = rp.phone
+                      LEFT JOIN admin_users au ON au.username = rp.phone
+                      WHERE rp.confirm_date LIKE ? AND rp.amount < 0`;
     const penaltyParams = [queryMonth + '%'];
     if (type) {
-      penaltySql += ' AND type = ?';
+      penaltySql += ' AND rp.type = ?';
       penaltyParams.push(type);
     }
     if (execStatus) {
-      penaltySql += ' AND exec_status = ?';
+      penaltySql += ' AND rp.exec_status = ?';
       penaltyParams.push(execStatus);
+    }
+    if (role === '助教') {
+      penaltySql += ' AND c.coach_no IS NOT NULL';
+    } else if (role) {
+      penaltySql += ' AND au.role = ?';
+      penaltyParams.push(role);
     }
     const penaltyRow = await dbGet(penaltySql, penaltyParams);
 
-    let pendingSql = "SELECT COUNT(*) as pendingCount FROM reward_penalties WHERE confirm_date LIKE ? AND exec_status = '未执行'";
+    let pendingSql = `SELECT COUNT(*) as pendingCount
+                      FROM reward_penalties rp
+                      LEFT JOIN coaches c ON c.phone = rp.phone
+                      LEFT JOIN admin_users au ON au.username = rp.phone
+                      WHERE rp.confirm_date LIKE ? AND rp.exec_status = '未执行'`;
     const pendingParams = [queryMonth + '%'];
     if (type) {
-      pendingSql += ' AND type = ?';
+      pendingSql += ' AND rp.type = ?';
       pendingParams.push(type);
+    }
+    if (role === '助教') {
+      pendingSql += ' AND c.coach_no IS NOT NULL';
+    } else if (role) {
+      pendingSql += ' AND au.role = ?';
+      pendingParams.push(role);
     }
     const pendingRow = await dbGet(pendingSql, pendingParams);
 
