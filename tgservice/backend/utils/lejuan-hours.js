@@ -51,8 +51,15 @@ function calculateLejuanHours(scheduledStartTime, endTime) {
   // 剩余分钟 > 10 时额外算一小时
   const extraHour = remainingMinutes > 10 ? 1 : 0;
   
-  // 最少算 1 小时
-  return Math.max(1, baseHours + extraHour);
+  // 计算原始时长（最少 1 小时）
+  let hours = Math.max(1, baseHours + extraHour);
+  
+  // 整日乐捐判断：>= 8小时视为整日乐捐，调整为 10 小时
+  if (hours >= 8) {
+    hours = 10;
+  }
+  
+  return hours;
 }
 
 module.exports = { calculateLejuanHours };
