@@ -16,7 +16,7 @@ class RedisCache {
   // 根据环境加载配置
   getConfig() {
     const env = process.env.TGSERVICE_ENV || 'production';
-    const configFileName = env === 'test' ? '.config.env' : '.config';
+    const configFileName = env === 'test' ? '.config' : '.config.prod';
     const configPath = path.join(__dirname, '../../' + configFileName);
     const config = JSON.parse(require('fs').readFileSync(configPath, 'utf-8'));
     return config.redis || { host: '127.0.0.1', port: 8090, password: '', db: 0, keyPrefix: 'tg' };

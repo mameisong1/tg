@@ -11,8 +11,8 @@ const TimeUtil = require('../utils/time');
 
 // 加载配置
 const configPath = process.env.TGSERVICE_ENV === 'test' 
-  ? path.join(__dirname, '../../.config.env')
-  : path.join(__dirname, '../../.config');
+  ? path.join(__dirname, '../../.config')
+  : path.join(__dirname, '../../.config.prod');
 const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
 const dingtalkConfig = config.dingtalkPlatform || {};

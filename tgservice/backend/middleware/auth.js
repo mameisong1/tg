@@ -41,7 +41,7 @@ async function required(req, res, next) {
     const fs = require('fs');
     const path = require('path');
     const env = process.env.TGSERVICE_ENV || 'production';
-    const configFileName = env === 'test' ? '.config.env' : '.config';
+    const configFileName = env === 'test' ? '.config' : '.config.prod';
     const configPath = path.join(__dirname, '../../' + configFileName);
     const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
     

@@ -19,7 +19,7 @@ const path = require('path');
 
 // 加载配置文件
 const env = process.env.TGSERVICE_ENV || 'production';
-const configFileName = env === 'test' ? '.config.env' : '.config';
+const configFileName = env === 'test' ? '.config' : '.config.prod';
 const configPath = path.join(__dirname, '../../' + configFileName);
 let config = {};
 try {

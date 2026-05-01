@@ -4,7 +4,7 @@
  * 
  * 配置来源优先级：
  * 1. process.env.TURSO_DATABASE_URL 和 process.env.TURSO_AUTH_TOKEN（最高优先级）
- * 2. 配置文件中的 turso 配置（.config.env 或 .config）
+ * 2. 配置文件中的 turso 配置（.config 或 .config.prod）
  * 
  * 使用方式：
  * - 本地 SQLite：不配置 Turso 相关项
@@ -16,7 +16,7 @@ const fs = require('fs');
 
 // 判断环境
 const env = process.env.TGSERVICE_ENV || 'production';
-const configFileName = env === 'test' ? '.config.env' : '.config';
+const configFileName = env === 'test' ? '.config' : '.config.prod';
 const configPath = path.join(__dirname, '../../' + configFileName);
 
 // 读取配置文件

@@ -147,7 +147,7 @@ setInterval(() => {
 
 // 加载配置(根据环境变量选择配置文件)
 const env = process.env.TGSERVICE_ENV || 'test';
-const configFileName = env === 'test' ? '.config.env' : '.config';
+const configFileName = env === 'test' ? '.config' : '.config.prod';
 const configPath = path.join(__dirname, '../' + configFileName);
 const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
 console.log(`[环境] 加载配置文件: ${configFileName}, 环境名称: ${config.env?.name || 'production'}`);
