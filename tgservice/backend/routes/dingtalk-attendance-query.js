@@ -16,6 +16,29 @@ const auth = require('../middleware/auth');
 const { requireBackendPermission } = require('../middleware/permission');
 
 /**
+ * 检查钉钉打卡时间是否在10分钟内
+ * dingtalkTime 格式: "YYYY-MM-DD HH:MM:SS"（北京时间）
+ */
+function isDingtalkTimeRecent(dingtalkTime) {
+  if (!dingtalkTime) return false;
+  const now = Date.now();
+  const tenMinutesAgoMs = now - 10 * 60 * 1000;
+  
+  // 计算10分钟前的时间字符串（北京时间，格式同DB存储）
+  const cutoffDate = new Date(tenMinutesAgoMs);
+  const y = cutoffDate.getFullYear();
+  const m = String(cutoffDate.getMonth() + 1).padStart(2, '0');
+  const d = String(cutoffDate.getDate()).padStart(2, '0');
+  const h = String(cutoffDate.getHours()).padStart(2, '0');
+  const min = String(cutoffDate.getMinutes()).padStart(2, '0');
+  const s = String(cutoffDate.getSeconds()).padStart(2, '0');
+  const cutoff = `${y}-${m}-${d} ${h}:${min}:${s}`;
+  
+  // 字符串直接比较（同格式同时间）
+  return dingtalkTime >= cutoff;
+}
+
+/**
  * POST /api/dingtalk-attendance/query
  * 一次性查询钉钉打卡时间（不启动后台轮询）
  * 
@@ -59,11 +82,16 @@ router.post('/query', auth.required, requireBackendPermission(['coachManagement'
     }
     
     if (dingtalkTime) {
-      dingtalkService.dingtalkLog.write(`钉钉打卡查询: ${coach_no} 已有推送数据 ${dingtalkTime}`);
-      return res.json({
-        success: true,
-        data: { status: 'found', dingtalk_time: dingtalkTime }
-      });
+      // DB已有数据 → 验证是否在10分钟内
+      if (isDingtalkTimeRecent(dingtalkTime)) {
+        dingtalkService.dingtalkLog.write(`钉钉打卡查询: ${coach_no} 已有推送数据 ${dingtalkTime}`);
+        return res.json({
+          success: true,
+          data: { status: 'found', dingtalk_time: dingtalkTime }
+        });
+      } else {
+        dingtalkService.dingtalkLog.write(`钉钉打卡查询: ${coach_no} DB数据已过期 ${dingtalkTime}，继续查API`);
+      }
     }
     
     // 2. 查询助教的钉钉用户ID
@@ -182,11 +210,16 @@ router.get('/status', auth.required, requireBackendPermission(['coachManagement'
     }
     
     if (dingtalkTime) {
-      dingtalkService.dingtalkLog.write(`轮询查询: ${coach_no} 数据库已有推送 ${dingtalkTime}`);
-      return res.json({
-        success: true,
-        data: { status: 'found', dingtalk_time: dingtalkTime }
-      });
+      // DB已有数据 → 验证是否在10分钟内
+      if (isDingtalkTimeRecent(dingtalkTime)) {
+        dingtalkService.dingtalkLog.write(`轮询查询: ${coach_no} 数据库已有推送 ${dingtalkTime}`);
+        return res.json({
+          success: true,
+          data: { status: 'found', dingtalk_time: dingtalkTime }
+        });
+      } else {
+        dingtalkService.dingtalkLog.write(`轮询查询: ${coach_no} DB数据已过期 ${dingtalkTime}，继续查API`);
+      }
     }
     
     // 2. 数据库没有 → 实时查询钉钉API
