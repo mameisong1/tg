@@ -38,7 +38,10 @@
     <view class="dingtalk-tip-section" v-if="canClockIn">
       <view class="tip-alert">
         <text class="tip-icon">⚠️</text>
-        <text class="tip-text">请先在钉钉打卡，并在5分钟内完成系统打卡</text>
+        <view class="tip-text-lines">
+          <text class="tip-text">请先在钉钉打卡</text>
+          <text class="tip-text">钉钉打卡后5分钟内来系统打卡翻牌</text>
+        </view>
       </view>
       <view class="checkbox-row" @click="toggleDingtalkConfirm">
         <view class="checkbox-box" :class="{ checked: dingtalkConfirmed }">
@@ -76,7 +79,7 @@
     <view class="hourglass-modal" v-if="showHourglass">
       <view class="hourglass-content">
         <text class="hourglass-icon">⏳</text>
-        <text class="hourglass-text">正在获取钉钉打卡数据...</text>
+        <text class="hourglass-text">正在同步5分钟内钉钉打卡数据...</text>
         <text class="hourglass-counter">{{ countdownSeconds }}秒</text>
       </view>
     </view>
@@ -395,8 +398,10 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 
 /* QA-20260501-1: 钉钉打卡提示区域 */
 .dingtalk-tip-section { margin: 16px; padding: 16px; background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3); border-radius: 12px; }
-.tip-alert { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
-.tip-icon { font-size: 20px; }
+.tip-alert { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 12px; }
+.tip-icon { font-size: 20px; line-height: 20px; }
+.tip-text-lines { flex: 1; }
+.tip-text-lines .tip-text { display: block; line-height: 1.5; }
 .tip-text { font-size: 14px; color: #e74c3c; font-weight: 600; }
 .checkbox-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
 .checkbox-box { width: 22px; height: 22px; border-radius: 4px; border: 2px solid rgba(255,255,255,0.3); display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.05); }
