@@ -95,7 +95,16 @@ router.get('/', auth.required, requireBackendPermission(['店长', '助教管理
             AND status = 1
             AND date(created_at) = ar.date
           LIMIT 1
-        ) as overtime_hours
+        ) as overtime_hours,
+        -- QA-20260501-18: 查询上班打卡时间之前的乐捐时长
+        (
+          SELECT COALESCE(SUM(lejuan_hours), 0)
+          FROM lejuan_records
+          WHERE coach_no = ar.coach_no
+            AND date(scheduled_start_time) = ar.date
+            AND scheduled_start_time <= COALESCE(ar.clock_in_time, ar.dingtalk_in_time)
+            AND lejuan_status IN ('pending', 'active', 'completed')
+        ) as lejuan_hours
       FROM attendance_records ar
       LEFT JOIN coaches c ON ar.coach_no = c.coach_no
       WHERE COALESCE(ar.clock_in_time, ar.dingtalk_in_time) >= ?
@@ -130,6 +139,7 @@ router.get('/', auth.required, requireBackendPermission(['店长', '助教管理
         dingtalk_out_time: r.dingtalk_out_time,
         clock_in_photo: photoList.length > 0 ? photoList[0] : null,
         overtime_hours: r.overtime_hours || 0,
+        lejuan_hours: r.lejuan_hours || 0,  // QA-20260501-18: 乐捐时长
         is_late: r.is_late || 0,
         is_late_text: (r.is_late === 1) ? '迟到' : '正常',
         is_reviewed: r.is_reviewed || 0,

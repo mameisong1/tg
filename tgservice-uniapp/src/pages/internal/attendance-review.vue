@@ -82,6 +82,11 @@
               <text class="label">加班小时:</text>
               <text class="value">{{ record.overtime_hours }}小时</text>
             </view>
+            <!-- QA-20260501-18: 显示乐捐时长 -->
+            <view class="record-row">
+              <text class="label">乐捐小时:</text>
+              <text class="value">{{ record.lejuan_hours }}小时</text>
+            </view>
           </view>
           <!-- 右侧打卡照片 -->
           <view class="record-photo" v-if="record.clock_in_photo">
