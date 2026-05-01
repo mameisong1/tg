@@ -80,6 +80,60 @@ async function calculateIsLate(clockInTime, shift, coachNo, date, tx) {
   return clockInTime > expectedTime ? 1 : 0;
 }
 
+// ========== 打卡时间段判断辅助函数 ==========
+
+/**
+ * 是否在加班时间段（按班次区分）
+ * 早班：23:00 ~ 次日11:00
+ * 晚班：次日2:00 ~ 次日11:00
+ */
+function isOvertimeTime(hour, shift) {
+  if (shift === '早班') {
+    return hour >= 23 || hour < 11;
+  } else {
+    return hour >= 2 && hour < 11;
+  }
+}
+
+/**
+ * 是否在无效时间段（11:00 ~ 13:00）
+ */
+function isInvalidTime(hour) {
+  return hour >= 11 && hour < 13;
+}
+
+/**
+ * 是否在上班时间段内（按班次区分）
+ * 早班：13:00 ~ 23:00
+ * 晚班：13:00 ~ 次日2:00
+ */
+function isInWorkTime(hour, shift) {
+  if (shift === '早班') {
+    return hour >= 13 && hour < 23;
+  } else {
+    return hour >= 13 || hour < 2;
+  }
+}
+
+/**
+ * 加班打卡查找记录的日期
+ * 0点~11点 → 前一日
+ * 23点~24点 → 当日
+ */
+function getOvertimeTargetDate(checkHour, todayStr) {
+  if (checkHour >= 0 && checkHour < 11) {
+    // 0点~11点：跨日，找前一日（字符串运算，避免时区问题）
+    const parts = todayStr.split('-');
+    const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]) - 1);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  } else {
+    return todayStr;
+  }
+}
+
 /**
  * POST /api/coaches/:coach_no/clock-in
  * 助教上班(助教只能打自己的卡)
@@ -140,12 +194,25 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
     }
 
     const oldStatus = waterBoard.status;
+    const checkHour = parseInt(dingtalkTime.substring(11, 13), 10);
+    const nowDB = TimeUtil.nowDB();
 
-    // 根据班次和当前状态确定新状态
+    // 根据班次和当前状态确定处理逻辑
     let newStatus;
     let lejuanEnded = false;
-    let lejuanId = null;  // QA-20260501-1: 记录乐捐ID用于写入钉钉时间
+    let lejuanId = null;
+    let isOvertimeClock = false;
+    let overtimeRecordDate = null;
+    let overtimeRecordFound = false;
+    let attendanceUpdatePerformed = false; // 标记是否已处理打卡记录
+
     if (waterBoard.status === '乐捐') {
+      // 乐捐状态下做上班打卡判定 → 乐捐归来
+      // ✅ 新增：乐捐归来必须在上班时间段内
+      if (!isInWorkTime(checkHour, coach.shift)) {
+        throw { status: 400, error: 'TIME_NOT_ALLOWED', message: '当前时间段不允许乐捐归来，必须在上班时间段内（早班13:00~23:00，晚班13:00~次日2:00）' };
+      }
+
       // 自动结束乐捐,然后进入空闲
       const activeLejuan = await tx.get(
         `SELECT id, scheduled_start_time FROM lejuan_records
@@ -155,8 +222,7 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
       );
 
       if (activeLejuan) {
-        lejuanId = activeLejuan.id;  // QA-20260501-1: 记录乐捐ID
-        // QA-20260501-1: 乐捐归来时间强制使用钉钉打卡时间
+        lejuanId = activeLejuan.id;
         const returnTime = dingtalkTime || TimeUtil.nowDB();
         const { calculateLejuanHours } = require('../utils/lejuan-hours');
         const lejuanHours = calculateLejuanHours(activeLejuan.scheduled_start_time, returnTime);
@@ -176,7 +242,68 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
         dingtalkService.dingtalkLog.write(`乐捐归来: ${coach_no} return_time=${returnTime}, dingtalk_return_time=${dingtalkTime || 'null'}`);
       }
       newStatus = coach.shift === '早班' ? '早班空闲' : '晚班空闲';
-    } else if (['早加班', '休息', '公休', '请假', '下班'].includes(waterBoard.status)) {
+
+    } else if (waterBoard.status === '下班') {
+      // 下班状态 → 判断是加班打卡、无效时间段、还是正常上班
+
+      if (isOvertimeTime(checkHour, coach.shift)) {
+        // ✅ 加班打卡场景
+        isOvertimeClock = true;
+        overtimeRecordDate = getOvertimeTargetDate(checkHour, todayStr);
+
+        // a. 查找上班记录
+        const record = await tx.get(
+          `SELECT id FROM attendance_records WHERE coach_no = ? AND date = ?`,
+          [coach_no, overtimeRecordDate]
+        );
+
+        if (record) {
+          // 找到 → 只清空系统和钉钉下班时间，不改上班时间
+          await tx.run(
+            `UPDATE attendance_records
+             SET clock_out_time = NULL,
+                 dingtalk_out_time = NULL,
+                 updated_at = ?
+             WHERE id = ?`,
+            [nowDB, record.id]
+          );
+          overtimeRecordFound = true;
+          attendanceUpdatePerformed = true;
+          dingtalkService.dingtalkLog.write(`加班打卡: ${coach_no} 找到记录(${overtimeRecordDate})，清空下班时间`);
+        } else {
+          // 找不到 → 新增一条上班记录
+          const clockInTime = dingtalkTime;
+          const isLate = await calculateIsLate(clockInTime, coach.shift, coach_no, overtimeRecordDate, tx);
+          await tx.run(
+            `INSERT INTO attendance_records
+             (date, coach_no, employee_id, stage_name, clock_in_time, clock_out_time,
+              clock_in_photo, dingtalk_in_time, dingtalk_out_time, is_late, is_reviewed, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, NULL, 0, 0, ?, ?)`,
+            [overtimeRecordDate, coach_no, coach.employee_id, coach.stage_name,
+             clockInTime, clockInTime, nowDB, nowDB]
+          );
+          overtimeRecordFound = false;
+          attendanceUpdatePerformed = true;
+          dingtalkService.dingtalkLog.write(`加班打卡: ${coach_no} 未找到记录(${overtimeRecordDate})，新增上班记录`);
+        }
+
+        // b. 水牌改为空闲
+        newStatus = coach.shift === '早班' ? '早班空闲' : '晚班空闲';
+
+      } else if (isInvalidTime(checkHour)) {
+        // 无效时间段（11:00~13:00）→ 拒绝
+        throw { status: 400, error: 'TIME_NOT_ALLOWED', message: '当前时间段不允许打卡（11:00~13:00）' };
+
+      } else if (isInWorkTime(checkHour, coach.shift)) {
+        // 正常上班
+        newStatus = coach.shift === '早班' ? '早班空闲' : '晚班空闲';
+
+      } else {
+        // 其他情况（如晚班的11:00~13:00已拒绝，2:00~13:00中不属于加班/上班的）
+        throw { status: 400, error: 'TIME_NOT_ALLOWED', message: '当前时间段不允许打卡' };
+      }
+
+    } else if (['早加班', '休息', '公休', '请假'].includes(waterBoard.status)) {
       newStatus = coach.shift === '早班' ? '早班空闲' : '晚班空闲';
     } else if (waterBoard.status === '早班空闲' || waterBoard.status === '晚班空闲') {
       throw { status: 400, error: '助教已在班状态,无需重复上班' };
@@ -187,41 +314,49 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
       newStatus = coach.shift === '早班' ? '早班空闲' : '晚班空闲';
     }
 
-    // QA-20260501-1: 更新水牌状态，clock_in_time 使用钉钉打卡时间
-    const clockInTime = dingtalkTime || TimeUtil.nowDB();
-    const nowDB = TimeUtil.nowDB();
-    await tx.run(`
-      UPDATE water_boards
-      SET status = ?, table_no = NULL, clock_in_time = ?, updated_at = ?
-      WHERE coach_no = ?
-    `, [newStatus, clockInTime, nowDB, coach_no]);
-
-    dingtalkService.dingtalkLog.write(`上班打卡: ${coach_no} clock_in_time=${clockInTime}, dingtalk_in_time=${dingtalkTime || 'null'}`);
-
-    // QA-20260501-1: 写入打卡记录，clock_in_time 使用钉钉打卡时间
-    const isLate = await calculateIsLate(clockInTime, coach.shift, coach_no, todayStr, tx);
-    
-    // 先查询今天是否已有记录（包括只有钉钉时间的）
-    const existingRecord = await tx.get(`
-      SELECT id, clock_in_time FROM attendance_records
-      WHERE coach_no = ? AND date = ?
-      ORDER BY created_at DESC LIMIT 1
-    `, [coach_no, todayStr]);
-
-    // QA-20260501-1: clock_in_photo 改为可选（截图上传改为非必填）
-    if (existingRecord && !existingRecord.clock_in_time) {
-      // 有记录但没有 clock_in_time → UPDATE（钉钉先打卡，系统后打卡）
+    // 加班打卡已处理了考勤记录，跳过后续正常流程
+    if (!isOvertimeClock) {
+      // 更新水牌状态，clock_in_time 使用钉钉打卡时间
+      const clockInTime = dingtalkTime || TimeUtil.nowDB();
       await tx.run(`
-        UPDATE attendance_records
-        SET clock_in_time = ?, clock_in_photo = ?, is_late = ?, updated_at = ?
-        WHERE id = ?
-      `, [clockInTime, clock_in_photo || null, isLate, nowDB, existingRecord.id]);
-    } else if (!existingRecord) {
-      // 没有记录 → INSERT
+        UPDATE water_boards
+        SET status = ?, table_no = NULL, clock_in_time = ?, updated_at = ?
+        WHERE coach_no = ?
+      `, [newStatus, clockInTime, nowDB, coach_no]);
+
+      dingtalkService.dingtalkLog.write(`上班打卡: ${coach_no} clock_in_time=${clockInTime}, dingtalk_in_time=${dingtalkTime || 'null'}`);
+
+      // 写入打卡记录，clock_in_time 使用钉钉打卡时间
+      const isLate = await calculateIsLate(clockInTime, coach.shift, coach_no, todayStr, tx);
+
+      const existingRecord = await tx.get(`
+        SELECT id, clock_in_time FROM attendance_records
+        WHERE coach_no = ? AND date = ?
+        ORDER BY created_at DESC LIMIT 1
+      `, [coach_no, todayStr]);
+
+      if (existingRecord && !existingRecord.clock_in_time) {
+        await tx.run(`
+          UPDATE attendance_records
+          SET clock_in_time = ?, clock_in_photo = ?, is_late = ?, updated_at = ?
+          WHERE id = ?
+        `, [clockInTime, clock_in_photo || null, isLate, nowDB, existingRecord.id]);
+      } else if (!existingRecord) {
+        await tx.run(`
+          INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, clock_in_time, clock_out_time, clock_in_photo, is_late, is_reviewed, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 0, ?, ?)
+        `, [todayStr, coach_no, coach.employee_id, coach.stage_name, clockInTime, clock_in_photo || null, isLate, nowDB, nowDB]);
+      }
+
+    } else {
+      // 加班打卡：更新水牌为空闲（不写 clock_in_time，因为不是正常上班）
       await tx.run(`
-        INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, clock_in_time, clock_out_time, clock_in_photo, is_late, is_reviewed, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, NULL, ?, ?, 0, ?, ?)
-      `, [todayStr, coach_no, coach.employee_id, coach.stage_name, clockInTime, clock_in_photo || null, isLate, nowDB, nowDB]);
+        UPDATE water_boards
+        SET status = ?, table_no = NULL, updated_at = ?
+        WHERE coach_no = ?
+      `, [newStatus, nowDB, coach_no]);
+
+      dingtalkService.dingtalkLog.write(`加班打卡: ${coach_no} 水牌 → ${newStatus}, 记录日期=${overtimeRecordDate}, 找到记录=${overtimeRecordFound}`);
     }
 
     // 记录操作日志
