@@ -51,6 +51,46 @@
       </view>
     </view>
 
+    <!-- 最近约客记录 -->
+    <view class="records-section" v-if="myRecords.length > 0">
+      <view class="records-header">
+        <text class="records-title">📋 最近约客记录</text>
+        <text class="records-count">共 {{ myRecords.length }} 条</text>
+      </view>
+      <view class="records-list">
+        <view v-for="(record, idx) in myRecords" :key="record.id" class="record-item">
+          <view class="record-header">
+            <text class="record-date">{{ record.date }}</text>
+            <text class="record-shift">{{ record.shift === '早班' ? '🌅' : '🌙' }} {{ record.shift }}</text>
+          </view>
+          <!-- 截图预览 -->
+          <view class="record-images" v-if="record.images && record.images.length > 0">
+            <image 
+              v-for="(img, imgIdx) in record.images" 
+              :key="imgIdx" 
+              :src="img" 
+              mode="aspectFill" 
+              class="record-img"
+              @click="previewRecordImage(record.images, imgIdx)"
+            />
+          </view>
+          <view class="record-no-image" v-else>
+            <text class="no-image-text">未上传截图</text>
+          </view>
+          <!-- 审查结果 -->
+          <view class="record-result">
+            <view class="result-tag" :class="getResultClass(record.result)">
+              <text>{{ getResultText(record.result) }}</text>
+            </view>
+            <text class="reviewed-time" v-if="record.reviewed_time">审查时间: {{ record.reviewed_time }}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    <view class="records-empty" v-else-if="recordsLoaded">
+      <text class="empty-text">暂无约客记录</text>
+    </view>
+
     <!-- 上传进度 -->
     <view class="upload-progress" v-if="uploading">
       <view class="progress-content">
@@ -70,6 +110,8 @@ import { getBeijingDate } from '@/utils/time-util.js'
 const statusBarHeight = ref(0)
 const coachInfo = ref({})
 const serverHour = ref(null) // 服务器北京时间小时
+const myRecords = ref([]) // 最近约客记录
+const recordsLoaded = ref(false) // 记录是否已加载
 
 const form = ref({
   shift: ''
@@ -131,7 +173,27 @@ onMounted(async () => {
     form.value.shift = getShiftByServerTime()
     console.log('[约客上传] 无助教班次，使用服务器时间判断:', form.value.shift)
   }
+  
+  // 获取最近约客记录
+  await fetchMyRecords()
 })
+
+/**
+ * 获取当前助教的最近约客记录
+ */
+async function fetchMyRecords() {
+  try {
+    const res = await guestInvitations.getMyRecords()
+    if (res.success && res.data) {
+      myRecords.value = res.data.records || []
+      console.log('[约客上传] 获取到记录:', myRecords.value.length, '条')
+    }
+  } catch (e) {
+    console.error('[约客上传] 获取记录失败:', e)
+  } finally {
+    recordsLoaded.value = true
+  }
+}
 
 const today = computed(() => getBeijingDate()) // 修复：使用北京时间，避免 toISOString() UTC 偏移
 const canSubmit = computed(() => imageUrls.value.length > 0)
@@ -172,9 +234,38 @@ const submitInvitation = async () => {
     uni.hideLoading()
     uni.showToast({ title: '提交成功', icon: 'success' })
     clearAll()
+    // 提交成功后刷新记录列表
+    await fetchMyRecords()
   } catch (e) {
     uni.hideLoading()
     uni.showToast({ title: e.error || '提交失败', icon: 'none' })
+  }
+}
+
+// 预览记录中的图片
+const previewRecordImage = (images, idx) => {
+  uni.previewImage({ urls: images, current: idx })
+}
+
+// 获取结果样式类
+const getResultClass = (result) => {
+  switch (result) {
+    case '约客有效': return 'result-valid'
+    case '约客无效': return 'result-invalid'
+    case '待审查': return 'result-pending'
+    case '应约客': return 'result-should'
+    default: return 'result-default'
+  }
+}
+
+// 获取结果显示文本
+const getResultText = (result) => {
+  switch (result) {
+    case '约客有效': return '✅ 约客有效'
+    case '约客无效': return '❌ 约客无效'
+    case '待审查': return '⏳ 待审查'
+    case '应约客': return '⚪ 应约客'
+    default: return result
   }
 }
 
@@ -218,6 +309,30 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .submit-btn { height: 50px; background: linear-gradient(135deg, #d4af37, #ffd700); border-radius: 25px; display: flex; align-items: center; justify-content: center; margin-top: 30px; }
 .submit-btn text { font-size: 16px; font-weight: 600; color: #000; }
 .submit-btn.disabled { opacity: 0.5; }
+
+/* 最近约客记录区域 */
+.records-section { margin: 20px 16px 40px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 16px; }
+.records-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.records-title { font-size: 15px; color: #d4af37; font-weight: 600; }
+.records-count { font-size: 12px; color: rgba(255,255,255,0.4); }
+.records-list { display: flex; flex-direction: column; gap: 12px; }
+.record-item { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; padding: 12px; }
+.record-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.record-date { font-size: 14px; color: rgba(255,255,255,0.8); font-weight: 500; }
+.record-shift { font-size: 13px; color: rgba(255,255,255,0.6); }
+.record-images { display: flex; gap: 8px; margin-bottom: 10px; }
+.record-img { width: 60px; height: 60px; border-radius: 6px; }
+.record-no-image { padding: 8px 0; }
+.no-image-text { font-size: 12px; color: rgba(255,255,255,0.3); }
+.record-result { display: flex; justify-content: space-between; align-items: center; }
+.result-tag { padding: 4px 10px; border-radius: 12px; font-size: 12px; }
+.result-valid { background: rgba(46,204,113,0.2); color: #2ecc71; }
+.result-invalid { background: rgba(231,76,60,0.2); color: #e74c3c; }
+.result-pending { background: rgba(241,196,15,0.2); color: #f1c40f; }
+.result-should { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.5); }
+.reviewed-time { font-size: 11px; color: rgba(255,255,255,0.4); }
+.records-empty { margin: 20px 16px 40px; padding: 20px; text-align: center; }
+.empty-text { font-size: 13px; color: rgba(255,255,255,0.4); }
 
 .upload-progress { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 1001; }
 .progress-content { text-align: center; }

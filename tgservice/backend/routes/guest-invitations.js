@@ -343,6 +343,88 @@ router.post('/', auth.required, requireBackendPermission(['all']), async (req, r
 });
 
 /**
+ * GET /api/guest-invitations/my-records
+ * 获取当前助教的约客记录（最近10天）
+ * 助教专用接口，只能查询自己的记录
+ */
+router.get('/my-records', auth.required, async (req, res) => {
+  try {
+    const user = req.user;
+    
+    // 只允许助教用户访问
+    if (user.userType !== 'coach') {
+      return res.status(403).json({ success: false, error: '仅助教可访问' });
+    }
+    
+    const coachNo = user.coachNo;
+    if (!coachNo) {
+      return res.status(400).json({ success: false, error: '助教信息缺失' });
+    }
+    
+    // 计算最近10天的日期范围
+    const today = TimeUtil.todayStr();
+    const tenDaysAgo = TimeUtil.offsetDB(-240).split(' ')[0]; // 10天 = 240小时
+    
+    // 查询该助教最近10天的约客记录
+    const records = await db.all(
+      `SELECT 
+        id, date, shift, images, result, reviewed_at, reviewer_phone, created_at, updated_at
+      FROM guest_invitation_results 
+      WHERE coach_no = ? AND date >= ? AND date <= ?
+      ORDER BY date DESC, shift DESC
+      LIMIT 50`,
+      [coachNo, tenDaysAgo, today]
+    );
+    
+    // 处理图片URL
+    const formattedRecords = records.map(r => {
+      let imageUrls = [];
+      if (r.images) {
+        try {
+          imageUrls = typeof r.images === 'string' ? JSON.parse(r.images) : r.images;
+        } catch (e) {
+          imageUrls = [];
+        }
+      }
+      
+      // 格式化审查时间（只显示时间部分）
+      let reviewedTime = null;
+      if (r.reviewed_at) {
+        try {
+          reviewedTime = r.reviewed_at.split(' ')[1]?.substring(0, 5) || null; // 取 HH:MM
+        } catch (e) {
+          reviewedTime = null;
+        }
+      }
+      
+      return {
+        id: r.id,
+        date: r.date,
+        shift: r.shift,
+        images: imageUrls,
+        result: r.result,
+        reviewed_at: r.reviewed_at,
+        reviewed_time: reviewedTime,
+        reviewer_phone: r.reviewer_phone,
+        created_at: r.created_at
+      }; 
+    });
+    
+    res.json({ 
+      success: true, 
+      data: {
+        coach_no: coachNo,
+        records: formattedRecords,
+        total: formattedRecords.length
+      }
+    });
+  } catch (error) {
+    console.error('获取助教约客记录失败:', error);
+    res.status(500).json({ success: false, error: '获取记录失败' });
+  }
+});
+
+/**
  * GET /api/guest-invitations
  * 获取约客记录列表
  */

@@ -164,6 +164,8 @@ export const guestInvitations = {
   create: (data) => request({ url: '/guest-invitations', method: 'POST', data }),
   // 获取约客记录列表（params 会自动处理 URL 编码）
   getList: (params) => request({ url: '/guest-invitations', data: params }),
+  // 获取当前助教的约客记录（最近10天）
+  getMyRecords: () => request({ url: '/guest-invitations/my-records', authType: 'coach' }),
   // 审查约客记录
   review: (id, data) => request({ url: `/guest-invitations/${id}/review`, method: 'PUT', data }),
   // 锁定应约客人员（开始审查）
