@@ -61,6 +61,10 @@
 | PUT | `/api/member/profile` | 更新会员信息 |
 | GET | `/api/member/orders` | 会员订单列表 |
 
+## 约客（助教专用）
+| GET | `/api/guest-invitations/my-records` | 获取最近10天约客记录(需coach token) |
+| POST | `/api/guest-invitations` | 提交约客记录(coach_no, date, shift, images) |
+
 ## 通知
 | GET | `/api/notifications` | 我的通知列表(page/pageSize, 未阅优先) |
 | GET | `/api/notifications/unread-count` | 未阅通知数量 |
