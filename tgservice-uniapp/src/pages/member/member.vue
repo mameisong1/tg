@@ -233,13 +233,9 @@
             <text class="internal-btn-icon">📅</text>
             <text class="internal-btn-text">助教日历</text>
           </view>
-          <view class="internal-btn" @click="navigateTo('/pages/internal/reward-penalty-set?type=服务奖罚')">
+          <view class="internal-btn" @click="navigateTo('/pages/internal/reward-penalty-set')">
             <text class="internal-btn-icon">🏆</text>
-            <text class="internal-btn-text">服务奖罚</text>
-          </view>
-          <view class="internal-btn" @click="navigateTo('/pages/internal/reward-penalty-set?type=助教奖罚')">
-            <text class="internal-btn-icon">⚠️</text>
-            <text class="internal-btn-text">助教奖罚</text>
+            <text class="internal-btn-text">奖罚管理</text>
           </view>
           <view class="internal-btn" @click="navigateTo('/pages/internal/switch-control')">
             <text class="internal-btn-icon">💡</text>

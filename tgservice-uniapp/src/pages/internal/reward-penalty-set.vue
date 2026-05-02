@@ -7,7 +7,7 @@
         <view class="back-btn" @click="goBack">
           <text class="back-icon">‹</text>
         </view>
-        <text class="header-title">奖罚管理{{ pageTitleSuffix }}</text>
+        <text class="header-title">奖罚管理</text>
         <view class="back-placeholder"></view>
       </view>
     </view>
@@ -19,10 +19,9 @@
         <!-- 奖罚类型选择 -->
         <view class="filter-row">
           <text class="filter-label">奖罚类型</text>
-          <picker v-if="!fixedType" :value="typeIndex" :range="typeLabels" @change="onTypeChange">
+          <picker :value="typeIndex" :range="typeLabels" @change="onTypeChange">
             <view class="filter-value">{{ currentTypeName }} ▾</view>
           </picker>
-          <view v-else class="filter-value fixed">{{ currentTypeName }}</view>
         </view>
         
         <!-- 确定日期选择（仅类型已加载后显示） -->
@@ -167,16 +166,15 @@ import { getBeijingDate, offsetBeijingDate } from '@/utils/time-util.js'
 const statusBarHeight = ref(0)
 const rewardTypes = ref([])
 const typeIndex = ref(0)
-const fixedType = ref('')  // URL参数传入的类型
+
 const confirmDate = ref('')
 const targets = ref([])
 const loading = ref(false)
-const pageTitleSuffix = ref('')  // 页面标题后缀（显示奖罚类型）
+
 
 // 当前选中的奖罚类型
 const currentType = computed(() => {
   if (rewardTypes.value.length === 0) return ''
-  if (fixedType.value) return fixedType.value
   return rewardTypes.value[typeIndex.value]?.['奖罚类型'] || ''
 })
 
@@ -194,8 +192,6 @@ const targetTypeLabel = computed(() => {
 
 // 是否是按日的类型
 const isDayType = computed(() => {
-  // 固定类型（通过URL传入的）默认使用3天日期选择器
-  if (fixedType.value) return true
   return currentType.value === '服务奖罚'
 })
 
@@ -361,12 +357,6 @@ async function loadTypes() {
     const res = await api.getRewardPenaltyTypes()
     if (res.success && res.types) {
       rewardTypes.value = res.types
-      // 如果传入了固定类型，选中它
-      if (fixedType.value) {
-        const idx = res.types.findIndex(t => t['奖罚类型'] === fixedType.value)
-        if (idx >= 0) typeIndex.value = idx
-        pageTitleSuffix.value = `（${fixedType.value}）`
-      }
       // 初始化日期（使用时间工具类）
       if (isDayType.value) {
         confirmDate.value = getBeijingDate() // YYYY-MM-DD
@@ -443,13 +433,6 @@ async function loadCurrentAmounts() {
 onMounted(() => {
   const sysInfo = uni.getSystemInfoSync()
   statusBarHeight.value = sysInfo.statusBarHeight || 0
-  
-  // 获取URL参数
-  const pages = getCurrentPages()
-  const currentPage = pages[pages.length - 1]
-  if (currentPage.options && currentPage.options.type) {
-    fixedType.value = currentPage.options.type
-  }
   
   loadTypes().then(() => {
     loadTargets()
