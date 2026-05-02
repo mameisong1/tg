@@ -234,6 +234,8 @@ function goBack() {
 
 function onTypeChange(e) {
   typeIndex.value = e.detail.value
+  // 切换类型时关闭旧的日期下拉弹框
+  showDatePicker.value = false
   // 切换类型时重新初始化日期（使用时间工具类）
   if (isDayType.value) {
     confirmDate.value = getBeijingDate() // YYYY-MM-DD
