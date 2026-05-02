@@ -38,7 +38,8 @@ const PERMISSION_MATRIX = {
     tableDevices: true,
     switchScenes: true,
     userManagement: true,
-    notificationManagement: true
+    notificationManagement: true,
+    teaFruitStats: true
   },
   '店长': {
     menu: ['index', 'home', 'members', 'users', 'reward-penalty-stats', 'cashier-dashboard', 'products', 'vip-rooms', 'tables', 'categories', 'coaches'],
@@ -60,7 +61,8 @@ const PERMISSION_MATRIX = {
     tableDevices: false,
     switchScenes: false,
     userManagement: true,  // 可以管理用户,但不能授权管理员角色
-    notificationManagement: true
+    notificationManagement: true,
+    teaFruitStats: true
   },
   '助教管理': {
     menu: ['index', 'coaches', 'reward-penalty-stats', 'cashier-dashboard'],
@@ -82,7 +84,8 @@ const PERMISSION_MATRIX = {
     tableDevices: false,
     switchScenes: false,
     userManagement: false,
-    notificationManagement: true
+    notificationManagement: true,
+    teaFruitStats: true
   },
   '教练': {
     menu: [],
@@ -208,7 +211,8 @@ const FRONTEND_PERMISSION_MATRIX = {
     serviceOrder: true,        // ✅ 服务下单可用
     waterBoardView: true,      // ✅ 水牌查看可用
     waterBoardManage: false,
-    myRewardPenalty: true      // ✅ 我的奖罚可用
+    myRewardPenalty: true,     // ✅ 我的奖罚可用
+    teaFruit: true             // ✅ 奶茶果盘可用
   },
   '店长': {
     internalHome: true,
@@ -222,7 +226,8 @@ const FRONTEND_PERMISSION_MATRIX = {
     serviceOrder: true,        // ✅ 服务下单可用
     waterBoardView: true,      // ✅ 水牌查看可用
     waterBoardManage: true,
-    myRewardPenalty: true      // ✅ 我的奖罚可用
+    myRewardPenalty: true,     // ✅ 我的奖罚可用
+    teaFruitStats: true        // ✅ 奶茶果盘统计可用
   },
   '助教管理': {
     internalHome: true,
@@ -236,7 +241,8 @@ const FRONTEND_PERMISSION_MATRIX = {
     serviceOrder: true,        // ✅ 服务下单可用
     waterBoardView: true,      // ✅ 水牌查看可用
     waterBoardManage: true,
-    myRewardPenalty: true      // ✅ 我的奖罚可用
+    myRewardPenalty: true,     // ✅ 我的奖罚可用
+    teaFruitStats: true        // ✅ 奶茶果盘统计可用
   },
   '教练': {
     internalHome: true,

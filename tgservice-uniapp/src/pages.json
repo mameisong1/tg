@@ -388,6 +388,33 @@
         "navigationBarTextStyle": "white",
         "navigationStyle": "custom"
       }
+    },
+    {
+      "path": "pages/internal/tea-fruit-stats",
+      "style": {
+        "navigationBarTitleText": "奶茶果盘",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/tea-fruit-admin-stats",
+      "style": {
+        "navigationBarTitleText": "奶茶果盘统计",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/internal/tea-fruit-detail",
+      "style": {
+        "navigationBarTitleText": "奶茶果盘明细",
+        "navigationBarBackgroundColor": "#0a0a0f",
+        "navigationBarTextStyle": "white",
+        "navigationStyle": "custom"
+      }
     }
   ],
   "globalStyle": {

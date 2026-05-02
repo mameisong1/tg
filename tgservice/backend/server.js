@@ -109,6 +109,9 @@ const dingtalkCallbackRouter = require('./routes/dingtalk-callback');
 // 钉钉打卡查询路由（QA-20260501-1）
 const dingtalkAttendanceQueryRouter = require('./routes/dingtalk-attendance-query');
 
+// 奶茶果盘统计路由（QA-20260503-1）
+const teaFruitStatsRouter = require('./routes/tea-fruit-stats');
+
 // 设备指纹访问记录(内存存储,每日过期)
 // 结构: Map<fingerprint_coachNo, timestamp>
 const popularityCache = new Map();
@@ -450,6 +453,9 @@ app.use('/api/dingtalk/callback', dingtalkCallbackRouter);
 
 // 钉钉打卡查询路由（QA-20260501-1）
 app.use('/api/dingtalk-attendance', dingtalkAttendanceQueryRouter);
+
+// 奶茶果盘统计路由（QA-20260503-1）
+app.use('/api/tea-fruit', teaFruitStatsRouter);
 
 // 智能开关路由（在 authMiddleware 之后注册）
 

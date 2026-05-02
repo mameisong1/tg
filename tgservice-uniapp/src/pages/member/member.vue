@@ -176,6 +176,11 @@
             <text class="internal-btn-icon">📸</text>
             <text class="internal-btn-text">约客上传</text>
           </view>
+          <!-- 奶茶果盘：助教查看个人任务进度 -->
+          <view class="internal-btn" v-if="frontendPerms.teaFruit" @click="navigateTo('/pages/internal/tea-fruit-stats')">
+            <text class="internal-btn-icon">🧋</text>
+            <text class="internal-btn-text">奶茶果盘</text>
+          </view>
         </view>
       </view>
 
@@ -284,6 +289,11 @@
           <view class="internal-btn" @click="navigateTo('/pages/internal/missing-table-out-stats')">
             <text class="internal-btn-icon">📊</text>
             <text class="internal-btn-text">漏单统计</text>
+          </view>
+          <!-- 奶茶果盘统计：管理员查看助教任务进度 -->
+          <view class="internal-btn" v-if="backendPerms.teaFruitStats" @click="navigateTo('/pages/internal/tea-fruit-admin-stats')">
+            <text class="internal-btn-icon">🧋</text>
+            <text class="internal-btn-text">奶茶果盘</text>
           </view>
         </view>
       </view>
@@ -1320,6 +1330,33 @@ const canViewWaterBoard = computed(() => {
   // 收银和服务员不能看水牌
   if (adminInfo && ['收银', '服务员'].includes(adminInfo.role)) return false
   return true
+})
+
+// 前端权限（助教专用）
+const frontendPerms = computed(() => {
+  const coachInfo = uni.getStorageSync('coachInfo')
+  const adminInfo = uni.getStorageSync('adminInfo')
+  const role = coachInfo?.frontendRole || adminInfo?.frontendRole || coachInfo?.level || adminInfo?.role || ''
+  // 助教角色映射
+  if (coachInfo && coachInfo.status !== '离职') {
+    return { teaFruit: true } // 助教有奶茶果盘权限
+  }
+  // 管理员角色映射
+  if (adminInfo && ['店长', '助教管理', '管理员'].includes(adminInfo.role)) {
+    return { teaFruit: false } // 管理员不看助教端奶茶果盘
+  }
+  return { teaFruit: false }
+})
+
+// 后端权限（管理功能）
+const backendPerms = computed(() => {
+  const adminInfo = uni.getStorageSync('adminInfo')
+  const coachInfo = uni.getStorageSync('coachInfo')
+  // 管理员角色才有奶茶果盘统计权限
+  if (adminInfo && ['店长', '助教管理', '管理员'].includes(adminInfo.role)) {
+    return { teaFruitStats: true }
+  }
+  return { teaFruitStats: false }
 })
 
 // 安全的返回方法：如果没有上一页，返回「我的」tab
