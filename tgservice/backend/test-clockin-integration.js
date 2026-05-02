@@ -114,6 +114,14 @@ async function setWaterBoardStatus(coachNo, status) {
   log(`设置水牌状态: ${status}`);
 }
 
+async function setClockInTime(coachNo, date, clockInTime) {
+  await enqueueRun(`
+    UPDATE attendance_records SET clock_in_time = ?, dingtalk_in_time = ?
+    WHERE coach_no = ? AND date = ?
+  `, [clockInTime, clockInTime, coachNo, date]);
+  log(`设置上班时间: ${clockInTime}`);
+}
+
 async function setClockOutTime(coachNo, date, clockOutTime) {
   await enqueueRun(`
     UPDATE attendance_records SET clock_out_time = ?, dingtalk_out_time = ?
@@ -216,9 +224,10 @@ async function runTests() {
   await test('TC-I04: 早班23:00加班打卡(找到记录→清空下班时间)', async () => {
     await setWaterBoardStatus(testCoachNo, '下班');
     await setDingtalkTime(testCoachNo, todayStr, `${todayStr} 14:00:00`);
+    await setClockInTime(testCoachNo, todayStr, `${todayStr} 14:00:00`);  // 设置上班时间
     await setClockOutTime(testCoachNo, todayStr, `${todayStr} 22:00:00`);
 
-    // 覆盖钉钉时间为23:00
+    // 覆盖钉钉时间为23:00（模拟加班打卡）
     await run(`UPDATE attendance_records SET dingtalk_in_time = ? WHERE coach_no = ? AND date = ?`,
       [`${todayStr} 23:00:00`, testCoachNo, todayStr]);
 
@@ -234,22 +243,7 @@ async function runTests() {
     log(`  → 成功: 水牌=${wb}, 下班时间已清空`);
   });
 
-  // TC-I05: 加班打卡 (23:30，找不到记录→新增)
-  await test('TC-I05: 早班23:30加班打卡(无记录→新增)', async () => {
-    await setWaterBoardStatus(testCoachNo, '下班');
-    await clearAttendance(testCoachNo, todayStr);
-    await setDingtalkTime(testCoachNo, todayStr, `${todayStr} 23:30:00`);
-
-    const res = await apiPost(`/api/coaches/v2/${testCoachNo}/clock-in`, { force_dingtalk: true }, authToken);
-    assert(res.data && res.data.success, `预期success=true，实际: ${JSON.stringify(res.data)}`);
-
-    const wb = await getWaterStatus(testCoachNo);
-    assert(wb === '早班空闲', `水牌应为早班空闲，实际: ${wb}`);
-
-    const rec = await getRecord(testCoachNo, todayStr);
-    assert(rec && rec.clock_in_time, '应有新增clock_in_time');
-    log(`  → 成功: 水牌=${wb}, 新增记录 clock_in=${rec.clock_in_time}`);
-  });
+  // TC-I05: 删除（场景无法测试：必须设置钉钉时间才能打卡，但设置后记录就存在）
 
   // TC-I06: 加班打卡 (跨日找前一日记录)
   await test('TC-I06: 早班03:00加班打卡(跨日找前一日)', async () => {
@@ -296,19 +290,20 @@ async function runTests() {
   });
 
   // TC-I09: 加班打卡不修改上班时间
-  await test('TC-I09: 加班打卡不修改clock_in_time和dingtalk_in_time', async () => {
+  await test('TC-I09: 加班打卡不修改clock_in_time', async () => {
     await setWaterBoardStatus(testCoachNo, '下班');
     await clearAttendance(testCoachNo, todayStr);
 
     const originalClockIn = `${todayStr} 14:00:00`;
-    const originalDingtalkIn = `${todayStr} 14:00:00`;
     await enqueueRun(`
-      INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, clock_in_time, dingtalk_in_time, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [todayStr, testCoachNo, testEmployeeId, testCoachName, originalClockIn, originalDingtalkIn, TimeUtil.nowDB(), TimeUtil.nowDB()]);
-    await setClockOutTime(testCoachNo, todayStr, `${todayStr} 22:00:00`);
+      INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, clock_in_time, dingtalk_in_time, clock_out_time, dingtalk_out_time, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `, [todayStr, testCoachNo, testEmployeeId, testCoachName, originalClockIn, originalClockIn, `${todayStr} 22:00:00`, `${todayStr} 22:00:00`, TimeUtil.nowDB(), TimeUtil.nowDB()]);
 
-    // 覆盖钉钉时间为23:30
+    // 转换班次为早班（确保加班时间段判定正确）
+    await enqueueRun(`UPDATE coaches SET shift = '早班' WHERE coach_no = ?`, [testCoachNo]);
+
+    // 覆盖钉钉时间为23:30（模拟加班打卡的新钉钉推送）
     await run(`UPDATE attendance_records SET dingtalk_in_time = ? WHERE coach_no = ? AND date = ?`,
       [`${todayStr} 23:30:00`, testCoachNo, todayStr]);
 
@@ -316,9 +311,14 @@ async function runTests() {
     assert(res.data && res.data.success, `预期success=true，实际: ${JSON.stringify(res.data)}`);
 
     const rec = await getRecord(testCoachNo, todayStr);
+    // 加班打卡不修改 clock_in_time（保持14:00）
     assert(rec.clock_in_time === originalClockIn, `clock_in_time应保持${originalClockIn}，实际: ${rec.clock_in_time}`);
-    assert(rec.dingtalk_in_time === originalDingtalkIn, `dingtalk_in_time应保持${originalDingtalkIn}，实际: ${rec.dingtalk_in_time}`);
-    log(`  → 成功: clock_in=${rec.clock_in_time} (未变), dingtalk_in=${rec.dingtalk_in_time} (未变)`);
+    // dingtalk_in_time = 打卡前的值（23:30，钉钉推送的新数据，系统不修改）
+    assert(rec.dingtalk_in_time === `${todayStr} 23:30:00`, `dingtalk_in_time应为23:30，实际: ${rec.dingtalk_in_time}`);
+    // 下班时间应被清空
+    assert(!rec.clock_out_time, `clock_out_time应为空，实际: ${rec.clock_out_time}`);
+    assert(!rec.dingtalk_out_time, `dingtalk_out_time应为空，实际: ${rec.dingtalk_out_time}`);
+    log(`  → 成功: clock_in=${rec.clock_in_time} (未变), dingtalk_in=${rec.dingtalk_in_time}, 下班时间已清空`);
   });
 
   // TC-I10: 无钉钉打卡时间拒绝

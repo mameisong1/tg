@@ -205,6 +205,7 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
     let overtimeRecordDate = null;
     let overtimeRecordFound = false;
     let attendanceUpdatePerformed = false; // 标记是否已处理打卡记录
+    let clockInTime = null; // QA-20260502-01: 统一在事务开头定义
 
     if (waterBoard.status === '乐捐') {
       // 乐捐状态下做上班打卡判定 → 乐捐归来
@@ -241,6 +242,7 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
         lejuanEnded = true;
         dingtalkService.dingtalkLog.write(`乐捐归来: ${coach_no} return_time=${returnTime}, dingtalk_return_time=${dingtalkTime || 'null'}`);
       }
+      clockInTime = dingtalkTime; // QA-20260502-01: 乐捐归来的打卡时间
       newStatus = coach.shift === '早班' ? '早班空闲' : '晚班空闲';
 
     } else if (waterBoard.status === '下班') {
@@ -250,6 +252,10 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
         // ✅ 加班打卡场景
         isOvertimeClock = true;
         overtimeRecordDate = getOvertimeTargetDate(checkHour, todayStr);
+        // QA-20260502-01: 加班打卡场景的 clockInTime
+        // - 找到记录时为 null（不修改上班时间）
+        // - 找不到记录时为 dingtalkTime（新增上班记录）
+        clockInTime = null;
 
         // a. 查找上班记录
         const record = await tx.get(
@@ -272,7 +278,7 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
           dingtalkService.dingtalkLog.write(`加班打卡: ${coach_no} 找到记录(${overtimeRecordDate})，清空下班时间`);
         } else {
           // 找不到 → 新增一条上班记录
-          const clockInTime = dingtalkTime;
+          clockInTime = dingtalkTime;
           const isLate = await calculateIsLate(clockInTime, coach.shift, coach_no, overtimeRecordDate, tx);
           await tx.run(
             `INSERT INTO attendance_records
@@ -317,7 +323,7 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
     // 加班打卡已处理了考勤记录，跳过后续正常流程
     if (!isOvertimeClock) {
       // 更新水牌状态，clock_in_time 使用钉钉打卡时间
-      const clockInTime = dingtalkTime || TimeUtil.nowDB();
+      clockInTime = dingtalkTime || TimeUtil.nowDB();
       await tx.run(`
         UPDATE water_boards
         SET status = ?, table_no = NULL, clock_in_time = ?, updated_at = ?
