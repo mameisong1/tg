@@ -3008,7 +3008,20 @@ app.post('/api/admin/users', authMiddleware, requireBackendPermission(['coachMan
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    await enqueueRun('INSERT INTO admin_users (username, password, name, role) VALUES (?, ?, ?, ?)', [username, hashedPassword, name || '', role || '店长']);
+    // 同步钉钉用户ID（username是手机号，不抛异常）
+    let dingtalkUserId = null;
+    try {
+      dingtalkUserId = await dingtalkService.getUserIdByMobile(username);
+      if (dingtalkUserId) {
+        operationLog.info(`新增用户同步钉钉ID: ${username} → ${dingtalkUserId}`);
+      } else {
+        operationLog.info(`新增用户未找到钉钉ID: ${username}`);
+      }
+    } catch (err) {
+      operationLog.info(`新增用户同步钉钉ID失败: ${username} - ${err.message}`);
+    }
+
+    await enqueueRun('INSERT INTO admin_users (username, password, name, role, dingtalk_user_id) VALUES (?, ?, ?, ?, ?)', [username, hashedPassword, name || '', role || '店长', dingtalkUserId]);
     operationLog.info(`创建后台用户: ${username} (${role || '店长'})`);
     res.json({ success: true });
   } catch (err) {
@@ -3371,12 +3384,27 @@ app.post('/api/admin/coaches', authMiddleware, requireBackendPermission(['coachM
       return res.status(400).json({ error: '该工号和艺名组合已存在,请检查是否重复添加' });
     }
 
+    // 同步钉钉用户ID（不抛异常，失败时留空）
+    let dingtalkUserId = null;
+    if (phone) {
+      try {
+        dingtalkUserId = await dingtalkService.getUserIdByMobile(phone);
+        if (dingtalkUserId) {
+          operationLog.info(`新增助教同步钉钉ID: ${stageName} (${phone}) → ${dingtalkUserId}`);
+        } else {
+          operationLog.info(`新增助教未找到钉钉ID: ${stageName} (${phone})`);
+        }
+      } catch (err) {
+        operationLog.info(`新增助教同步钉钉ID失败: ${stageName} (${phone}) - ${err.message}`);
+      }
+    }
+
     // 开启事务
     await runInTransaction(async (tx) => {
       const result = await tx.run(
-        `INSERT INTO coaches (employee_id, stage_name, real_name, phone, level, price, age, height, photos, video, intro, is_popular, status, shift, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [employeeId, stageName, realName, phone || null, level, price, age, height, JSON.stringify(photos || []), video, intro, isPopular ? 1 : 0, status || '全职', finalShift, TimeUtil.nowDB(), TimeUtil.nowDB()]
+        `INSERT INTO coaches (employee_id, stage_name, real_name, phone, level, price, age, height, photos, video, intro, is_popular, status, shift, dingtalk_user_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [employeeId, stageName, realName, phone || null, level, price, age, height, JSON.stringify(photos || []), video, intro, isPopular ? 1 : 0, status || '全职', finalShift, dingtalkUserId, TimeUtil.nowDB(), TimeUtil.nowDB()]
       );
       const newCoachNo = result.lastID;
 
@@ -3425,7 +3453,7 @@ app.put('/api/admin/coaches/:coachNo', authMiddleware, requireBackendPermission(
     }
 
     // 获取原有数据,用于保留前台可编辑字段
-    const currentCoach = await dbGet('SELECT photos, videos, intro, age, height, shift, status FROM coaches WHERE coach_no = ?', [req.params.coachNo]);
+    const currentCoach = await dbGet('SELECT photos, videos, intro, age, height, shift, status, phone, dingtalk_user_id FROM coaches WHERE coach_no = ?', [req.params.coachNo]);
 
     // 对于前台可编辑的字段,如果后台没有传值,保留原有数据
     let finalPhotos = photos;
@@ -3442,11 +3470,28 @@ app.put('/api/admin/coaches/:coachNo', authMiddleware, requireBackendPermission(
     const newStatus = status || '全职';
     const oldStatus = currentCoach?.status || '全职';
 
+    // 手机号变更时重新同步钉钉用户ID（不抛异常）
+    let dingtalkUserId = currentCoach?.dingtalk_user_id;
+    if (phone && phone !== currentCoach?.phone) {
+      try {
+        const newDingtalkUserId = await dingtalkService.getUserIdByMobile(phone);
+        if (newDingtalkUserId) {
+          dingtalkUserId = newDingtalkUserId;
+          operationLog.info(`修改助教同步钉钉ID: ${stageName} (${currentCoach?.phone} → ${phone}) → ${dingtalkUserId}`);
+        } else {
+          dingtalkUserId = null;
+          operationLog.info(`修改助教未找到钉钉ID: ${stageName} (${phone})`);
+        }
+      } catch (err) {
+        operationLog.info(`修改助教同步钉钉ID失败: ${stageName} (${phone}) - ${err.message}`);
+      }
+    }
+
     // 使用事务确保 coaches 更新和 water_boards 联动原子执行
     await runInTransaction(async (tx) => {
       await tx.run(
-        `UPDATE coaches SET employee_id = ?, stage_name = ?, real_name = ?, phone = ?, level = ?, price = ?, age = ?, height = ?, photos = ?, video = ?, intro = ?, videos = ?, is_popular = ?, status = ?, shift = ?, updated_at = ? WHERE coach_no = ?`,
-        [employeeId, stageName, realName, phone || null, level, price, finalAge, finalHeight, JSON.stringify(finalPhotos || []), video, finalIntro, JSON.stringify(finalVideos || []), isPopular ? 1 : 0, newStatus, resolvedShift, TimeUtil.nowDB(), req.params.coachNo]
+        `UPDATE coaches SET employee_id = ?, stage_name = ?, real_name = ?, phone = ?, level = ?, price = ?, age = ?, height = ?, photos = ?, video = ?, intro = ?, videos = ?, is_popular = ?, status = ?, shift = ?, dingtalk_user_id = ?, updated_at = ? WHERE coach_no = ?`,
+        [employeeId, stageName, realName, phone || null, level, price, finalAge, finalHeight, JSON.stringify(finalPhotos || []), video, finalIntro, JSON.stringify(finalVideos || []), isPopular ? 1 : 0, newStatus, resolvedShift, dingtalkUserId, TimeUtil.nowDB(), req.params.coachNo]
       );
 
       // 联动 water_boards 处理
@@ -4232,6 +4277,21 @@ const initAdminUserEmploymentStatus = async () => {
   }
 };
 initAdminUserEmploymentStatus();
+
+// 2026-05-02: admin_users 表新增 dingtalk_user_id 字段（用于钉钉打卡）
+const initAdminUserDingtalkUserId = async () => {
+  try {
+    const tableInfo = await dbAll("PRAGMA table_info(admin_users)");
+    const hasColumn = tableInfo.some(col => col.name === 'dingtalk_user_id');
+    if (!hasColumn) {
+      await enqueueRun(`ALTER TABLE admin_users ADD COLUMN dingtalk_user_id TEXT`);
+      console.log('✅ admin_users.dingtalk_user_id 字段添加完成');
+    }
+  } catch (err) {
+    // 字段已存在或添加失败，静默忽略
+  }
+};
+initAdminUserDingtalkUserId();
 
 // QA-20260429-1: orders 表新增 member_phone 字段
 const initOrdersMemberPhone = async () => {
