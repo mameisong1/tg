@@ -24,29 +24,22 @@
           </picker>
         </view>
         
-        <!-- 确定日期选择（仅类型已加载后显示） -->
+        <!-- 确定日期选择（仅类型已加载后显示，始终为近3天选择器） -->
         <view class="filter-row" v-if="rewardTypes.length > 0">
           <text class="filter-label">确定日期</text>
-          <!-- 日类型：自定义3天选择器 -->
-          <template v-if="isDayType">
-            <view class="date-picker-wrapper" @click="showDatePicker = !showDatePicker">
-              <view class="filter-value">{{ confirmDate }} ▾</view>
-            </view>
-            <!-- 日期下拉弹框（与日类型选择器绑定，确保不跟原生picker同时出现） -->
-            <view class="date-dropdown" v-if="showDatePicker" @click="showDatePicker = false">
-              <view class="date-dropdown-content" @click.stop>
-                <view class="date-option" v-for="d in dateOptions" :key="d.value"
-                      :class="{ active: confirmDate === d.value }"
-                      @click="selectDate(d.value)">
-                  {{ d.label }}
-                </view>
+          <view class="date-picker-wrapper" @click="showDatePicker = !showDatePicker">
+            <view class="filter-value">{{ confirmDate }} ▾</view>
+          </view>
+          <!-- 日期下拉弹框 -->
+          <view class="date-dropdown" v-if="showDatePicker" @click="showDatePicker = false">
+            <view class="date-dropdown-content" @click.stop>
+              <view class="date-option" v-for="d in dateOptions" :key="d.value"
+                    :class="{ active: confirmDate === d.value }"
+                    @click="selectDate(d.value)">
+                {{ d.label }}
               </view>
             </view>
-          </template>
-          <!-- 月类型：原生picker -->
-          <picker v-else mode="month" :value="confirmDate" @change="onDateChange">
-            <view class="filter-value">{{ confirmDate }} ▾</view>
-          </picker>
+          </view>
         </view>
       </view>
       
@@ -191,25 +184,12 @@ const targetTypeLabel = computed(() => {
   return targetType.value || '奖罚对象'
 })
 
-// 是否是按日的类型
-const isDayType = computed(() => {
-  return currentType.value === '服务奖罚'
-})
-
 // 日期范围（使用时间工具类，符合铁律1）
-const minDate = computed(() => {
-  if (!isDayType.value) return '2026-01-01'
-  return offsetBeijingDate(-2) // 2天前
-})
-
-const maxDate = computed(() => {
-  if (!isDayType.value) return '2030-12-31'
-  return getBeijingDate() // 今天
-})
+const minDate = computed(() => offsetBeijingDate(-2)) // 2天前
+const maxDate = computed(() => getBeijingDate()) // 今天
 
 // 3天日期选项（使用时间工具类）
 const dateOptions = computed(() => {
-  if (!isDayType.value) return []
   const options = []
   const labels = ['今天', '昨天', '前天']
   for (let i = 0; i < 3; i++) {
@@ -359,14 +339,8 @@ async function loadTypes() {
         const idx = res.types.findIndex(t => t['奖罚类型'] === fixedType.value)
         if (idx >= 0) typeIndex.value = idx
       }
-      // 初始化日期（使用时间工具类）
-      if (isDayType.value) {
-        confirmDate.value = getBeijingDate() // YYYY-MM-DD
-      } else {
-        // 按月类型：当前月份 YYYY-MM
-        const today = getBeijingDate()
-        confirmDate.value = today.slice(0, 7)
-      }
+      // 初始化日期：始终为今天（近3天选择器）
+      confirmDate.value = getBeijingDate() // YYYY-MM-DD
     }
   } catch (e) {
     uni.showToast({ title: '加载奖罚类型失败', icon: 'none' })
