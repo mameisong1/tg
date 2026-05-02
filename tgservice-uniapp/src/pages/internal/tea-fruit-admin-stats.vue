@@ -134,9 +134,10 @@ const loadData = async () => {
   dateRange.value = ''
 
   try {
-    const res = await fetch('/api/tea-fruit/admin-stats?period=' + currentPeriod.value, {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api'
+    const res = await fetch(baseUrl + '/tea-fruit/admin-stats?period=' + currentPeriod.value, {
       headers: {
-        'Authorization': 'Bearer ' + uni.getStorageSync('token')
+        'Authorization': 'Bearer ' + uni.getStorageSync('memberToken')
       }
     })
     const data = await res.json()

@@ -178,11 +178,12 @@ const loadData = async () => {
   detailData.value = null
 
   try {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api'
     const res = await fetch(
-      `/api/tea-fruit/coach-detail?coach_no=${coachNo.value}&period=${currentPeriod.value}&type=${currentType.value}`,
+      baseUrl + '/tea-fruit/coach-detail?coach_no=${coachNo.value}&period=${currentPeriod.value}&type=${currentType.value}',
       {
         headers: {
-          'Authorization': 'Bearer ' + uni.getStorageSync('token')
+          'Authorization': 'Bearer ' + uni.getStorageSync('memberToken')
         }
       }
     )
