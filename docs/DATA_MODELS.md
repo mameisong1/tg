@@ -12,7 +12,7 @@
 
 | 表 | 说明 | 主键 |
 |------|------|------|
-| `admin_users` | 后台管理员 | username |
+| `admin_users` | 后台管理员（含dingtalk_user_id） | username |
 | `product_categories` | 商品分类 | name |
 | `products` | 商品 | name |
 | `coaches` | 助教 | coach_no |
@@ -31,7 +31,10 @@
 ## 关键字段
 
 ### coaches (助教)
-coach_no, employee_id, stage_name, phone, id_card_last6, level(女神/精英/初级), price, photos(JSON), video, intro, is_popular
+coach_no, employee_id, stage_name, phone, id_card_last6, level(女神/精英/初级), price, photos(JSON), video, intro, is_popular, dingtalk_user_id(钉钉用户ID)
+
+### admin_users (后台用户)
+username(手机号), password(bcrypt), name, role, employment_status, dingtalk_user_id(钉钉用户ID, 2026-05-02新增)
 
 ### water_boards (水牌)
 coach_no, stage_name, status, table_no(逗号分隔，如"A1,A3"), clock_in_time

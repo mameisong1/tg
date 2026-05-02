@@ -25,10 +25,15 @@
 
 ## 助教管理
 | GET | `/api/admin/coaches` | 助教列表 |
-| POST | `/api/admin/coaches` | 创建助教 |
-| PUT | `/api/admin/coaches/:coach_no` | 更新助教 |
+| POST | `/api/admin/coaches` | 创建助教（自动同步钉钉用户ID） |
+| PUT | `/api/admin/coaches/:coach_no` | 更新助教（手机号变更时重新同步钉钉ID） |
 | DELETE | `/api/admin/coaches/:coach_no` | 删除助教 |
 | PUT | `/api/admin/coaches/batch-shift` | 批量更新班次 |
+
+> **钉钉用户ID同步**（2026-05-02新增）：
+> - 新增助教时，通过手机号调用钉钉API获取用户ID，自动写入 `dingtalk_user_id` 字段
+> - 修改手机号时，重新同步钉钉用户ID
+> - 同步失败不抛异常，仅记录日志（用户可能没有钉钉账户）
 
 ## 水牌管理
 | GET | `/api/admin/water-boards` | 水牌列表 |
@@ -70,9 +75,14 @@
 
 ## 用户管理
 | GET | `/api/admin/users` | 后台用户列表 |
-| POST | `/api/admin/users` | 创建用户 |
+| POST | `/api/admin/users` | 创建用户（自动同步钉钉用户ID） |
 | PUT | `/api/admin/users/:username` | 更新用户 |
 | DELETE | `/api/admin/users/:username` | 删除用户 |
+
+> **钉钉用户ID同步**（2026-05-02新增）：
+> - 新增用户时，通过手机号（username）调用钉钉API获取用户ID
+> - `admin_users` 表新增 `dingtalk_user_id` 字段
+> - 同步失败不抛异常，仅记录日志
 
 ## 约客管理
 | GET | `/api/admin/guest-invitations` | 约客列表 |

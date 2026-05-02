@@ -552,11 +552,15 @@ router.put('/:id/approve', requireBackendPermission(['coachManagement']), async 
 
         if (currentWaterBoard) {
           const currentStatus = currentWaterBoard.status;
-          // QA-20260420-4:上桌状态仍拒绝审批(安全考虑)
+          // QA-20260422: 上桌状态拒绝审批逻辑优化
+          // 只对加班/公休/班次切换申请检查上桌状态
+          // 休息/请假申请不检查上桌状态， 因为Timer执行时才检查水牌状态
           const isOnTable = currentStatus === '早班上桌' || currentStatus === '晚班上桌';
-          if (isOnTable) {
+          const needCheckOnTable = ['早加班申请', '晚加班申请', '公休申请', '班次切换申请'].includes(application.application_type);
+          if (isOnTable && needCheckOnTable) {
             throw { status: 400, error: `助教${coach.stage_name}正在上桌服务(${currentStatus}),无法审批通过${application.application_type}` };
           }
+          // 休息/请假申请: 不检查上桌状态,不拒绝审批
 
           const oldValue = {
             status: currentWaterBoard.status,
