@@ -36,7 +36,7 @@ function getDateRange(period) {
   if (period === 'this-month') {
     return {
       dateStart: dateStr(year, month, 1),
-      dateEnd: dateStr(year, month, day),
+      dateEnd: dateStr(year, month, day) + ' 23:59:59',
       label: '本月'
     };
   }
@@ -48,7 +48,7 @@ function getDateRange(period) {
     const lastMonthIndex = month === 0 ? 11 : month - 1;
     return {
       dateStart: dateStr(lastMonthYear, lastMonthIndex, 1),
-      dateEnd: dateStr(lastMonthYear, lastMonthIndex, lastMonthEnd),
+      dateEnd: dateStr(lastMonthYear, lastMonthIndex, lastMonthEnd) + ' 23:59:59',
       label: '上月'
     };
   }
