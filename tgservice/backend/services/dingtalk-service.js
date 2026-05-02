@@ -304,21 +304,21 @@ async function queryRecentAttendance(dingtalkUserId, coachNo, clockType, db) {
       return '尚未获取到钉钉打卡时间，请尽快打卡';
     }
     
-    // 筛选5分钟内的打卡记录
+    // 筛选10分钟内的打卡记录
     const now = Date.now();
-    const fiveMinutesAgo = now - 5 * 60 * 1000;
+    const tenMinutesAgo = now - 10 * 60 * 1000;
     
     const recentRecords = records.filter(r => {
       const checkTime = r.userCheckTime || r.checkTime;
-      return checkTime && checkTime >= fiveMinutesAgo;
+      return checkTime && checkTime >= tenMinutesAgo;
     });
     
     if (recentRecords.length === 0) {
-      dingtalkLog.write(`${coachNo} 5分钟内无钉钉打卡记录`);
+      dingtalkLog.write(`${coachNo} 10分钟内无钉钉打卡记录`);
       return '尚未获取到钉钉打卡时间，请尽快打卡';
     }
     
-    dingtalkLog.write(`${coachNo} 查到 ${recentRecords.length} 条5分钟内钉钉打卡记录`);
+    dingtalkLog.write(`${coachNo} 查到 ${recentRecords.length} 条10分钟内钉钉打卡记录`);
     
     // 【修复】先统一检查是否存在当天记录，避免循环内竞态导致重复创建
     const existingAttendance = await get(
@@ -405,13 +405,13 @@ async function queryLejuanReturnAttendance(dingtalkUserId, coachNo, lejuanId, db
       return '尚未获取到钉钉打卡时间，请尽快打卡';
     }
     
-    // 筛选5分钟内的打卡记录
+    // 筛选10分钟内的打卡记录
     const now = Date.now();
-    const fiveMinutesAgo = now - 5 * 60 * 1000;
+    const tenMinutesAgo = now - 10 * 60 * 1000;
     
     const recentRecords = records.filter(r => {
       const checkTime = r.userCheckTime || r.checkTime;
-      return checkTime && checkTime >= fiveMinutesAgo;
+      return checkTime && checkTime >= tenMinutesAgo;
     });
     
     if (recentRecords.length === 0) {
@@ -784,16 +784,18 @@ async function handleSingleAttendanceRecord(record, db) {
     }
   } else if (punchType === 'out') {
     // 下班打卡 → 写入 dingtalk_out_time
+    // 【修复】使用 attendance（基于 clock_in_time 查到的记录），而非 todayRecord（基于 date 查询）
+    // 跨日场景：上班记录 date=昨天，但 clock_in_time 在昨天12点后，attendance 能正确找到
     dingtalkLog.write(`${coach.stage_name} 钉钉下班打卡: ${checkTimeStr}`);
     
-    if (todayRecord) {
+    if (attendance) {
       await enqueueRun(
         `UPDATE attendance_records SET dingtalk_out_time = ?, updated_at = ? WHERE id = ?`,
-        [checkTimeStr, TimeUtil.nowDB(), todayRecord.id]
+        [checkTimeStr, TimeUtil.nowDB(), attendance.id]
       );
-      dingtalkLog.write(`更新打卡记录: ${coach.stage_name} dingtalk_out_time = ${checkTimeStr}`);
+      dingtalkLog.write(`更新打卡记录: ${coach.stage_name} dingtalk_out_time = ${checkTimeStr} (id=${attendance.id})`);
     } else {
-      dingtalkLog.write(`警告: ${coach.stage_name} 下班打卡但无今日打卡记录`);
+      dingtalkLog.write(`警告: ${coach.stage_name} 下班打卡但无有效上班记录`);
     }
   } else if (punchType === 'return') {
     // 乐捐归来打卡 → 只写入 dingtalk_return_time
