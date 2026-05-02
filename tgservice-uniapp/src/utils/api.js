@@ -500,7 +500,7 @@ export default {
   getDeviceFingerprint,
 
   // =============== 奖罚管理 ===============
-  getRewardPenaltyTypes: () => request({ url: "/admin/reward-penalty/types", authType: "admin" }),
+  getRewardPenaltyTypes: () => request({ url: "/reward-penalty/types" }),
   updateRewardPenaltyTypes: (data) => request({ url: "/admin/reward-penalty/types", method: "PUT", data, authType: "admin" }),
   upsertRewardPenalty: (data) => request({ url: "/reward-penalty/upsert", method: "POST", data, authType: "admin" }),
   getRewardPenaltyList: (params) => request({ url: "/reward-penalty/list", data: params }), // 不指定 authType，支持教练和后台用户

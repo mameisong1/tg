@@ -6052,7 +6052,26 @@ app.get('/api/admin/reward-penalty/types', authMiddleware, requireBackendPermiss
   }
 });
 
-// 更新奖罚类型配置
+// 获取奖罚类型配置（公开接口，助教和管理员均可访问）
+app.get('/api/reward-penalty/types', authMiddleware, async (req, res) => {
+  try {
+    const config = await dbGet("SELECT value FROM system_config WHERE key = 'reward_penalty_types'");
+    let types = [];
+    if (config && config.value) {
+      try {
+        types = JSON.parse(config.value);
+      } catch (e) {
+        types = [];
+      }
+    }
+    res.json({ success: true, types });
+  } catch (err) {
+    logger.error(`获取奖罚类型失败: ${err.message}`);
+    res.status(500).json({ error: '服务器错误' });
+  }
+});
+
+// 更新奖罚类型配置（仅管理员）
 app.put('/api/admin/reward-penalty/types', authMiddleware, requireBackendPermission(['coachManagement']), async (req, res) => {
   try {
     const { types } = req.body;

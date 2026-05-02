@@ -166,7 +166,7 @@ import { getBeijingDate, offsetBeijingDate } from '@/utils/time-util.js'
 const statusBarHeight = ref(0)
 const rewardTypes = ref([])
 const typeIndex = ref(0)
-
+const fixedType = ref('')  // URL参数传入的类型
 const confirmDate = ref('')
 const targets = ref([])
 const loading = ref(false)
@@ -175,6 +175,7 @@ const loading = ref(false)
 // 当前选中的奖罚类型
 const currentType = computed(() => {
   if (rewardTypes.value.length === 0) return ''
+  if (fixedType.value) return fixedType.value
   return rewardTypes.value[typeIndex.value]?.['奖罚类型'] || ''
 })
 
@@ -233,18 +234,12 @@ function goBack() {
 }
 
 function onTypeChange(e) {
-  typeIndex.value = e.detail.value
-  // 切换类型时关闭旧的日期下拉弹框
-  showDatePicker.value = false
-  // 切换类型时重新初始化日期（使用时间工具类）
-  if (isDayType.value) {
-    confirmDate.value = getBeijingDate() // YYYY-MM-DD
-  } else {
-    // 按月类型：当前月份 YYYY-MM
-    const today = getBeijingDate()
-    confirmDate.value = today.slice(0, 7)
-  }
-  loadTargets()
+  // 切换类型时通过 redirectTo 刷新页面，确保状态干净
+  const newType = rewardTypes.value[e.detail.value]?.['奖罚类型'] || ''
+  if (!newType) return
+  uni.redirectTo({
+    url: `/pages/internal/reward-penalty-set?type=${encodeURIComponent(newType)}`
+  })
 }
 
 function onDateChange(e) {
@@ -359,6 +354,11 @@ async function loadTypes() {
     const res = await api.getRewardPenaltyTypes()
     if (res.success && res.types) {
       rewardTypes.value = res.types
+      // 如果传入了固定类型，选中它
+      if (fixedType.value) {
+        const idx = res.types.findIndex(t => t['奖罚类型'] === fixedType.value)
+        if (idx >= 0) typeIndex.value = idx
+      }
       // 初始化日期（使用时间工具类）
       if (isDayType.value) {
         confirmDate.value = getBeijingDate() // YYYY-MM-DD
@@ -435,6 +435,13 @@ async function loadCurrentAmounts() {
 onMounted(() => {
   const sysInfo = uni.getSystemInfoSync()
   statusBarHeight.value = sysInfo.statusBarHeight || 0
+  
+  // 获取URL参数
+  const pages = getCurrentPages()
+  const currentPage = pages[pages.length - 1]
+  if (currentPage.options && currentPage.options.type) {
+    fixedType.value = currentPage.options.type
+  }
   
   loadTypes().then(() => {
     loadTargets()
