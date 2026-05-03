@@ -435,7 +435,13 @@ router.get('/my-stats', auth.required, async (req, res) => {
       }
     }
 
-    // 2. 单次查询所有订单（只用 phone 匹配）
+    // 2. 先查询奶茶店商品列表（用于分类判断）
+    const teaProducts = await db.all(
+      'SELECT name FROM products WHERE category = "奶茶店" AND status = "上架"'
+    );
+    const teaProductNames = teaProducts.map(p => p.name);
+
+    // 3. 单次查询所有订单（只用 phone 匹配）
     const orders = await db.all(`
       SELECT 
         o.order_no,
@@ -448,7 +454,7 @@ router.get('/my-stats', auth.required, async (req, res) => {
         AND o.member_phone = ?
     `, [dateRange.dateStart, dateRange.dateEnd, coach.phone]);
 
-    // 3. 在内存中分类统计
+    // 4. 在内存中分类统计（使用商品分类判断）
     let teaCount = 0;
     let platterCount = 0;
     let singleFruitCount = 0;
@@ -482,8 +488,8 @@ router.get('/my-stats', auth.required, async (req, res) => {
           fruit_equivalent: quantity / 3,
           created_at: order.created_at
         });
-      } else {
-        // 奶茶商品（默认其他都是奶茶）
+      } else if (teaProductNames.includes(productName)) {
+        // 只有商品名在奶茶店列表中才算奶茶订单
         teaCount += quantity;
         teaOrders.push({
           order_no: order.order_no,
@@ -492,6 +498,7 @@ router.get('/my-stats', auth.required, async (req, res) => {
           created_at: order.created_at
         });
       }
+      // 其他商品（如烤肠、饮料等）不计入奶茶果盘统计，直接忽略
     }
 
     // 4. 计算进度
@@ -828,7 +835,13 @@ router.get('/coach-detail', auth.required, async (req, res) => {
       return res.json(emptyResult);
     }
 
-    // 2. 单次查询所有订单
+    // 2. 先查询奶茶店商品列表（用于分类判断）
+    const teaProducts = await db.all(
+      'SELECT name FROM products WHERE category = "奶茶店" AND status = "上架"'
+    );
+    const teaProductNames = teaProducts.map(p => p.name);
+
+    // 3. 单次查询所有订单
     const orders = await db.all(`
       SELECT 
         o.order_no,
@@ -841,8 +854,8 @@ router.get('/coach-detail', auth.required, async (req, res) => {
         AND o.member_phone = ?
     `, [dateRange.dateStart, dateRange.dateEnd, coach.phone]);
 
-    // 3. 在内存中分类
-    const teaOrders = []; // 奶茶订单（不包括果盘和单份水果）
+    // 4. 在内存中分类（使用商品分类判断）
+    const teaOrders = []; // 奶茶订单（category='奶茶店'的商品）
     const platterOrders = []; // 果盘订单
     const singleFruitOrders = []; // 单份水果订单
 
@@ -854,9 +867,11 @@ router.get('/coach-detail', auth.required, async (req, res) => {
         platterOrders.push({ order_no: order.order_no, product_name: productName, quantity, created_at: order.created_at });
       } else if (productName === '单份水果') {
         singleFruitOrders.push({ order_no: order.order_no, product_name: productName, quantity, fruit_equivalent: quantity / 3, created_at: order.created_at });
-      } else {
+      } else if (teaProductNames.includes(productName)) {
+        // 只有商品名在奶茶店列表中才算奶茶订单
         teaOrders.push({ order_no: order.order_no, product_name: productName, quantity, created_at: order.created_at });
       }
+      // 其他商品（如烤肠、饮料等）不计入奶茶果盘统计，直接忽略
     }
 
     if (type === 'tea') {
