@@ -293,7 +293,7 @@
           <!-- 奶茶果盘统计：管理员查看助教任务进度 -->
           <view class="internal-btn" v-if="backendPerms.teaFruitStats" @click="navigateTo('/pages/internal/tea-fruit-admin-stats')">
             <text class="internal-btn-icon">🧋</text>
-            <text class="internal-btn-text">奶茶果盘</text>
+            <text class="internal-btn-text">奶茶果盘统计</text>
           </view>
         </view>
       </view>

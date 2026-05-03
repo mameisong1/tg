@@ -232,7 +232,7 @@ const loadData = async () => {
   dateRange.value = ''
 
   try {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api'
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tg.tiangong.club/api'
     const res = await fetch(baseUrl + '/tea-fruit/my-stats?period=' + currentPeriod.value, {
       headers: {
         'Authorization': 'Bearer ' + uni.getStorageSync('memberToken')
