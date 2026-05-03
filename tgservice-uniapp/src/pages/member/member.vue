@@ -1184,6 +1184,15 @@ const selectRole = async (role) => {
     if (tempLoginData.value.adminInfo) {
       uni.setStorageSync('adminInfo', tempLoginData.value.adminInfo)
     }
+    // 🔴 新增：如果助教选择后台身份但没有adminToken，生成coachToken供后台功能使用
+    if (!tempLoginData.value.adminToken && tempLoginData.value.coachInfo) {
+      const phone = tempLoginData.value.coachInfo.phone || ''
+      const coachToken = btoa(`${tempLoginData.value.coachInfo.coachNo}:${phone}:${Date.now()}`)
+      uni.setStorageSync('coachToken', coachToken)
+      uni.setStorageSync('coachInfo', tempLoginData.value.coachInfo)
+      coachInfo.value = tempLoginData.value.coachInfo
+      console.log('助教选择后台身份: 已生成coachToken')
+    }
   } else if (role === 'coach' && tempLoginData.value) {
     if (tempLoginData.value.coachInfo) {
       const phone = tempLoginData.value.coachInfo.phone || ''
