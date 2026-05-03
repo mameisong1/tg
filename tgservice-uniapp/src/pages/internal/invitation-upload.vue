@@ -125,7 +125,7 @@ const { imageUrls, uploading, uploadProgress, uploadText, chooseAndUpload, remov
  */
 async function fetchServerHour() {
   try {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api'
+    const baseUrl = import.meta.env.VITE_API_BASE_URL
     const res = await new Promise((resolve, reject) => {
       uni.request({
         url: baseUrl + '/server-time',

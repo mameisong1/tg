@@ -238,7 +238,7 @@ class ErrorReporter {
     } catch (e) {}
     // #endif
     
-    return 'https://tiangong.club/api' + path
+    return (import.meta.env.VITE_API_BASE_URL || '') + path
   }
 
   /**

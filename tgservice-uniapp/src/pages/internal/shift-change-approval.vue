@@ -156,7 +156,7 @@ onMounted(async () => {
 // QA-20260421-3: 获取服务器时间
 async function fetchServerTime() {
   try {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api'
+    const baseUrl = import.meta.env.VITE_API_BASE_URL
     const res = await new Promise((resolve, reject) => {
       uni.request({
         url: baseUrl + '/server-time', method: 'GET',

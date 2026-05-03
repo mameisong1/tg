@@ -218,7 +218,7 @@ const formatOrderTime = (timeStr) => {
 const getProductImageUrl = (url) => {
   if (!url) return '/static/avatar-default.png'
   if (url.startsWith('http')) return url
-  return 'https://tiangong.club' + url
+  return (import.meta.env.VITE_API_BASE_URL?.replace('/api', '') || '') + url
 }
 
 // 员工识别：有 adminToken 或 coachToken 即为员工

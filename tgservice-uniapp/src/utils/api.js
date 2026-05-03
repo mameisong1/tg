@@ -6,7 +6,7 @@
 // VITE_API_BASE_URL 由构建时的环境变量决定
 // 生产环境: https://tiangong.club/api
 // 开发环境: https://tg.tiangong.club/api
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api'
+const BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 // 生成设备指纹
 const getDeviceFingerprint = () => {

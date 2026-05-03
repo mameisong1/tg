@@ -205,7 +205,7 @@ async function apiRequest(url, method = 'GET', data = null) {
   const adminToken = uni.getStorageSync('adminToken')
   const coachToken = uni.getStorageSync('coachToken')
   const token = adminToken || coachToken
-  const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api'
+  const baseUrl = import.meta.env.VITE_API_BASE_URL
 
   console.log('[API请求]', method, baseUrl + url)
 

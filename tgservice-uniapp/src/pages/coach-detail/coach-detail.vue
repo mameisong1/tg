@@ -355,7 +355,7 @@ const confirmInvite = async () => {
   try {
     // 调用游客创建服务单API
     const result = await uni.request({
-      url: (import.meta.env.VITE_API_BASE_URL || 'https://tiangong.club/api') + '/service-orders/guest',
+      url: (import.meta.env.VITE_API_BASE_URL) + '/service-orders/guest',
       method: 'POST',
       data: {
         table_no: tableName.value,

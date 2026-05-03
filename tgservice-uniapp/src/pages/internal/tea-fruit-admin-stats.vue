@@ -192,7 +192,7 @@ const loadData = async () => {
   dateRange.value = ''
 
   try {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tg.tiangong.club/api'
+    const baseUrl = import.meta.env.VITE_API_BASE_URL
     // 支持助教身份访问后台功能：优先 adminToken，没有则用 coachToken
     const token = uni.getStorageSync('adminToken') || uni.getStorageSync('coachToken')
     const res = await fetch(baseUrl + '/tea-fruit/admin-stats?period=' + currentPeriod.value, {
