@@ -227,7 +227,7 @@ export const dingtalkAttendance = {
   // 查询/轮询钉钉打卡时间
   query: (data) => request({ url: '/dingtalk-attendance/query', method: 'POST', data }),
   // 查询轮询状态
-  getStatus: (params) => request({ url: '/dingtalk-attendance/status', data: params })
+  getStatus: (params) => request({ url: '/dingtalk-attendance-status', data: params })
 }
 
 // ========== 漏单统计 ==========
@@ -498,7 +498,7 @@ export default {
   
   // 导出设备指纹函数
   getDeviceFingerprint,
-
+  
   // =============== 奶茶果盘任务（助教个人） ===============
   getTeaFruitMyStats: (period, deviceFingerprint) => request({ url: '/tea-fruit/my-stats', data: { period, deviceFingerprint } }), // 助教个人统计
   
@@ -538,3 +538,6 @@ export default {
   notifications,
   dingtalkAttendance
 }
+
+// 命名导出设备指纹函数（支持解构导入）
+export { getDeviceFingerprint }
