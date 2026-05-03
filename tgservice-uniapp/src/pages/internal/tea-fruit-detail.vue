@@ -183,7 +183,7 @@ const loadData = async () => {
       `${baseUrl}/tea-fruit/coach-detail?coach_no=${coachNo.value}&period=${currentPeriod.value}&type=${currentType.value}`,
       {
         headers: {
-          'Authorization': 'Bearer ' + uni.getStorageSync('adminToken')
+          'Authorization': 'Bearer ' + (uni.getStorageSync('adminToken') || uni.getStorageSync('coachToken'))
         }
       }
     )

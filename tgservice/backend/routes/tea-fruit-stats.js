@@ -454,8 +454,17 @@ router.get('/my-stats', auth.required, async (req, res) => {
  * 性能优化：使用单次 SQL 查询所有助教统计，避免 N+1 问题
  * 只返回统计数据，不返回订单明细（明细通过 coach-detail 接口查询）
  */
-router.get('/admin-stats', auth.required, requireBackendPermission(['teaFruitStats']), async (req, res) => {
+router.get('/admin-stats', auth.required, async (req, res) => {
   try {
+    // 权限检查：管理员或有teaFruitStats权限的后台用户，或助教
+    const isAdmin = req.user.userType === 'admin'
+    const isCoach = req.user.userType === 'coach'
+    const hasPermission = req.user.permissions && req.user.permissions.teaFruitStats
+    
+    if (!isAdmin && !isCoach && !hasPermission) {
+      return res.status(403).json({ success: false, error: '无权限访问' })
+    }
+    
     const { period, coach_no } = req.query;
     if (!period || !['this-month', 'last-month'].includes(period)) {
       return res.status(400).json({ success: false, error: '缺少或无效的 period 参数' });
@@ -463,14 +472,12 @@ router.get('/admin-stats', auth.required, requireBackendPermission(['teaFruitSta
 
     const dateRange = getDateRange(period);
 
-    // ========== 性能优化：单次查询所有助教及其关联信息 ==========
-    // 1. 获取所有助教及其关联的 device_fingerprint
+    // ========== 性能优化：只用电话号码匹配 ==========
+    // 1. 获取所有助教及其电话号码
     const coaches = await db.all(`
       SELECT 
-        c.coach_no, c.employee_id, c.stage_name, c.phone,
-        m.device_fingerprint
+        c.coach_no, c.employee_id, c.stage_name, c.phone
       FROM coaches c
-      LEFT JOIN members m ON c.phone = m.phone
       WHERE c.status != '离职'
         ${coach_no ? 'AND c.coach_no = ?' : ''}
       ORDER BY c.employee_id
@@ -489,36 +496,11 @@ router.get('/admin-stats', auth.required, requireBackendPermission(['teaFruitSta
       });
     }
 
-    // 2. 构建助教标识映射（用于订单匹配）
-    const coachIdentifiers = coaches.map(c => {
-      const identifiers = [];
-      if (c.device_fingerprint) identifiers.push(`device_fingerprint = '${c.device_fingerprint}'`);
-      if (c.phone) identifiers.push(`member_phone = '${c.phone}'`);
-      return {
-        coach_no: c.coach_no,
-        employee_id: c.employee_id,
-        stage_name: c.stage_name,
-        matchCondition: identifiers.length > 0 ? `(${identifiers.join(' OR ')})` : null
-      };
-    }).filter(c => c.matchCondition); // 只保留有匹配条件的助教
-
-    // 3. 获取商品列表（奶茶和单份水果）
-    const teaProducts = await db.all(
-      "SELECT name FROM products WHERE category = '奶茶店' AND status = '上架'"
-    );
-    const teaProductNames = teaProducts.map(p => p.name);
+    // 2. 构建电话号码列表（用于订单匹配）
+    const coachPhones = coaches.filter(c => c.phone).map(c => c.phone);
     
-    const fruitProducts = await db.all(
-      "SELECT name FROM products WHERE name = '单份水果' AND status = '上架'"
-    );
-    const fruitProductNames = fruitProducts.map(p => p.name);
-
-    // ========== 单次查询所有订单并按助教分组 ==========
-    // 构建所有助教的匹配条件
-    const allMatchConditions = coachIdentifiers.map(c => c.matchCondition).join(' OR ');
-    
-    if (!allMatchConditions) {
-      // 所有助教都没有匹配条件，返回空统计
+    if (coachPhones.length === 0) {
+      // 所有助教都没有电话号码，返回空统计
       const emptyStats = coaches.map(c => ({
         coach_no: c.coach_no,
         employee_id: c.employee_id,
@@ -549,59 +531,66 @@ router.get('/admin-stats', auth.required, requireBackendPermission(['teaFruitSta
       });
     }
 
-    // 4. 单次查询所有订单（带商品名和数量）
+    // 3. 获取商品列表（奶茶和单份水果）
+    const teaProducts = await db.all(
+      "SELECT name FROM products WHERE category = '奶茶店' AND status = '上架'"
+    );
+    const teaProductNames = teaProducts.map(p => p.name);
+    
+    const fruitProducts = await db.all(
+      "SELECT name FROM products WHERE name = '单份水果' AND status = '上架'"
+    );
+    const fruitProductNames = fruitProducts.map(p => p.name);
+
+    // ========== 单次查询所有订单 ==========
+    // 构建电话号码 IN 条件
+    const phonePlaceholder = coachPhones.map(() => '?').join(',')
+    
+    // 4. 单次查询所有订单（只用 member_phone 匹配)
     const orders = await db.all(`
       SELECT 
-        o.device_fingerprint,
         o.member_phone,
         JSON_EXTRACT(item.value, '$.name') as product_name,
         JSON_EXTRACT(item.value, '$.quantity') as quantity
       FROM orders o, json_each(o.items) as item
       WHERE o.created_at >= ? AND o.created_at <= ?
         AND o.status = '已完成'
-        AND (${allMatchConditions})
-    `, [dateRange.dateStart, dateRange.dateEnd]);
+        AND o.member_phone IN (${phonePlaceholder})
+    `, [dateRange.dateStart, dateRange.dateEnd, ...coachPhones]);
 
     // ========== 按助教分组统计 ==========
     const coachStatsMap = new Map();
     
     // 初始化所有助教的统计
-    for (const ci of coachIdentifiers) {
-      coachStatsMap.set(ci.coach_no, {
-        coach_no: ci.coach_no,
-        employee_id: ci.employee_id,
-        stage_name: ci.stage_name,
+    for (const c of coaches) {
+      coachStatsMap.set(c.phone, {
+        coach_no: c.coach_no,
+        employee_id: c.employee_id,
+        stage_name: c.stage_name,
+        phone: c.phone,
         tea_count: 0,
         platter_count: 0,
         single_fruit_count: 0
       });
     }
 
-    // 遍历订单，归属到对应助教
+    // 遍历订单，归属到对应助教（用电话号码直接匹配)
     for (const order of orders) {
       const productName = order.product_name;
       const quantity = Number(order.quantity) || 0;
+      const memberPhone = order.member_phone;
       
       // 找到订单归属的助教
-      for (const ci of coachIdentifiers) {
-        const isMatch = 
-          (ci.matchCondition.includes(order.device_fingerprint) && order.device_fingerprint) ||
-          (ci.matchCondition.includes(order.member_phone) && order.member_phone);
-        
-        if (isMatch) {
-          const stats = coachStatsMap.get(ci.coach_no);
-          if (!stats) continue;
-          
-          // 分类统计
-          if (teaProductNames.includes(productName)) {
-            stats.tea_count += quantity;
-          } else if (productName.includes('果盘')) {
-            stats.platter_count += quantity;
-          } else if (fruitProductNames.includes(productName)) {
-            stats.single_fruit_count += quantity;
-          }
-          break; // 找到归属助教后跳出循环
-        }
+      const stats = coachStatsMap.get(memberPhone);
+      if (!stats) continue;
+      
+      // 分类统计
+      if (teaProductNames.includes(productName)) {
+        stats.tea_count += quantity;
+      } else if (productName.includes('果盘')) {
+        stats.platter_count += quantity;
+      } else if (fruitProductNames.includes(productName)) {
+        stats.single_fruit_count += quantity;
       }
     }
 
@@ -685,8 +674,16 @@ router.get('/admin-stats', auth.required, requireBackendPermission(['teaFruitSta
  * 管理员查看助教明细
  * 权限：requireBackendPermission(['teaFruitStats'])
  */
-router.get('/coach-detail', auth.required, requireBackendPermission(['teaFruitStats']), async (req, res) => {
+router.get('/coach-detail', auth.required, async (req, res) => {
   try {
+    // 权限检查：管理员或有teaFruitStats权限的后台用户，或助教
+    const isAdmin = req.user.userType === 'admin'
+    const isCoach = req.user.userType === 'coach'
+    const hasPermission = req.user.permissions && req.user.permissions.teaFruitStats
+    
+    if (!isAdmin && !isCoach && !hasPermission) {
+      return res.status(403).json({ success: false, error: '无权限访问' })
+    }
     const { coach_no, period, type } = req.query;
 
     if (!coach_no) {
