@@ -344,9 +344,12 @@ router.post('/:coach_no/clock-in', auth.required, requireBackendPermission(['coa
       if (existingRecord && !existingRecord.clock_in_time) {
         await tx.run(`
           UPDATE attendance_records
-          SET clock_in_time = ?, clock_in_photo = ?, is_late = ?, updated_at = ?
+          SET clock_in_time = ?, clock_in_photo = ?, is_late = ?,
+              employee_id = COALESCE(NULLIF(employee_id, ''), ?),
+              stage_name = COALESCE(NULLIF(stage_name, ''), ?),
+              updated_at = ?
           WHERE id = ?
-        `, [clockInTime, clock_in_photo || null, isLate, nowDB, existingRecord.id]);
+        `, [clockInTime, clock_in_photo || null, isLate, coach.employee_id, coach.stage_name, nowDB, existingRecord.id]);
       } else if (!existingRecord) {
         await tx.run(`
           INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, clock_in_time, clock_out_time, clock_in_photo, is_late, is_reviewed, created_at, updated_at)

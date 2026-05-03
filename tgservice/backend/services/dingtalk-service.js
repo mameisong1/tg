@@ -276,6 +276,12 @@ async function queryRecentAttendance(dingtalkUserId, coachNo, clockType, db) {
   
   if (!dingtalkUserId) return null;
   
+  // 查询 coach 信息用于填充 employee_id 和 stage_name
+  const coachInfo = await get(
+    'SELECT employee_id, stage_name FROM coaches WHERE coach_no = ?',
+    [coachNo]
+  );
+  
   // 检查是否已有推送的钉钉打卡时间
   const todayStr = TimeUtil.todayStr();
   const yesterdayStr = TimeUtil.offsetDateStr(-1);
@@ -336,8 +342,8 @@ async function queryRecentAttendance(dingtalkUserId, coachNo, clockType, db) {
         // 只创建一条记录
         await enqueueRun(
           `INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, dingtalk_in_time, created_at, updated_at)
-           VALUES (?, ?, '', '', ?, ?, ?)`,
-          [todayStr, coachNo, checkTimeStr, TimeUtil.nowDB(), TimeUtil.nowDB()]
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          [todayStr, coachNo, coachInfo?.employee_id || '', coachInfo?.stage_name || '', checkTimeStr, TimeUtil.nowDB(), TimeUtil.nowDB()]
         );
         dingtalkLog.write(`${coachNo} 创建打卡记录 dingtalk_in_time = ${checkTimeStr}`);
       } else {

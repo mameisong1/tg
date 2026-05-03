@@ -80,8 +80,8 @@ router.post('/query', auth.required, requireBackendPermission(['coachManagement'
       });
     }
     
-    // 2. 查询助教的钉钉用户ID
-    const coach = await get('SELECT dingtalk_user_id FROM coaches WHERE coach_no = ?', [coach_no]);
+    // 2. 查询助教的钉钉用户ID和基本信息（用于填充打卡记录）
+    const coach = await get('SELECT dingtalk_user_id, employee_id, stage_name FROM coaches WHERE coach_no = ?', [coach_no];
     if (!coach || !coach.dingtalk_user_id) {
       return res.json({
         success: true,
@@ -134,8 +134,8 @@ router.post('/query', auth.required, requireBackendPermission(['coachManagement'
         } else {
           await enqueueRun(
             `INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, dingtalk_in_time, created_at, updated_at)
-             VALUES (?, ?, '', '', ?, ?, ?)`,
-            [todayStr, coach_no, checkTimeStr, TimeUtil.nowDB(), TimeUtil.nowDB()]
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [todayStr, coach_no, coach.employee_id || '', coach.stage_name || '', checkTimeStr, TimeUtil.nowDB(), TimeUtil.nowDB()]
           );
         }
       } else if (clock_type === 'return') {
@@ -213,7 +213,7 @@ router.get('/status', auth.required, requireBackendPermission(['coachManagement'
     }
     
     // 2. 数据库没有 → 实时查询钉钉API
-    const coach = await get('SELECT dingtalk_user_id FROM coaches WHERE coach_no = ?', [coach_no]);
+    const coach = await get('SELECT dingtalk_user_id, employee_id, stage_name FROM coaches WHERE coach_no = ?', [coach_no]);
     if (!coach || !coach.dingtalk_user_id) {
       return res.json({
         success: true,
@@ -261,8 +261,8 @@ router.get('/status', auth.required, requireBackendPermission(['coachManagement'
         } else {
           await enqueueRun(
             `INSERT INTO attendance_records (date, coach_no, employee_id, stage_name, dingtalk_in_time, created_at, updated_at)
-             VALUES (?, ?, '', '', ?, ?, ?)`,
-            [todayStr, coach_no, checkTimeStr, TimeUtil.nowDB(), TimeUtil.nowDB()]
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [todayStr, coach_no, coach.employee_id || '', coach.stage_name || '', checkTimeStr, TimeUtil.nowDB(), TimeUtil.nowDB()]
           );
         }
       } else if (clock_type === 'return') {
