@@ -373,24 +373,102 @@ router.get('/my-stats', auth.required, async (req, res) => {
     // 获取日期范围
     const dateRange = getDateRange(period);
 
-    // 获取商品列表
-    const teaProductNames = await getTeaProductNames();
-    const fruitProductNames = await getSingleFruitProductNames();
-
-    // 查询订单
-    const teaOrders = await getTeaOrders(coachNo, dateRange.dateStart, dateRange.dateEnd, teaProductNames);
-    const platterOrders = await getFruitPlatterOrders(coachNo, dateRange.dateStart, dateRange.dateEnd);
-    const singleFruitOrders = await getSingleFruitOrders(coachNo, dateRange.dateStart, dateRange.dateEnd, fruitProductNames);
-
-    // 计算进度
-    const teaProgress = calculateTeaProgress(teaOrders);
-    const fruitProgress = calculateFruitProgress(platterOrders, singleFruitOrders);
-
-    // 获取助教信息
+    // ========== 性能优化：合并查询 ==========
+    // 1. 查询助教信息（包含 phone）
     const coach = await db.get(
-      'SELECT employee_id, stage_name FROM coaches WHERE coach_no = ?',
+      'SELECT coach_no, employee_id, stage_name, phone FROM coaches WHERE coach_no = ?',
       [coachNo]
     );
+    
+    if (!coach) {
+      return res.status(404).json({ success: false, error: '助教不存在' });
+    }
+    
+    if (!coach.phone) {
+      // 没有电话号码，返回空统计
+      return res.json({
+        success: true,
+        data: {
+          period,
+          period_label: dateRange.label,
+          date_range: `${dateRange.dateStart} ~ ${dateRange.dateEnd}`,
+          coach: { employee_id: coach.employee_id, stage_name: coach.stage_name },
+          tea: { target: TEA_TARGET, completed: 0, percent: '0%', status: 'incomplete', orders: [] },
+          fruit: { target: FRUIT_TARGET, completed: 0, totalEquivalent: 0, percent: '0%', status: 'incomplete', orders: [] }
+        }
+      });
+    }
+
+    // 2. 单次查询所有订单（只用 phone 匹配）
+    const orders = await db.all(`
+      SELECT 
+        o.order_no,
+        o.created_at,
+        JSON_EXTRACT(item.value, '$.name') as product_name,
+        JSON_EXTRACT(item.value, '$.quantity') as quantity
+      FROM orders o, json_each(o.items) as item
+      WHERE o.created_at >= ? AND o.created_at <= ?
+        AND o.status = '已完成'
+        AND o.member_phone = ?
+    `, [dateRange.dateStart, dateRange.dateEnd, coach.phone]);
+
+    // 3. 在内存中分类统计
+    let teaCount = 0;
+    let platterCount = 0;
+    let singleFruitCount = 0;
+    const teaOrders = [];
+    const platterOrders = [];
+    const singleFruitOrders = [];
+
+    for (const order of orders) {
+      const productName = order.product_name;
+      const quantity = Number(order.quantity) || 0;
+      
+      // 判断商品类型
+      if (productName.includes('果盘')) {
+        // 果盘商品
+        platterCount += quantity;
+        platterOrders.push({
+          order_no: order.order_no,
+          product_name: productName,
+          quantity,
+          is_platter: true,
+          created_at: order.created_at
+        });
+      } else if (productName === '单份水果') {
+        // 单份水果
+        singleFruitCount += quantity;
+        singleFruitOrders.push({
+          order_no: order.order_no,
+          product_name: productName,
+          quantity,
+          is_platter: false,
+          fruit_equivalent: quantity / 3,
+          created_at: order.created_at
+        });
+      } else {
+        // 奶茶商品（默认其他都是奶茶）
+        teaCount += quantity;
+        teaOrders.push({
+          order_no: order.order_no,
+          product_name: productName,
+          quantity,
+          created_at: order.created_at
+        });
+      }
+    }
+
+    // 4. 计算进度
+    const teaTarget = TEA_TARGET;
+    const teaCompleted = teaCount;
+    const teaPercent = Math.min(100, Math.round(teaCompleted / teaTarget * 100));
+    const teaStatus = teaCompleted >= teaTarget ? 'complete' : 'incomplete';
+
+    const fruitTarget = FRUIT_TARGET;
+    const fruitTotalEquivalent = platterCount + singleFruitCount / 3;
+    const fruitCompleted = Math.floor(fruitTotalEquivalent);
+    const fruitPercent = Math.min(100, Math.round(fruitCompleted / fruitTarget * 100));
+    const fruitStatus = fruitCompleted >= fruitTarget ? 'complete' : 'incomplete';
 
     res.json({
       success: true,
@@ -399,44 +477,23 @@ router.get('/my-stats', auth.required, async (req, res) => {
         period_label: dateRange.label,
         date_range: `${dateRange.dateStart} ~ ${dateRange.dateEnd}`,
         coach: {
-          employee_id: coach?.employee_id || '',
-          stage_name: coach?.stage_name || ''
+          employee_id: coach.employee_id || '',
+          stage_name: coach.stage_name || ''
         },
         tea: {
-          target: teaProgress.target,
-          completed: teaProgress.completed,
-          percent: teaProgress.percent,
-          status: teaProgress.status,
-          orders: teaOrders.map(o => ({
-            order_no: o.order_no,
-            product_name: o.product_name,
-            quantity: o.quantity,
-            created_at: o.created_at
-          }))
+          target: teaTarget,
+          completed: teaCompleted,
+          percent: `${teaPercent}%`,
+          status: teaStatus,
+          orders: teaOrders.sort((a, b) => b.created_at.localeCompare(a.created_at))
         },
         fruit: {
-          target: fruitProgress.target,
-          completed: fruitProgress.completed,
-          totalEquivalent: Number(fruitProgress.totalEquivalent.toFixed(2)),
-          percent: fruitProgress.percent,
-          status: fruitProgress.status,
-          orders: [
-            ...platterOrders.map(o => ({
-              order_no: o.order_no,
-              product_name: o.product_name,
-              quantity: o.quantity,
-              is_platter: true,
-              created_at: o.created_at
-            })),
-            ...singleFruitOrders.map(o => ({
-              order_no: o.order_no,
-              product_name: o.product_name,
-              quantity: o.quantity,
-              is_platter: false,
-              fruit_equivalent: Number(o.fruit_equivalent.toFixed(2)),
-              created_at: o.created_at
-            }))
-          ]
+          target: fruitTarget,
+          completed: fruitCompleted,
+          totalEquivalent: Number(fruitTotalEquivalent.toFixed(2)),
+          percent: `${fruitPercent}%`,
+          status: fruitStatus,
+          orders: [...platterOrders, ...singleFruitOrders].sort((a, b) => b.created_at.localeCompare(a.created_at))
         }
       }
     });
