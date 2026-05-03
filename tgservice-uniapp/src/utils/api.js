@@ -499,6 +499,13 @@ export default {
   // 导出设备指纹函数
   getDeviceFingerprint,
 
+  // =============== 奶茶果盘任务（助教个人） ===============
+  getTeaFruitMyStats: (period) => request({ url: '/tea-fruit/my-stats', data: { period } }), // 助教个人统计
+  
+  // =============== 奶茶果盘管理（后台） ===============
+  getTeaFruitAdminStats: (period) => request({ url: '/tea-fruit/admin-stats', data: { period }, authType: 'admin' }), // 管理员统计
+  getTeaFruitCoachDetail: (params) => request({ url: '/tea-fruit/coach-detail', data: params, authType: 'admin' }), // 助教明细
+
   // =============== 奖罚管理 ===============
   getRewardPenaltyTypes: () => request({ url: "/reward-penalty/types" }),
   updateRewardPenaltyTypes: (data) => request({ url: "/admin/reward-penalty/types", method: "PUT", data, authType: "admin" }),

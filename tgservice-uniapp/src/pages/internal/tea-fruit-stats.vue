@@ -147,6 +147,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
+import api from '@/utils/api.js'
 
 const statusBarHeight = ref(0)
 const loading = ref(false)
@@ -232,18 +233,12 @@ const loadData = async () => {
   dateRange.value = ''
 
   try {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tg.tiangong.club/api'
-    const res = await fetch(baseUrl + '/tea-fruit/my-stats?period=' + currentPeriod.value, {
-      headers: {
-        'Authorization': 'Bearer ' + uni.getStorageSync('coachToken')
-      }
-    })
-    const data = await res.json()
-    if (data.success && data.data) {
-      statsData.value = data.data
-      dateRange.value = data.data.date_range
+    const res = await api.getTeaFruitMyStats(currentPeriod.value)
+    if (res.success && res.data) {
+      statsData.value = res.data
+      dateRange.value = res.data.date_range
     } else {
-      uni.showToast({ title: data.error || '加载失败', icon: 'none' })
+      uni.showToast({ title: res.error || '加载失败', icon: 'none' })
     }
   } catch (e) {
     console.error('加载奶茶果盘统计失败:', e)
