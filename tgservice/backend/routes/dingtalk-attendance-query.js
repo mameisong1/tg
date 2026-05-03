@@ -81,7 +81,7 @@ router.post('/query', auth.required, requireBackendPermission(['coachManagement'
     }
     
     // 2. 查询助教的钉钉用户ID和基本信息（用于填充打卡记录）
-    const coach = await get('SELECT dingtalk_user_id, employee_id, stage_name FROM coaches WHERE coach_no = ?', [coach_no];
+    const coach = await get('SELECT dingtalk_user_id, employee_id, stage_name FROM coaches WHERE coach_no = ?', [coach_no]);
     if (!coach || !coach.dingtalk_user_id) {
       return res.json({
         success: true,
