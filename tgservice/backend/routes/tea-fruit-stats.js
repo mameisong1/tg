@@ -69,13 +69,14 @@ async function getTeaProductNames() {
 
 /**
  * 获取单份水果商品名称列表（不含果盘）
+ * 注意：商品表中没有单独的'水果'类别，单份水果商品名为'单份水果'
  * @returns {Promise<string[]>}
  */
 async function getSingleFruitProductNames() {
+  // 根据实际商品表，单份水果名为'单份水果'，归类在'其他'类别
   const products = await db.all(
     `SELECT name FROM products 
-     WHERE category = '水果' 
-       AND name NOT LIKE '%果盘%' 
+     WHERE name = '单份水果' 
        AND status = '上架'`
   );
   return products.map(p => p.name);
