@@ -447,8 +447,11 @@ router.get('/my-stats', auth.required, async (req, res) => {
 
 /**
  * GET /api/tea-fruit/admin-stats
- * 管理员统计（助教列表）
+ * 管理员统计（助教列表）- 性能优化版本
  * 权限：requireBackendPermission(['teaFruitStats'])
+ * 
+ * 性能优化：使用单次 SQL 查询所有助教统计，避免 N+1 问题
+ * 只返回统计数据，不返回订单明细（明细通过 coach-detail 接口查询）
  */
 router.get('/admin-stats', auth.required, requireBackendPermission(['teaFruitStats']), async (req, res) => {
   try {
@@ -459,49 +462,172 @@ router.get('/admin-stats', auth.required, requireBackendPermission(['teaFruitSta
 
     const dateRange = getDateRange(period);
 
-    // 获取商品列表
-    const teaProductNames = await getTeaProductNames();
-    const fruitProductNames = await getSingleFruitProductNames();
+    // ========== 性能优化：单次查询所有助教及其关联信息 ==========
+    // 1. 获取所有助教及其关联的 device_fingerprint
+    const coaches = await db.all(`
+      SELECT 
+        c.coach_no, c.employee_id, c.stage_name, c.phone,
+        m.device_fingerprint
+      FROM coaches c
+      LEFT JOIN members m ON c.phone = m.phone
+      WHERE c.status != '离职'
+        ${coach_no ? 'AND c.coach_no = ?' : ''}
+      ORDER BY c.employee_id
+    `, coach_no ? [coach_no] : []);
 
-    // 获取助教列表（排除离职）
-    let coaches;
-    if (coach_no) {
-      coaches = await db.all(
-        'SELECT coach_no, employee_id, stage_name, phone FROM coaches WHERE coach_no = ? AND status != ?',
-        [coach_no, '离职']
-      );
-    } else {
-      coaches = await db.all(
-        'SELECT coach_no, employee_id, stage_name, phone FROM coaches WHERE status != ? ORDER BY employee_id',
-        ['离职']
-      );
-    }
-
-    // 为每个助教计算统计
-    const coachStats = [];
-    for (const coach of coaches) {
-      const teaOrders = await getTeaOrders(coach.coach_no, dateRange.dateStart, dateRange.dateEnd, teaProductNames);
-      const platterOrders = await getFruitPlatterOrders(coach.coach_no, dateRange.dateStart, dateRange.dateEnd);
-      const singleFruitOrders = await getSingleFruitOrders(coach.coach_no, dateRange.dateStart, dateRange.dateEnd, fruitProductNames);
-
-      const teaProgress = calculateTeaProgress(teaOrders);
-      const fruitProgress = calculateFruitProgress(platterOrders, singleFruitOrders);
-
-      coachStats.push({
-        coach_no: coach.coach_no,
-        employee_id: coach.employee_id,
-        stage_name: coach.stage_name,
-        tea_target: teaProgress.target,
-        tea_completed: teaProgress.completed,
-        tea_status: teaProgress.status,
-        fruit_target: fruitProgress.target,
-        fruit_completed: fruitProgress.completed,
-        fruit_totalEquivalent: Number(fruitProgress.totalEquivalent.toFixed(2)),
-        fruit_status: fruitProgress.status
+    if (coaches.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          period,
+          period_label: dateRange.label,
+          date_range: `${dateRange.dateStart} ~ ${dateRange.dateEnd}`,
+          coaches: [],
+          summary: { total_coaches: 0, tea_complete: 0, fruit_complete: 0, both_complete: 0 }
+        }
       });
     }
 
-    // 汇总统计
+    // 2. 构建助教标识映射（用于订单匹配）
+    const coachIdentifiers = coaches.map(c => {
+      const identifiers = [];
+      if (c.device_fingerprint) identifiers.push(`device_fingerprint = '${c.device_fingerprint}'`);
+      if (c.phone) identifiers.push(`member_phone = '${c.phone}'`);
+      return {
+        coach_no: c.coach_no,
+        employee_id: c.employee_id,
+        stage_name: c.stage_name,
+        matchCondition: identifiers.length > 0 ? `(${identifiers.join(' OR ')})` : null
+      };
+    }).filter(c => c.matchCondition); // 只保留有匹配条件的助教
+
+    // 3. 获取商品列表（奶茶和单份水果）
+    const teaProducts = await db.all(
+      "SELECT name FROM products WHERE category = '奶茶店' AND status = '上架'"
+    );
+    const teaProductNames = teaProducts.map(p => p.name);
+    
+    const fruitProducts = await db.all(
+      "SELECT name FROM products WHERE category = '水果' AND name NOT LIKE '%果盘%' AND status = '上架'"
+    );
+    const fruitProductNames = fruitProducts.map(p => p.name);
+
+    // ========== 单次查询所有订单并按助教分组 ==========
+    // 构建所有助教的匹配条件
+    const allMatchConditions = coachIdentifiers.map(c => c.matchCondition).join(' OR ');
+    
+    if (!allMatchConditions) {
+      // 所有助教都没有匹配条件，返回空统计
+      const emptyStats = coaches.map(c => ({
+        coach_no: c.coach_no,
+        employee_id: c.employee_id,
+        stage_name: c.stage_name,
+        tea_target: TEA_TARGET,
+        tea_completed: 0,
+        tea_status: 'incomplete',
+        fruit_target: FRUIT_TARGET,
+        fruit_completed: 0,
+        fruit_totalEquivalent: 0,
+        fruit_status: 'incomplete'
+      }));
+      
+      return res.json({
+        success: true,
+        data: {
+          period,
+          period_label: dateRange.label,
+          date_range: `${dateRange.dateStart} ~ ${dateRange.dateEnd}`,
+          coaches: emptyStats,
+          summary: {
+            total_coaches: emptyStats.length,
+            tea_complete: 0,
+            fruit_complete: 0,
+            both_complete: 0
+          }
+        }
+      });
+    }
+
+    // 4. 单次查询所有订单（带商品名和数量）
+    const orders = await db.all(`
+      SELECT 
+        o.device_fingerprint,
+        o.member_phone,
+        JSON_EXTRACT(item.value, '$.name') as product_name,
+        JSON_EXTRACT(item.value, '$.quantity') as quantity
+      FROM orders o, json_each(o.items) as item
+      WHERE o.created_at >= ? AND o.created_at <= ?
+        AND o.status = '已完成'
+        AND (${allMatchConditions})
+    `, [dateRange.dateStart, dateRange.dateEnd]);
+
+    // ========== 按助教分组统计 ==========
+    const coachStatsMap = new Map();
+    
+    // 初始化所有助教的统计
+    for (const ci of coachIdentifiers) {
+      coachStatsMap.set(ci.coach_no, {
+        coach_no: ci.coach_no,
+        employee_id: ci.employee_id,
+        stage_name: ci.stage_name,
+        tea_count: 0,
+        platter_count: 0,
+        single_fruit_count: 0
+      });
+    }
+
+    // 遍历订单，归属到对应助教
+    for (const order of orders) {
+      const productName = order.product_name;
+      const quantity = Number(order.quantity) || 0;
+      
+      // 找到订单归属的助教
+      for (const ci of coachIdentifiers) {
+        const isMatch = 
+          (ci.matchCondition.includes(order.device_fingerprint) && order.device_fingerprint) ||
+          (ci.matchCondition.includes(order.member_phone) && order.member_phone);
+        
+        if (isMatch) {
+          const stats = coachStatsMap.get(ci.coach_no);
+          if (!stats) continue;
+          
+          // 分类统计
+          if (teaProductNames.includes(productName)) {
+            stats.tea_count += quantity;
+          } else if (productName.includes('果盘')) {
+            stats.platter_count += quantity;
+          } else if (fruitProductNames.includes(productName)) {
+            stats.single_fruit_count += quantity;
+          }
+          break; // 找到归属助教后跳出循环
+        }
+      }
+    }
+
+    // ========== 计算最终统计结果 ==========
+    const coachStats = Array.from(coachStatsMap.values()).map(stats => {
+      const teaCompleted = stats.tea_count;
+      const teaStatus = teaCompleted >= TEA_TARGET ? 'complete' : 'incomplete';
+      
+      const fruitTotalEquivalent = stats.platter_count + stats.single_fruit_count / 3;
+      const fruitCompleted = Math.floor(fruitTotalEquivalent);
+      const fruitStatus = fruitCompleted >= FRUIT_TARGET ? 'complete' : 'incomplete';
+
+      return {
+        coach_no: stats.coach_no,
+        employee_id: stats.employee_id,
+        stage_name: stats.stage_name,
+        tea_target: TEA_TARGET,
+        tea_completed: teaCompleted,
+        tea_status: teaStatus,
+        fruit_target: FRUIT_TARGET,
+        fruit_completed: fruitCompleted,
+        fruit_totalEquivalent: Number(fruitTotalEquivalent.toFixed(2)),
+        fruit_status: fruitStatus
+      };
+    });
+
+    // ========== 汇总统计 ==========
     const teaCompleteCount = coachStats.filter(c => c.tea_status === 'complete').length;
     const fruitCompleteCount = coachStats.filter(c => c.fruit_status === 'complete').length;
     const bothCompleteCount = coachStats.filter(c => c.tea_status === 'complete' && c.fruit_status === 'complete').length;
