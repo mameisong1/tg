@@ -28,17 +28,33 @@
       </view>
     </view>
 
+    <!-- 筛选按钮 -->
+    <view class="filter-section">
+      <view class="filter-tabs">
+        <view
+          v-for="filter in filterOptions"
+          :key="filter.value"
+          class="filter-tab"
+          :class="{ active: currentFilter === filter.value }"
+          @click="switchFilter(filter.value)"
+        >
+          <text class="filter-tab-text">{{ filter.label }}</text>
+        </view>
+      </view>
+    </view>
+
     <!-- 统计周期显示 -->
     <view class="date-range-section">
       <text class="date-range-label">统计周期：</text>
       <text class="date-range-value">{{ dateRange || '-' }}</text>
+      <text class="filter-count">（显示 {{ filteredStats.length }}/{{ coachStats.length }} 人）</text>
     </view>
 
     <!-- 汇总统计 -->
     <view v-if="summary" class="summary-section">
       <text class="summary-text">
         奶茶达标 {{ summary.tea_complete }}/{{ summary.total_coaches }} 人，
-        果盘达标 {{ summary.fruit_complete }}/{{ summary.total_coaches }} 人，
+        果盘达标 {{ summary.fruit_complete }}/{{ summary.total_coaches }} 人,
         双达标 {{ summary.both_complete }} 人
       </text>
     </view>
@@ -49,10 +65,10 @@
     </view>
 
     <!-- 数据内容 -->
-    <view v-else-if="coachStats.length > 0" class="stats-content">
+    <view v-else-if="filteredStats.length > 0" class="stats-content">
       <view class="coach-list">
         <view
-          v-for="coach in coachStats"
+          v-for="coach in filteredStats"
           :key="coach.coach_no"
           class="coach-card"
           @click="viewDetail(coach)"
@@ -110,6 +126,7 @@ import { onShow } from '@dcloudio/uni-app'
 const statusBarHeight = ref(0)
 const loading = ref(false)
 const currentPeriod = ref('this-month')
+const currentFilter = ref('all')
 const coachStats = ref([])
 const summary = ref(null)
 const dateRange = ref('')
@@ -119,11 +136,52 @@ const periodTabs = [
   { label: '上月', value: 'last-month' }
 ]
 
+const filterOptions = [
+  { label: '全部', value: 'all' },
+  { label: '双达标', value: 'both' },
+  { label: '奶茶达标', value: 'tea' },
+  { label: '果盘达标', value: 'fruit' },
+  { label: '奶茶未达标', value: 'tea-incomplete' },
+  { label: '果盘未达标', value: 'fruit-incomplete' }
+]
+
+// 筛选后的数据（按工号升序)
+const filteredStats = computed(() => {
+  let result = coachStats.value
+  
+  // 根据筛选条件过滤
+  if (currentFilter.value === 'both') {
+    result = result.filter(c => c.tea_status === 'complete' && c.fruit_status === 'complete')
+  } else if (currentFilter.value === 'tea') {
+    result = result.filter(c => c.tea_status === 'complete')
+  } else if (currentFilter.value === 'fruit') {
+    result = result.filter(c => c.fruit_status === 'complete')
+  } else if (currentFilter.value === 'tea-incomplete') {
+    result = result.filter(c => c.tea_status !== 'complete')
+  } else if (currentFilter.value === 'fruit-incomplete') {
+    result = result.filter(c => c.fruit_status !== 'complete')
+  }
+
+  // 按工号升序（字符串转数字)
+  result.sort((a, b) => {
+    const empIdA = parseInt(a.employee_id) || 9999
+    const empIdB = parseInt(b.employee_id) || 9999
+    return empIdA - empIdB
+  })
+
+  return result
+})
+
 // 切换时间周期
 const switchPeriod = (period) => {
   if (period === currentPeriod.value) return
   currentPeriod.value = period
   loadData()
+}
+
+// 切换筛选
+const switchFilter = (filter) => {
+  currentFilter.value = filter
 }
 
 // 加载数据
@@ -262,6 +320,42 @@ onShow(() => {
   font-weight: 600;
 }
 
+/* 筛选按钮 */
+.filter-section {
+  padding: 8px 16px 12px;
+}
+.filter-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  background: rgba(20, 20, 30, 0.4);
+  border-radius: 10px;
+  padding: 8px;
+  border: 1px solid rgba(218, 165, 32, 0.1);
+}
+.filter-tab {
+  height: 32px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+  background: rgba(30, 35, 50, 0.3);
+}
+.filter-tab.active {
+  background: linear-gradient(135deg, #d4af37, #ffd700);
+}
+.filter-tab-text {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+}
+.filter-tab.active .filter-tab-text {
+  color: #000;
+  font-weight: 600;
+}
+
 /* 统计周期显示 */
 .date-range-section {
   padding: 8px 16px 12px;
@@ -277,6 +371,10 @@ onShow(() => {
   font-size: 13px;
   color: #d4af37;
   font-weight: 500;
+}
+.filter-count {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.4);
 }
 
 /* 汇总统计 */
