@@ -1036,7 +1036,7 @@ const checkAutoLogin = async () => {
       if (!preferredRole || preferredRole === 'coach') {
         // 保存教练身份
         if (profile.coachInfo) {
-          uni.setStorageSync('coachInfo', profile.coachInfo)
+          uni.setStorageSync('coachInfo', JSON.stringify(profile.coachInfo))
           coachInfo.value = profile.coachInfo
           // QA-20260430: 当 coachInfo 有 phone 时，重新生成带 phone 的 coachToken
           // 旧 token 格式: btoa(coachNo:timestamp)，新格式: btoa(coachNo:phone:timestamp)
@@ -1144,7 +1144,7 @@ const saveLoginData = (data) => {
   }
   
   if (data.coachInfo) {
-    uni.setStorageSync('coachInfo', data.coachInfo)
+    uni.setStorageSync('coachInfo', JSON.stringify(data.coachInfo))
     coachInfo.value = data.coachInfo
     // QA-20260430: 新 token 格式 coachNo:phone:timestamp
     const phone = data.coachInfo.phone || ''
@@ -1189,7 +1189,7 @@ const selectRole = async (role) => {
       const phone = tempLoginData.value.coachInfo.phone || ''
       const coachToken = btoa(`${tempLoginData.value.coachInfo.coachNo}:${phone}:${Date.now()}`)
       uni.setStorageSync('coachToken', coachToken)
-      uni.setStorageSync('coachInfo', tempLoginData.value.coachInfo)
+      uni.setStorageSync('coachInfo', JSON.stringify(tempLoginData.value.coachInfo))
       coachInfo.value = tempLoginData.value.coachInfo
       console.log('助教选择后台身份: 已生成coachToken')
     }
@@ -1198,7 +1198,7 @@ const selectRole = async (role) => {
       const phone = tempLoginData.value.coachInfo.phone || ''
       const coachToken = btoa(`${tempLoginData.value.coachInfo.coachNo}:${phone}:${Date.now()}`)
       uni.setStorageSync('coachToken', coachToken)
-      uni.setStorageSync('coachInfo', tempLoginData.value.coachInfo)
+      uni.setStorageSync('coachInfo', JSON.stringify(tempLoginData.value.coachInfo))
       coachInfo.value = tempLoginData.value.coachInfo
     }
   }

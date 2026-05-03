@@ -242,10 +242,19 @@ const isCoachRole = computed(() => {
 })
 
 const coachStageName = computed(() => {
+  // QA-20260503: 获取助教艺名，增加调试和容错
+  if (!coachInfoStr.value) {
+    console.log('[cart] coachInfoStr 为空')
+    return ''
+  }
   try {
     const info = JSON.parse(coachInfoStr.value)
-    return info?.stageName || ''
-  } catch {
+    console.log('[cart] 解析 coachInfo:', info)
+    const name = info?.stageName || info?.name || ''
+    console.log('[cart] 获取到的艺名:', name)
+    return name
+  } catch (e) {
+    console.log('[cart] 解析 coachInfo 失败:', e, '原始值:', coachInfoStr.value)
     return ''
   }
 })
@@ -474,6 +483,9 @@ onMounted(() => {
   coachToken.value = uni.getStorageSync('coachToken') || ''
   preferredRole.value = uni.getStorageSync('preferredRole') || ''
   coachInfoStr.value = uni.getStorageSync('coachInfo') || ''
+  console.log('[cart onMounted] coachToken:', coachToken.value ? '有值' : '空')
+  console.log('[cart onMounted] preferredRole:', preferredRole.value)
+  console.log('[cart onMounted] coachInfoStr:', coachInfoStr.value)
   // QA-20260429-1: 默认显示购物车，不加载订单数据
   loadCart()
   floatPosition.value = uni.getStorageSync('floatButtonPosition') || 'left'
