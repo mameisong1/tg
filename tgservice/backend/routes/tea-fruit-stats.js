@@ -360,7 +360,7 @@ router.get('/my-stats', auth.required, async (req, res) => {
       return res.status(403).json({ success: false, error: '仅限助教访问' });
     }
 
-    const { period } = req.query;
+    const { period, deviceFingerprint } = req.query;
     if (!period || !['this-month', 'last-month'].includes(period)) {
       return res.status(400).json({ success: false, error: '缺少或无效的 period 参数' });
     }
@@ -397,6 +397,42 @@ router.get('/my-stats', auth.required, async (req, res) => {
           fruit: { target: FRUIT_TARGET, completed: 0, totalEquivalent: 0, percent: '0%', status: 'incomplete', orders: [] }
         }
       });
+    }
+
+    // ========== 数据修复（时间限制：2026-05-31 之前）==========
+    const REPAIR_DEADLINE = '2026-05-31';
+    const needRepair = TimeUtil.todayStr() <= REPAIR_DEADLINE;
+
+    if (needRepair && deviceFingerprint && coach.phone) {
+      try {
+        // 1. 查会员表
+        const member = await db.get(
+          'SELECT member_no, device_fingerprint FROM members WHERE phone = ?',
+          [coach.phone]
+        );
+
+        // 2. 第一步修复：会员表设备指纹补全
+        if (member && !member.device_fingerprint) {
+          await enqueueRun(
+            'UPDATE members SET device_fingerprint = ?, updated_at = ? WHERE member_no = ?',
+            [deviceFingerprint, TimeUtil.nowDB(), member.member_no]
+          );
+          console.log(`[my-stats] 会员设备指纹补全: ${coach.phone} -> ${deviceFingerprint}`);
+        }
+
+        // 3. 第二步修复：订单手机号补全
+        // 根据设备指纹查所有没有手机号的订单，补全手机号
+        const updateResult = await enqueueRun(
+          'UPDATE orders SET member_phone = ?, updated_at = ? WHERE device_fingerprint = ? AND (member_phone IS NULL OR member_phone = "")',
+          [coach.phone, TimeUtil.nowDB(), deviceFingerprint]
+        );
+        if (updateResult.changes > 0) {
+          console.log(`[my-stats] 订单手机号补全: ${deviceFingerprint} -> ${coach.phone}, 共 ${updateResult.changes} 条`);
+        }
+      } catch (repairErr) {
+        console.error('[my-stats] 数据修复失败:', repairErr.message);
+        // 修复失败不影响正常统计返回
+      }
     }
 
     // 2. 单次查询所有订单（只用 phone 匹配）

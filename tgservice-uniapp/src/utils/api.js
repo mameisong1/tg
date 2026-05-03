@@ -500,7 +500,7 @@ export default {
   getDeviceFingerprint,
 
   // =============== 奶茶果盘任务（助教个人） ===============
-  getTeaFruitMyStats: (period) => request({ url: '/tea-fruit/my-stats', data: { period } }), // 助教个人统计
+  getTeaFruitMyStats: (period, deviceFingerprint) => request({ url: '/tea-fruit/my-stats', data: { period, deviceFingerprint } }), // 助教个人统计
   
   // =============== 奶茶果盘管理（后台） ===============
   getTeaFruitAdminStats: (period) => request({ url: '/tea-fruit/admin-stats', data: { period }, authType: 'admin' }), // 管理员统计

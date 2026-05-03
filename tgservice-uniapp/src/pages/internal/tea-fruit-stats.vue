@@ -147,7 +147,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import api from '@/utils/api.js'
+import api, { getDeviceFingerprint } from '@/utils/api.js'
 
 const statusBarHeight = ref(0)
 const loading = ref(false)
@@ -233,7 +233,8 @@ const loadData = async () => {
   dateRange.value = ''
 
   try {
-    const res = await api.getTeaFruitMyStats(currentPeriod.value)
+    const deviceFingerprint = getDeviceFingerprint()
+    const res = await api.getTeaFruitMyStats(currentPeriod.value, deviceFingerprint)
     if (res.success && res.data) {
       statsData.value = res.data
       dateRange.value = res.data.date_range
