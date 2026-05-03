@@ -180,7 +180,7 @@ const loadData = async () => {
   try {
     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tg.tiangong.club/api'
     const res = await fetch(
-      baseUrl + '/tea-fruit/coach-detail?coach_no=${coachNo.value}&period=${currentPeriod.value}&type=${currentType.value}',
+      `${baseUrl}/tea-fruit/coach-detail?coach_no=${coachNo.value}&period=${currentPeriod.value}&type=${currentType.value}`,
       {
         headers: {
           'Authorization': 'Bearer ' + uni.getStorageSync('adminToken')
