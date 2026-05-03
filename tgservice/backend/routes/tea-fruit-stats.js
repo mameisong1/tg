@@ -509,7 +509,7 @@ router.get('/admin-stats', auth.required, requireBackendPermission(['teaFruitSta
     const teaProductNames = teaProducts.map(p => p.name);
     
     const fruitProducts = await db.all(
-      "SELECT name FROM products WHERE category = '水果' AND name NOT LIKE '%果盘%' AND status = '上架'"
+      "SELECT name FROM products WHERE name = '单份水果' AND status = '上架'"
     );
     const fruitProductNames = fruitProducts.map(p => p.name);
 
