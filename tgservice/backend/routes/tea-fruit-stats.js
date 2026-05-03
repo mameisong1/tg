@@ -628,6 +628,32 @@ router.get('/admin-stats', auth.required, requireBackendPermission(['teaFruitSta
       };
     });
 
+    // ========== 排序逻辑 ==========
+    // 排序字段1：奶茶达标的优先，其次排果盘达标的，最后才是一个都没达标的
+    // 排序字段2：助教工号asc
+    coachStats.sort((a, b) => {
+      // 计算排序优先级
+      // 优先级1：奶茶达标（不管果盘是否达标）
+      // 优先级2：奶茶未达标但果盘达标
+      // 优先级3：都未达标
+      const getPriority = (coach) => {
+        if (coach.tea_status === 'complete') return 1;
+        if (coach.fruit_status === 'complete') return 2;
+        return 3;
+      };
+      
+      const priorityA = getPriority(a);
+      const priorityB = getPriority(b);
+      
+      // 先按优先级排序
+      if (priorityA !== priorityB) return priorityA - priorityB;
+      
+      // 同优先级内按工号升序（employee_id是字符串，需要转为数字）
+      const empIdA = parseInt(a.employee_id) || 9999;
+      const empIdB = parseInt(b.employee_id) || 9999;
+      return empIdA - empIdB;
+    });
+
     // ========== 汇总统计 ==========
     const teaCompleteCount = coachStats.filter(c => c.tea_status === 'complete').length;
     const fruitCompleteCount = coachStats.filter(c => c.fruit_status === 'complete').length;
