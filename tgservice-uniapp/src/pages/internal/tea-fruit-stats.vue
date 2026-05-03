@@ -235,7 +235,7 @@ const loadData = async () => {
     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'https://tg.tiangong.club/api'
     const res = await fetch(baseUrl + '/tea-fruit/my-stats?period=' + currentPeriod.value, {
       headers: {
-        'Authorization': 'Bearer ' + uni.getStorageSync('memberToken')
+        'Authorization': 'Bearer ' + uni.getStorageSync('coachToken')
       }
     })
     const data = await res.json()
