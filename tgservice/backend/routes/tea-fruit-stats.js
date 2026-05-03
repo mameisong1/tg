@@ -755,7 +755,8 @@ router.get('/coach-detail', auth.required, async (req, res) => {
 
     const dateRange = getDateRange(period);
 
-    // 获取助教信息
+    // ========== 性能优化：合并查询 ==========
+    // 1. 查询助教信息
     const coach = await db.get(
       'SELECT coach_no, employee_id, stage_name, phone FROM coaches WHERE coach_no = ?',
       [coach_no]
@@ -764,15 +765,9 @@ router.get('/coach-detail', auth.required, async (req, res) => {
       return res.status(404).json({ success: false, error: '助教不存在' });
     }
 
-    // 获取商品列表
-    const teaProductNames = await getTeaProductNames();
-    const fruitProductNames = await getSingleFruitProductNames();
-
-    if (type === 'tea') {
-      const teaOrders = await getTeaOrders(coach_no, dateRange.dateStart, dateRange.dateEnd, teaProductNames);
-      const teaProgress = calculateTeaProgress(teaOrders);
-
-      res.json({
+    if (!coach.phone) {
+      // 没有电话号码，返回空统计
+      const emptyResult = {
         success: true,
         data: {
           period,
@@ -783,23 +778,80 @@ router.get('/coach-detail', auth.required, async (req, res) => {
             employee_id: coach.employee_id,
             stage_name: coach.stage_name
           },
+          type,
+          target: type === 'tea' ? TEA_TARGET : FRUIT_TARGET,
+          completed: 0,
+          percent: '0%',
+          status: 'incomplete',
+          orders: []
+        }
+      };
+      if (type === 'fruit') {
+        emptyResult.data.totalEquivalent = 0;
+      }
+      return res.json(emptyResult);
+    }
+
+    // 2. 单次查询所有订单
+    const orders = await db.all(`
+      SELECT 
+        o.order_no,
+        o.created_at,
+        JSON_EXTRACT(item.value, '$.name') as product_name,
+        JSON_EXTRACT(item.value, '$.quantity') as quantity
+      FROM orders o, json_each(o.items) as item
+      WHERE o.created_at >= ? AND o.created_at <= ?
+        AND o.status = '已完成'
+        AND o.member_phone = ?
+    `, [dateRange.dateStart, dateRange.dateEnd, coach.phone]);
+
+    // 3. 在内存中分类
+    const teaOrders = []; // 奶茶订单（不包括果盘和单份水果）
+    const platterOrders = []; // 果盘订单
+    const singleFruitOrders = []; // 单份水果订单
+
+    for (const order of orders) {
+      const productName = order.product_name;
+      const quantity = Number(order.quantity) || 0;
+      
+      if (productName.includes('果盘')) {
+        platterOrders.push({ order_no: order.order_no, product_name: productName, quantity, created_at: order.created_at });
+      } else if (productName === '单份水果') {
+        singleFruitOrders.push({ order_no: order.order_no, product_name: productName, quantity, fruit_equivalent: quantity / 3, created_at: order.created_at });
+      } else {
+        teaOrders.push({ order_no: order.order_no, product_name: productName, quantity, created_at: order.created_at });
+      }
+    }
+
+    if (type === 'tea') {
+      // 奶茶明细
+      const teaCompleted = teaOrders.reduce((s, o) => s + o.quantity, 0);
+      const teaPercent = Math.min(100, Math.round(teaCompleted / TEA_TARGET * 100));
+      const teaStatus = teaCompleted >= TEA_TARGET ? 'complete' : 'incomplete';
+
+      res.json({
+        success: true,
+        data: {
+          period,
+          period_label: dateRange.label,
+          date_range: `${dateRange.dateStart} ~ ${dateRange.dateEnd}`,
+          coach: { coach_no: coach.coach_no, employee_id: coach.employee_id, stage_name: coach.stage_name },
           type: 'tea',
-          target: teaProgress.target,
-          completed: teaProgress.completed,
-          percent: teaProgress.percent,
-          status: teaProgress.status,
-          orders: teaOrders.map(o => ({
-            order_no: o.order_no,
-            product_name: o.product_name,
-            quantity: o.quantity,
-            created_at: o.created_at
-          }))
+          target: TEA_TARGET,
+          completed: teaCompleted,
+          percent: `${teaPercent}%`,
+          status: teaStatus,
+          orders: teaOrders.sort((a, b) => b.created_at.localeCompare(a.created_at))
         }
       });
     } else {
-      const platterOrders = await getFruitPlatterOrders(coach_no, dateRange.dateStart, dateRange.dateEnd);
-      const singleFruitOrders = await getSingleFruitOrders(coach_no, dateRange.dateStart, dateRange.dateEnd, fruitProductNames);
-      const fruitProgress = calculateFruitProgress(platterOrders, singleFruitOrders);
+      // 果盘明细
+      const platterCount = platterOrders.reduce((s, o) => s + o.quantity, 0);
+      const singleFruitCount = singleFruitOrders.reduce((s, o) => s + o.quantity, 0);
+      const fruitTotalEquivalent = platterCount + singleFruitCount / 3;
+      const fruitCompleted = Math.floor(fruitTotalEquivalent);
+      const fruitPercent = Math.min(100, Math.round(fruitCompleted / FRUIT_TARGET * 100));
+      const fruitStatus = fruitCompleted >= FRUIT_TARGET ? 'complete' : 'incomplete';
 
       res.json({
         success: true,
@@ -807,34 +859,17 @@ router.get('/coach-detail', auth.required, async (req, res) => {
           period,
           period_label: dateRange.label,
           date_range: `${dateRange.dateStart} ~ ${dateRange.dateEnd}`,
-          coach: {
-            coach_no: coach.coach_no,
-            employee_id: coach.employee_id,
-            stage_name: coach.stage_name
-          },
+          coach: { coach_no: coach.coach_no, employee_id: coach.employee_id, stage_name: coach.stage_name },
           type: 'fruit',
-          target: fruitProgress.target,
-          completed: fruitProgress.completed,
-          totalEquivalent: Number(fruitProgress.totalEquivalent.toFixed(2)),
-          percent: fruitProgress.percent,
-          status: fruitProgress.status,
+          target: FRUIT_TARGET,
+          completed: fruitCompleted,
+          totalEquivalent: Number(fruitTotalEquivalent.toFixed(2)),
+          percent: `${fruitPercent}%`,
+          status: fruitStatus,
           orders: [
-            ...platterOrders.map(o => ({
-              order_no: o.order_no,
-              product_name: o.product_name,
-              quantity: o.quantity,
-              is_platter: true,
-              created_at: o.created_at
-            })),
-            ...singleFruitOrders.map(o => ({
-              order_no: o.order_no,
-              product_name: o.product_name,
-              quantity: o.quantity,
-              is_platter: false,
-              fruit_equivalent: Number(o.fruit_equivalent.toFixed(2)),
-              created_at: o.created_at
-            }))
-          ]
+            ...platterOrders.map(o => ({ order_no: o.order_no, product_name: o.product_name, quantity: o.quantity, is_platter: true, created_at: o.created_at })),
+            ...singleFruitOrders.map(o => ({ order_no: o.order_no, product_name: o.product_name, quantity: o.quantity, is_platter: false, fruit_equivalent: Number(o.fruit_equivalent.toFixed(2)), created_at: o.created_at }))
+          ].sort((a, b) => b.created_at.localeCompare(a.created_at))
         }
       });
     }
