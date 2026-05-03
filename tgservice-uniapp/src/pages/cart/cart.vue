@@ -82,6 +82,10 @@
 
     <!-- QA-20260429-1: 购物车底部栏（仅在购物车标签时显示） -->
     <view class="bottom-bar" v-if="activeTab === 'cart' && cartItems.length > 0">
+      <!-- QA-20260503: 助教艺名显示（仅助教身份登录时显示） -->
+      <view v-if="isCoachRole" class="coach-name-tag">
+        <text>{{ coachStageName }}</text>
+      </view>
       <view class="total-info">
         <text class="total-label">合计</text>
         <text class="total-price">¥{{ totalPrice.toFixed(2) }}</text>
@@ -224,6 +228,26 @@ const getProductImageUrl = (url) => {
 // 员工识别：有 adminToken 或 coachToken 即为员工
 const isEmployee = computed(() => {
   return !!(uni.getStorageSync('adminToken') || uni.getStorageSync('coachToken'))
+})
+
+// QA-20260503: 助教身份识别（响应式存储）
+const coachToken = ref(uni.getStorageSync('coachToken') || '')
+const preferredRole = ref(uni.getStorageSync('preferredRole') || '')
+const coachInfoStr = ref(uni.getStorageSync('coachInfo') || '')
+
+const isCoachRole = computed(() => {
+  // 有 coachToken 且选择了助教身份（preferredRole === 'coach'）
+  // 如果 preferredRole 为空但有 coachToken，也视为助教身份（纯助教无后台身份的情况）
+  return !!coachToken.value && (preferredRole.value === 'coach' || !preferredRole.value)
+})
+
+const coachStageName = computed(() => {
+  try {
+    const info = JSON.parse(coachInfoStr.value)
+    return info?.stageName || ''
+  } catch {
+    return ''
+  }
 })
 
 // 台桌选择器
@@ -446,6 +470,10 @@ const goBack = () => {
 
 onMounted(() => { 
   sessionId.value = uni.getStorageSync('sessionId') || ''
+  // QA-20260503: 读取助教登录状态
+  coachToken.value = uni.getStorageSync('coachToken') || ''
+  preferredRole.value = uni.getStorageSync('preferredRole') || ''
+  coachInfoStr.value = uni.getStorageSync('coachInfo') || ''
   // QA-20260429-1: 默认显示购物车，不加载订单数据
   loadCart()
   floatPosition.value = uni.getStorageSync('floatButtonPosition') || 'left'
@@ -453,6 +481,11 @@ onMounted(() => {
 
 // 每次显示页面时重新读取台桌信息
 onShow(() => {
+  // QA-20260503: 重新读取助教登录状态（可能在其他页面登录了）
+  coachToken.value = uni.getStorageSync('coachToken') || ''
+  preferredRole.value = uni.getStorageSync('preferredRole') || ''
+  coachInfoStr.value = uni.getStorageSync('coachInfo') || ''
+  
   // 【新增】员工进入时清空旧台桌号
   // 不再清空tableName（商品页已清空，购物车保留选择）
   
@@ -665,6 +698,9 @@ onShow(() => {
 .total-label { font-size: 12px; color: rgba(255,255,255,0.5); }
 .total-price { font-size: 22px; color: #d4af37; font-weight: 600; margin-left: 8px; }
 .submit-btn { padding: 14px 40px; background: linear-gradient(135deg, #d4af37, #ffd700); border-radius: 25px; color: #000; font-weight: 600; }
+
+/* QA-20260503: 助教艺名标签 */
+.coach-name-tag { padding: 6px 12px; background: rgba(212, 175, 55, 0.15); border: 1px solid rgba(212, 175, 55, 0.4); border-radius: 16px; font-size: 13px; color: #d4af37; margin-right: 12px; }
 
 /* #ifdef H5 */
 /* 悬浮返回按钮 */
