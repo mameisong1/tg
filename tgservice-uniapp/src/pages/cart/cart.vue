@@ -234,30 +234,20 @@ const isEmployee = computed(() => {
 // QA-20260503: 助教身份识别（响应式存储）
 const coachToken = ref(uni.getStorageSync('coachToken') || '')
 const preferredRole = ref(uni.getStorageSync('preferredRole') || '')
-const coachInfoStr = ref(uni.getStorageSync('coachInfo') || '')
+// 🔴 2026-05-04: coachInfo 存储时 UniApp 自动 stringify，读取时自动 parse，返回对象
+const coachInfoObj = ref(uni.getStorageSync('coachInfo') || null)
 
 // QA-20260504: 上报助教艺名调试日志
 const reportCoachDebugLog = () => {
-  const coachInfoRaw = uni.getStorageSync('coachInfo') || ''
-  let coachInfoParsed = null
-  let parseError = null
-  try {
-    coachInfoParsed = coachInfoRaw ? JSON.parse(coachInfoRaw) : null
-  } catch (e) {
-    parseError = e.message
-  }
+  const coachInfoObjRaw = uni.getStorageSync('coachInfo')
   
   errorReporter.track('cart_coach_debug', {
     coachToken: coachToken.value ? '有值' : '空',
     coachTokenLength: coachToken.value ? coachToken.value.length : 0,
     preferredRole: preferredRole.value || '空',
-    coachInfoRaw: coachInfoRaw ? (coachInfoRaw.length > 200 ? coachInfoRaw.substring(0, 200) + '...' : coachInfoRaw) : '空',
-    coachInfoRawLength: coachInfoRaw ? coachInfoRaw.length : 0,
-    coachInfoParsed: coachInfoParsed ? JSON.stringify(coachInfoParsed) : 'null',
-    parseError: parseError || '无',
-    stageName: coachInfoParsed?.stageName || '未找到',
-    name: coachInfoParsed?.name || '未找到',
-    coachNo: coachInfoParsed?.coachNo || '未找到',
+    coachInfoObj: coachInfoObjRaw ? JSON.stringify(coachInfoObjRaw) : 'null',
+    stageName: coachInfoObjRaw?.stageName || '未找到',
+    coachNo: coachInfoObjRaw?.coachNo || '未找到',
     computed_isCoachRole: isCoachRole.value,
     computed_coachStageName: coachStageName.value || '空'
   })
@@ -270,21 +260,14 @@ const isCoachRole = computed(() => {
 })
 
 const coachStageName = computed(() => {
-  // QA-20260503: 获取助教艺名，增加调试和容错
-  if (!coachInfoStr.value) {
-    console.log('[cart] coachInfoStr 为空')
+  // 🔴 2026-05-04: coachInfoObj 已经是解析后的对象，不需要再 JSON.parse
+  if (!coachInfoObj.value) {
+    console.log('[cart] coachInfoObj 为空')
     return ''
   }
-  try {
-    const info = JSON.parse(coachInfoStr.value)
-    console.log('[cart] 解析 coachInfo:', info)
-    const name = info?.stageName || info?.name || ''
-    console.log('[cart] 获取到的艺名:', name)
-    return name
-  } catch (e) {
-    console.log('[cart] 解析 coachInfo 失败:', e, '原始值:', coachInfoStr.value)
-    return ''
-  }
+  const name = coachInfoObj.value?.stageName || coachInfoObj.value?.name || ''
+  console.log('[cart] 获取到的艺名:', name)
+  return name
 })
 
 // 台桌选择器
@@ -510,10 +493,10 @@ onMounted(() => {
   // QA-20260503: 读取助教登录状态
   coachToken.value = uni.getStorageSync('coachToken') || ''
   preferredRole.value = uni.getStorageSync('preferredRole') || ''
-  coachInfoStr.value = uni.getStorageSync('coachInfo') || ''
+  coachInfoObj.value = uni.getStorageSync('coachInfo') || null
   console.log('[cart onMounted] coachToken:', coachToken.value ? '有值' : '空')
   console.log('[cart onMounted] preferredRole:', preferredRole.value)
-  console.log('[cart onMounted] coachInfoStr:', coachInfoStr.value)
+  console.log('[cart onMounted] coachInfoObj:', coachInfoObj.value)
   // QA-20260504: 上报调试日志
   reportCoachDebugLog()
   // QA-20260429-1: 默认显示购物车，不加载订单数据
@@ -526,7 +509,7 @@ onShow(() => {
   // QA-20260503: 重新读取助教登录状态（可能在其他页面登录了）
   coachToken.value = uni.getStorageSync('coachToken') || ''
   preferredRole.value = uni.getStorageSync('preferredRole') || ''
-  coachInfoStr.value = uni.getStorageSync('coachInfo') || ''
+  coachInfoObj.value = uni.getStorageSync('coachInfo') || null
   
   // QA-20260504: 上报调试日志
   reportCoachDebugLog()
