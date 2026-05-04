@@ -2,7 +2,7 @@
   <view class="modal-overlay" v-if="visible" @click="handleOverlayClick">
     <view class="modal-container" @click.stop>
       <!-- Logo区域 -->
-      <view class="modal-header">
+      <view class="modal-header" v-if="!hideHeader">
         <image class="modal-logo" src="/static/logo.png" mode="aspectFit"></image>
         <text class="modal-brand">天宫国际</text>
       </view>
@@ -42,7 +42,8 @@ const props = defineProps({
   cancelText: { type: String, default: '取消' },
   confirmText: { type: String, default: '确定' },
   closeOnOverlay: { type: Boolean, default: true },
-  closeOnConfirm: { type: Boolean, default: true }  // 🔴 2026-05-04: 新增，控制确认按钮是否自动关闭
+  closeOnConfirm: { type: Boolean, default: true },  // 🔴 2026-05-04: 新增，控制确认按钮是否自动关闭
+  hideHeader: { type: Boolean, default: false }  // 🔴 2026-05-04: 新增，隐藏顶部logo和品牌名
 })
 
 const emit = defineEmits(['update:visible', 'confirm', 'cancel'])

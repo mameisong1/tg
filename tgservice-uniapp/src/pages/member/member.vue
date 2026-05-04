@@ -682,11 +682,13 @@
       :closeOnOverlay="false"
       :closeOnConfirm="false"
       :showCancel="false"
+      :hideHeader="true"
       @confirm="markAllNotificationsRead"
     >
       <view class="notification-list">
         <view class="notification-item" v-for="n in unreadNotifications" :key="n.id">
           <view class="notification-title">{{ n.title }}</view>
+          <view class="notification-content">{{ n.content }}</view>
           <view class="notification-time">{{ formatNotificationTime(n.created_at) }}</view>
         </view>
         <view class="notification-count">共 {{ unreadNotifications.length }} 条未阅通知</view>
@@ -2423,19 +2425,27 @@ onShow(() => {
 .notification-list {
   max-height: 300px;
   overflow-y: auto;
+  width: 100%;
 }
 .notification-item {
-  padding: 10px 0;
+  padding: 12px 0;
   border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 .notification-title {
-  font-size: 14px;
+  font-size: 15px;
   color: #fff;
+  font-weight: 600;
+}
+.notification-content {
+  font-size: 13px;
+  color: rgba(255,255,255,0.8);
+  line-height: 1.5;
+  margin-top: 6px;
 }
 .notification-time {
   font-size: 12px;
   color: rgba(255,255,255,0.5);
-  margin-top: 4px;
+  margin-top: 6px;
 }
 .notification-count {
   padding: 10px;
