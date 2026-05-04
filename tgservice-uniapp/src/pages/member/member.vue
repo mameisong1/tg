@@ -1135,9 +1135,9 @@ const checkAutoLogin = async () => {
         if (profile.coachInfo) {
           uni.setStorageSync('coachInfo', profile.coachInfo)
           coachInfo.value = profile.coachInfo
-          // QA-20260430: 当 coachInfo 有 phone 时，重新生成带 phone 的 coachToken
-          // 旧 token 格式: btoa(coachNo:timestamp)，新格式: btoa(coachNo:phone:timestamp)
-          if (profile.coachInfo.coachNo && profile.coachInfo.phone) {
+          // 🔴 2026-05-04: 不覆盖已有coachToken（避免绕过时间戳阈值）
+          // 仅当没有coachToken时才生成
+          if (profile.coachInfo.coachNo && profile.coachInfo.phone && !uni.getStorageSync('coachToken')) {
             const newCoachToken = btoa(`${profile.coachInfo.coachNo}:${profile.coachInfo.phone}:${Date.now()}`)
             uni.setStorageSync('coachToken', newCoachToken)
           }
