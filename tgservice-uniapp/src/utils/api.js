@@ -73,9 +73,32 @@ const request = (options) => {
           } else {
             // 未指定类型，检查是否是 token 过期阈值失效
             if (res.data?.code === 'TOKEN_EXPIRED_BY_THRESHOLD') {
+              // 🔴 2026-05-04: 清除所有登录信息（像登出一样）
               uni.removeStorageSync('coachToken')
               uni.removeStorageSync('coachInfo')
+              uni.removeStorageSync('memberToken')
+              uni.removeStorageSync('adminToken')
+              uni.removeStorageSync('adminInfo')
+              uni.removeStorageSync('preferredRole')
+              uni.removeStorageSync('sessionId')
+              uni.removeStorageSync('tablePinyin')
+              uni.removeStorageSync('tableName')
+              uni.removeStorageSync('tableAuth')
+              uni.removeStorageSync('highlightProduct')
+              
               uni.showToast({ title: '登录已过期，请重新登录', icon: 'none', duration: 2000 })
+              setTimeout(() => {
+                uni.redirectTo({ url: '/pages/member/member' })
+              }, 1500)
+            } else if (res.data?.code === 'INVALID_TOKEN_TYPE' || res.data?.code === 'INVALID_TOKEN_FORMAT') {
+              // 🔴 2026-05-04: 无效 token 类型或格式，也需要清除登录信息
+              uni.removeStorageSync('coachToken')
+              uni.removeStorageSync('coachInfo')
+              uni.removeStorageSync('memberToken')
+              uni.removeStorageSync('adminToken')
+              uni.removeStorageSync('adminInfo')
+              uni.removeStorageSync('preferredRole')
+              uni.showToast({ title: '请重新登录', icon: 'none', duration: 2000 })
               setTimeout(() => {
                 uni.redirectTo({ url: '/pages/member/member' })
               }, 1500)

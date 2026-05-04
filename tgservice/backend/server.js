@@ -7008,6 +7008,87 @@ app.put('/api/admin/auth-config', async (req, res) => {
   }
 });
 
+// =============== 🔴 2026-05-04: 助教登录失效阈值配置 API ===============
+
+// 获取阈值配置
+app.get('/api/admin/coach-token-threshold', async (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: '未登录' });
+  
+  try {
+    jwt.verify(token, config.jwt.secret);
+    
+    // 从数据库读取
+    const row = await dbGet('SELECT value, updated_at FROM system_config WHERE key = ?', ['coach_token_expire_threshold']);
+    
+    let threshold, thresholdStr;
+    
+    if (!row) {
+      // 返回默认值
+      threshold = 1777866000000;
+      thresholdStr = '2026-05-04 11:40:00';
+    } else {
+      threshold = parseInt(row.value);
+      thresholdStr = new Date(threshold).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
+    }
+    
+    res.json({
+      success: true,
+      threshold,
+      thresholdStr,
+      updatedAt: row?.updated_at || null
+    });
+  } catch (err) {
+    res.status(401).json({ error: 'token无效' });
+  }
+});
+
+// 更新阈值配置
+app.put('/api/admin/coach-token-threshold', async (req, res) => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (!token) return res.status(401).json({ error: '未登录' });
+  
+  try {
+    const decoded = jwt.verify(token, config.jwt.secret);
+    const { thresholdStr } = req.body;
+    
+    if (!thresholdStr) {
+      return res.status(400).json({ error: '缺少阈值时间参数' });
+    }
+    
+    // 解析北京时间字符串为时间戳
+    // thresholdStr 格式: "2026-05-04 11:40:00"
+    const timestamp = new Date(thresholdStr + '+08:00').getTime();
+    
+    if (!timestamp || timestamp < 0 || isNaN(timestamp)) {
+      return res.status(400).json({ error: '时间格式无效，请使用 YYYY-MM-DD HH:MM:SS 格式（北京时间）' });
+    }
+    
+    // 写入数据库
+    const now = TimeUtil.nowDB();
+    await enqueueRun(
+      'INSERT OR REPLACE INTO system_config (key, value, description, updated_at) VALUES (?, ?, ?, ?)',
+      ['coach_token_expire_threshold', timestamp.toString(), '助教登录失效阈值（北京时间，毫秒时间戳）', now]
+    );
+    
+    // 🔴 立即更新 Redis 缓存
+    const redisCache = require('./utils/redis-cache');
+    await redisCache.set('coach_token_expire_threshold', timestamp, 3600);
+    
+    // 操作日志
+    operationLog.info(`${decoded.username} 修改助教登录失效阈值: ${thresholdStr} (${timestamp})`);
+    
+    res.json({
+      success: true,
+      threshold: timestamp,
+      thresholdStr,
+      message: '阈值配置已更新'
+    });
+  } catch (err) {
+    res.status(401).json({ error: 'token无效' });
+  }
+});
+
 // =============== 鉴权配置 API 结束 ===============
 
 // =============== 系统配置总览 API ===============

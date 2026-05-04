@@ -90,6 +90,7 @@
       <button class="filter-tab" data-section="sms" onclick="switchSection('sms')">短信服务</button>
       <button class="filter-tab" data-section="ac" onclick="switchSection('ac')">空调设定</button>
       <button class="filter-tab" data-section="blacklist" onclick="switchSection('blacklist')">黑名单</button>
+      <button class="filter-tab" data-section="token" onclick="switchSection('token')">Token失效</button>
       <button class="filter-tab" data-section="reward" onclick="switchSection('reward')">奖罚类型</button>
       <button class="filter-tab" data-section="overview" onclick="switchSection('overview')">配置总览</button>
     </div>
@@ -114,6 +115,39 @@
           <button id="authDisableBtn" class="btn btn-danger" onclick="switchAuth(false)" disabled>关闭鉴权</button>
           <button id="authEnableBtn" class="btn btn-primary" onclick="switchAuth(true)" disabled>启用鉴权</button>
         </div>
+      </div>
+    </div>
+
+    <!-- 🔴 2026-05-04: 助教登录失效阈值 -->
+    <div class="card" data-card="token">
+      <div class="card-header">
+        <div class="card-title">⏰ 助教登录失效阈值</div>
+      </div>
+      <div class="card-body">
+        <div class="info-box">
+          <p><strong>功能说明:</strong>在此时间之前登录的助教 Token 将失效，需要重新登录。</p>
+          <p><strong>使用场景:</strong>需要强制所有助教重新登录时，修改此阈值即可批量失效旧 Token。</p>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <label style="font-size: 13px; color: rgba(255,255,255,0.6); display: block; margin-bottom: 12px;">当前阈值（北京时间）</label>
+          <div id="currentThreshold" style="font-size: 18px; color: #d4af37; font-weight: 500;">加载中...</div>
+        </div>
+
+        <div class="form-row" style="margin-bottom: 20px;">
+          <label>修改阈值时间</label>
+          <input type="text" id="thresholdInput" placeholder="YYYY-MM-DD HH:MM:SS" value="" style="width: 100%;">
+          <p style="font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 8px;">
+            格式：YYYY-MM-DD HH:MM:SS（北京时间），例如 2026-05-04 12:00:00
+          </p>
+        </div>
+
+        <div style="display: flex; gap: 12px;">
+          <button class="btn btn-primary" onclick="saveThreshold()">保存阈值</button>
+          <button class="btn btn-danger" onclick="resetThresholdNow()">设置为当前时间</button>
+        </div>
+
+        <div id="thresholdStatus" style="margin-top: 12px; font-size: 13px; display: none;"></div>
       </div>
     </div>
 
@@ -761,9 +795,96 @@
       }
     }
 
+    // =============== 🔴 2026-05-04: 助教登录失效阈值配置 ===============
+
+    async function loadThresholdConfig() {
+      try {
+        const data = await api('/api/admin/coach-token-threshold');
+        if (data.success) {
+          document.getElementById('currentThreshold').textContent = data.thresholdStr;
+          document.getElementById('thresholdInput').value = data.thresholdStr;
+        } else {
+          document.getElementById('currentThreshold').textContent = '加载失败';
+        }
+      } catch (err) {
+        document.getElementById('currentThreshold').textContent = '加载失败';
+      }
+    }
+
+    async function saveThreshold() {
+      const thresholdStr = document.getElementById('thresholdInput').value.trim();
+      const statusEl = document.getElementById('thresholdStatus');
+
+      if (!thresholdStr) {
+        showToast('请输入阈值时间');
+        return;
+      }
+
+      // 验证格式 YYYY-MM-DD HH:MM:SS
+      const pattern = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+      if (!pattern.test(thresholdStr)) {
+        showToast('时间格式无效，请使用 YYYY-MM-DD HH:MM:SS 格式');
+        return;
+      }
+
+      try {
+        const result = await api('/api/admin/coach-token-threshold', {
+          method: 'PUT',
+          body: JSON.stringify({ thresholdStr })
+        });
+
+        if (result.success) {
+          document.getElementById('currentThreshold').textContent = result.thresholdStr;
+          statusEl.textContent = '✅ 保存成功，阈值已更新为 ' + result.thresholdStr;
+          statusEl.style.color = '#2ecc71';
+          statusEl.style.display = 'block';
+          showToast('阈值配置已保存');
+        } else {
+          statusEl.textContent = '❌ ' + (result.error || '保存失败');
+          statusEl.style.color = '#e74c3c';
+          statusEl.style.display = 'block';
+        }
+      } catch (err) {
+        statusEl.textContent = '❌ 保存失败';
+        statusEl.style.color = '#e74c3c';
+        statusEl.style.display = 'block';
+      }
+      setTimeout(() => { statusEl.style.display = 'none'; }, 5000);
+    }
+
+    async function resetThresholdNow() {
+      // 设置为当前北京时间
+      const now = new Date();
+      const beijingStr = now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
+      // 格式化为 YYYY-MM-DD HH:MM:SS
+      const thresholdStr = beijingStr.replace(/\//g, '-');
+
+      if (!confirm(`确定要将阈值设置为当前时间吗？\n\n${thresholdStr}\n\n这将使所有在此时间之前登录的助教 Token 失效！`)) return;
+
+      try {
+        const result = await api('/api/admin/coach-token-threshold', {
+          method: 'PUT',
+          body: JSON.stringify({ thresholdStr })
+        });
+
+        if (result.success) {
+          document.getElementById('currentThreshold').textContent = result.thresholdStr;
+          document.getElementById('thresholdInput').value = result.thresholdStr;
+          showToast('已设置为当前时间');
+        } else {
+          showToast(result.error || '操作失败');
+        }
+      } catch (err) {
+        showToast('操作失败');
+      }
+    }
+
+    // =============== 助教登录失效阈值配置结束 ===============
+
     // 初始化
     loadAuthConfig();  // QA-20260422-3: 鉴权配置
     loadSmsConfig();
+    loadThresholdConfig();  // 🔴 2026-05-04: 阈值配置
     loadAcConfig();  // 空调设定配置
     loadBlacklist();
     loadRewardPenaltyTypes();
