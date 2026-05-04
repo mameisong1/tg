@@ -7029,7 +7029,15 @@ app.get('/api/admin/coach-token-threshold', async (req, res) => {
       thresholdStr = '2026-05-04 11:40:00';
     } else {
       threshold = parseInt(row.value);
-      thresholdStr = new Date(threshold).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
+      // 🔴 格式化为 YYYY-MM-DD HH:MM:SS（北京时间）
+      const date = new Date(threshold + 8 * 60 * 60 * 1000); // UTC+8
+      const y = date.getUTCFullYear();
+      const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(date.getUTCDate()).padStart(2, '0');
+      const h = String(date.getUTCHours()).padStart(2, '0');
+      const min = String(date.getUTCMinutes()).padStart(2, '0');
+      const sec = String(date.getUTCSeconds()).padStart(2, '0');
+      thresholdStr = `${y}-${m}-${d} ${h}:${min}:${sec}`;
     }
     
     res.json({
