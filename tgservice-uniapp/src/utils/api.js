@@ -353,10 +353,11 @@ export default {
   clearCart: (sessionId) => request({ url: `/cart/${sessionId}`, method: 'DELETE' }),
   
   // 订单
-  createOrder: (sessionId, deviceFingerprint) => request({ 
+  // QA-20260504: 新增 memberPhone 参数，解决 token 解析遗漏问题
+  createOrder: (sessionId, deviceFingerprint, memberPhone) => request({ 
     url: '/order', 
     method: 'POST', 
-    data: { sessionId, deviceFingerprint } 
+    data: { sessionId, deviceFingerprint, memberPhone } 
   }),
   getPendingOrders: (tableName) => request({ url: `/orders/pending/${encodeURIComponent(tableName)}` }),
   getMyPendingOrders: (deviceFingerprint) => request({ url: `/orders/my-pending?deviceFingerprint=${deviceFingerprint}` }),

@@ -885,10 +885,10 @@ app.put('/api/cart/table', async (req, res) => {
 // 下单
 app.post('/api/order', async (req, res) => {
   try {
-    const { sessionId, deviceFingerprint } = req.body;
+    const { sessionId, deviceFingerprint, memberPhone: bodyPhone } = req.body;
 
-    // QA-20260429-1: 获取会员手机号（从 token 解析）
-    let memberPhone = null;
+    // QA-20260429-1: 获取会员手机号（优先请求体，其次从 token 解析）
+    let memberPhone = bodyPhone || null;
     const authHeader = req.headers['authorization'];
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7);

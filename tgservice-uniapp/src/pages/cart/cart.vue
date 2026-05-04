@@ -438,7 +438,9 @@ const doSubmitOrder = async () => {
   try {
     uni.showLoading({ title: '提交中...' })
     const deviceFingerprint = api.getDeviceFingerprint()
-    const data = await api.createOrder(sessionId.value, deviceFingerprint)
+    // QA-20260504: 获取会员/助教手机号，传递给后端
+    const memberPhone = coachInfoObj.value?.phone || uni.getStorageSync('memberInfo')?.phone || null
+    const data = await api.createOrder(sessionId.value, deviceFingerprint, memberPhone)
     uni.hideLoading()
     
     resultTitle.value = '下单成功'
