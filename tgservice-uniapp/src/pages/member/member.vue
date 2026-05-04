@@ -1295,9 +1295,11 @@ const selectRole = async (role) => {
   // 步骤2：保存偏好身份并删除其他身份的token
   api.setPreferredRole(role)
   
-  // 步骤3：更新会员信息触发页面刷新
+  // 步骤3：更新会员信息并存储到 Storage
   if (tempLoginData.value && tempLoginData.value.member) {
-    memberInfo.value = { ...tempLoginData.value.member, [role]: true }
+    const info = { ...tempLoginData.value.member, [role]: true }
+    memberInfo.value = info
+    uni.setStorageSync('memberInfo', info)  // QA-20260504: 必须存储到 Storage
   }
   
   uni.showToast({ title: `已选择${role === 'coach' ? '助教' : '后台'}身份`, icon: 'success' })
