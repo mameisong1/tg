@@ -1243,10 +1243,12 @@ const saveLoginData = (data) => {
   if (data.coachInfo) {
     uni.setStorageSync('coachInfo', data.coachInfo)
     coachInfo.value = data.coachInfo
-    // QA-20260430: 新 token 格式 coachNo:phone:timestamp
-    const phone = data.coachInfo.phone || ''
-    const coachToken = btoa(`${data.coachInfo.coachNo}:${phone}:${Date.now()}`)
-    uni.setStorageSync('coachToken', coachToken)
+    // 🔴 2026-05-04: AutoLogin 不刷新 coachToken 时间戳，只在没有时才生成
+    if (!uni.getStorageSync('coachToken')) {
+      const phone = data.coachInfo.phone || ''
+      const coachToken = btoa(`${data.coachInfo.coachNo}:${phone}:${Date.now()}`)
+      uni.setStorageSync('coachToken', coachToken)
+    }
   }
 }
 

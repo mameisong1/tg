@@ -85,8 +85,8 @@ async function required(req, res, next) {
     }
     
     // Base64 认证：助教
-    // 🔴 2026-05-04: 时间戳阈值验证，北京时间 2026-05-04 11:00:00 之前的 token 失效
-    const COACH_TOKEN_EXPIRE_THRESHOLD = 1777863600000;
+    // 🔴 2026-05-04: 时间戳阈值验证，北京时间 2026-05-04 11:40:00 之前的 token 失效
+    const COACH_TOKEN_EXPIRE_THRESHOLD = 1777866000000;
     
     try {
       const decodedStr = Buffer.from(token, 'base64').toString('utf-8');
