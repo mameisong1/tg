@@ -1215,6 +1215,12 @@ const tryAutoLogin = async () => {
 
 // 🔴 新增：保存登录数据（单身份）
 const saveLoginData = (data) => {
+  // QA-20260504: 确保 memberInfo 也存储
+  if (data.member) {
+    uni.setStorageSync('memberInfo', data.member)
+    memberInfo.value = data.member
+  }
+  
   if (data.adminInfo) {
     uni.setStorageSync('adminInfo', data.adminInfo)
     console.log('自动内部登录:', data.adminInfo.role, data.adminInfo.name)
