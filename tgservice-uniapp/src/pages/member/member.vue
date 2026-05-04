@@ -921,6 +921,10 @@ const loginBySms = async () => {
       memberInfo.value = data.member
       
       // 🔴 新增：处理多重身份
+      // ⚠️ 2026-05-04 修复：先保存所有身份信息，再弹出选择框
+      // 这样即使用户不选择身份就跳转，storage 中也有完整信息
+      saveLoginData(data)
+      
       if (data.roles && data.roles.length > 0) {
         const needRefresh = handleRoleSelection(data.roles, data)
         // ⚠️ 单身份用户登录后刷新页面，让computed重新计算
@@ -928,8 +932,7 @@ const loginBySms = async () => {
           uni.reLaunch({ url: '/pages/member/member' })
         }
       } else {
-        // 单身份或无 roles 返回，直接保存
-        saveLoginData(data)
+        // 单身份或无 roles 返回，直接刷新
         uni.reLaunch({ url: '/pages/member/member' })
       }
       

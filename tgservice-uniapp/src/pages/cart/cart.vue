@@ -136,6 +136,7 @@ import BeautyModal from '@/components/BeautyModal.vue'
 import TableInfo from '@/components/TableInfo.vue'
 import TableSelector from '@/components/TableSelector.vue'
 import { format, toDate } from '@/utils/time-util.js'  // QA-20260429-1: 引入时间工具
+import errorReporter from '@/utils/error-reporter.js'  // QA-20260504: 调试日志上报
 
 const tableInfoRef = ref(null)
 const sessionId = ref('')
@@ -234,6 +235,33 @@ const isEmployee = computed(() => {
 const coachToken = ref(uni.getStorageSync('coachToken') || '')
 const preferredRole = ref(uni.getStorageSync('preferredRole') || '')
 const coachInfoStr = ref(uni.getStorageSync('coachInfo') || '')
+
+// QA-20260504: 上报助教艺名调试日志
+const reportCoachDebugLog = () => {
+  const coachInfoRaw = uni.getStorageSync('coachInfo') || ''
+  let coachInfoParsed = null
+  let parseError = null
+  try {
+    coachInfoParsed = coachInfoRaw ? JSON.parse(coachInfoRaw) : null
+  } catch (e) {
+    parseError = e.message
+  }
+  
+  errorReporter.track('cart_coach_debug', {
+    coachToken: coachToken.value ? '有值' : '空',
+    coachTokenLength: coachToken.value ? coachToken.value.length : 0,
+    preferredRole: preferredRole.value || '空',
+    coachInfoRaw: coachInfoRaw ? (coachInfoRaw.length > 200 ? coachInfoRaw.substring(0, 200) + '...' : coachInfoRaw) : '空',
+    coachInfoRawLength: coachInfoRaw ? coachInfoRaw.length : 0,
+    coachInfoParsed: coachInfoParsed ? JSON.stringify(coachInfoParsed) : 'null',
+    parseError: parseError || '无',
+    stageName: coachInfoParsed?.stageName || '未找到',
+    name: coachInfoParsed?.name || '未找到',
+    coachNo: coachInfoParsed?.coachNo || '未找到',
+    computed_isCoachRole: isCoachRole.value,
+    computed_coachStageName: coachStageName.value || '空'
+  })
+}
 
 const isCoachRole = computed(() => {
   // 有 coachToken 且选择了助教身份（preferredRole === 'coach'）
@@ -486,6 +514,8 @@ onMounted(() => {
   console.log('[cart onMounted] coachToken:', coachToken.value ? '有值' : '空')
   console.log('[cart onMounted] preferredRole:', preferredRole.value)
   console.log('[cart onMounted] coachInfoStr:', coachInfoStr.value)
+  // QA-20260504: 上报调试日志
+  reportCoachDebugLog()
   // QA-20260429-1: 默认显示购物车，不加载订单数据
   loadCart()
   floatPosition.value = uni.getStorageSync('floatButtonPosition') || 'left'
@@ -497,6 +527,9 @@ onShow(() => {
   coachToken.value = uni.getStorageSync('coachToken') || ''
   preferredRole.value = uni.getStorageSync('preferredRole') || ''
   coachInfoStr.value = uni.getStorageSync('coachInfo') || ''
+  
+  // QA-20260504: 上报调试日志
+  reportCoachDebugLog()
   
   // 【新增】员工进入时清空旧台桌号
   // 不再清空tableName（商品页已清空，购物车保留选择）
