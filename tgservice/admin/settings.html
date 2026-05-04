@@ -820,17 +820,20 @@
         return;
       }
 
-      // 验证格式 YYYY-MM-DD HH:MM:SS
-      const pattern = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
-      if (!pattern.test(thresholdStr)) {
+      // 🔴 自动补0：支持 2026-5-4 或 2026-05-04 格式
+      // 解析并格式化为标准 YYYY-MM-DD HH:MM:SS
+      const match = thresholdStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2}) (\d{1,2}):(\d{1,2}):(\d{1,2})$/);
+      if (!match) {
         showToast('时间格式无效，请使用 YYYY-MM-DD HH:MM:SS 格式');
         return;
       }
+      const [, y, m, d, h, min, sec] = match;
+      const formattedThresholdStr = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')} ${h.padStart(2, '0')}:${min.padStart(2, '0')}:${sec.padStart(2, '0')}`;
 
       try {
         const result = await api('/api/admin/coach-token-threshold', {
           method: 'PUT',
-          body: JSON.stringify({ thresholdStr })
+          body: JSON.stringify({ thresholdStr: formattedThresholdStr })
         });
 
         if (result.success) {
@@ -853,11 +856,15 @@
     }
 
     async function resetThresholdNow() {
-      // 设置为当前北京时间
-      const now = new Date();
-      const beijingStr = now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false });
-      // 格式化为 YYYY-MM-DD HH:MM:SS
-      const thresholdStr = beijingStr.replace(/\//g, '-');
+      // 🔴 手动格式化为 YYYY-MM-DD HH:MM:SS（北京时间）
+      const now = new Date(Date.now() + 8 * 60 * 60 * 1000); // UTC+8
+      const y = now.getUTCFullYear();
+      const m = String(now.getUTCMonth() + 1).padStart(2, '0');
+      const d = String(now.getUTCDate()).padStart(2, '0');
+      const h = String(now.getUTCHours()).padStart(2, '0');
+      const min = String(now.getUTCMinutes()).padStart(2, '0');
+      const sec = String(now.getUTCSeconds()).padStart(2, '0');
+      const thresholdStr = `${y}-${m}-${d} ${h}:${min}:${sec}`;
 
       if (!confirm(`确定要将阈值设置为当前时间吗？\n\n${thresholdStr}\n\n这将使所有在此时间之前登录的助教 Token 失效！`)) return;
 
