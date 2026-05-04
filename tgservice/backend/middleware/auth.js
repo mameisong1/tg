@@ -85,15 +85,30 @@ async function required(req, res, next) {
     }
     
     // Base64 认证：助教
+    // 🔴 2026-05-04: 时间戳阈值验证，北京时间 2026-05-04 10:00:00 之前的 token 失效
+    const COACH_TOKEN_EXPIRE_THRESHOLD = 1746338400000;
+    
     try {
       const decodedStr = Buffer.from(token, 'base64').toString('utf-8');
-      const [coachNo, timestamp] = decodedStr.split(':');
+      const parts = decodedStr.split(':');
+      const coachNo = parts[0];
+      const timestamp = parseInt(parts[parts.length - 1]) || 0; // 最后一个字段是时间戳
       
       if (!coachNo) {
         logger.warn(`认证失败: token格式无效 - ${req.method} ${req.url} - IP: ${req.ip}`);
         return res.status(401).json({
           success: false,
           error: '无效的令牌'
+        });
+      }
+      
+      // 🔴 2026-05-04: 时间戳阈值验证
+      if (timestamp < COACH_TOKEN_EXPIRE_THRESHOLD) {
+        logger.warn(`认证失败: token已过期(时间戳阈值) - coachNo=${coachNo}, timestamp=${timestamp} - ${req.method} ${req.url} - IP: ${req.ip}`);
+        return res.status(401).json({
+          success: false,
+          error: '登录已过期，请重新登录',
+          code: 'TOKEN_EXPIRED_BY_THRESHOLD'
         });
       }
       

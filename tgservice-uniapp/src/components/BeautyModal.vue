@@ -41,7 +41,8 @@ const props = defineProps({
   showCancel: { type: Boolean, default: false },
   cancelText: { type: String, default: '取消' },
   confirmText: { type: String, default: '确定' },
-  closeOnOverlay: { type: Boolean, default: true }
+  closeOnOverlay: { type: Boolean, default: true },
+  closeOnConfirm: { type: Boolean, default: true }  // 🔴 2026-05-04: 新增，控制确认按钮是否自动关闭
 })
 
 const emit = defineEmits(['update:visible', 'confirm', 'cancel'])
@@ -54,7 +55,9 @@ const handleOverlayClick = () => {
 }
 
 const handleConfirm = () => {
-  emit('update:visible', false)
+  if (props.closeOnConfirm) {
+    emit('update:visible', false)
+  }
   emit('confirm')
 }
 

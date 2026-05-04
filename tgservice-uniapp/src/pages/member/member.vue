@@ -673,6 +673,25 @@
         </view>
       </view>
     </view>
+    
+    <!-- 🔴 2026-05-04: 未阅通知弹框 -->
+    <BeautyModal
+      v-model:visible="showUnreadNotifications"
+      title="📢 未阅通知"
+      confirmText="全部已阅"
+      :closeOnOverlay="false"
+      :closeOnConfirm="false"
+      :showCancel="false"
+      @confirm="markAllNotificationsRead"
+    >
+      <view class="notification-list">
+        <view class="notification-item" v-for="n in unreadNotifications" :key="n.id">
+          <view class="notification-title">{{ n.title }}</view>
+          <view class="notification-time">{{ formatNotificationTime(n.created_at) }}</view>
+        </view>
+        <view class="notification-count">共 {{ unreadNotifications.length }} 条未阅通知</view>
+      </view>
+    </BeautyModal>
   </view>
 </template>
 
@@ -681,13 +700,62 @@ import { ref, computed, onMounted } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import api from '@/utils/api.js'
 import { attendanceReview } from '@/utils/api.js'
+import { notifications } from '@/utils/api.js'  // 🔴 2026-05-04: 新增
 import { format, toDate } from '@/utils/time-util.js'
+import BeautyModal from '@/components/BeautyModal.vue'  // 🔴 2026-05-04: 新增
 
 // 格式化订单时间：M/D HH:mm
 const formatOrderTime = (timeStr) => {
   const d = toDate(timeStr);
   if (!d) return '';
   return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+// 🔴 2026-05-04: 未阅通知相关
+const showUnreadNotifications = ref(false)
+const unreadNotifications = ref([])
+
+const formatNotificationTime = (timeStr) => {
+  const d = toDate(timeStr);
+  if (!d) return '';
+  return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+const checkUnreadNotifications = async () => {
+  // 只检查员工身份
+  const coachToken = uni.getStorageSync('coachToken')
+  const adminToken = uni.getStorageSync('adminToken')
+  if (!coachToken && !adminToken) return
+  
+  try {
+    const data = await notifications.getList({ is_read: 0, pageSize: 50 })
+    if (data.data?.notifications && data.data.notifications.length > 0) {
+      unreadNotifications.value = data.data.notifications
+      showUnreadNotifications.value = true
+    }
+  } catch (e) {
+    console.log('获取未阅通知失败', e)
+  }
+}
+
+const markAllNotificationsRead = async () => {
+  if (unreadNotifications.value.length === 0) return
+  
+  uni.showLoading({ title: '处理中...' })
+  
+  try {
+    for (const n of unreadNotifications.value) {
+      await notifications.markAsRead(n.id)
+    }
+    
+    uni.hideLoading()
+    showUnreadNotifications.value = false
+    unreadNotifications.value = []
+    uni.showToast({ title: '已全部标记已阅', icon: 'success' })
+  } catch (e) {
+    uni.hideLoading()
+    uni.showToast({ title: '操作失败', icon: 'none' })
+  }
 }
 
 
@@ -1518,6 +1586,9 @@ onMounted(() => {
     loadApprovalCounts()
   }
   
+  // 🔴 2026-05-04: 检查未阅通知
+  checkUnreadNotifications()
+  
   // 检查教练信息
   const coachInfoStored = uni.getStorageSync('coachInfo')
   coachInfo.value = coachInfoStored || {}
@@ -2346,6 +2417,31 @@ onShow(() => {
 .role-desc {
   font-size: 13px;
   color: rgba(255,255,255,0.5);
+}
+
+/* 🔴 2026-05-04: 未阅通知弹框样式 */
+.notification-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+.notification-item {
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.notification-title {
+  font-size: 14px;
+  color: #fff;
+}
+.notification-time {
+  font-size: 12px;
+  color: rgba(255,255,255,0.5);
+  margin-top: 4px;
+}
+.notification-count {
+  padding: 10px;
+  text-align: center;
+  color: rgba(255,255,255,0.7);
+  font-size: 13px;
 }
 
 </style>

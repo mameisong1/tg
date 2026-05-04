@@ -99,10 +99,18 @@ router.get('/', authMiddleware, async (req, res) => {
     const recipientType = user.userType === 'coach' ? 'coach' : 'admin';
     const recipientId = user.userType === 'coach' ? user.coachNo : user.username;
 
+    // 🔴 2026-05-04: 新增 is_read 参数过滤
+    const isReadFilter = req.query.is_read;
+    let isReadCondition = '';
+    const queryParams = [recipientType, recipientId];
+    if (isReadFilter !== undefined) {
+      isReadCondition = ' AND nr.is_read = ?';
+      queryParams.push(parseInt(isReadFilter));
+    }
+
     // 可选：按通知类型过滤（逗号分隔，如 'system,invitation_reminder'）
     const typeFilter = req.query.type;
     let typeCondition = '';
-    const queryParams = [recipientType, recipientId];
     if (typeFilter) {
       const types = typeFilter.split(',').map(t => t.trim()).filter(Boolean);
       if (types.length > 0) {
@@ -120,13 +128,16 @@ router.get('/', authMiddleware, async (req, res) => {
         nr.is_read, nr.read_at
       FROM notifications n
       INNER JOIN notification_recipients nr ON n.id = nr.notification_id
-      WHERE nr.recipient_type = ? AND nr.recipient_id = ?${typeCondition}
+      WHERE nr.recipient_type = ? AND nr.recipient_id = ?${isReadCondition}${typeCondition}
       ORDER BY nr.is_read ASC, n.created_at DESC
       LIMIT ? OFFSET ?
     `, queryParams);
 
     // 查询总数
     const countParams = [recipientType, recipientId];
+    if (isReadFilter !== undefined) {
+      countParams.push(parseInt(isReadFilter));
+    }
     if (typeFilter) {
       const types = typeFilter.split(',').map(t => t.trim()).filter(Boolean);
       if (types.length > 0) {
@@ -137,7 +148,7 @@ router.get('/', authMiddleware, async (req, res) => {
       SELECT COUNT(*) as total
       FROM notification_recipients nr
       INNER JOIN notifications n ON n.id = nr.notification_id
-      WHERE nr.recipient_type = ? AND nr.recipient_id = ?${typeCondition}
+      WHERE nr.recipient_type = ? AND nr.recipient_id = ?${isReadCondition}${typeCondition}
     `, countParams);
 
     res.json({
