@@ -305,14 +305,11 @@ const allowedOrigins = [
   'https://www.tiangong.club',
   'https://tg.tiangong.club',   // 开发环境
   'https://mp.weixin.qq.com',  // 微信小程序
-  'http://localhost:8081',      // 本地开发
-  'http://localhost:8083',      // 本地 H5
-  'http://localhost:8088',      // 开发环境后端
-  'http://localhost:8089',      // 开发环境 H5
-  'http://127.0.0.1:8081',      // 本地开发(IP)
-  'http://127.0.0.1:8083',      // 本地 H5(IP)
-  'http://127.0.0.1:8088',      // 开发环境后端(IP)
-  'http://127.0.0.1:8089'       // 开发环境 H5(IP)
+  // 本地开发（覆盖常用端口）
+  ...Array.from({length: 30}, (_, i) => `http://localhost:${8080 + i}`),
+  ...Array.from({length: 30}, (_, i) => `http://127.0.0.1:${8080 + i}`),
+  ...Array.from({length: 30}, (_, i) => `http://172.16.110.0:${8080 + i}`),
+  ...Array.from({length: 30}, (_, i) => `http://172.17.0.1:${8080 + i}`),
 ];
 app.use(cors({
   origin: function(origin, callback) {

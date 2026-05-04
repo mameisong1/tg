@@ -569,7 +569,11 @@ export default {
   attendanceReview,
   guestRankings,
   notifications,
-  dingtalkAttendance
+  dingtalkAttendance,
+
+  // ========== 工具函数 ===========
+  clearLoginStorage,
+  getDeviceFingerprint
 }
 
 // 命名导出设备指纹函数和登出函数（支持解构导入）

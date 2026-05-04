@@ -1019,8 +1019,6 @@ const loginBySms = async () => {
     uni.showToast({ title: err.error || '登录失败', icon: 'none' })
   }
 }
-
-// 微信手机号登录
 const onGetPhoneNumber = async (e) => {
   if (!agreed.value) {
     uni.showToast({ title: '请先同意用户协议和隐私政策', icon: 'none' })
@@ -1659,6 +1657,23 @@ onShow(() => {
   // 🔴 2026-05-04: 每次进入会员中心都检查未阅通知
   checkUnreadNotifications()
 })
+// #ifdef H5
+// QA: 暴露关键变量和方法给 uni-automator 测试框架
+const setTestInput = (phone, code) => {
+  smsPhone.value = phone
+  smsCode.value = code
+  agreed.value = true
+}
+defineExpose({
+  smsPhone,
+  smsCode,
+  agreed,
+  loginBySms,
+  selectRole,
+  sendSmsCode,
+  setTestInput
+})
+// #endif
 </script>
 
 <style scoped>
