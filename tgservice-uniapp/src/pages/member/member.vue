@@ -909,6 +909,20 @@ const loginBySms = async () => {
   
   try {
     uni.showLoading({ title: '登录中...' })
+    
+    // 🔴 2026-05-04: 登录开始时清空所有旧的身份数据，避免新旧数据混乱
+    uni.removeStorageSync('memberToken')
+    uni.removeStorageSync('coachToken')
+    uni.removeStorageSync('coachInfo')
+    uni.removeStorageSync('adminToken')
+    uni.removeStorageSync('adminInfo')
+    uni.removeStorageSync('preferredRole')
+    uni.removeStorageSync('sessionId')
+    uni.removeStorageSync('tablePinyin')
+    uni.removeStorageSync('tableName')
+    uni.removeStorageSync('tableAuth')
+    uni.removeStorageSync('highlightProduct')
+    
     const data = await api.loginBySms(smsPhone.value, smsCode.value)
     uni.hideLoading()
     
@@ -921,10 +935,6 @@ const loginBySms = async () => {
       memberInfo.value = data.member
       
       // 🔴 新增：处理多重身份
-      // ⚠️ 2026-05-04 修复：先保存所有身份信息，再弹出选择框
-      // 这样即使用户不选择身份就跳转，storage 中也有完整信息
-      saveLoginData(data)
-      
       if (data.roles && data.roles.length > 0) {
         const needRefresh = handleRoleSelection(data.roles, data)
         // ⚠️ 单身份用户登录后刷新页面，让computed重新计算
@@ -932,7 +942,8 @@ const loginBySms = async () => {
           uni.reLaunch({ url: '/pages/member/member' })
         }
       } else {
-        // 单身份或无 roles 返回，直接刷新
+        // 单身份或无 roles 返回，直接保存
+        saveLoginData(data)
         uni.reLaunch({ url: '/pages/member/member' })
       }
       
@@ -961,6 +972,19 @@ const onGetPhoneNumber = async (e) => {
   
   try {
     uni.showLoading({ title: '登录中...' })
+    
+    // 🔴 2026-05-04: 登录开始时清空所有旧的身份数据
+    uni.removeStorageSync('memberToken')
+    uni.removeStorageSync('coachToken')
+    uni.removeStorageSync('coachInfo')
+    uni.removeStorageSync('adminToken')
+    uni.removeStorageSync('adminInfo')
+    uni.removeStorageSync('preferredRole')
+    uni.removeStorageSync('sessionId')
+    uni.removeStorageSync('tablePinyin')
+    uni.removeStorageSync('tableName')
+    uni.removeStorageSync('tableAuth')
+    uni.removeStorageSync('highlightProduct')
     
     // 获取code
     const loginRes = await new Promise((resolve, reject) => {

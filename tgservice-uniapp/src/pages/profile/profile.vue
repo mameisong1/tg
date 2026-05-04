@@ -170,7 +170,14 @@ const logout = async () => {
         uni.removeStorageSync('coachInfo')
         uni.removeStorageSync('adminToken')
         uni.removeStorageSync('adminInfo')
-        uni.removeStorageSync('preferredRole')  // 🔴 新增
+        uni.removeStorageSync('preferredRole')
+        // 🔴 2026-05-04: 清空台桌和购物车相关数据
+        uni.removeStorageSync('sessionId')
+        uni.removeStorageSync('tablePinyin')
+        uni.removeStorageSync('tableName')
+        uni.removeStorageSync('tableAuth')
+        uni.removeStorageSync('highlightProduct')
+        // lastPhone、agreed、device_fp、floatButtonPosition、frontConfig 保留
         
         // 使用 reLaunch 强制刷新会员中心页面，让用户立即看到退出状态
         uni.reLaunch({ url: '/pages/member/member' })
