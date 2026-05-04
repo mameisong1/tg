@@ -306,10 +306,10 @@ const allowedOrigins = [
   'https://tg.tiangong.club',   // 开发环境
   'https://mp.weixin.qq.com',  // 微信小程序
   // 本地开发（覆盖常用端口）
-  ...Array.from({length: 30}, (_, i) => `http://localhost:${8080 + i}`),
-  ...Array.from({length: 30}, (_, i) => `http://127.0.0.1:${8080 + i}`),
-  ...Array.from({length: 30}, (_, i) => `http://172.16.110.0:${8080 + i}`),
-  ...Array.from({length: 30}, (_, i) => `http://172.17.0.1:${8080 + i}`),
+  ...Array.from({length: 50}, (_, i) => `http://localhost:${8080 + i}`),
+  ...Array.from({length: 50}, (_, i) => `http://127.0.0.1:${8080 + i}`),
+  ...Array.from({length: 50}, (_, i) => `http://172.16.110.0:${8080 + i}`),
+  ...Array.from({length: 50}, (_, i) => `http://172.17.0.1:${8080 + i}`),
 ];
 app.use(cors({
   origin: function(origin, callback) {
