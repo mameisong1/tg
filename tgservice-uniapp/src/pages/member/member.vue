@@ -1652,6 +1652,9 @@ onShow(() => {
   
   loadPopularity()
   checkAutoLogin()  // 每次显示时检查自动登录
+  
+  // 🔴 2026-05-04: 每次进入会员中心都检查未阅通知
+  checkUnreadNotifications()
 })
 </script>
 
