@@ -774,7 +774,8 @@ const topCoaches = ref([])
 // 从组件获取台桌名
 // 会员相关
 const isCheckingLogin = ref(true)  // 登录检查状态
-const memberInfo = ref({})
+// QA-20260504: 从 Storage 加载 memberInfo
+const memberInfo = ref(uni.getStorageSync('memberInfo') || {})
 const agreed = ref(false)
 
 // H5短信登录相关
@@ -980,18 +981,8 @@ const loginBySms = async () => {
   try {
     uni.showLoading({ title: '登录中...' })
     
-    // 🔴 2026-05-04: 登录开始时清空所有旧的身份数据，避免新旧数据混乱
-    uni.removeStorageSync('memberToken')
-    uni.removeStorageSync('coachToken')
-    uni.removeStorageSync('coachInfo')
-    uni.removeStorageSync('adminToken')
-    uni.removeStorageSync('adminInfo')
-    uni.removeStorageSync('preferredRole')
-    uni.removeStorageSync('sessionId')
-    uni.removeStorageSync('tablePinyin')
-    uni.removeStorageSync('tableName')
-    uni.removeStorageSync('tableAuth')
-    uni.removeStorageSync('highlightProduct')
+    // QA-20260504: 登录开始时清空所有旧的身份数据
+    api.clearLoginStorage()
     
     const data = await api.loginBySms(smsPhone.value, smsCode.value)
     uni.hideLoading()
@@ -999,6 +990,7 @@ const loginBySms = async () => {
     if (data.success) {
       // 保存token和会员信息到localStorage（H5持久化）
       uni.setStorageSync('memberToken', data.token)
+      uni.setStorageSync('memberInfo', data.member)  // QA-20260504: 新增
       uni.setStorageSync('lastPhone', smsPhone.value)
       // 保存同意协议状态
       uni.setStorageSync('agreed', true)
@@ -1043,18 +1035,8 @@ const onGetPhoneNumber = async (e) => {
   try {
     uni.showLoading({ title: '登录中...' })
     
-    // 🔴 2026-05-04: 登录开始时清空所有旧的身份数据
-    uni.removeStorageSync('memberToken')
-    uni.removeStorageSync('coachToken')
-    uni.removeStorageSync('coachInfo')
-    uni.removeStorageSync('adminToken')
-    uni.removeStorageSync('adminInfo')
-    uni.removeStorageSync('preferredRole')
-    uni.removeStorageSync('sessionId')
-    uni.removeStorageSync('tablePinyin')
-    uni.removeStorageSync('tableName')
-    uni.removeStorageSync('tableAuth')
-    uni.removeStorageSync('highlightProduct')
+    // QA-20260504: 登录开始时清空所有旧的身份数据
+    api.clearLoginStorage()
     
     // 获取code
     const loginRes = await new Promise((resolve, reject) => {
@@ -1076,6 +1058,7 @@ const onGetPhoneNumber = async (e) => {
     if (data.success) {
       // 保存token和会员信息
       uni.setStorageSync('memberToken', data.token)
+      uni.setStorageSync('memberInfo', data.member)  // QA-20260504: 新增
       memberInfo.value = data.member
       
       // 🔴 新增：处理多重身份
@@ -1208,6 +1191,7 @@ const tryAutoLogin = async () => {
     const data = await api.memberAutoLogin(loginRes.code, uni.getStorageSync('preferredRole'))
     if (data.success && data.registered) {
       uni.setStorageSync('memberToken', data.token)
+      uni.setStorageSync('memberInfo', data.member)  // QA-20260504: 新增
       memberInfo.value = data.member
       
       // 🔴 新增：处理多重身份

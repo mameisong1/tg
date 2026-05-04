@@ -388,3 +388,51 @@ errorReporter.track('action_name', { detail1: 'value1' })
 // 自动捕获的全局错误无需手动调用
 ```
 
+
+## 2026-05-04 V20260504V1
+
+### 新功能
+
+1. **助教登录失效阈值可配置**
+   - 后台系统配置页面新增 Token失效 配置板块
+   - 支持人类可读格式 YYYY-MM-DD HH:MM:SS（北京时间）
+   - 阈值存储在 system_config 表，Redis 缓存 1 小时
+   - 修改阈值后立即生效（立即更新 Redis 缓存）
+
+2. **未阅通知弹框**
+   - 会员中心每次进入都检查未阅通知并弹框显示
+   - 支持一键全部已阅
+
+3. **Redis 缓存鉴权阈值**
+   - 高频鉴权操作不再频繁读取数据库
+   - 阈值缓存 1 小时 TTL
+
+### Bug 修复
+
+1. **JWT 验证增强**
+   - JWT payload 必须包含 username 和 role
+   - 拒绝 memberToken 用于后台 API（返回 INVALID_TOKEN_TYPE）
+
+2. **前端 401 完整退出**
+   - TOKEN_EXPIRED_BY_THRESHOLD、INVALID_TOKEN_TYPE、INVALID_TOKEN_FORMAT 都清除所有登录信息
+
+3. **AutoLogin 不刷新时间戳**
+   - saveLoginData 只在没有 coachToken 时才生成新 token
+   - 获取 profile 时不覆盖已有 coachToken
+
+4. **时间格式自动补0**
+   - 支持 2026-5-4 或 2026-05-04 格式输入
+   - 输出统一为 YYYY-MM-DD HH:MM:SS
+
+### API 变更
+
+- GET /api/admin/coach-token-threshold - 获取阈值配置
+- PUT /api/admin/coach-token-threshold - 更新阈值配置
+- notifications.getList 新增 is_read 参数
+
+### 错误码
+
+- TOKEN_EXPIRED_BY_THRESHOLD - token 时间戳小于阈值
+- INVALID_TOKEN_TYPE - JWT 类型不适用（如 memberToken）
+- INVALID_TOKEN_FORMAT - JWT payload 缺少必要字段
+

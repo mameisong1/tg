@@ -34,6 +34,23 @@ if (!String.prototype.hashCode) {
   }
 }
 
+// QA-20260504: 公共登出函数 - 清空所有登录相关的 Storage 数据
+// 用于：登录前清空、退出登录、Token失效自动登出
+const clearLoginStorage = () => {
+  uni.removeStorageSync('memberToken')
+  uni.removeStorageSync('memberInfo')
+  uni.removeStorageSync('coachToken')
+  uni.removeStorageSync('coachInfo')
+  uni.removeStorageSync('adminToken')
+  uni.removeStorageSync('adminInfo')
+  uni.removeStorageSync('preferredRole')
+  uni.removeStorageSync('sessionId')
+  uni.removeStorageSync('tablePinyin')
+  uni.removeStorageSync('tableName')
+  uni.removeStorageSync('tableAuth')
+  uni.removeStorageSync('highlightProduct')
+}
+
 // 请求封装 - 区分会员和教练
 const request = (options) => {
   return new Promise((resolve, reject) => {
@@ -73,31 +90,15 @@ const request = (options) => {
           } else {
             // 未指定类型，检查是否是 token 过期阈值失效
             if (res.data?.code === 'TOKEN_EXPIRED_BY_THRESHOLD') {
-              // 🔴 2026-05-04: 清除所有登录信息（像登出一样）
-              uni.removeStorageSync('coachToken')
-              uni.removeStorageSync('coachInfo')
-              uni.removeStorageSync('memberToken')
-              uni.removeStorageSync('adminToken')
-              uni.removeStorageSync('adminInfo')
-              uni.removeStorageSync('preferredRole')
-              uni.removeStorageSync('sessionId')
-              uni.removeStorageSync('tablePinyin')
-              uni.removeStorageSync('tableName')
-              uni.removeStorageSync('tableAuth')
-              uni.removeStorageSync('highlightProduct')
-              
+              // QA-20260504: 使用公共函数清除所有登录信息
+              clearLoginStorage()
               uni.showToast({ title: '登录已过期，请重新登录', icon: 'none', duration: 2000 })
               setTimeout(() => {
                 uni.redirectTo({ url: '/pages/member/member' })
               }, 1500)
             } else if (res.data?.code === 'INVALID_TOKEN_TYPE' || res.data?.code === 'INVALID_TOKEN_FORMAT') {
-              // 🔴 2026-05-04: 无效 token 类型或格式，也需要清除登录信息
-              uni.removeStorageSync('coachToken')
-              uni.removeStorageSync('coachInfo')
-              uni.removeStorageSync('memberToken')
-              uni.removeStorageSync('adminToken')
-              uni.removeStorageSync('adminInfo')
-              uni.removeStorageSync('preferredRole')
+              // QA-20260504: 使用公共函数清除登录信息
+              clearLoginStorage()
               uni.showToast({ title: '请重新登录', icon: 'none', duration: 2000 })
               setTimeout(() => {
                 uni.redirectTo({ url: '/pages/member/member' })
@@ -571,5 +572,5 @@ export default {
   dingtalkAttendance
 }
 
-// 命名导出设备指纹函数（支持解构导入）
-export { getDeviceFingerprint }
+// 命名导出设备指纹函数和登出函数（支持解构导入）
+export { getDeviceFingerprint, clearLoginStorage }

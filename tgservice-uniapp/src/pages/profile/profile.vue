@@ -164,19 +164,8 @@ const logout = async () => {
         } catch (err) {
           // 即使失败也继续退出
         }
-        // 🔴 删除所有登录相关数据（包括 preferredRole）
-        uni.removeStorageSync('memberToken')
-        uni.removeStorageSync('coachToken')
-        uni.removeStorageSync('coachInfo')
-        uni.removeStorageSync('adminToken')
-        uni.removeStorageSync('adminInfo')
-        uni.removeStorageSync('preferredRole')
-        // 🔴 2026-05-04: 清空台桌和购物车相关数据
-        uni.removeStorageSync('sessionId')
-        uni.removeStorageSync('tablePinyin')
-        uni.removeStorageSync('tableName')
-        uni.removeStorageSync('tableAuth')
-        uni.removeStorageSync('highlightProduct')
+        // QA-20260504: 使用公共函数删除所有登录相关数据
+        api.clearLoginStorage()
         // lastPhone、agreed、device_fp、floatButtonPosition、frontConfig 保留
         
         // 使用 reLaunch 强制刷新会员中心页面，让用户立即看到退出状态
