@@ -71,7 +71,15 @@ const request = (options) => {
             }, 1500)
             reject(res.data)
           } else {
-            // 未指定类型的，不跳转
+            // 未指定类型，检查是否是 token 过期阈值失效
+            if (res.data?.code === 'TOKEN_EXPIRED_BY_THRESHOLD') {
+              uni.removeStorageSync('coachToken')
+              uni.removeStorageSync('coachInfo')
+              uni.showToast({ title: '登录已过期，请重新登录', icon: 'none', duration: 2000 })
+              setTimeout(() => {
+                uni.redirectTo({ url: '/pages/member/member' })
+              }, 1500)
+            }
             reject(res.data)
           }
         } else {

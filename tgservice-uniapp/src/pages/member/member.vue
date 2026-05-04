@@ -2429,29 +2429,38 @@ onShow(() => {
 }
 .notification-item {
   padding: 12px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid rgba(218, 165, 32, 0.3);
+  margin-bottom: 8px;
+}
+.notification-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
 }
 .notification-title {
   font-size: 15px;
   color: #fff;
   font-weight: 600;
+  text-align: left;
 }
 .notification-content {
   font-size: 13px;
   color: rgba(255,255,255,0.8);
   line-height: 1.5;
-  margin-top: 6px;
+  margin-top: 8px;
+  text-align: left;
 }
 .notification-time {
   font-size: 12px;
-  color: rgba(255,255,255,0.5);
-  margin-top: 6px;
+  color: rgba(218, 165, 32, 0.6);
+  margin-top: 8px;
+  text-align: left;
 }
 .notification-count {
-  padding: 10px;
+  padding: 12px;
   text-align: center;
   color: rgba(255,255,255,0.7);
   font-size: 13px;
+  border-top: 1px solid rgba(218, 165, 32, 0.2);
 }
 
 </style>
