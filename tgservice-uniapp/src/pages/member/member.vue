@@ -1244,6 +1244,10 @@ const saveLoginData = (data) => {
 
 // 🔴 新增：处理多重身份选择
 const handleRoleSelection = (roles, loginData) => {
+  console.log('handleRoleSelection called, roles:', roles);
+  console.log('handleRoleSelection loginData:', JSON.stringify(loginData));
+  console.log('handleRoleSelection loginData.member:', loginData?.member);
+  
   // 🟡 审计修复：使用 extraRoles.length 判断
   const extraRoles = roles.filter(r => r !== 'member')
   
@@ -1296,10 +1300,14 @@ const selectRole = async (role) => {
   api.setPreferredRole(role)
   
   // 步骤3：更新会员信息并存储到 Storage
-  if (tempLoginData.value && tempLoginData.value.member) {
+  // 如果 member 不存在，存储调试信息
+  if (!tempLoginData.value?.member) {
+    uni.setStorageSync('memberInfo', JSON.stringify({ error: 'no_member_in_tempLoginData', phone: 'debug' }))
+  } else {
     const info = { ...tempLoginData.value.member, [role]: true }
     memberInfo.value = info
     uni.setStorageSync('memberInfo', info)  // QA-20260504: 必须存储到 Storage
+    console.log('已存储 memberInfo:', info)
   }
   
   uni.showToast({ title: `已选择${role === 'coach' ? '助教' : '后台'}身份`, icon: 'success' })
