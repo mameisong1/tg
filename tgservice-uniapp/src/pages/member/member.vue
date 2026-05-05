@@ -957,6 +957,8 @@ const sendSmsCode = async () => {
     }
   } catch (err) {
     uni.hideLoading()
+    // QA-20260505: 发送验证码错误上报
+    errorReporter.report({ type: 'sms_send_error', message: err.error || err.message || '发送验证码失败', phone: smsPhone.value })
     uni.showToast({ title: err.error || '发送失败', icon: 'none' })
   }
 }
@@ -1016,9 +1018,12 @@ const loginBySms = async () => {
     }
   } catch (err) {
     uni.hideLoading()
+    // QA-20260505: 登录错误上报（覆盖运行时错误如 Buffer undefined 等）
+    errorReporter.report({ type: 'login_sms_error', message: err.message || err.error || '登录未知错误', stack: err.stack || '', phone: smsPhone.value, code: smsCode.value })
     uni.showToast({ title: err.error || '登录失败', icon: 'none' })
   }
 }
+
 const onGetPhoneNumber = async (e) => {
   if (!agreed.value) {
     uni.showToast({ title: '请先同意用户协议和隐私政策', icon: 'none' })
@@ -1070,6 +1075,8 @@ const onGetPhoneNumber = async (e) => {
     }
   } catch (err) {
     uni.hideLoading()
+    // QA-20260505: 登录错误上报
+    errorReporter.report({ type: 'login_wechat_error', message: err.message || err.error || '微信登录未知错误', stack: err.stack || '' })
     uni.showToast({ title: err.error || '登录失败', icon: 'none' })
   }
 }

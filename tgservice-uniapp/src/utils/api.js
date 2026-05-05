@@ -7,6 +7,7 @@
 // 生产环境: https://tiangong.club/api
 // 开发环境: https://tg.tiangong.club/api
 const BASE_URL = import.meta.env.VITE_API_BASE_URL
+import errorReporter from './error-reporter.js'
 
 // 生成设备指纹
 // 简单的字符串哈希函数（必须在 getDeviceFingerprint 之前定义）
@@ -78,6 +79,8 @@ const request = (options) => {
         if (res.statusCode === 200) {
           resolve(res.data)
         } else if (res.statusCode === 401) {
+          // QA-20260505: API 401 自动上报
+          errorReporter.report({ type: 'api_401', message: `401: ${options.url}`, statusCode: 401, authType: options.authType, errorCode: res.data?.code || '' })
           // 根据authType处理不同的登录状态
           if (options.authType === 'member') {
             uni.removeStorageSync('memberToken')
@@ -111,10 +114,14 @@ const request = (options) => {
             reject(res.data)
           }
         } else {
+          // QA-20260505: API 非200 自动上报
+          errorReporter.report({ type: 'api_error', message: `${res.statusCode}: ${options.url}`, statusCode: res.statusCode, detail: res.data })
           reject(res.data)
         }
       },
       fail: (err) => {
+        // QA-20260505: API 网络失败 自动上报
+        errorReporter.report({ type: 'api_network_fail', message: `网络失败: ${options.url}`, detail: err.errMsg || '' })
         uni.showToast({ title: '网络请求失败', icon: 'none' })
         reject(err)
       }
