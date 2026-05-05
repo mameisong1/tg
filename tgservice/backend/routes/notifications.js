@@ -10,6 +10,7 @@ const { dbAll, dbGet, enqueueRun, runInTransaction } = require('../db');
 const authMiddleware = require('../middleware/auth').required;
 const { hasBackendPermission } = require('../middleware/permission');
 const TimeUtil = require('../utils/time');
+const redisCache = require('../utils/redis-cache');
 
 // ========== 启动时自动创建表 ==========
 
@@ -99,17 +100,25 @@ router.get('/', authMiddleware, async (req, res) => {
     const recipientType = user.userType === 'coach' ? 'coach' : 'admin';
     const recipientId = user.userType === 'coach' ? user.coachNo : user.username;
 
+    const isReadFilter = req.query.is_read || '';
+    const typeFilter = req.query.type || '';
+
+    // 先查缓存
+    const cacheKey = `notif:list:${recipientType}:${recipientId}:${page}:${pageSize}:${isReadFilter}:${typeFilter}`;
+    const cached = await redisCache.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+
     // 🔴 2026-05-04: 新增 is_read 参数过滤
-    const isReadFilter = req.query.is_read;
     let isReadCondition = '';
     const queryParams = [recipientType, recipientId];
-    if (isReadFilter !== undefined) {
+    if (req.query.is_read !== undefined) {
       isReadCondition = ' AND nr.is_read = ?';
-      queryParams.push(parseInt(isReadFilter));
+      queryParams.push(parseInt(req.query.is_read));
     }
 
     // 可选：按通知类型过滤（逗号分隔，如 'system,invitation_reminder'）
-    const typeFilter = req.query.type;
     let typeCondition = '';
     if (typeFilter) {
       const types = typeFilter.split(',').map(t => t.trim()).filter(Boolean);
@@ -135,8 +144,8 @@ router.get('/', authMiddleware, async (req, res) => {
 
     // 查询总数
     const countParams = [recipientType, recipientId];
-    if (isReadFilter !== undefined) {
-      countParams.push(parseInt(isReadFilter));
+    if (req.query.is_read !== undefined) {
+      countParams.push(parseInt(req.query.is_read));
     }
     if (typeFilter) {
       const types = typeFilter.split(',').map(t => t.trim()).filter(Boolean);
@@ -151,7 +160,7 @@ router.get('/', authMiddleware, async (req, res) => {
       WHERE nr.recipient_type = ? AND nr.recipient_id = ?${isReadCondition}${typeCondition}
     `, countParams);
 
-    res.json({
+    const result = {
       success: true,
       data: {
         notifications: notifications.map(n => ({
@@ -168,7 +177,12 @@ router.get('/', authMiddleware, async (req, res) => {
         page,
         pageSize
       }
-    });
+    };
+
+    // 写入缓存（TTL 600秒）
+    await redisCache.set(cacheKey, result, 600);
+
+    res.json(result);
   } catch (err) {
     console.error('[Notifications] 获取列表失败:', err.message);
     res.status(500).json({ error: '服务器错误' });
@@ -184,9 +198,16 @@ router.get('/unread-count', authMiddleware, async (req, res) => {
     const user = req.user;
     const recipientType = user.userType === 'coach' ? 'coach' : 'admin';
     const recipientId = user.userType === 'coach' ? user.coachNo : user.username;
+    const typeFilter = req.query.type || '';
+
+    // 先查缓存
+    const cacheKey = `notif:unread:${recipientType}:${recipientId}:${typeFilter}`;
+    const cached = await redisCache.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
 
     // 可选：按通知类型过滤
-    const typeFilter = req.query.type;
     let typeCondition = '';
     const params = [recipientType, recipientId];
     if (typeFilter) {
@@ -205,12 +226,17 @@ router.get('/unread-count', authMiddleware, async (req, res) => {
       WHERE nr.recipient_type = ? AND nr.recipient_id = ? AND nr.is_read = 0${typeCondition}
     `, params);
 
-    res.json({
+    const result = {
       success: true,
       data: {
         unread_count: row.unread_count
       }
-    });
+    };
+
+    // 写入缓存（TTL 600秒）
+    await redisCache.set(cacheKey, result, 600);
+
+    res.json(result);
   } catch (err) {
     console.error('[Notifications] 获取未阅数量失败:', err.message);
     res.status(500).json({ error: '服务器错误' });
@@ -265,6 +291,10 @@ router.post('/:id/read', authMiddleware, async (req, res) => {
         `, [notificationId]);
       }
     });
+
+    // 清空该接收者的通知缓存（只在实际更新时才清，幂等返回不清）
+    await redisCache.del(`notif:unread:${recipientType}:${recipientId}:`);
+    await redisCache.del(`notif:list:${recipientType}:${recipientId}:`);
 
     res.json({ success: true, message: '已标记已阅' });
   } catch (err) {
@@ -389,6 +419,12 @@ router.post('/manage/send', authMiddleware, canManageNotification, async (req, r
 
       return nid;
     });
+
+    // 清空所有接收者的通知缓存
+    for (const r of finalRecipients) {
+      await redisCache.del(`notif:unread:${r.type}:${r.id}:`);
+      await redisCache.del(`notif:list:${r.type}:${r.id}:`);
+    }
 
     res.json({
       success: true,
@@ -642,8 +678,19 @@ router.delete('/manage/:id', authMiddleware, canManageNotification, async (req, 
       return res.status(404).json({ error: '通知不存在' });
     }
 
+    // 删除前先查出接收者列表（用于清缓存）
+    const recipients = await dbAll(`
+      SELECT recipient_type, recipient_id FROM notification_recipients WHERE notification_id = ?
+    `, [notificationId]);
+
     // 删除通知主记录（CASCADE 自动删除 recipients）
     await enqueueRun(`DELETE FROM notifications WHERE id = ?`, [notificationId]);
+
+    // 清空每个接收者的通知缓存
+    for (const r of recipients) {
+      await redisCache.del(`notif:unread:${r.recipient_type}:${r.recipient_id}:`);
+      await redisCache.del(`notif:list:${r.recipient_type}:${r.recipient_id}:`);
+    }
 
     res.json({ success: true, message: '删除成功' });
   } catch (err) {
@@ -699,6 +746,12 @@ async function sendSystemNotificationToAdmins(title, content, errorType) {
 
     return nid;
   });
+
+  // 清空每个管理员接收者的通知缓存
+  for (const admin of admins) {
+    await redisCache.del(`notif:unread:admin:${admin.username}:`);
+    await redisCache.del(`notif:list:admin:${admin.username}:`);
+  }
 
   console.log(`[SystemNotification] 发送系统通知(${errorType})给 ${admins.length} 位管理员, ID: ${notificationId}`);
   return { notificationId, recipientCount: admins.length };
