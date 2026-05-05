@@ -9,19 +9,7 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL
 
 // 生成设备指纹
-const getDeviceFingerprint = () => {
-  let fp = uni.getStorageSync('device_fp')
-  if (!fp) {
-    // 生成设备指纹：时间戳 + 随机数 + 平台信息
-    const info = uni.getSystemInfoSync()
-    const data = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${info.platform}_${info.model || ''}_${info.system || ''}`
-    fp = data.hashCode ? data.hashCode() : Buffer.from(data).toString('base64').substr(0, 16)
-    uni.setStorageSync('device_fp', fp)
-  }
-  return fp
-}
-
-// 简单的字符串哈希函数
+// 简单的字符串哈希函数（必须在 getDeviceFingerprint 之前定义）
 if (!String.prototype.hashCode) {
   String.prototype.hashCode = function() {
     let hash = 0
@@ -32,6 +20,22 @@ if (!String.prototype.hashCode) {
     }
     return Math.abs(hash).toString(16)
   }
+}
+
+// QA-20260505: 修复 H5 浏览器环境 Buffer 未定义导致登录失败
+// 浏览器没有 Node.js 的 Buffer API，必须确保 hashCode 可用，不能用 Buffer
+const getDeviceFingerprint = () => {
+  let fp = uni.getStorageSync('device_fp')
+  if (!fp) {
+    // 生成设备指纹：时间戳 + 随机数 + 平台信息
+    const info = uni.getSystemInfoSync()
+    const data = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${info.platform}_${info.model || ''}_${info.system || ''}`
+    // ✅ 直接使用 hashCode（已在上方定义到 String.prototype）
+    // ❌ 不使用 Buffer.from（浏览器环境不存在 Buffer）
+    fp = data.hashCode()
+    uni.setStorageSync('device_fp', fp)
+  }
+  return fp
 }
 
 // QA-20260504: 公共登出函数 - 清空所有登录相关的 Storage 数据
