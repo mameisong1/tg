@@ -415,6 +415,18 @@ const extremeIPLimiter = rateLimit({
 });
 app.use('/api/', extremeIPLimiter);
 
+// QA-20260505: 前端错误日志上报限流（无需鉴权，同一IP每分钟最多10条）
+// 必须去掉 authMiddleware，否则未登录用户报错时没有token，错误日志无法上报
+const frontendErrorLogLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  validate: { trustProxy: false },
+  keyGenerator: (req) => req.ip,
+  handler: (req, res) => {
+    res.status(429).json({ error: '错误上报太频繁' });
+  }
+});
+
 // 注册路由模块
 app.use('/api/applications', applicationsRouter);
 app.use('/api/guest-invitations', guestInvitationsRouter);
@@ -5966,7 +5978,7 @@ app.post('/api/admin/sound-failure-log', authMiddleware, requireBackendPermissio
 
 // 前端错误日志 API（支持自动收集 + 业务追踪）
 // 注意：移除权限限制，因为前端错误上报无需权限
-app.post('/api/admin/frontend-error-log', authMiddleware, async (req, res) => {
+app.post('/api/admin/frontend-error-log', frontendErrorLogLimiter, async (req, res) => {
   try {
     const { type, action, message, stack, route, url, userAgent, user, timestamp, ...rest } = req.body;
 
