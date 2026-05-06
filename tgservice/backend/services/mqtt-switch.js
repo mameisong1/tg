@@ -5,6 +5,11 @@
  * 生产环境：真实发送MQTT指令
  * 
  * 惰性连接，批量发送间隔100ms
+ * 
+ * 2026-05-06 优化：
+ * - 重连上限：连续失败20次后停止自动重连，防止日志风暴拖垮主服务
+ * - 日志降级：同类事件60秒内只输出一次，前3次每次都输出
+ * - 管理员通知：断连/恢复各通知一次，30分钟去重
  */
 
 const mqtt = require('mqtt');
@@ -26,6 +31,81 @@ const isTestEnv = (config.env?.name === 'test') || (env === 'test');
 
 let client = null;
 let connecting = false;
+
+// ========== 重连保护与日志降级 ==========
+
+const MAX_RECONNECT_ATTEMPTS = 20;        // 连续重连上限
+const NOTIFY_COOLDOWN_MS = 30 * 60 * 1000; // 通知冷却期：30分钟
+const LOG_COOLDOWN_MS = 60 * 1000;         // 日志冷却期：60秒
+
+let reconnectAttempts = 0;               // 连续重连失败次数
+let lastDisconnectNotifyTime = 0;        // 上次断连通知时间
+let lastReconnectNotifyTime = 0;         // 上次恢复通知时间
+let lastErrorLogTime = 0;                // 上次error日志时间
+let lastCloseLogTime = 0;                // 上次close日志时间
+let lastReconnectLogTime = 0;            // 上次reconnect日志时间
+let hasNotifiedDisconnect = false;        // 是否已发送过断连通知（用于恢复通知判断）
+
+/**
+ * 重置内部状态（用于模块重载或惰性重连时）
+ */
+function _resetState() {
+  reconnectAttempts = 0;
+  lastDisconnectNotifyTime = 0;
+  lastReconnectNotifyTime = 0;
+  lastErrorLogTime = 0;
+  lastCloseLogTime = 0;
+  lastReconnectLogTime = 0;
+  hasNotifiedDisconnect = false;
+}
+
+/**
+ * 发送管理员通知（带冷却去重）
+ */
+async function _notifyDisconnect() {
+  const now = Date.now();
+  if (now - lastDisconnectNotifyTime < NOTIFY_COOLDOWN_MS) {
+    return; // 冷却期内，跳过
+  }
+  lastDisconnectNotifyTime = now;
+  hasNotifiedDisconnect = true;
+  
+  try {
+    const { sendSystemNotificationToAdmins } = require('../routes/notifications');
+    await sendSystemNotificationToAdmins(
+      'MQTT开关服务断开',
+      '智能开关MQTT服务连接已断开，灯光控制暂时不可用。系统将自动尝试重连，连续失败超过上限后会暂停重连直到业务触发。',
+      'mqtt_switch_error'
+    );
+    console.log('[MQTT] 断连通知已发送给管理员');
+  } catch (err) {
+    console.error('[MQTT] 发送断连通知失败:', err.message);
+  }
+}
+
+async function _notifyReconnect() {
+  if (!hasNotifiedDisconnect) {
+    return; // 从未发送过断连通知，不需要发恢复通知
+  }
+  const now = Date.now();
+  if (now - lastReconnectNotifyTime < NOTIFY_COOLDOWN_MS) {
+    return; // 冷却期内，跳过
+  }
+  lastReconnectNotifyTime = now;
+  hasNotifiedDisconnect = false; // 恢复后重置
+  
+  try {
+    const { sendSystemNotificationToAdmins } = require('../routes/notifications');
+    await sendSystemNotificationToAdmins(
+      'MQTT开关服务恢复',
+      '智能开关MQTT服务已恢复连接，灯光控制功能正常。',
+      'mqtt_switch_error'
+    );
+    console.log('[MQTT] 恢复通知已发送给管理员');
+  } catch (err) {
+    console.error('[MQTT] 发送恢复通知失败:', err.message);
+  }
+}
 
 /**
  * 初始化 MQTT 连接（惰性初始化）
@@ -52,6 +132,8 @@ async function getClient() {
     return null;
   }
 
+  // 惰性重连：重新触发时重置计数
+  _resetState();
   connecting = true;
 
   return new Promise((resolve, reject) => {
@@ -61,27 +143,59 @@ async function getClient() {
       password: mqttConfig.password,
       clientId: `tgservice_switch_${Date.now()}`,
       clean: true,
-      connectTimeout: 10000
+      connectTimeout: 10000,
+      reconnectPeriod: 5000  // 从默认1秒改为5秒
     });
 
     client.on('connect', () => {
       connecting = false;
+      reconnectAttempts = 0; // 连接成功，重置计数
       console.log('[MQTT] 连接成功');
+      // 发送恢复通知
+      _notifyReconnect();
       resolve(client);
     });
 
     client.on('error', (err) => {
+      reconnectAttempts++;
       connecting = false;
-      console.error(`[MQTT] 连接失败: ${err.message}`);
+      
+      // 日志降级：前3次每次输出，之后60秒摘要一次
+      const now = Date.now();
+      if (reconnectAttempts <= 3 || now - lastErrorLogTime > LOG_COOLDOWN_MS) {
+        lastErrorLogTime = now;
+        console.error(`[MQTT] 连接失败(第${reconnectAttempts}次): ${err.message}`);
+      }
+      
+      // 重连上限保护：超过上限则停止自动重连
+      if (reconnectAttempts > MAX_RECONNECT_ATTEMPTS) {
+        console.error(`[MQTT] 连续重连失败超过上限(${MAX_RECONNECT_ATTEMPTS}次)，停止自动重连`);
+        client.end(true); // 强制断开，停止mqtt.js自动重连
+        client = null;
+        connecting = false;
+        // 发送断连通知
+        _notifyDisconnect();
+      }
+      
       reject(err);
     });
 
     client.on('close', () => {
-      console.log('[MQTT] 连接关闭');
+      // 日志降级：60秒内只输出一次
+      const now = Date.now();
+      if (now - lastCloseLogTime > LOG_COOLDOWN_MS || reconnectAttempts <= 3) {
+        lastCloseLogTime = now;
+        console.log('[MQTT] 连接关闭');
+      }
     });
 
     client.on('reconnect', () => {
-      console.log('[MQTT] 尝试重连...');
+      // 日志降级：60秒内只输出一次
+      const now = Date.now();
+      if (now - lastReconnectLogTime > LOG_COOLDOWN_MS || reconnectAttempts <= 3) {
+        lastReconnectLogTime = now;
+        console.log(`[MQTT] 尝试重连(第${reconnectAttempts}次)...`);
+      }
     });
 
     // 超时保护
@@ -235,5 +349,15 @@ module.exports = {
   executeScene,
   controlByLabel,
   controlByTable,
-  isTestEnv
+  isTestEnv,
+  // 测试用：导出内部状态用于验证
+  _resetState,
+  _getState: () => ({
+    reconnectAttempts,
+    lastDisconnectNotifyTime,
+    lastReconnectNotifyTime,
+    hasNotifiedDisconnect,
+    client,
+    connecting
+  })
 };
