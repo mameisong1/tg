@@ -44,6 +44,12 @@
         </view>
       </view>
       
+      <!-- 当日已审批人数提示 -->
+      <view class="day-count-notice" v-if="dayRestCount !== null && form.restDate">
+        <text class="day-count-icon">⚡</text>
+        <text class="day-count-text">当日已审批休息/请假人数为 {{ dayRestCount }} 人</text>
+      </view>
+      
       <!-- 备注 -->
       <view class="form-item">
         <text class="form-label">备注（选填）</text>
@@ -93,6 +99,7 @@ const myApplications = ref([])
 const monthCount = ref({ count: 0, limit: 4, remaining: 4 })
 const selectedMonthLabel = ref('本月已休息天数')
 
+const dayRestCount = ref(null)
 const form = ref({ restDate: '', remark: '' })
 const serverHour = ref(null)
 
@@ -160,6 +167,19 @@ function selectDate(value) {
   // 根据所选日期的月份重新获取配额
   const targetMonth = value.substring(0, 7)
   loadMonthCount(targetMonth)
+  // 获取当天已审批休息/请假人数
+  fetchDayCount(value)
+}
+
+const fetchDayCount = async (date) => {
+  try {
+    const countRes = await api.leaveCalendar.getDayCount(date)
+    if (countRes.success) {
+      dayRestCount.value = countRes.data.count
+    }
+  } catch (e) {
+    dayRestCount.value = null
+  }
 }
 
 const loadMonthCount = async (month = '') => {
@@ -307,4 +327,7 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .app-actions { margin-top: 8px; }
 .action-btn.cancel { height: 32px; background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
 .action-btn.cancel text { font-size: 12px; color: #e74c3c; }
+.day-count-notice { background: rgba(241,196,15,0.15); border-radius: 6px; padding: 6px 8px; margin: 8px 0; display: flex; align-items: center; gap: 4px; }
+.day-count-icon { font-size: 13px; }
+.day-count-text { font-size: 13px; color: #f1c40f; }
 </style>

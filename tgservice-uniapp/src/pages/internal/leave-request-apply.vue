@@ -51,6 +51,12 @@
         </view>
       </view>
       
+      <!-- 当日已审批人数提示 -->
+      <view class="day-count-notice" v-if="dayRestCount !== null && form.leaveDate">
+        <text class="day-count-icon">⚡</text>
+        <text class="day-count-text">当日已审批休息/请假人数为 {{ dayRestCount }} 人</text>
+      </view>
+      
       <!-- 请假理由 -->
       <view class="form-item">
         <text class="form-label">请假理由 <text class="required">*</text></text>
@@ -125,6 +131,7 @@ const showDatePicker = ref(false)
 const myApplications = ref([])
 
 
+const dayRestCount = ref(null)
 const form = ref({ leaveType: '', leaveDate: '', remark: '' })
 const serverHour = ref(null)
 
@@ -191,6 +198,19 @@ async function fetchServerHour() {
 function selectDate(value) {
   form.value.leaveDate = value
   showDatePicker.value = false
+  // 获取当天已审批休息/请假人数
+  fetchDayCount(value)
+}
+
+const fetchDayCount = async (date) => {
+  try {
+    const countRes = await api.leaveCalendar.getDayCount(date)
+    if (countRes.success) {
+      dayRestCount.value = countRes.data.count
+    }
+  } catch (e) {
+    dayRestCount.value = null
+  }
 }
 
 const previewImage = (idx) => {
@@ -356,6 +376,9 @@ const goBack = () => { const pages = getCurrentPages(); if (pages.length > 1) { 
 .app-actions { margin-top: 8px; }
 .action-btn.cancel { height: 32px; background: rgba(231,76,60,0.15); border: 1px solid rgba(231,76,60,0.3); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
 .action-btn.cancel text { font-size: 12px; color: #e74c3c; }
+.day-count-notice { background: rgba(241,196,15,0.15); border-radius: 6px; padding: 6px 8px; margin: 8px 0; display: flex; align-items: center; gap: 4px; }
+.day-count-icon { font-size: 13px; }
+.day-count-text { font-size: 13px; color: #f1c40f; }
 
 .upload-progress { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center; z-index: 1001; }
 .progress-content { text-align: center; }
